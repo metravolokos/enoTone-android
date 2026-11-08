@@ -20,10 +20,37 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Gradle 8.13
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.13'
+      - name: Gradle 8.13 (verified, fallback mirrors)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/gradle-install"
+          zip="$RUNNER_TEMP/gradle-8.13-bin.zip"
+          # Official Gradle 8.13 binary ZIP SHA-256: https://gradle.org/release-checksums/
+          expected="20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78"
+          urls=(
+            "https://downloads.gradle.org/distributions/gradle-8.13-bin.zip"
+            "https://services.gradle.org/distributions/gradle-8.13-bin.zip"
+            "https://mirrors.huaweicloud.com/gradle/gradle-8.13-bin.zip"
+          )
+          installed=false
+          for url in "${urls[@]}"; do
+            echo "Downloading Gradle distribution from ${url}"
+            if curl -fSL --retry 3 --retry-delay 5 --connect-timeout 15 --max-time 180 -o "$zip" "$url"; then
+              if printf '%s  %s\n' "$expected" "$zip" | sha256sum --check --status; then
+                installed=true
+                break
+              fi
+              echo "Checksum mismatch, refusing downloaded distribution"
+            fi
+            rm -f "$zip"
+          done
+          if [ "$installed" != true ]; then
+            echo "::error::Gradle 8.13 download/checksum failed on all mirrors"
+            exit 1
+          fi
+          unzip -q "$zip" -d "$RUNNER_TEMP/gradle-install"
+          echo "$RUNNER_TEMP/gradle-install/gradle-8.13/bin" >> "$GITHUB_PATH"
       - name: Install Android SDK 36
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
