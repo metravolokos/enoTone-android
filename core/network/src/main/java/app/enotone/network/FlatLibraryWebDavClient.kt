@@ -39,7 +39,6 @@ class FlatLibraryWebDavClient(
     private val client: HttpClient = HttpClient(CIO) {
         expectSuccess = false
         followRedirects = false
-        followSslRedirects = false
         install(HttpTimeout) {
             requestTimeoutMillis = 40_000
             connectTimeoutMillis = 10_000
