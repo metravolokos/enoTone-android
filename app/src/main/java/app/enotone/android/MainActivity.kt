@@ -71,6 +71,7 @@ private fun DiagnosticScreen() {
     val tagReport = stringResource(R.string.one_tag_report)
     val tagFailed = stringResource(R.string.one_tag_failed)
     val tagFailedDetail = stringResource(R.string.one_tag_failed_detail)
+    val tagRangeMismatch = stringResource(R.string.one_tag_range_mismatch)
     val tagMissing = stringResource(R.string.one_tag_missing)
     val missingCredentials = stringResource(R.string.missing_credentials)
     val diagnosticFailed = stringResource(R.string.diagnostic_failed)
@@ -283,6 +284,19 @@ private fun DiagnosticScreen() {
                         stats?.httpStatus?.toString() ?: "—",
                         stats?.requests ?: 0, stats?.downloadedBytes ?: 0L,
                     )
+                    // Numbers only: never put Content-Range raw header, path or ETag in UI.
+                    stats?.rangeMismatch?.let { mismatch ->
+                        report += " " + String.format(
+                            Locale.getDefault(), tagRangeMismatch,
+                            mismatch.kind.name,
+                            mismatch.expectedStart.toString(),
+                            mismatch.expectedEnd.toString(),
+                            mismatch.expectedTotal.toString(),
+                            mismatch.receivedStart?.toString() ?: "—",
+                            mismatch.receivedEnd?.toString() ?: "—",
+                            mismatch.receivedTotal?.toString() ?: "—",
+                        )
+                    }
                 } finally {
                     busy = false
                 }

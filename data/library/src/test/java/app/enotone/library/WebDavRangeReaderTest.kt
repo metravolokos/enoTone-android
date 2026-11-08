@@ -142,4 +142,48 @@ class WebDavRangeReaderTest {
             }
         } finally { server.shutdown() }
     }
+
+    @Test fun classifiesContentRangeDifferencesWithoutExposingRawHeaders() {
+        val cases = listOf(
+            "bytes 0-65534/110000" to ContentRangeMismatchKind.END,
+            "bytes 0-65535/110001" to ContentRangeMismatchKind.TOTAL,
+            "bytes 1-65535/110000" to ContentRangeMismatchKind.START,
+            "bytes 1-65536/110001" to ContentRangeMismatchKind.MULTIPLE,
+            "bytes 0-65535/*" to ContentRangeMismatchKind.FORMAT,
+            "bytes 0-65535/65535" to ContentRangeMismatchKind.INVALID_BOUNDS,
+        )
+        for ((header, expectedKind) in cases) {
+            val server = MockWebServer()
+            server.start()
+            try {
+                server.enqueue(MockResponse().setResponseCode(206)
+                    .addHeader("Content-Range", header)
+                    .setBody(Buffer().write(ByteArray(65536))))
+                reader(server).use { source ->
+                    try {
+                        source.readAt(0, ByteArray(1), 0, 1)
+                        fail("Unexpected successful Range for " + expectedKind)
+                    } catch (_: IOException) {
+                        val stats = source.stats()
+                        assertEquals(RangeReadIssue.BAD_CONTENT_RANGE, stats.issue)
+                        assertEquals(206, stats.httpStatus)
+                        assertEquals(1, stats.requests)
+                        assertEquals(0L, stats.downloadedBytes)
+                        val mismatch = stats.rangeMismatch!!
+                        assertEquals(expectedKind, mismatch.kind)
+                        assertEquals(0L, mismatch.expectedStart)
+                        assertEquals(65535L, mismatch.expectedEnd)
+                        assertEquals(110000L, mismatch.expectedTotal)
+                        // Only numbers and a fixed enum may be used in diagnostic output.
+                        assertFalse(mismatch.toString().contains("example.test"))
+                        assertFalse(mismatch.toString().contains("sample.mp3"))
+                    }
+                }
+                assertEquals(1, server.requestCount)
+            } finally {
+                server.shutdown()
+            }
+        }
+    }
+
 }
