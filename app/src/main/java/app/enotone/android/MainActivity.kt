@@ -1,6 +1,8 @@
 package app.enotone.android
 
 import android.os.Bundle
+import android.content.Context
+import androidx.room.Room
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -23,10 +25,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import app.enotone.database.EnoToneDatabase
+import app.enotone.library.LibrarySnapshotStore
 import app.enotone.network.FlatLibraryWebDavClient
 import app.enotone.network.FlatWebDavHttpError
 import app.enotone.network.WebDavDiagnostics
@@ -53,6 +58,10 @@ private fun DiagnosticScreen() {
     var report by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current.applicationContext
+    val importReport = stringResource(R.string.local_import_report)
+    val storedReport = stringResource(R.string.local_saved_report)
+    val localFailed = stringResource(R.string.local_store_failed)
     val missingCredentials = stringResource(R.string.missing_credentials)
     val diagnosticFailed = stringResource(R.string.diagnostic_failed)
     val countReport = stringResource(R.string.file_count_report)
@@ -134,6 +143,61 @@ private fun DiagnosticScreen() {
         }) {
             Text(stringResource(R.string.count_audio_files))
         }
+        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
+            busy = true
+            report = ""
+            scope.launch {
+                try {
+                    val result = withContext(Dispatchers.IO) {
+                        FlatLibraryWebDavClient().use { client ->
+                            val listing = client.list(email, password)
+                            val database = openLibraryDatabase(appContext)
+                            try {
+                                val store = LibrarySnapshotStore(database)
+                                val plan = store.save(email, listing)
+                                intArrayOf(listing.tracks.size, store.presentCount(email),
+                                    plan.inserted, plan.changed, plan.unchanged)
+                            } finally {
+                                database.close()
+                            }
+                        }
+                    }
+                    report = String.format(Locale.getDefault(), importReport,
+                        result[0], result[1], result[2], result[3], result[4])
+                } catch (e: FlatWebDavHttpError) {
+                    report = String.format(Locale.getDefault(), httpFailure, e.statusCode)
+                } catch (_: Exception) {
+                    report = localFailed
+                } finally {
+                    busy = false
+                }
+            }
+        }) {
+            Text(stringResource(R.string.save_local_library))
+        }
+        Button(enabled = !busy && email.isNotBlank(), onClick = {
+            busy = true
+            report = ""
+            scope.launch {
+                try {
+                    val saved = withContext(Dispatchers.IO) {
+                        val database = openLibraryDatabase(appContext)
+                        try {
+                            LibrarySnapshotStore(database).presentCount(email)
+                        } finally {
+                            database.close()
+                        }
+                    }
+                    report = String.format(Locale.getDefault(), storedReport, saved)
+                } catch (_: Exception) {
+                    report = localFailed
+                } finally {
+                    busy = false
+                }
+            }
+        }) {
+            Text(stringResource(R.string.read_local_library))
+        }
         if (report.isNotEmpty()) Text(report, style = MaterialTheme.typography.bodyMedium)
     }
 }
@@ -143,3 +207,10 @@ private fun DiagnosticScreen() {
 private fun DiagnosticScreenPreview() {
     MaterialTheme { DiagnosticScreen() }
 }
+
+private fun openLibraryDatabase(context: Context): EnoToneDatabase =
+    Room.databaseBuilder(
+        context.applicationContext,
+        EnoToneDatabase::class.java,
+        "enotone-local-library.db",
+    ).build()
