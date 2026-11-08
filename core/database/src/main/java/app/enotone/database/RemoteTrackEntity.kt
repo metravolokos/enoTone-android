@@ -27,4 +27,6 @@ data class RemoteTrackEntity(
     val albumArtist: String? = null,
     val lastSeenEpoch: Long,
     val missingScans: Int = 0,
+    /** Nullable checkpoint for the fast-parser outcome; preserved only for unchanged versions. */
+    val tagScanCode: String? = null,
 )

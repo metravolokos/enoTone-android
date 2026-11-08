@@ -24,24 +24,28 @@ class LibrarySnapshotPlannerTest {
 
     @Test fun identicalEtagPreservesTagsAndStableIdentity() {
         val first = LibrarySnapshotPlanner.plan(account, listing(listOf(audio("v1"))), emptyList(), 1)
-        val tagged = first.upserts.single().copy(title = "Private title", artist = "Private artist")
+        val tagged = first.upserts.single().copy(
+            title = "Private title", artist = "Private artist", tagScanCode = "FLAC_VORBIS")
         val second = LibrarySnapshotPlanner.plan(account, listing(listOf(audio("v1"))), listOf(tagged), 2)
         assertEquals(1, first.inserted)
         assertEquals(1, second.unchanged)
         assertEquals("Private title", second.upserts.single().title)
         assertEquals("Private artist", second.upserts.single().artist)
+        assertEquals("FLAC_VORBIS", second.upserts.single().tagScanCode)
         assertEquals(tagged.id, second.upserts.single().id)
         assertEquals(2L, second.upserts.single().lastSeenEpoch)
     }
 
     @Test fun changedEtagClearsTagsWithoutChangingId() {
         val old = LibrarySnapshotPlanner.plan(account, listing(listOf(audio("v1"))), emptyList(), 1)
-            .upserts.single().copy(title = "private title", album = "private album")
+            .upserts.single().copy(title = "private title", album = "private album",
+                tagScanCode = "FLAC_VORBIS")
         val updated = LibrarySnapshotPlanner.plan(account, listing(listOf(audio("v2"))), listOf(old), 2)
         assertEquals(1, updated.changed)
         assertEquals(old.id, updated.upserts.single().id)
         assertNull(updated.upserts.single().title)
         assertNull(updated.upserts.single().album)
+        assertNull(updated.upserts.single().tagScanCode)
     }
 
     @Test fun missingEtagUsesSizeAndModifiedOrMarksChanged() {
