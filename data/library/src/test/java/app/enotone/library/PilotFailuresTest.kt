@@ -41,6 +41,20 @@ class PilotFailuresTest {
         }
     }
 
+    @Test fun explicitMalformedAndOverBudgetParserResultsRemainVisible() {
+        val stats = RangeReadStats(1, 65536, httpStatus = 206)
+        val malformed = PilotFailures.fromParserResult(FastTagCode.INVALID_METADATA, stats)
+        assertEquals("FAILED_METADATA", malformed?.code)
+        assertEquals("INVALID_METADATA", malformed?.reason)
+        assertEquals("PARSER", malformed?.stage)
+        assertEquals(206, malformed?.httpStatus)
+        val budget = PilotFailures.fromParserResult(FastTagCode.FAST_BUDGET_EXCEEDED, stats)
+        assertEquals("FAILED_BUDGET", budget?.code)
+        assertEquals("FAST_BUDGET_EXCEEDED", budget?.reason)
+        assertEquals(null, PilotFailures.fromParserResult(FastTagCode.FLAC_VORBIS, stats))
+        assertEquals(null, PilotFailures.fromParserResult(FastTagCode.UNSUPPORTED_LAYOUT, stats))
+    }
+
     @Test fun transportAndParserFailuresUseOnlyFixedSafeCodes() {
         val network = PilotFailures.classify("PARSER",
             RangeReadStats(2, 65536, issue = RangeReadIssue.NETWORK))
