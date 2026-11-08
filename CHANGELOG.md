@@ -7,3 +7,6 @@
 
 ## M0 и ранний M1
 - PR #1–4 merged: WebDAV Cloud.Mail.ru на Huawei, 3590 аудиофайлов /AllMusic, 0 ошибок, GMS-free.
+
+- Huawei подтвердил чтение **3590** записей из приватной Room без нового обращения к облаку при нажатии диагностической кнопки.
+- Начат M1 audio tags: `AudioTagFields` (NFC, fallback только названия, тесты), системный `MediaMetadataRetriever` адаптер для будущего `MediaDataSource`. Ни массовое извлечение, ни WebDAV random access пока не реализованы (ADR-0017).
