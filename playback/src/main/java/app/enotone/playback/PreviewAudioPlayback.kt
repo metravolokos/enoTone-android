@@ -1,6 +1,9 @@
 package app.enotone.playback
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import androidx.media3.datasource.DataSource
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -11,12 +14,22 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.source.MediaSource
 
 /**
  * Media3 player used by private MediaSessionService with native playlist controls.
  * Uses a strict 206/Content-Range HTTP source without OkHttp/GMS runtime.
  * Credentials remain in memory and never appear in the audio URI or Room.
  */
+/** Numeric timings only; no track paths, URLs, credentials or tags. */
+data class PlaybackSetupTimings(
+    val queueMs: Long,
+    val routesAndCacheMs: Long,
+    val seedSourcesMs: Long,
+    val setSourcesMs: Long,
+    val prepareAndPlayMs: Long,
+)
+
 @OptIn(UnstableApi::class)
 class PreviewAudioPlayback(
     context: Context,
@@ -27,7 +40,77 @@ class PreviewAudioPlayback(
     private var cacheEnabledForQueue = false
     private var activeRoutes: Map<String, QueueTrack> = emptyMap()
     private var upstreamFactory: DataSource.Factory? = null
-    private val cacheHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val cacheHandler = Handler(Looper.getMainLooper())
+    private var pendingPlaylist: StagedPlaylistPlan? = null
+    private var pendingMediaFactory: ProgressiveMediaSource.Factory? = null
+    private var scheduledPlaylistFill: Runnable? = null
+    private var expectedQueueSize = 0
+    private var mediaIdIndices: Map<String, Int> = emptyMap()
+    private var latestSetup = PlaybackSetupTimings(0L, 0L, 0L, 0L, 0L)
+
+    val logicalQueueSize: Int get() = expectedQueueSize
+    val logicalQueuePosition: Int get() {
+        val id = player.currentMediaItem?.mediaId
+        return mediaIdIndices[id] ?: 0
+    }
+    val loadedQueueSize: Int get() =
+        pendingPlaylist?.loadedCount ?: player.mediaItemCount
+    fun setupTimings(): PlaybackSetupTimings = latestSetup
+
+    private fun cancelPlaylistFill() {
+        scheduledPlaylistFill?.let(cacheHandler::removeCallbacks)
+        scheduledPlaylistFill = null
+        pendingPlaylist = null
+        pendingMediaFactory = null
+    }
+
+    /** Build a bounded portion of the full Media3 timeline after first READY. */
+    private fun stagePlaylistAfterReady() {
+        val plan = pendingPlaylist ?: return
+        val factory = pendingMediaFactory ?: return
+        if (scheduledPlaylistFill != null || player.playbackState != Player.STATE_READY) return
+        val task = Runnable {
+            scheduledPlaylistFill = null
+            if (pendingPlaylist !== plan || player.playbackState != Player.STATE_READY) {
+                return@Runnable
+            }
+            val chunk = plan.nextChunk() ?: run {
+                pendingPlaylist = null
+                pendingMediaFactory = null
+                return@Runnable
+            }
+            try {
+                val sources = chunk.items.map { makeMediaSource(factory, it) }
+                if (chunk.prepend) player.addMediaSources(0, sources)
+                else player.addMediaSources(sources)
+            } catch (_: Exception) {
+                // Never expose file metadata in errors. Current audio keeps playing
+                // even if an optional later chunk could not be added.
+                pendingPlaylist = null
+                pendingMediaFactory = null
+                return@Runnable
+            }
+            if (plan.isComplete) {
+                pendingPlaylist = null
+                pendingMediaFactory = null
+            } else stagePlaylistAfterReady()
+        }
+        scheduledPlaylistFill = task
+        cacheHandler.postDelayed(task, 35L)
+    }
+
+    private fun makeMediaSource(
+        factory: ProgressiveMediaSource.Factory,
+        item: QueueTrack,
+    ): MediaSource = factory.createMediaSource(
+        MediaItem.Builder()
+            .setMediaId(item.id)
+            .setUri(WebDavPlaybackTarget.url(item.encodedPath))
+            .setCustomCacheKey(TransientCachePolicy.key(item))
+            .setMediaMetadata(MediaMetadata.Builder().setTitle(item.title).build())
+            .build(),
+    )
+
     private data class PendingCache(
         val mediaId: String,
         val key: String,
@@ -90,9 +173,12 @@ class PreviewAudioPlayback(
         override fun onPlaybackStateChanged(state: Int) {
             if (state == Player.STATE_READY) {
                 scheduleAfterFirstBuffer()
+                stagePlaylistAfterReady()
             } else if (state == Player.STATE_BUFFERING) {
-                // A rebuffering stream takes priority over full-track download.
+                // A rebuffering stream takes priority over both background jobs.
                 clearScheduledWriter()
+                scheduledPlaylistFill?.let(cacheHandler::removeCallbacks)
+                scheduledPlaylistFill = null
             }
         }
     }
@@ -126,12 +212,15 @@ class PreviewAudioPlayback(
         selectedId: String,
         useTemporaryCache: Boolean,
     ) {
-        // Keep the #94 playback transport available unchanged for A/B testing.
         clearScheduledWriter()
+        cancelPlaylistFill()
         pendingCache = null
         temporaryCache?.stopCurrent()
         cacheEnabledForQueue = useTemporaryCache
+
+        val t0 = SystemClock.elapsedRealtime()
         val queue = PlaybackQueue.create(tracks, selectedId)
+        val t1 = SystemClock.elapsedRealtime()
         val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
         val sourceFactory = if (useTemporaryCache) {
             val diskCache = temporaryCache ?: TransientMediaCache(applicationContext)
@@ -139,23 +228,32 @@ class PreviewAudioPlayback(
             diskCache.forPlayback(factory)
         } else factory
         val mediaFactory = ProgressiveMediaSource.Factory(sourceFactory)
-        // Route mapping is ready before setMediaSources raises the transition.
+        val t2 = SystemClock.elapsedRealtime()
+
         activeRoutes = if (useTemporaryCache) queue.items.associateBy { it.id }
             else emptyMap()
         upstreamFactory = if (useTemporaryCache) factory else null
-        val sources = queue.items.map { item ->
-            mediaFactory.createMediaSource(
-                MediaItem.Builder()
-                    .setMediaId(item.id)
-                    .setUri(WebDavPlaybackTarget.url(item.encodedPath))
-                    .setCustomCacheKey(TransientCachePolicy.key(item))
-                    .setMediaMetadata(
-                        MediaMetadata.Builder().setTitle(item.title).build())
-                    .build())
-        }
-        player.setMediaSources(sources, queue.position, C.TIME_UNSET)
+        expectedQueueSize = queue.size
+        mediaIdIndices = queue.items.mapIndexed { index, item -> item.id to index }.toMap()
+        val plan = StagedPlaylistPlan.create(queue)
+        // Only five sources at most are materialized before first sound.
+        val firstSources = plan.seed.map { makeMediaSource(mediaFactory, it) }
+        val t3 = SystemClock.elapsedRealtime()
+
+        pendingPlaylist = if (plan.isComplete) null else plan
+        pendingMediaFactory = if (plan.isComplete) null else mediaFactory
+        player.setMediaSources(firstSources, plan.seedSelectedIndex, C.TIME_UNSET)
+        val t4 = SystemClock.elapsedRealtime()
         player.prepare()
         player.play()
+        val t5 = SystemClock.elapsedRealtime()
+        latestSetup = PlaybackSetupTimings(
+            queueMs = t1 - t0,
+            routesAndCacheMs = t2 - t1,
+            seedSourcesMs = t3 - t2,
+            setSourcesMs = t4 - t3,
+            prepareAndPlayMs = t5 - t4,
+        )
     }
 
     fun pause() = player.pause()
@@ -164,6 +262,9 @@ class PreviewAudioPlayback(
 
     fun stop() {
         clearScheduledWriter()
+        cancelPlaylistFill()
+        expectedQueueSize = 0
+        mediaIdIndices = emptyMap()
         pendingCache = null
         temporaryCache?.stopCurrent()
         cacheEnabledForQueue = false
