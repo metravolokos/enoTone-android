@@ -76,4 +76,8 @@
     <string name="playback_startup_timing">Диагностика, мс: Room %1$s · Media3 %2$s · BUFFERING от нажатия %3$s · READY %4$s · звук %5$s</string>
     <string name="playback_setup_breakdown">Этапы Media3, мс: очередь %1$d · URL/кэш %2$d · первые треки %3$d · установить %4$d · старт %5$d</string>
     <string name="playback_queue_staging">Подготовлено в Media3: %1$d из %2$d треков (это не загрузка аудио)</string>
+    <string name="playback_next_cache_downloading">Следующий трек: предзагрузка %1$d / %2$d КиБ</string>
+    <string name="playback_next_cache_complete">Следующий трек полностью загружен заранее</string>
+    <string name="playback_next_cache_skipped">Предзагрузка следующего пропущена: размер или место</string>
+    <string name="playback_next_cache_failed">Предзагрузка следующего не завершена; потоковое воспроизведение доступно</string>
 </resources>
