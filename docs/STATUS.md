@@ -8,7 +8,7 @@
 - Экран диагностики WebDAV: root и /AllMusic PROPFIND, опциональные Depth infinity и Range GET, пароли только в RAM, обезличенный результат.
 - Mock WebDAV (Python и MockWebServer/JUnit), CI build+lint+tests+запрет GMS.
 - GitHub Actions run 42462612361: **Android debug build, unit tests, lint и Python tests прошли**, но итоговый APK **не прошёл** GMS gate: в classes.dex обнаружен маркер com.google.android.gms. Runtime dependency graph без срабатывания; причина в APK требует расследования.
-- CI run 42463446577: debug-R8 не убрал GMS-маркер. Выявлена необязательная строка `com.google.android.gms.org.conscrypt` в OkHttp TLS DeferredSocketAdapter. По ADR-0013 испытывается Ktor CIO только для M0; результат CI на новом HEAD пока НЕ подтверждён.
+- CI run 42463446577: debug-R8 не убрал GMS-маркер. Выявлена необязательная строка `com.google.android.gms.org.conscrypt` в OkHttp TLS DeferredSocketAdapter. По ADR-0013 испытывается Ktor CIO только для M0; CI #8 не прошёл до компиляции: Maven Central перенаправил Kotlin compiler 2.3.10 на GitHub, где вернулся HTTP 504. Для следующего CI добавлена строго проверяемая по SHA-256 резервная загрузка этого JAR. Результат нового HEAD пока НЕ подтверждён.
 
 ## Не готово
 - Зелёный CI и пригодный для установки APK пока НЕ подтверждены.

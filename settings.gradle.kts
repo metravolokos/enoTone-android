@@ -8,6 +8,15 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // Only in CI: verified Kotlin compiler jar preloaded to avoid a Maven CDN 504.
+        // All unrelated modules continue to resolve from Google / Maven Central.
+        val compilerMirror = System.getenv("ENOTONE_CI_COMPILER_MIRROR")
+        if (!compilerMirror.isNullOrBlank()) {
+            maven {
+                url = uri(compilerMirror)
+                content { includeModule("org.jetbrains.kotlin", "kotlin-compiler-embeddable") }
+            }
+        }
         google()
         mavenCentral()
     }

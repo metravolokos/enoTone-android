@@ -57,6 +57,45 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Verified Kotlin compiler 2.3.10 (Maven Central CDN fallback)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="org/jetbrains/kotlin/kotlin-compiler-embeddable/2.3.10"
+          dir="$RUNNER_TEMP/enotone-ci-maven/$base"
+          mkdir -p "$dir"
+          jar="kotlin-compiler-embeddable-2.3.10.jar"
+          pom="kotlin-compiler-embeddable-2.3.10.pom"
+          # SHA-256 from JetBrains/kotlin gradle/verification-metadata.xml.
+          expected="ac6a182785345380b5db5085dbeea3f5f0e925e2e100e54ab059b5787d4f6e40"
+          urls=(
+            "https://mirrors.huaweicloud.com/repository/maven"
+            "https://artifacts-oss.talend.com/nexus/content/repositories/public"
+            "https://repo.maven.apache.org/maven2"
+          )
+          verified=false
+          for url in "${urls[@]}"; do
+            if curl -fSL --retry 2 --retry-delay 4 --connect-timeout 15 --max-time 180 \
+              -o "$dir/$jar" "$url/$base/$jar"; then
+              if printf '%s  %s\n' "$expected" "$dir/$jar" | sha256sum --check --status; then
+                verified=true
+                break
+              fi
+              echo "Kotlin compiler checksum mismatch from $url"
+            fi
+            rm -f "$dir/$jar"
+          done
+          if [ "$verified" != true ]; then
+            echo "::error::Cannot obtain verified Kotlin compiler 2.3.10"
+            exit 1
+          fi
+          # Fetch the small Maven POM from the canonical endpoint; fallback for availability only.
+          if ! curl -fSL --retry 2 --retry-delay 4 --connect-timeout 15 --max-time 30 \
+            -o "$dir/$pom" "https://repo.maven.apache.org/maven2/$base/$pom"; then
+            curl -fSL --retry 2 --retry-delay 4 --connect-timeout 15 --max-time 30 \
+              -o "$dir/$pom" "https://mirrors.huaweicloud.com/repository/maven/$base/$pom"
+          fi
+          echo "ENOTONE_CI_COMPILER_MIRROR=$RUNNER_TEMP/enotone-ci-maven" >> "$GITHUB_ENV"
       - name: Mock WebDAV tests
         run: python3 -m unittest discover -s tools -p 'test_*.py' -v
       - name: Build, JUnit and Lint
