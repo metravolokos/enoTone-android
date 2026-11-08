@@ -12,7 +12,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 
 /**
- * One-track, foreground-only Media3 proof-of-playback; no media service yet.
+ * Media3 player used by private MediaSessionService with native playlist controls.
  * Uses a strict 206/Content-Range HTTP source without OkHttp/GMS runtime.
  * Credentials remain in memory and never appear in the audio URI or Room.
  */
@@ -33,26 +33,31 @@ class PreviewAudioPlayback(
             repeatMode = Player.REPEAT_MODE_OFF
         }
 
-    fun play(
+    /**
+     * Give Media3 the real local playlist, so Android notification and Bluetooth
+     * use standard seekToNext/Previous media-item commands, not custom actions.
+     * Only Media3 decides which selected item to open, and each open is checked
+     * by WebDavMedia3DataSource against its own saved size and ETag.
+     */
+    fun playQueue(
         email: String,
         appPassword: String,
-        encodedPath: String,
-        remoteSize: Long,
-        remoteEtag: String?,
-        title: String,
+        tracks: List<QueueTrack>,
+        selectedId: String,
     ) {
-        require(email.contains('@') && appPassword.isNotBlank()) {
-            "Playback credentials required"
+        val queue = PlaybackQueue.create(tracks, selectedId)
+        val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
+        val mediaFactory = ProgressiveMediaSource.Factory(factory)
+        val sources = queue.items.map { item ->
+            mediaFactory.createMediaSource(
+                MediaItem.Builder()
+                    .setMediaId(item.id)
+                    .setUri(WebDavPlaybackTarget.url(item.encodedPath))
+                    .setMediaMetadata(
+                        MediaMetadata.Builder().setTitle(item.title).build())
+                    .build())
         }
-        val safeUrl = WebDavPlaybackTarget.url(encodedPath)
-        val factory = WebDavMedia3DataSource.Factory(
-            email, appPassword, remoteSize, remoteEtag)
-        val source = ProgressiveMediaSource.Factory(factory)
-            .createMediaSource(MediaItem.Builder()
-                .setUri(safeUrl)
-                .setMediaMetadata(MediaMetadata.Builder().setTitle(title).build())
-                .build())
-        player.setMediaSource(source)
+        player.setMediaSources(sources, queue.position, C.TIME_UNSET)
         player.prepare()
         player.play()
     }
