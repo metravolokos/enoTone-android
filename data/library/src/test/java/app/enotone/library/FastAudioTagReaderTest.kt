@@ -206,7 +206,7 @@ class FastAudioTagReaderTest {
                 assertEquals(FastTagCode.FLAC_VORBIS, r.code)
                 assertEquals("Demo", r.tags?.title)
                 assertEquals(2, source.stats().requests)
-                assertEquals(131072L, source.stats().downloadedBytes)
+                assertEquals(65536L + (fixture.size - 262144L), source.stats().downloadedBytes)
             }
             assertEquals(2, server.requestCount)
         } finally {
