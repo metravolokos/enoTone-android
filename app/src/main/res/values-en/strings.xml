@@ -46,7 +46,7 @@
     <string name="library_loading">Reading local library…</string>
     <string name="library_failed">Unable to read local library.</string>
     <string name="library_empty">No tracks yet. First save the /AllMusic file list on this device.</string>
-    <string name="playback_hint">Tap a track to test playback. Cloud.Mail.ru password is required. Audio plays only while the app is open.</string>
+    <string name="playback_hint">Tap a track to play. Cloud.Mail.ru app password is required. Music continues in the background; control it from the media notification.</string>
     <string name="playback_loading">Connecting to track…</string>
     <string name="playback_buffering">Buffering…</string>
     <string name="playback_playing">Playing</string>

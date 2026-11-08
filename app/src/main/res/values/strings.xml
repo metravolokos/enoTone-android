@@ -46,7 +46,7 @@
     <string name="library_loading">Читаем локальную медиатеку…</string>
     <string name="library_failed">Не удалось прочитать локальную медиатеку.</string>
     <string name="library_empty">Здесь пока пусто. Сначала сохраните список /AllMusic на устройстве.</string>
-    <string name="playback_hint">Нажмите на трек для пробного воспроизведения. Для прослушивания нужен пароль Cloud.Mail.ru. Проигрыватель работает только при открытом приложении.</string>
+    <string name="playback_hint">Нажмите на трек для воспроизведения. Нужен пароль приложения Cloud.Mail.ru. Музыка продолжит играть при сворачивании; управление доступно в уведомлении.</string>
     <string name="playback_loading">Подключение к треку…</string>
     <string name="playback_buffering">Буферизация…</string>
     <string name="playback_playing">Воспроизведение</string>

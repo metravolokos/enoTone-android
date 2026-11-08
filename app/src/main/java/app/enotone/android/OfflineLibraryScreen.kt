@@ -1,5 +1,10 @@
 package app.enotone.android
 
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.ServiceConnection
+import android.os.IBinder
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,24 +32,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
-import app.enotone.playback.PreviewAudioPlayback
+import app.enotone.playback.EnoTonePlaybackService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * M2 offline catalogue + M3 one-track foreground playback experiment.
- * The track list never calls WebDAV. Only tapping a track with RAM credentials
- * triggers a selected audio stream; no background service or persistent cache.
+ * M2 offline catalogue + M3 one-track MediaSessionService playback.
+ * The track list stays local. A tap with RAM-only credentials starts a single
+ * stream hosted by the service, which may continue after the screen closes.
  */
 @Composable
 internal fun OfflineLibraryScreen(
@@ -53,7 +55,6 @@ internal fun OfflineLibraryScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
-    val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     var tracks by remember(accountEmail) { mutableStateOf<List<OfflineTrackRow>>(emptyList()) }
     var search by remember(accountEmail) { mutableStateOf("") }
@@ -63,9 +64,7 @@ internal fun OfflineLibraryScreen(
     var selectedTitle by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf("IDLE") }
     var errorCode by remember { mutableStateOf(0) }
-    var playback by remember(accountEmail, appPassword) {
-        mutableStateOf<PreviewAudioPlayback?>(null)
-    }
+    var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
 
     LaunchedEffect(accountEmail) {
         loading = true
@@ -90,9 +89,36 @@ internal fun OfflineLibraryScreen(
         }
     }
 
-    // Own the player only for this screen. Pause as soon as the activity goes
-    // to background: a proper MediaSessionService is still an M3 task.
-    DisposableEffect(playback, lifecycleOwner) {
+    // Binding does not start a new stream. Unbinding the UI leaves ongoing
+    // playback in the MediaSessionService and its notification.
+    DisposableEffect(context) {
+        val connection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                playback = (binder as? EnoTonePlaybackService.LocalBinder)?.service()
+            }
+            override fun onServiceDisconnected(name: ComponentName?) {
+                playback = null
+            }
+        }
+        var bound = false
+        try {
+            bound = context.bindService(
+                Intent(context, EnoTonePlaybackService::class.java)
+                    .setAction(EnoTonePlaybackService.ACTION_LOCAL_BIND),
+                connection,
+                Context.BIND_AUTO_CREATE,
+            )
+        } catch (_: Exception) {
+            playbackState = "ERROR"
+            errorCode = 0
+        }
+        onDispose {
+            if (bound) context.unbindService(connection)
+            playback = null
+        }
+    }
+
+    DisposableEffect(playback) {
         val active = playback
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
@@ -107,23 +133,16 @@ internal fun OfflineLibraryScreen(
                 playbackState = if (isPlaying) "PLAYING" else "PAUSED"
             }
             override fun onPlayerError(error: PlaybackException) {
-                // Only the numeric Media3 error code; never leak URL / headers / messages.
                 errorCode = error.errorCode
                 playbackState = "ERROR"
             }
         }
         active?.player?.addListener(listener)
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
-                active?.pause()
-            }
+        if (active != null) {
+            selectedTitle = active.player.currentMediaItem?.mediaMetadata?.title?.toString()
+            if (active.player.isPlaying) playbackState = "PLAYING"
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            active?.player?.removeListener(listener)
-            active?.close()
-        }
+        onDispose { active?.player?.removeListener(listener) }
     }
 
     val visible = remember(tracks, search) { OfflineTrackCatalog.search(tracks, search) }
@@ -171,7 +190,7 @@ internal fun OfflineLibraryScreen(
                     Text(stringResource(R.string.playback_resume))
                 }
                 Button(enabled = playback != null && !selecting,
-                    onClick = { playback?.stop(); playbackState = "ENDED" }) {
+                    onClick = { playback?.stopPlayback(); playbackState = "ENDED" }) {
                     Text(stringResource(R.string.playback_stop))
                 }
             }
@@ -187,7 +206,7 @@ internal fun OfflineLibraryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(visible, key = { it.id }) { track ->
-                    Column(modifier = Modifier.fillMaxWidth().clickable(enabled = !selecting) {
+                    Column(modifier = Modifier.fillMaxWidth().clickable(enabled = !selecting && playback != null) {
                         selectedTitle = track.title
                         if (appPassword.isBlank()) {
                             playbackState = "MISSING_PASSWORD"
@@ -210,10 +229,9 @@ internal fun OfflineLibraryScreen(
                                 if (selected == null || remoteSize == null) {
                                     playbackState = "MISSING_TRACK"
                                 } else {
-                                    val audio = playback ?: PreviewAudioPlayback(
-                                        context, accountEmail, appPassword).also { playback = it }
-                                    audio.play(selected.encodedPath, remoteSize,
-                                        selected.remoteEtag)
+                                    playback?.play(accountEmail, appPassword,
+                                        selected.encodedPath, remoteSize,
+                                        selected.remoteEtag, track.title)
                                 }
                             } catch (cancelled: CancellationException) {
                                 throw cancelled
