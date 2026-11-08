@@ -38,6 +38,30 @@ jobs:
         run: gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath > dependencies.txt
       - name: Check GMS-free dependencies and APK
         run: python3 tools/check_no_gms.py dependencies.txt app/build/outputs/apk/debug/app-debug.apk
+      - name: Inspect blocked APK GMS markers (does not waive gate)
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+
+          apk = Path("app/build/outputs/apk/debug/app-debug.apk")
+          if not apk.is_file():
+              print("APK not built; nothing to inspect")
+          else:
+              with zipfile.ZipFile(apk) as archive:
+                  for name in archive.namelist():
+                      if not name.endswith(".dex"):
+                          continue
+                      raw = archive.read(name)
+                      for marker in (b"com.google.android.gms", b"com/google/android/gms"):
+                          pos = raw.find(marker)
+                          if pos < 0:
+                              continue
+                          context = raw[max(0, pos - 96):pos + len(marker) + 96]
+                          print(f"{name}: marker {marker!r} at offset {pos}")
+                          print("DEX nearby ASCII:", "".join(chr(x) if 32 <= x <= 126 else "." for x in context))
+          PY
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         if: success()
@@ -45,3 +69,10 @@ jobs:
           name: enotone-m0-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Upload blocked diagnostic APK (not approved for installation)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enotone-m0-blocked-diagnostic-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: ignore
