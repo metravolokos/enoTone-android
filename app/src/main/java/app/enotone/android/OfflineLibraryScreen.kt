@@ -206,12 +206,13 @@ internal fun OfflineLibraryScreen(
                                         db.close()
                                     }
                                 }
-                                if (selected == null || selected.remoteSize == null) {
+                                val remoteSize = selected?.remoteSize
+                                if (selected == null || remoteSize == null) {
                                     playbackState = "MISSING_TRACK"
                                 } else {
                                     val audio = playback ?: PreviewAudioPlayback(
                                         context, accountEmail, appPassword).also { playback = it }
-                                    audio.play(selected.encodedPath, selected.remoteSize,
+                                    audio.play(selected.encodedPath, remoteSize,
                                         selected.remoteEtag)
                                 }
                             } catch (cancelled: CancellationException) {
