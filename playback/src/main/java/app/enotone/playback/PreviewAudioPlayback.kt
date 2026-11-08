@@ -60,9 +60,16 @@ class PreviewAudioPlayback(
             val preparedNext = mediaItem != null &&
                 mediaItem.mediaId == scheduledNextId &&
                 temporaryCache?.nextSnapshot()?.phase == CachePhase.COMPLETE
+            val nowMs = SystemClock.elapsedRealtime()
             handoffTracker.onItemChanged(
                 reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
-                preparedNext, SystemClock.elapsedRealtime())
+                preparedNext, nowMs)
+            // Media3 can advance to an already prepared item without emitting
+            // another READY / isPlaying change, so sample current state here.
+            if (player.playbackState == Player.STATE_READY) {
+                handoffTracker.onReady(nowMs)
+                if (player.isPlaying) handoffTracker.onPlaying(nowMs)
+            }
         }
         override fun onPlaybackStateChanged(state: Int) {
             when (state) {
