@@ -38,4 +38,12 @@
     <string name="pilot_failed">Пилот не завершён. Сохранённые ранее записи остаются в Room. Учётные данные и пути не выводятся.</string>
     <string name="pilot_report">Пилот — лимит %1$d файлов; обработано: %2$d; с тегами: %3$d; без тегов/неподдерживаемые: %4$d; временные ошибки: %5$d; изменившиеся записи: %6$d; HTTP GET: %7$d; загружено байт: %8$d; ожидают обработки/повтора: %9$d; завершение: %10$s; постоянные ошибки: %11$d. Прогресс сохраняется в Room после каждого файла; личные данные не выводятся.</string>
     <string name="pilot_failure_detail">Последний сбой: этап %1$s; причина %2$s; HTTP %3$s. Имя файла, путь и учётные данные не выводятся.</string>
+    <string name="library_open">Открыть медиатеку (без сети)</string>
+    <string name="library_back">Назад</string>
+    <string name="library_title">Треки</string>
+    <string name="library_search">Поиск по трекам, исполнителям, альбомам</string>
+    <string name="library_count">Показано %1$d из %2$d треков</string>
+    <string name="library_loading">Читаем локальную медиатеку…</string>
+    <string name="library_failed">Не удалось прочитать локальную медиатеку.</string>
+    <string name="library_empty">Здесь пока пусто. Сначала сохраните список /AllMusic на устройстве.</string>
 </resources>
