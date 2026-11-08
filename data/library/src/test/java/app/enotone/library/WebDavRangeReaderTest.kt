@@ -149,7 +149,8 @@ class WebDavRangeReaderTest {
             "bytes 0-65535/110001" to ContentRangeMismatchKind.TOTAL,
             "bytes 1-65535/110000" to ContentRangeMismatchKind.START,
             "bytes 1-65536/110001" to ContentRangeMismatchKind.MULTIPLE,
-            "bytes 0-65535/*" to ContentRangeMismatchKind.FORMAT,
+            "bytes=0-65535/110000" to ContentRangeMismatchKind.FORMAT_EQUALS_SEPARATOR,
+            "items 0-65535/110000" to ContentRangeMismatchKind.FORMAT_UNEXPECTED_UNIT,
             "bytes 0-65535/65535" to ContentRangeMismatchKind.INVALID_BOUNDS,
         )
         for ((header, expectedKind) in cases) {
@@ -184,6 +185,56 @@ class WebDavRangeReaderTest {
                 server.shutdown()
             }
         }
+    }
+
+
+    @Test fun acceptsRfc9110UnknownTotalOnlyWithExactBoundaries() {
+        val server = MockWebServer()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(req: RecordedRequest): MockResponse {
+                val match = Regex("""bytes=(\\d+)-(\\d+)""")
+                    .matchEntire(req.getHeader("Range")!!)!!
+                val start = match.groupValues[1].toInt()
+                val end = match.groupValues[2].toInt()
+                return MockResponse().setResponseCode(206)
+                    .addHeader("Content-Range", "bytes $start-$end/*")
+                    .addHeader("ETag", "\\"v1\\"")
+                    .setBody(Buffer().write(payload, start, end - start + 1))
+            }
+        }
+        server.start()
+        try {
+            reader(server).use { source ->
+                val out = ByteArray(4)
+                assertEquals(4, source.readAt(0, out, 0, 4))
+                assertArrayEquals(payload.copyOfRange(0, 4), out)
+                assertEquals(4, source.readAt(65536L, out, 0, 4))
+                assertEquals(2, source.stats().unknownTotalResponses)
+                assertEquals(2, source.stats().requests)
+                assertEquals(110000L, source.stats().downloadedBytes)
+            }
+            assertEquals(2, server.requestCount)
+        } finally { server.shutdown() }
+    }
+
+    @Test fun rejectsWildcardTotalIfActualEndIsWrong() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(MockResponse().setResponseCode(206)
+                .addHeader("Content-Range", "bytes 0-65534/*")
+                .setBody(Buffer().write(payload, 0, 65535)))
+            reader(server).use { source ->
+                try {
+                    source.readAt(0, ByteArray(1), 0, 1)
+                    fail("Wrong range must be rejected even with wildcard total")
+                } catch (_: IOException) {
+                    assertEquals(RangeReadIssue.BAD_CONTENT_RANGE, source.stats().issue)
+                    assertEquals(ContentRangeMismatchKind.END, source.stats().rangeMismatch?.kind)
+                    assertEquals(0L, source.stats().downloadedBytes)
+                }
+            }
+        } finally { server.shutdown() }
     }
 
 }

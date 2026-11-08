@@ -15,7 +15,10 @@ enum class RangeReadIssue {
 }
 
 /** Classification of an unexpected Content-Range, never an untrusted header value. */
-enum class ContentRangeMismatchKind { FORMAT, START, END, TOTAL, MULTIPLE, INVALID_BOUNDS }
+enum class ContentRangeMismatchKind {
+    FORMAT, FORMAT_EQUALS_SEPARATOR, FORMAT_UNEXPECTED_UNIT,
+    START, END, TOTAL, MULTIPLE, INVALID_BOUNDS,
+}
 
 /** Only numeric metadata; no raw URLs, paths, headers, ETags or file names. */
 data class ContentRangeMismatch(
@@ -34,6 +37,7 @@ data class RangeReadStats(
     val httpStatus: Int? = null,
     val issue: RangeReadIssue? = null,
     val rangeMismatch: ContentRangeMismatch? = null,
+    val unknownTotalResponses: Int = 0,
 )
 
 /** For ONE manually requested track; never a playback transport. 64 KiB RAM block,
@@ -62,6 +66,7 @@ class WebDavRangeReader(
     private var lastHttpStatus: Int? = null
     private var lastIssue: RangeReadIssue? = null
     private var lastRangeMismatch: ContentRangeMismatch? = null
+    private var unknownTotalResponses = 0
     private var cacheStart = -1L
     private var cache = ByteArray(0)
 
@@ -111,7 +116,8 @@ class WebDavRangeReader(
     }
 
     @Synchronized fun stats(): RangeReadStats =
-        RangeReadStats(calls, bytesFetched, lastHttpStatus, lastIssue, lastRangeMismatch)
+        RangeReadStats(calls, bytesFetched, lastHttpStatus, lastIssue,
+            lastRangeMismatch, unknownTotalResponses)
 
     private fun reject(issue: RangeReadIssue): Nothing {
         lastIssue = issue
@@ -139,25 +145,39 @@ class WebDavRangeReader(
             if (lastHttpStatus != HttpURLConnection.HTTP_PARTIAL) reject(RangeReadIssue.HTTP_STATUS)
             val range = conn.getHeaderField("Content-Range")?.trim()
                 ?: reject(RangeReadIssue.MISSING_CONTENT_RANGE)
+            // RFC 9110 permits an unknown complete-length represented by "*".
+            // This does NOT relax byte boundaries: we still require exactly the
+            // requested start/end and verify the received body has exactly n bytes.
             val match = CONTENT_RANGE.matchEntire(range)
             if (match == null) {
-                lastRangeMismatch = ContentRangeMismatch(
-                    ContentRangeMismatchKind.FORMAT, start, end, fileSize)
+                val kind = when {
+                    range.startsWith("bytes=", ignoreCase = true) ->
+                        ContentRangeMismatchKind.FORMAT_EQUALS_SEPARATOR
+                    !range.startsWith("bytes", ignoreCase = true) ->
+                        ContentRangeMismatchKind.FORMAT_UNEXPECTED_UNIT
+                    else -> ContentRangeMismatchKind.FORMAT
+                }
+                lastRangeMismatch = ContentRangeMismatch(kind, start, end, fileSize)
                 reject(RangeReadIssue.BAD_CONTENT_RANGE)
             }
             val gotStart = match.groupValues[1].toLongOrNull()
             val gotEnd = match.groupValues[2].toLongOrNull()
-            val gotTotal = match.groupValues[3].toLongOrNull()
-            if (gotStart == null || gotEnd == null || gotTotal == null ||
-                gotEnd < gotStart || gotTotal <= gotEnd ||
-                gotStart != start || gotEnd != end || gotTotal != fileSize) {
-                val kind = if (gotStart == null || gotEnd == null || gotTotal == null ||
-                    gotEnd < gotStart || gotTotal <= gotEnd) {
+            val unknownTotal = match.groupValues[3] == "*"
+            val gotTotal = if (unknownTotal) null else match.groupValues[3].toLongOrNull()
+            if (gotStart == null || gotEnd == null || (!unknownTotal && gotTotal == null) ||
+                gotEnd < gotStart ||
+                (!unknownTotal && gotTotal!! <= gotEnd) ||
+                gotStart != start || gotEnd != end ||
+                (!unknownTotal && gotTotal != fileSize)) {
+                val kind = if (gotStart == null || gotEnd == null ||
+                    (!unknownTotal && gotTotal == null) ||
+                    gotEnd < gotStart ||
+                    (!unknownTotal && gotTotal!! <= gotEnd)) {
                     ContentRangeMismatchKind.INVALID_BOUNDS
                 } else {
                     val startDiffers = gotStart != start
                     val endDiffers = gotEnd != end
-                    val totalDiffers = gotTotal != fileSize
+                    val totalDiffers = !unknownTotal && gotTotal != fileSize
                     when (listOf(startDiffers, endDiffers, totalDiffers).count { it }) {
                         1 -> when {
                             startDiffers -> ContentRangeMismatchKind.START
@@ -171,6 +191,7 @@ class WebDavRangeReader(
                     gotStart, gotEnd, gotTotal)
                 reject(RangeReadIssue.BAD_CONTENT_RANGE)
             }
+            if (unknownTotal) unknownTotalResponses++
             val encoding = conn.getHeaderField("Content-Encoding")
             if (encoding != null && !encoding.equals("identity", true)) reject(RangeReadIssue.BAD_ENCODING)
             if (etagStrong != null) {
@@ -213,6 +234,6 @@ class WebDavRangeReader(
         const val MAX_GETS = 128
         const val MAX_BYTES = 8L * 1024 * 1024
         const val MAX_NS = 40L * 1_000_000_000L
-        val CONTENT_RANGE = Regex("""bytes\s+(\d+)-(\d+)/(\d+)""", RegexOption.IGNORE_CASE)
+        val CONTENT_RANGE = Regex("""bytes\s+(\d+)-(\d+)/(\d+|\*)""", RegexOption.IGNORE_CASE)
     }
 }
