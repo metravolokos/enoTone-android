@@ -40,6 +40,7 @@ import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.QueueTrack
+import app.enotone.playback.WebDavPlaybackTarget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -254,7 +255,10 @@ internal fun OfflineLibraryScreen(
                                             val item = byId[shown.id]
                                             val size = item?.remoteSize
                                             if (item == null || item.missingScans != 0 ||
-                                                size == null || size <= 0L) null
+                                                size == null || size <= 0L ||
+                                                runCatching {
+                                                    WebDavPlaybackTarget.url(item.encodedPath)
+                                                }.isFailure) null
                                             else QueueTrack(
                                                 id = shown.id, title = shown.title,
                                                 encodedPath = item.encodedPath,
@@ -268,7 +272,9 @@ internal fun OfflineLibraryScreen(
                                 if (queue.none { it.id == track.id }) {
                                     playbackState = "MISSING_TRACK"
                                 } else {
-                                    playback?.playQueue(accountEmail, appPassword,
+                                    val service = playback
+                                        ?: throw IllegalStateException("Playback service disconnected")
+                                    service.playQueue(accountEmail, appPassword,
                                         queue, track.id)
                                     queueTotal = queue.size
                                     queuePosition = queue.indexOfFirst { it.id == track.id } + 1
