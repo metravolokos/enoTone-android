@@ -22,4 +22,5 @@ dependencies {
     implementation(project(":core:network"))
     implementation(libs.room.ktx)
     testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
 }
