@@ -127,7 +127,7 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertIn("TransientCachePolicy.canDownload(", cache)
         self.assertIn("onMediaItemTransition(", player)
         self.assertIn("setCustomCacheKey(TransientCachePolicy.key(item))", player)
-        self.assertIn("temporaryCache.prefetchCurrent(", player)
+        self.assertIn("temporaryCache?.prefetchCurrent(", player)
         self.assertIn("scheduleAfterFirstBuffer()", player)
         self.assertIn("CacheStartPolicy.mayStart(", player)
         self.assertIn("Player.STATE_READY", player)
@@ -137,6 +137,28 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("putExtra(", service)
         self.assertNotIn("Log.", cache)
         self.assertNotIn("Log.", player)
+
+    def test_m5_latency_ab_uses_same_room_catalogue_without_network(self):
+        ui = (
+            ROOT / "app/src/main/java/app/enotone/android/"
+            "OfflineLibraryScreen.kt"
+        ).read_text(encoding="utf-8")
+        player = (
+            ROOT / "playback/src/main/java/app/enotone/playback/"
+            "PreviewAudioPlayback.kt"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(1, ui.count("allForSource(sourceKey)"))
+        self.assertIn("preparedById[shown.id]", ui)
+        self.assertIn("SystemClock.elapsedRealtime()", ui)
+        self.assertIn("bufferingAfterTapMs", ui)
+        self.assertIn("readyAfterTapMs", ui)
+        self.assertIn("playingAfterTapMs", ui)
+        self.assertIn("useCacheOnNextPlay", ui)
+        self.assertIn("useTemporaryCache: Boolean", player)
+        self.assertIn("if (useTemporaryCache)", player)
+        self.assertIn("else factory", player)
+        self.assertIn("private var temporaryCache: TransientMediaCache? = null", player)
+        self.assertNotIn("Log.", ui)
 
 
 if __name__ == "__main__":
