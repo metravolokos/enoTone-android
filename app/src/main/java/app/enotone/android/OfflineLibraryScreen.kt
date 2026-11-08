@@ -197,22 +197,22 @@ internal fun OfflineLibraryScreen(
                         playbackState = "LOADING"
                         scope.launch {
                             try {
-                                val path = withContext(Dispatchers.IO) {
+                                val selected = withContext(Dispatchers.IO) {
                                     val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
                                     val db = openLibraryDatabase(context)
                                     try {
-                                        db.remoteTrackDao()
-                                            .playableById(track.id, sourceKey)?.encodedPath
+                                        db.remoteTrackDao().playableById(track.id, sourceKey)
                                     } finally {
                                         db.close()
                                     }
                                 }
-                                if (path == null) {
+                                if (selected == null || selected.remoteSize == null) {
                                     playbackState = "MISSING_TRACK"
                                 } else {
                                     val audio = playback ?: PreviewAudioPlayback(
                                         context, accountEmail, appPassword).also { playback = it }
-                                    audio.play(path)
+                                    audio.play(selected.encodedPath, selected.remoteSize,
+                                        selected.remoteEtag)
                                 }
                             } catch (cancelled: CancellationException) {
                                 throw cancelled
