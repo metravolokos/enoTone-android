@@ -1,9 +1,11 @@
 # CHANGELOG
 
 ## Unreleased — M1
-- Первый срез одноуровневой индексации: SAX WebDAV multistatus parser для /AllMusic (только Depth:1), извлечение аудиофайлов и ETag/size/mtime; фильтрация неожиданных папок.
-- Безопасная нормализация URI и Unicode NFC, ограничения XML, тесты ошибок DAV, XXE и кириллицы.
-- Сеть/Room/теги/UI M1 пока не подключены; код ожидает обязательные проверки CI.
+- Второй срез: клиент Ktor CIO для одного PROPFIND /AllMusic Depth:1 без рекурсии и redirect, ограниченный ответ XML 16 MiB, безопасный парсер из PR #2 и mock-тесты HTTP 207/401/302.
+- UI, сохранение в Room, теги, полный индексатор и прогресс пока не готовы.
+
+## M1 начальная основа
+- PR #2: SAX парсер XML DAV 207, Unicode, ETag/size/mtime, защита XXE и URL; CI зелёный.
 
 ## M0
-- Объединён PR #1 после зелёного CI #12 и пользовательской проверки WebDAV на Huawei.
+- PR #1: Android основа, CI без GMS, диагностика Cloud.Mail.ru на Huawei.
