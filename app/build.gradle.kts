@@ -19,6 +19,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildTypes {
+        // M0: R8 must remove unused optional AndroidX references to GMS from the APK.
+        // Never waive the strict APK scan; if the marker remains, the PR stays blocked.
+        getByName("debug") {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true

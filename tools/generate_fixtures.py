@@ -8,7 +8,7 @@ import unicodedata
 import wave
 
 def generate(root: Path):
-    for name in ("Тест", unicodedata.normalize("NFD", "Тест")):
+    for name in ("Ёж", unicodedata.normalize("NFD", "Ёж")):
         folder = root / "AllMusic" / name
         folder.mkdir(parents=True, exist_ok=True)
         with wave.open(str(folder / "01 - Сигнал.wav"), "wb") as f:
