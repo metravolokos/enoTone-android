@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -75,6 +76,14 @@ internal fun OfflineLibraryScreen(
     var shuffleEnabled by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf(0) }
     var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
+    // Diagnostic mode belongs only to the next tap, not to a running stream.
+    var useCacheOnNextPlay by remember { mutableStateOf(false) }
+    var selectionStartedAt by remember { mutableStateOf(0L) }
+    var roomDurationMs by remember { mutableStateOf<Long?>(null) }
+    var media3DurationMs by remember { mutableStateOf<Long?>(null) }
+    var bufferingAfterTapMs by remember { mutableStateOf<Long?>(null) }
+    var readyAfterTapMs by remember { mutableStateOf<Long?>(null) }
+    var playingAfterTapMs by remember { mutableStateOf<Long?>(null) }
     var cacheInfo by remember {
         mutableStateOf(TransientCacheStatus(CachePhase.IDLE, 0L, 0L))
     }
@@ -135,6 +144,15 @@ internal fun OfflineLibraryScreen(
         val active = playback
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
+                if (selectionStartedAt > 0L) {
+                    val elapsed = SystemClock.elapsedRealtime() - selectionStartedAt
+                    if (state == Player.STATE_BUFFERING && bufferingAfterTapMs == null) {
+                        bufferingAfterTapMs = elapsed
+                    }
+                    if (state == Player.STATE_READY && readyAfterTapMs == null) {
+                        readyAfterTapMs = elapsed
+                    }
+                }
                 playbackState = when (state) {
                     Player.STATE_BUFFERING -> "BUFFERING"
                     Player.STATE_READY -> if (active?.player?.isPlaying == true) "PLAYING" else "PAUSED"
@@ -143,6 +161,10 @@ internal fun OfflineLibraryScreen(
                 }
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying && selectionStartedAt > 0L && playingAfterTapMs == null) {
+                    playingAfterTapMs =
+                        SystemClock.elapsedRealtime() - selectionStartedAt
+                }
                 playbackState = if (isPlaying) "PLAYING" else "PAUSED"
             }
             override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -202,6 +224,27 @@ internal fun OfflineLibraryScreen(
             singleLine = true,
         )
         Text(stringResource(R.string.library_count, visible.size, tracks.size))
+        Button(
+            enabled = !selecting,
+            onClick = { useCacheOnNextPlay = !useCacheOnNextPlay },
+        ) {
+            Text(stringResource(
+                if (useCacheOnNextPlay) R.string.playback_mode_cache
+                else R.string.playback_mode_baseline))
+        }
+        if (selectionStartedAt > 0L) {
+            Text(
+                stringResource(
+                    R.string.playback_startup_timing,
+                    roomDurationMs?.toString() ?: "—",
+                    media3DurationMs?.toString() ?: "—",
+                    bufferingAfterTapMs?.toString() ?: "—",
+                    readyAfterTapMs?.toString() ?: "—",
+                    playingAfterTapMs?.toString() ?: "—",
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
         if (selectedTitle != null) {
             Text(selectedTitle!!, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.titleMedium)
@@ -294,8 +337,15 @@ internal fun OfflineLibraryScreen(
                         }
                         selecting = true
                         playbackState = "LOADING"
+                        selectionStartedAt = SystemClock.elapsedRealtime()
+                        roomDurationMs = null
+                        media3DurationMs = null
+                        bufferingAfterTapMs = null
+                        readyAfterTapMs = null
+                        playingAfterTapMs = null
                         scope.launch {
                             try {
+                                val roomStartedAt = SystemClock.elapsedRealtime()
                                 // Use the user's currently visible search order.
                                 // All metadata is read locally in a single Room query.
                                 // Only the selected item triggers a WebDAV stream.
@@ -323,13 +373,18 @@ internal fun OfflineLibraryScreen(
                                         db.close()
                                     }
                                 }
+                                roomDurationMs =
+                                    SystemClock.elapsedRealtime() - roomStartedAt
                                 if (queue.none { it.id == track.id }) {
                                     playbackState = "MISSING_TRACK"
                                 } else {
                                     val service = playback
                                         ?: throw IllegalStateException("Playback service disconnected")
+                                    val media3StartedAt = SystemClock.elapsedRealtime()
                                     service.playQueue(accountEmail, appPassword,
-                                        queue, track.id)
+                                        queue, track.id, useCacheOnNextPlay)
+                                    media3DurationMs =
+                                        SystemClock.elapsedRealtime() - media3StartedAt
                                     queueTotal = queue.size
                                     queuePosition = queue.indexOfFirst { it.id == track.id } + 1
                                 }
