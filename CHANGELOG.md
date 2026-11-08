@@ -1,12 +1,10 @@
 # CHANGELOG
 
 ## Unreleased — M0
-- Создан отдельный Android Kotlin/Compose каркас enoTone с 15 Gradle-модулями.
-- Добавлены WebDAV diagnostic UI, opt-in Depth infinity и Range, MockWebServer/Python tests и CI.
-- Зафиксированы исходное ТЗ и ADR-0001—0012.
-- Исправлены настройка Android SDK runner, переход на Kotlin compilerOptions и совместимая с API36 Compose BOM.
-- Промежуточный CI проверил build/tests/lint, но выявил необязательный маркер GMS в APK: запущена проверка R8 shrink без ослабления GMS gate.
-- Приложение всё ещё на M0, доступный APK и реальное облако не подтверждены.
-- Actions run 42463446577: локализован необязательный Google TLS adapter в OkHttp, который оставался в DEX после R8; GMS gate не ослаблен.
-- В M0 начата проверка замены runtime OkHttp на Ktor CIO 3.6.1 (ADR-0013); тестовый MockWebServer по-прежнему использует OkHttp только в test classpath. Проверить CI на новом HEAD.
-- CI #9: build, тесты и lint зелёные; новый GMS-маркер связан с неиспользуемым AndroidX Activity Photo Picker fallback. Повторно включён R8 для debug, строгий GMS gate не ослаблялся. Ожидается CI по новому HEAD.
+- Создан отдельный нативный Android Kotlin/Compose каркас enoTone с 15 Gradle-модулями, документами и ADR.
+- Реализован WebDAV diagnostic UI, opt-in Depth infinity, GET Range, MockWebServer/Python tests, CI с GMS gate.
+- Устранены ошибки первоначальной сборки SDK/Compose/Kotlin. Запрет GMS в runtime APK сохранён без исключений: для M0 использован Ktor CIO и debug-R8 (ADR-0013).
+- Для CI добавлены проверяемые резервные загрузки Gradle 8.13 и Kotlin compiler 2.3.10 при ошибках HTTP 504.
+- [Actions run #10](https://github.com/metravolokos/enoTone-android/actions/runs/42465355583) на `3ceed82abb446471a7d9b0f1449f90050fb5e1ee`: зелёный build, тесты, lint, GMS gate; artifact `enotone-m0-debug-apk`.
+- 2026-11-08: владелец установил диагностический APK на Huawei и подтвердил Cloud.Mail.ru PROPFIND root и /AllMusic (207), GET Range 0-0 (206, ETag в заголовке), и тайм-аут Depth infinity на 15 с. Отчёт без секретов записан в `docs/CLOUD_MAILRU_WEBDAV.md`.
+- M0 ожидает формальной приёмки, PR остаётся Draft, M1 не начат.

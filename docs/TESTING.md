@@ -1,5 +1,17 @@
 # Тестирование
 
-M0: HTTP mock с 207/401/403/404/429/5xx, Range/без Range, ETag/без ETag, Unicode; unit tests и проверка отсутствия GMS как в Gradle dependency graph, так и в APK/манифесте. Реальный сервер не участвует в CI.
+## Автоматические M0 проверки
+HTTP mock: 207/401/403/404/429/5xx, Range и отсутствие Range, ETag/без ETag, Unicode. Android unit tests, Python mock tests, lint, GMS scan dependency graph и APK. Реальный Cloud.Mail.ru не доступен CI.
 
-Ручная проверка: Huawei без GMS → пароль внешнего приложения → PROPFIND root и /AllMusic → опциональный Range на явно указанном тестовом файле → обезличенный отчёт. Проверки по факту фиксировать в STATUS.
+GitHub Actions run [#10](https://github.com/metravolokos/enoTone-android/actions/runs/42465355583): **success** на `3ceed82abb446471a7d9b0f1449f90050fb5e1ee` с опубликованным debug APK.
+
+## Ручная проверка владельцем — 2026-11-08
+Huawei: APK установлен, диагностический экран запущен, учётные данные введены только на устройстве. Обезличенный отчёт:
+- `PROPFIND /`: 207, 539 мс
+- `PROPFIND /AllMusic`: 207, 1536 мс
+- `PROPFIND Depth: infinity`: без кода, ошибка/тайм-аут, 15011 мс
+- `GET Range 0-0`: 206, 477 мс; ETag: есть; Accept-Ranges: нет
+
+Вывод: корень и папка доступны, запрос байтового диапазона работает. `Depth: infinity` для M1 не использовать. **Реальное воспроизведение, метаданные в XML и Unicode не проверены**. Подробности: `docs/CLOUD_MAILRU_WEBDAV.md`.
+
+Не просить владельца отправлять логин/пароль, имена файлов, URL с персональными данными или значения ETag. Скриншот в репозиторий не добавлять.
