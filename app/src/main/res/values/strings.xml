@@ -71,4 +71,7 @@
     <string name="playback_cache_complete">Трек полностью загружен во временный кэш</string>
     <string name="playback_cache_skipped">Временный кэш пропущен: размер или свободное место</string>
     <string name="playback_cache_failed">Временный кэш не завершён; потоковое воспроизведение доступно</string>
+    <string name="playback_mode_baseline">Следующий запуск: без кэша (контроль)</string>
+    <string name="playback_mode_cache">Следующий запуск: с кэшем (эксперимент)</string>
+    <string name="playback_startup_timing">Диагностика, мс: Room %1$s · Media3 %2$s · BUFFERING от нажатия %3$s · READY %4$s · звук %5$s</string>
 </resources>
