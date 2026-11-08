@@ -1,0 +1,144 @@
+name: Android M0
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Gradle 8.13 (verified, fallback mirrors)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/gradle-install"
+          zip="$RUNNER_TEMP/gradle-8.13-bin.zip"
+          # Official Gradle 8.13 binary ZIP SHA-256: https://gradle.org/release-checksums/
+          expected="20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78"
+          urls=(
+            "https://downloads.gradle.org/distributions/gradle-8.13-bin.zip"
+            "https://services.gradle.org/distributions/gradle-8.13-bin.zip"
+            "https://mirrors.huaweicloud.com/gradle/gradle-8.13-bin.zip"
+          )
+          installed=false
+          for url in "${urls[@]}"; do
+            echo "Downloading Gradle distribution from ${url}"
+            if curl -fSL --retry 3 --retry-delay 5 --connect-timeout 15 --max-time 180 -o "$zip" "$url"; then
+              if printf '%s  %s\n' "$expected" "$zip" | sha256sum --check --status; then
+                installed=true
+                break
+              fi
+              echo "Checksum mismatch, refusing downloaded distribution"
+            fi
+            rm -f "$zip"
+          done
+          if [ "$installed" != true ]; then
+            echo "::error::Gradle 8.13 download/checksum failed on all mirrors"
+            exit 1
+          fi
+          unzip -q "$zip" -d "$RUNNER_TEMP/gradle-install"
+          echo "$RUNNER_TEMP/gradle-install/gradle-8.13/bin" >> "$GITHUB_PATH"
+      - name: Install Android SDK 36
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Verified Kotlin compiler 2.3.10 (Maven Central CDN fallback)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="org/jetbrains/kotlin/kotlin-compiler-embeddable/2.3.10"
+          dir="$RUNNER_TEMP/enotone-ci-maven/$base"
+          mkdir -p "$dir"
+          jar="kotlin-compiler-embeddable-2.3.10.jar"
+          pom="kotlin-compiler-embeddable-2.3.10.pom"
+          # SHA-256 from JetBrains/kotlin gradle/verification-metadata.xml.
+          expected="ac6a182785345380b5db5085dbeea3f5f0e925e2e100e54ab059b5787d4f6e40"
+          urls=(
+            "https://mirrors.huaweicloud.com/repository/maven"
+            "https://artifacts-oss.talend.com/nexus/content/repositories/public"
+            "https://repo.maven.apache.org/maven2"
+          )
+          verified=false
+          for url in "${urls[@]}"; do
+            if curl -fSL --retry 2 --retry-delay 4 --connect-timeout 15 --max-time 180 \
+              -o "$dir/$jar" "$url/$base/$jar"; then
+              if printf '%s  %s\n' "$expected" "$dir/$jar" | sha256sum --check --status; then
+                verified=true
+                break
+              fi
+              echo "Kotlin compiler checksum mismatch from $url"
+            fi
+            rm -f "$dir/$jar"
+          done
+          if [ "$verified" != true ]; then
+            echo "::error::Cannot obtain verified Kotlin compiler 2.3.10"
+            exit 1
+          fi
+          # Fetch the small Maven POM from the canonical endpoint; fallback for availability only.
+          if ! curl -fSL --retry 2 --retry-delay 4 --connect-timeout 15 --max-time 30 \
+            -o "$dir/$pom" "https://repo.maven.apache.org/maven2/$base/$pom"; then
+            curl -fSL --retry 2 --retry-delay 4 --connect-timeout 15 --max-time 30 \
+              -o "$dir/$pom" "https://mirrors.huaweicloud.com/repository/maven/$base/$pom"
+          fi
+          echo "ENOTONE_CI_COMPILER_MIRROR=$RUNNER_TEMP/enotone-ci-maven" >> "$GITHUB_ENV"
+      - name: Mock WebDAV tests
+        run: python3 -m unittest discover -s tools -p 'test_*.py' -v
+      - name: Build, JUnit and Lint
+        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :core:network:testDebugUnitTest :app:lintDebug
+      - name: Resolved dependencies
+        run: gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath > dependencies.txt
+      - name: Check GMS-free dependencies and APK
+        run: python3 tools/check_no_gms.py dependencies.txt app/build/outputs/apk/debug/app-debug.apk
+      - name: Inspect blocked APK GMS markers (does not waive gate)
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+
+          apk = Path("app/build/outputs/apk/debug/app-debug.apk")
+          if not apk.is_file():
+              print("APK not built; nothing to inspect")
+          else:
+              with zipfile.ZipFile(apk) as archive:
+                  for name in archive.namelist():
+                      if not name.endswith(".dex"):
+                          continue
+                      raw = archive.read(name)
+                      for marker in (b"com.google.android.gms", b"com/google/android/gms"):
+                          pos = raw.find(marker)
+                          if pos < 0:
+                              continue
+                          context = raw[max(0, pos - 96):pos + len(marker) + 96]
+                          print(f"{name}: marker {marker!r} at offset {pos}")
+                          print("DEX nearby ASCII:", "".join(chr(x) if 32 <= x <= 126 else "." for x in context))
+          PY
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: enotone-m0-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Upload blocked diagnostic APK (not approved for installation)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: enotone-m0-blocked-diagnostic-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: ignore

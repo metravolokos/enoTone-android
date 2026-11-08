@@ -1,0 +1,12 @@
+.gradle/
+.gradle-cache/
+**/build/
+.idea/
+local.properties
+*.jks
+*.keystore
+*.pem
+*.p12
+.env
+*.secrets
+.DS_Store
