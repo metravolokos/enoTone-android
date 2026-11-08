@@ -70,6 +70,7 @@ private fun DiagnosticScreen() {
     var report by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var pilotJob by remember { mutableStateOf<Job?>(null) }
+    var showingLibrary by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val appContext = LocalContext.current.applicationContext
     val importReport = stringResource(R.string.local_import_report)
@@ -131,12 +132,20 @@ private fun DiagnosticScreen() {
         }
     }
 
+    if (showingLibrary) {
+        OfflineLibraryScreen(accountEmail = email, onBack = { showingLibrary = false })
+        return
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(stringResource(R.string.diagnostic_title), style = MaterialTheme.typography.headlineMedium)
         Text(stringResource(R.string.diagnostic_explanation))
+        Button(enabled = !busy && email.isNotBlank(), onClick = {
+            showingLibrary = true
+        }) { Text(stringResource(R.string.library_open)) }
         OutlinedTextField(
             value = email, onValueChange = { email = it }, label = { Text(stringResource(R.string.email)) },
             modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -544,7 +553,7 @@ private fun DiagnosticScreenPreview() {
     MaterialTheme { DiagnosticScreen() }
 }
 
-private fun openLibraryDatabase(context: Context): EnoToneDatabase =
+internal fun openLibraryDatabase(context: Context): EnoToneDatabase =
     Room.databaseBuilder(
         context.applicationContext,
         EnoToneDatabase::class.java,
