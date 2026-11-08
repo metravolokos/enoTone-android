@@ -99,7 +99,7 @@ jobs:
       - name: Mock WebDAV tests
         run: python3 -m unittest discover -s tools -p 'test_*.py' -v
       - name: Build, JUnit and Lint
-        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :core:network:testDebugUnitTest :app:lintDebug
+        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :core:network:testDebugUnitTest :core:database:testDebugUnitTest :data:library:testDebugUnitTest :app:lintDebug
       - name: Resolved dependencies
         run: gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath > dependencies.txt
       - name: Check GMS-free dependencies and APK
