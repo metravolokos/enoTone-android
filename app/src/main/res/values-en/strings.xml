@@ -27,4 +27,6 @@
     <string name="read_stored_tags_offline">Check saved tags (offline)</string>
     <string name="local_tag_coverage_report">Offline Room: tracks — %1$d; with saved tags — %2$d; with title — %3$d; with artist — %4$d; with album — %5$d; with album artist — %6$d. Tag values are not displayed.</string>
     <string name="one_tag_range_mismatch">Range mismatch: %1$s. Expected (start-end/size): %2$s-%3$s/%4$s; server returned: %5$s-%6$s/%7$s. Numbers only, no raw headers.</string>
+    <string name="fast_probe_one_track">Fast MP3/FLAC tags — one track only</string>
+    <string name="fast_tag_report">Fast parser: %1$s. Embedded fields: title — %2$d, artist — %3$d, album — %4$d. Range requests: %5$d; bytes downloaded: %6$d; saved in Room: %7$d. Unsupported layouts do not trigger the slow extractor. Tag values are never displayed.</string>
 </resources>

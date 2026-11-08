@@ -35,6 +35,7 @@ import app.enotone.library.LibrarySnapshotStore
 import app.enotone.library.LibraryTagStore
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.AndroidAudioTagReader
+import app.enotone.library.FastAudioTagReader
 import app.enotone.library.WebDavRangeReader
 import app.enotone.library.WebDavRangeMediaDataSource
 import app.enotone.database.RemoteTrackEntity
@@ -75,6 +76,7 @@ private fun DiagnosticScreen() {
     val tagFailedDetail = stringResource(R.string.one_tag_failed_detail)
     val tagRangeMismatch = stringResource(R.string.one_tag_range_mismatch)
     val tagMissing = stringResource(R.string.one_tag_missing)
+    val fastTagReport = stringResource(R.string.fast_tag_report)
     val missingCredentials = stringResource(R.string.missing_credentials)
     val diagnosticFailed = stringResource(R.string.diagnostic_failed)
     val countReport = stringResource(R.string.file_count_report)
@@ -354,6 +356,98 @@ private fun DiagnosticScreen() {
         }) {
             Text(stringResource(R.string.probe_one_audio_tag))
         }
+        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
+            busy = true
+            report = ""
+            scope.launch {
+                var stage = "LOCAL_DB"
+                var activeReader: WebDavRangeReader? = null
+                try {
+                    val outcome = withContext(Dispatchers.IO) {
+                        val database = openLibraryDatabase(appContext)
+                        val selected = try {
+                            val key = LibrarySnapshotPlanner.accountKey(email)
+                            val candidates = database.remoteTrackDao().allForSource(key).filter {
+                                it.missingScans == 0 &&
+                                    (it.remoteSize ?: 0L) > 0L &&
+                                    (it.fileName.endsWith(".mp3", true) ||
+                                     it.fileName.endsWith(".flac", true))
+                            }
+                            if (testFile.isBlank()) {
+                                // Same stable MP3-first order as the older diagnostic.
+                                candidates.sortedWith(
+                                    compareBy<RemoteTrackEntity> {
+                                        !it.fileName.endsWith(".mp3", true)
+                                    }.thenBy { it.id }
+                                ).firstOrNull()
+                            } else {
+                                val path = testFile.trim()
+                                val name = path.removePrefix("/AllMusic/")
+                                if (!path.startsWith("/AllMusic/") ||
+                                    name.isBlank() || '/' in name) null
+                                else candidates.singleOrNull {
+                                    it.fileName == Normalizer.normalize(name, Normalizer.Form.NFC)
+                                }
+                            }
+                        } finally {
+                            database.close()
+                        }
+                        if (selected == null) null else {
+                            stage = "FAST_RANGE"
+                            val reader = WebDavRangeReader(
+                                encodedPath = selected.encodedPath,
+                                fileSize = selected.remoteSize!!,
+                                email = email, appPassword = password,
+                                etag = selected.remoteEtag,
+                            )
+                            activeReader = reader
+                            reader.use {
+                                // No MediaMetadataRetriever fallback: this button verifies
+                                // bounded ID3/FLAC metadata only, never audio frames.
+                                val parsed = FastAudioTagReader().read(
+                                    selected.fileName, reader.fileSize, reader::readAt)
+                                val stats = reader.stats()
+                                var persisted = false
+                                val extractedTags = parsed.tags
+                                if (extractedTags != null) {
+                                    stage = "FAST_STORE"
+                                    val storeDatabase = openLibraryDatabase(appContext)
+                                    persisted = try {
+                                        LibraryTagStore(storeDatabase).saveIfUnchanged(
+                                            email, selected, extractedTags)
+                                    } finally {
+                                        storeDatabase.close()
+                                    }
+                                }
+                                FastProbeResult(
+                                    parsed.code.name,
+                                    if (parsed.embeddedTitle) 1 else 0,
+                                    if (parsed.embeddedArtist) 1 else 0,
+                                    if (parsed.embeddedAlbum) 1 else 0,
+                                    stats.requests, stats.downloadedBytes,
+                                    if (persisted) 1 else 0,
+                                )
+                            }
+                        }
+                    }
+                    report = if (outcome == null) tagMissing else
+                        String.format(Locale.getDefault(), fastTagReport,
+                            outcome.code, outcome.title, outcome.artist,
+                            outcome.album, outcome.requests, outcome.bytes,
+                            outcome.saved)
+                } catch (_: Exception) {
+                    val stats = activeReader?.stats()
+                    val reason = stats?.issue?.name ?: "FAST_PROBE_ERROR"
+                    report = String.format(Locale.getDefault(), tagFailedDetail,
+                        stage, reason, stats?.httpStatus?.toString() ?: "—",
+                        stats?.requests ?: 0, stats?.downloadedBytes ?: 0L)
+                } finally {
+                    busy = false
+                }
+            }
+        }) {
+            Text(stringResource(R.string.fast_probe_one_track))
+        }
         if (report.isNotEmpty()) Text(report, style = MaterialTheme.typography.bodyMedium)
     }
 }
@@ -370,3 +464,14 @@ private fun openLibraryDatabase(context: Context): EnoToneDatabase =
         EnoToneDatabase::class.java,
         "enotone-local-library.db",
     ).build()
+
+/** Aggregates only; never carries remote names or tag values to Compose. */
+private data class FastProbeResult(
+    val code: String,
+    val title: Int,
+    val artist: Int,
+    val album: Int,
+    val requests: Int,
+    val bytes: Long,
+    val saved: Int,
+)
