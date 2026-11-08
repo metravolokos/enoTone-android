@@ -1,0 +1,45 @@
+package app.enotone.library
+
+import app.enotone.database.RemoteTrackEntity
+import java.util.Locale
+
+/**
+ * Private, on-device presentation catalogue. This never makes network calls
+ * and never passes WebDAV paths, source keys, ETags or account identifiers to UI.
+ */
+data class OfflineTrackRow(
+    val id: String,
+    val title: String,
+    val artist: String?,
+    val album: String?,
+)
+
+object OfflineTrackCatalog {
+    fun build(sourceKey: String, tracks: List<RemoteTrackEntity>): List<OfflineTrackRow> =
+        tracks.asSequence()
+            .filter { it.sourceKey == sourceKey && it.missingScans == 0 }
+            .map { track ->
+                val fallback = track.fileName.substringBeforeLast('.', track.fileName)
+                    .ifBlank { track.fileName }
+                OfflineTrackRow(
+                    id = track.id,
+                    title = track.title?.takeIf { it.isNotBlank() } ?: fallback,
+                    artist = track.artist?.takeIf { it.isNotBlank() },
+                    album = track.album?.takeIf { it.isNotBlank() },
+                )
+            }
+            .sortedWith(compareBy<OfflineTrackRow> { it.title.lowercase(Locale.ROOT) }
+                .thenBy { it.id })
+            .toList()
+
+    fun search(items: List<OfflineTrackRow>, query: String): List<OfflineTrackRow> {
+        val terms = query.trim().lowercase(Locale.ROOT)
+            .split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (terms.isEmpty()) return items
+        return items.filter { row ->
+            val haystack = listOfNotNull(row.title, row.artist, row.album)
+                .joinToString(" ").lowercase(Locale.ROOT)
+            terms.all { haystack.contains(it) }
+        }
+    }
+}
