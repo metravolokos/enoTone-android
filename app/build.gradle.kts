@@ -19,6 +19,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildTypes {
+        // AndroidX Activity ships an unused optional Google Play Photo Picker action.
+        // R8 removes unused code; the APK GMS gate remains strict and unmodified.
+        getByName("debug") {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true

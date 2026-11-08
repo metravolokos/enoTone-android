@@ -10,12 +10,14 @@
 - GitHub Actions run 42462612361: **Android debug build, unit tests, lint и Python tests прошли**, но итоговый APK **не прошёл** GMS gate: в classes.dex обнаружен маркер com.google.android.gms. Runtime dependency graph без срабатывания; причина в APK требует расследования.
 - CI run 42463446577: debug-R8 не убрал GMS-маркер. Выявлена необязательная строка `com.google.android.gms.org.conscrypt` в OkHttp TLS DeferredSocketAdapter. По ADR-0013 испытывается Ktor CIO только для M0; CI #8 не прошёл до компиляции: Maven Central перенаправил Kotlin compiler 2.3.10 на GitHub, где вернулся HTTP 504. Для следующего CI добавлена строго проверяемая по SHA-256 резервная загрузка этого JAR. Результат нового HEAD пока НЕ подтверждён.
 
+- CI #9 (42464862744): Gradle, Kotlin compiler, Android build, тесты, lint и дерево зависимостей прошли; строгий APK gate обнаружил строку `com.google.android.gms.provider.action.PICK_IMAGES`, известный optional fallback AndroidX Activity Photo Picker. Эксперимент Ktor CIO успешно устранил предыдущий TLS marker, но с отключённым debug-R8 проявился другой. Повторно включено R8 для debug без изменения APK gate; CI на новой ревизии не подтверждён.
+
 ## Не готово
 - Зелёный CI и пригодный для установки APK пока НЕ подтверждены.
-- Gradle wrapper jar и исполняемые gradlew/gradlew.bat не добавлены; CI использует версионированный setup-gradle.
+- Gradle wrapper jar и исполняемые gradlew/gradlew.bat не добавлены; CI скачивает фиксированный Gradle 8.13 с проверкой SHA-256; Gradle Wrapper отсутствует.
 - Не проверен реальный Cloud.Mail.ru WebDAV на Huawei, гипотезы Range/ETag/Depth.
 - Постоянный аккаунт/Keystore, индексатор, медиатека, playback, кэш и AI не реализованы.
 - Лицензия исходников требует выбора владельца. Полный аудит license/GMS и UX отчёта ожидает результатов.
 
 ## Следующий шаг
-Проверить эксперимент Ktor CIO на точном HEAD строгим GMS gate, build, lint, тестами; при успехе получить диагностический APK и отчёт с реального устройства. При неуспехе — исправлять не отключая gate. M1 не начинать до подтверждения владельца.
+Проверить Ktor CIO + debug-R8 на точном HEAD строгим GMS gate, build, lint, тестами; при успехе получить диагностический APK и отчёт с реального устройства. При неуспехе — исправлять не отключая gate. M1 не начинать до подтверждения владельца.
