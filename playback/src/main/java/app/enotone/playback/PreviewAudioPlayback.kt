@@ -24,21 +24,72 @@ class PreviewAudioPlayback(
     private val temporaryCache = TransientMediaCache(context.applicationContext)
     private var activeRoutes: Map<String, QueueTrack> = emptyMap()
     private var upstreamFactory: DataSource.Factory? = null
+    private val cacheHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private data class PendingCache(
+        val mediaId: String,
+        val key: String,
+        val uri: android.net.Uri,
+        val size: Long,
+        val upstream: DataSource.Factory,
+    )
+    private var pendingCache: PendingCache? = null
+    private var scheduledWriter: Runnable? = null
+
+    private fun clearScheduledWriter() {
+        scheduledWriter?.let(cacheHandler::removeCallbacks)
+        scheduledWriter = null
+    }
+
+    private fun scheduleAfterFirstBuffer() {
+        val pending = pendingCache ?: return
+        if (scheduledWriter != null) return
+        if (!CacheStartPolicy.mayStart(
+                player.playbackState,
+                player.currentMediaItem?.mediaId,
+                pending.mediaId,
+            )) return
+        val task = Runnable {
+            scheduledWriter = null
+            if (pendingCache !== pending) return@Runnable
+            if (!CacheStartPolicy.mayStart(
+                    player.playbackState,
+                    player.currentMediaItem?.mediaId,
+                    pending.mediaId,
+                )) return@Runnable
+            pendingCache = null
+            // Crucially this does NOT consult playWhenReady. The worker keeps
+            // downloading even when Pause is pressed after initial READY.
+            temporaryCache.prefetchCurrent(
+                pending.key, pending.uri, pending.size, pending.upstream)
+        }
+        scheduledWriter = task
+        cacheHandler.postDelayed(task, CacheStartPolicy.START_DELAY_MS)
+    }
+
     private val cacheTransitionListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            clearScheduledWriter()
+            pendingCache = null
+            temporaryCache.stopCurrent()
             val selected = mediaItem?.let { activeRoutes[it.mediaId] }
             val source = upstreamFactory
             val config = mediaItem?.localConfiguration
-            if (selected == null || source == null || config == null) {
-                temporaryCache.stopCurrent()
-                return
+            if (selected == null || source == null || config == null) return
+            pendingCache = PendingCache(
+                mediaItem.mediaId, TransientCachePolicy.key(selected),
+                config.uri, selected.remoteSize, source)
+            // Wait for this item's first READY before competing for WebDAV.
+            // This also handles a transition into an already-prepared item.
+            scheduleAfterFirstBuffer()
+        }
+
+        override fun onPlaybackStateChanged(state: Int) {
+            if (state == Player.STATE_READY) {
+                scheduleAfterFirstBuffer()
+            } else if (state == Player.STATE_BUFFERING) {
+                // A rebuffering stream takes priority over full-track download.
+                clearScheduledWriter()
             }
-            temporaryCache.prefetchCurrent(
-                TransientCachePolicy.key(selected),
-                config.uri,
-                selected.remoteSize,
-                source,
-            )
         }
     }
     val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext)
@@ -96,6 +147,8 @@ class PreviewAudioPlayback(
     fun resume() = player.play()
 
     fun stop() {
+        clearScheduledWriter()
+        pendingCache = null
         temporaryCache.stopCurrent()
         player.stop()
         player.clearMediaItems()
