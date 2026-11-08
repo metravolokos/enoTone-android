@@ -1,0 +1,22 @@
+# ADR-0014: Одноуровневый WebDAV индексатор и безопасный XML multistatus
+
+Дата: 2026-11-08 | Статус: принят для первого среза M1 | Автор: ChatGPT
+
+## Контекст
+Владелец подтвердил, что вся музыка лежит непосредственно в /AllMusic без подкаталогов. На Huawei реальный PROPFIND Depth:1 вернул 207, GET Range вернул 206; Depth:infinity дал тайм-аут 15 с. М0 диагностировал только HTTP-статус, не разбирал XML.
+
+## Варианты
+1. Рекурсивный PROPFIND или Depth:infinity — лишние запросы и риск тайм-аута, отвергнуто для текущей медиатеки.
+2. DOM парсер — проще реализовать, но загружает весь XML в дерево и потенциально создаёт лишнюю нагрузку на RAM.
+3. SAX потоковый парсер из стандартных Android/JVM API — выбран: без новой runtime зависимости, обрабатывает элементы по мере чтения. Ограничения: требуется state-machine, защита от некорректного XML и XXE.
+
+## Решение
+В первую очередь реализовать изолированный FlatWebDavListingParser, который принимает InputStream с WebDAV 207 Multi-Status, извлекает только прямые аудиофайлы /AllMusic и успешные propstat 2xx, размер и ETag, сохраняет NFC для отображения. Не копировать пути/теги/ETag в диагностические сообщения и не доверять чужим URI. Защитить XML: запрет внешних entity, secure processing, лимиты на длину поля и число файлов.
+
+Входной поток может быть большим; парсер потоковый, но пока держит итоговый список в памяти. В следующем PR M1 — интеграция с PROPFIND и Room (батчевая запись в БД), проверка обработки XML реального сервера. Наличие кода парсера не означает готовности индексатора.
+
+## Проверка
+JUnit тесты: HTTP 200/404 propstat, файлы только напрямую внутри папки, подпапки, внешние URL, percent-encoded slash, кириллица NFD→NFC, дубль href, DTD/XXE, длина. CI Android build/lint/GMS и тесты на точном HEAD. Фактическая WebDAV XML на Huawei ещё не проверена.
+
+### Проверка Android Expat
+Android ExpatReader не поддерживает общие JAXP `FEATURE_SECURE_PROCESSING` и настройки external entities; при этом поддерживает SAX `lexical-handler`. Для Android Expat регистрируется LexicalHandler с немедленным отказом на `startDTD` плюс EntityResolver отказа; на остальных SAX реализациях обязательны FSP и запрет внешних entity. Если какой-либо XMLReader не даёт поставить требуемый handler, парсинг **не начинается**. Ссылки: https://android.googlesource.com/platform/libcore/+/master/luni/src/main/java/org/apache/harmony/xml/ExpatReader.java и https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html .
