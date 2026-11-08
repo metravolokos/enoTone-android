@@ -21,7 +21,10 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 class PreviewAudioPlayback(
     context: Context,
 ) : AutoCloseable {
-    private val temporaryCache = TransientMediaCache(context.applicationContext)
+    // Lazy: in baseline mode neither initialize nor touch the disk cache.
+    private val applicationContext = context.applicationContext
+    private var temporaryCache: TransientMediaCache? = null
+    private var cacheEnabledForQueue = false
     private var activeRoutes: Map<String, QueueTrack> = emptyMap()
     private var upstreamFactory: DataSource.Factory? = null
     private val cacheHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -57,9 +60,9 @@ class PreviewAudioPlayback(
                     pending.mediaId,
                 )) return@Runnable
             pendingCache = null
-            // Crucially this does NOT consult playWhenReady. The worker keeps
-            // downloading even when Pause is pressed after initial READY.
-            temporaryCache.prefetchCurrent(
+            // Crucially this does NOT consult playWhenReady. Pause does not
+            // stop downloading once the first READY has been reached.
+            temporaryCache?.prefetchCurrent(
                 pending.key, pending.uri, pending.size, pending.upstream)
         }
         scheduledWriter = task
@@ -70,7 +73,8 @@ class PreviewAudioPlayback(
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             clearScheduledWriter()
             pendingCache = null
-            temporaryCache.stopCurrent()
+            temporaryCache?.stopCurrent()
+            if (!cacheEnabledForQueue) return
             val selected = mediaItem?.let { activeRoutes[it.mediaId] }
             val source = upstreamFactory
             val config = mediaItem?.localConfiguration
@@ -106,7 +110,8 @@ class PreviewAudioPlayback(
             addListener(cacheTransitionListener)
         }
 
-    fun cacheSnapshot(): TransientCacheStatus = temporaryCache.snapshot()
+    fun cacheSnapshot(): TransientCacheStatus =
+        temporaryCache?.snapshot() ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
 
     /**
      * Give Media3 the real local playlist, so Android notification and Bluetooth
@@ -119,14 +124,25 @@ class PreviewAudioPlayback(
         appPassword: String,
         tracks: List<QueueTrack>,
         selectedId: String,
+        useTemporaryCache: Boolean,
     ) {
+        // Keep the #94 playback transport available unchanged for A/B testing.
+        clearScheduledWriter()
+        pendingCache = null
+        temporaryCache?.stopCurrent()
+        cacheEnabledForQueue = useTemporaryCache
         val queue = PlaybackQueue.create(tracks, selectedId)
         val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
-        val mediaFactory = ProgressiveMediaSource.Factory(
-            temporaryCache.forPlayback(factory))
+        val sourceFactory = if (useTemporaryCache) {
+            val diskCache = temporaryCache ?: TransientMediaCache(applicationContext)
+                .also { temporaryCache = it }
+            diskCache.forPlayback(factory)
+        } else factory
+        val mediaFactory = ProgressiveMediaSource.Factory(sourceFactory)
         // Route mapping is ready before setMediaSources raises the transition.
-        activeRoutes = queue.items.associateBy { it.id }
-        upstreamFactory = factory
+        activeRoutes = if (useTemporaryCache) queue.items.associateBy { it.id }
+            else emptyMap()
+        upstreamFactory = if (useTemporaryCache) factory else null
         val sources = queue.items.map { item ->
             mediaFactory.createMediaSource(
                 MediaItem.Builder()
@@ -149,7 +165,8 @@ class PreviewAudioPlayback(
     fun stop() {
         clearScheduledWriter()
         pendingCache = null
-        temporaryCache.stopCurrent()
+        temporaryCache?.stopCurrent()
+        cacheEnabledForQueue = false
         player.stop()
         player.clearMediaItems()
         activeRoutes = emptyMap()
@@ -160,6 +177,6 @@ class PreviewAudioPlayback(
         stop()
         player.removeListener(cacheTransitionListener)
         player.release()
-        temporaryCache.close()
+        temporaryCache?.close()
     }
 }
