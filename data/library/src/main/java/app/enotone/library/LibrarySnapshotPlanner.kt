@@ -78,15 +78,13 @@ object LibrarySnapshotPlanner {
         }
         val complete = listing.invalidEntries == 0 &&
             listing.skippedNested == 0 && listing.skippedDirectories == 0
+        val seenIds = updated.mapTo(HashSet(updated.size)) { it.id }
         return SnapshotPlan(
             updated, inserted, changed, unchanged,
-            previous.count { it.sourceKey == sourceKey && it.id !in updatedIds(updated) },
+            previous.count { it.sourceKey == sourceKey && it.id !in seenIds },
             complete,
         )
     }
-
-    private fun updatedIds(items: List<RemoteTrackEntity>): Set<String> =
-        items.mapTo(HashSet(items.size)) { it.id }
 
     private fun sameRemoteVersion(old: RemoteTrackEntity, new: RemoteAudioFile): Boolean {
         if (old.remoteEtag != null && new.etag != null) {
@@ -97,8 +95,16 @@ object LibrarySnapshotPlanner {
             old.remoteSize == new.sizeBytes && old.remoteModified == new.lastModified
     }
 
-    private fun sha256(input: String): String =
-        MessageDigest.getInstance("SHA-256")
+    private fun sha256(input: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
             .digest(input.toByteArray(StandardCharsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
+        val alphabet = "0123456789abcdef"
+        return buildString(digest.size * 2) {
+            for (byte in digest) {
+                val unsigned = byte.toInt() and 0xff
+                append(alphabet[unsigned ushr 4])
+                append(alphabet[unsigned and 0x0f])
+            }
+        }
+    }
 }
