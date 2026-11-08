@@ -404,4 +404,63 @@ class WebDavRangeReaderTest {
         } finally { server.shutdown() }
     }
 
+
+    @Test fun pilotTightenedNetworkLimitsAreEnforcedBeforeAnotherHttpGet() {
+        val server = MockWebServer()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(req: RecordedRequest): MockResponse {
+                val match = Regex("""bytes=(\d+)-(\d+)""")
+                    .matchEntire(req.getHeader("Range")!!)!!
+                val from = match.groupValues[1].toInt()
+                val to = match.groupValues[2].toInt()
+                return MockResponse().setResponseCode(206)
+                    .addHeader("Content-Range", "bytes=$from-$to/" + payload.size)
+                    .setBody(Buffer().write(payload, from, to - from + 1))
+            }
+        }
+        server.start()
+        try {
+            WebDavRangeReader(
+                libraryRoot = server.url("/AllMusic/").toString(),
+                encodedPath = "/AllMusic/sample.mp3",
+                fileSize = payload.size.toLong(),
+                email = "synthetic@example.test", appPassword = "synthetic",
+                allowLoopbackHttpForTests = true,
+                maxRequests = 1,
+                maxDownloadedBytes = 65536L,
+            ).use { src ->
+                assertEquals(1, src.readAt(0, ByteArray(1), 0, 1))
+                assertEquals(65536L, src.stats().downloadedBytes)
+                try {
+                    src.readAt(65536L, ByteArray(1), 0, 1)
+                    fail("Global pilot allocation must never issue a second GET")
+                } catch (_: IOException) {
+                    assertEquals(RangeReadIssue.LIMIT, src.stats().issue)
+                    assertEquals(1, src.stats().requests)
+                    assertEquals(65536L, src.stats().downloadedBytes)
+                }
+            }
+            assertEquals(1, server.requestCount)
+        } finally { server.shutdown() }
+    }
+
+    @Test fun pilotRejectsBudgetsLargerThanOneFileSafetyEnvelope() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            try {
+                WebDavRangeReader(
+                    libraryRoot = server.url("/AllMusic/").toString(),
+                    encodedPath = "/AllMusic/sample.mp3",
+                    fileSize = payload.size.toLong(),
+                    email = "synthetic@example.test", appPassword = "synthetic",
+                    allowLoopbackHttpForTests = true,
+                    maxRequests = 129, maxDownloadedBytes = 9L * 1024 * 1024,
+                )
+                fail("Cannot raise transport limits through pilot")
+            } catch (_: IllegalArgumentException) {}
+            assertEquals(0, server.requestCount)
+        } finally { server.shutdown() }
+    }
+
 }

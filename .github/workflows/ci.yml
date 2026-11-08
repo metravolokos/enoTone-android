@@ -121,6 +121,9 @@ jobs:
           assert v2["database"]["version"] == 2
           assert any(f["columnName"] == "tagScanCode" for e in v2["database"]["entities"]
                      if e["tableName"] == "remote_tracks" for f in e["fields"])
+          # Temporary, non-sensitive schema manifest for committing the exact KSP export.
+          # Remove this print after 2.json is checked in and compared byte-for-byte.
+          print("ROOM_V2_SCHEMA_JSON=" + json.dumps(v2, separators=(",", ":")))
           print("Room schema v1 preserved and v2 exported with checkpoint column")
           PY
       - name: Resolved dependencies
