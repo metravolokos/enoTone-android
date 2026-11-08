@@ -91,6 +91,25 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("credentials = Credentials(", service)
         self.assertIn("visible.mapNotNull", ui)
         self.assertIn("playQueue(accountEmail, appPassword", ui)
+
+    def test_m4c_modes_use_native_media3_and_no_network_loop(self):
+        service = (
+            ROOT / "playback/src/main/java/app/enotone/playback/"
+            "EnoTonePlaybackService.kt"
+        ).read_text(encoding="utf-8")
+        ui = (
+            ROOT / "app/src/main/java/app/enotone/android/"
+            "OfflineLibraryScreen.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("PlaybackModes.nextRepeat(", service)
+        self.assertIn("player.shuffleModeEnabled", service)
+        self.assertIn("onRepeatModeChanged(", ui)
+        self.assertIn("onShuffleModeEnabledChanged(", ui)
+        self.assertIn("playback?.cycleRepeatMode()", ui)
+        self.assertIn("playback?.toggleShuffle()", ui)
+        self.assertNotIn("putExtra(", service)
+        self.assertNotIn("Log.", service)
+
         self.assertNotIn("putExtra(", service)
         self.assertNotIn("Log.", service)
 
