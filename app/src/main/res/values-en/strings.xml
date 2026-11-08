@@ -71,4 +71,7 @@
     <string name="playback_cache_complete">Track fully stored in temporary cache</string>
     <string name="playback_cache_skipped">Temporary cache skipped: file size or disk space</string>
     <string name="playback_cache_failed">Temporary cache incomplete; streaming playback remains available</string>
+    <string name="playback_mode_baseline">Next play: no cache (baseline)</string>
+    <string name="playback_mode_cache">Next play: temporary cache (experiment)</string>
+    <string name="playback_startup_timing">Timings, ms: Room %1$s · Media3 %2$s · BUFFERING after tap %3$s · READY %4$s · sound %5$s</string>
 </resources>
