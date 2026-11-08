@@ -201,5 +201,39 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("Log.", player)
 
 
+    def test_m6_handoff_is_anonymous_and_debug_ui_is_collapsed(self):
+        source = ROOT / "playback/src/main/java/app/enotone/playback"
+        handoff = (source / "PlaybackHandoffTracker.kt").read_text(encoding="utf-8")
+        player = (source / "PreviewAudioPlayback.kt").read_text(encoding="utf-8")
+        service = (source / "EnoTonePlaybackService.kt").read_text(encoding="utf-8")
+        ui = (
+            ROOT / "app/src/main/java/app/enotone/android/"
+            "OfflineLibraryScreen.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("fun onItemChanged(", handoff)
+        self.assertIn("fun onBuffering(", handoff)
+        self.assertIn("fun onReady(", handoff)
+        self.assertIn("fun onPlaying(", handoff)
+        self.assertNotIn("encodedPath", handoff)
+        self.assertNotIn("mediaId", handoff)
+        self.assertNotIn("Log.", handoff)
+        self.assertIn("addListener(handoffListener)", player)
+        self.assertIn("addListener(cacheTransitionListener)", player)
+        self.assertLess(player.index("addListener(handoffListener)"),
+                        player.index("addListener(cacheTransitionListener)"))
+        self.assertIn("CachePhase.COMPLETE", player)
+        self.assertIn("fun handoffSnapshot()", service)
+        self.assertIn("playback.noteNextButton()", service)
+        self.assertIn("playback.notePreviousButton()", service)
+        self.assertIn("var showDiagnostics", ui)
+        self.assertIn("if (showDiagnostics)", ui)
+        self.assertIn("useCacheOnNextPlay by remember { mutableStateOf(true) }", ui)
+        self.assertIn("handoffInfo = playback?.handoffSnapshot()", ui)
+        self.assertIn("playback_diagnostics_show", ui)
+        self.assertIn("handoff_summary", ui)
+        self.assertNotIn("Log.", ui)
+        self.assertNotIn("putExtra(", service)
+
+
 if __name__ == "__main__":
     unittest.main()
