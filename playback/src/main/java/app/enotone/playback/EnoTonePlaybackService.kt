@@ -27,6 +27,9 @@ class EnoTonePlaybackService : MediaSessionService() {
         super.onCreate()
         playback = PreviewAudioPlayback(this)
         session = MediaSession.Builder(this, playback.player).build()
+        // Local in-process binding bypasses onGetSession: register explicitly
+        // so Media3 can manage the foreground notification and service lifecycle.
+        addSession(session)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession = session
