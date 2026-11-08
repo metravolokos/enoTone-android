@@ -234,6 +234,9 @@ class WebDavRangeReader(
         const val MAX_GETS = 128
         const val MAX_BYTES = 8L * 1024 * 1024
         const val MAX_NS = 40L * 1_000_000_000L
-        val CONTENT_RANGE = Regex("""bytes\s+(\d+)-(\d+)/(\d+|\*)""", RegexOption.IGNORE_CASE)
+        // Cloud.Mail.ru sends non-standard "bytes=..." in Content-Range.
+        // Accept only that observed separator alongside the RFC "bytes ..." form.
+        // matchEntire() and the checks above still enforce every numeric boundary.
+        val CONTENT_RANGE = Regex("""bytes(?:\s+|=)(\d+)-(\d+)/(\d+|\*)""", RegexOption.IGNORE_CASE)
     }
 }
