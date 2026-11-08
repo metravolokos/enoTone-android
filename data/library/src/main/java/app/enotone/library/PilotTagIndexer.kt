@@ -42,7 +42,7 @@ internal object PilotBudget {
         return rows.asSequence()
             .filter { eligibleForSingleTagWrite(sourceKey, it) }
             .filter {
-                (it.tagScanCode == null || it.tagScanCode.startsWith("RETRY_")) &&
+                (it.tagScanCode?.startsWith("RETRY_") != false) &&
                     it.title == null && it.artist == null &&
                     it.album == null && it.albumArtist == null &&
                     (it.fileName.endsWith(".mp3", true) || it.fileName.endsWith(".flac", true))
