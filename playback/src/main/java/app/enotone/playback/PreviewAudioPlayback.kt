@@ -48,6 +48,16 @@ class PreviewAudioPlayback(
         if (!cacheEnabledForQueue) return
         val currentId = player.currentMediaItem?.mediaId ?: return
         if (fullyCachedCurrentId != currentId) return
+        // A partially staged timeline has an unstable shuffle/next decision.
+        // Do not spend network bytes on a candidate that may change as the
+        // remaining 3590 local MediaSources are added. Retry on timeline event.
+        if (player.mediaItemCount < expectedQueueSize) {
+            if (scheduledNextId != null) {
+                temporaryCache?.cancelNext()
+                scheduledNextId = null
+            }
+            return
+        }
         // Media3's explicit manual-skip index need not mean automatic repeat-one.
         // Never start a different GET while the player repeats one track.
         if (player.repeatMode == Player.REPEAT_MODE_ONE) {
