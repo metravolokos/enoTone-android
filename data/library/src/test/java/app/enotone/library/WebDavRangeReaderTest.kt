@@ -277,7 +277,8 @@ class WebDavRangeReaderTest {
 
     @Test fun equalsSeparatorStillRejectsIncorrectNumericRangeOrTotal() {
         val cases = listOf(
-            "bytes=1-65536/110000" to ContentRangeMismatchKind.START,
+            "bytes=1-65535/110000" to ContentRangeMismatchKind.START,
+            "bytes=1-65536/110000" to ContentRangeMismatchKind.MULTIPLE,
             "bytes=0-65534/110000" to ContentRangeMismatchKind.END,
             "bytes=0-65535/110001" to ContentRangeMismatchKind.TOTAL,
             "bytes=0-65535/65535" to ContentRangeMismatchKind.INVALID_BOUNDS,
