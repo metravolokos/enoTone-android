@@ -34,10 +34,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.MediaMetadata
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.EnoTonePlaybackService
+import app.enotone.playback.QueueTrack
+import app.enotone.playback.WebDavPlaybackTarget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -63,6 +66,8 @@ internal fun OfflineLibraryScreen(
     var selecting by remember { mutableStateOf(false) }
     var selectedTitle by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf("IDLE") }
+    var queuePosition by remember { mutableStateOf(0) }
+    var queueTotal by remember { mutableStateOf(0) }
     var errorCode by remember { mutableStateOf(0) }
     var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
 
@@ -132,6 +137,11 @@ internal fun OfflineLibraryScreen(
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 playbackState = if (isPlaying) "PLAYING" else "PAUSED"
             }
+            override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+                selectedTitle = mediaMetadata.title?.toString()
+                queuePosition = (active?.queuePosition ?: 0) + 1
+                queueTotal = active?.queueSize ?: 0
+            }
             override fun onPlayerError(error: PlaybackException) {
                 errorCode = error.errorCode
                 playbackState = "ERROR"
@@ -140,6 +150,8 @@ internal fun OfflineLibraryScreen(
         active?.player?.addListener(listener)
         if (active != null) {
             selectedTitle = active.player.currentMediaItem?.mediaMetadata?.title?.toString()
+            queuePosition = active.queuePosition + 1
+            queueTotal = active.queueSize
             if (active.player.isPlaying) playbackState = "PLAYING"
         }
         onDispose { active?.player?.removeListener(listener) }
@@ -180,6 +192,20 @@ internal fun OfflineLibraryScreen(
                 else -> stringResource(R.string.playback_loading)
             }
             Text(status)
+            if (queueTotal > 0) {
+                Text(stringResource(R.string.playback_queue_position,
+                    queuePosition, queueTotal))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(enabled = playback?.hasPrevious == true && !selecting,
+                    onClick = { playback?.playPrevious() }) {
+                    Text(stringResource(R.string.playback_previous))
+                }
+                Button(enabled = playback?.hasNext == true && !selecting,
+                    onClick = { playback?.playNext() }) {
+                    Text(stringResource(R.string.playback_next))
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(enabled = playback != null && !selecting,
                     onClick = { playback?.pause() }) {
@@ -216,22 +242,42 @@ internal fun OfflineLibraryScreen(
                         playbackState = "LOADING"
                         scope.launch {
                             try {
-                                val selected = withContext(Dispatchers.IO) {
+                                // Use the user's currently visible search order.
+                                // All metadata is read locally in a single Room query.
+                                // Only the selected item triggers a WebDAV stream.
+                                val queue = withContext(Dispatchers.IO) {
                                     val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
                                     val db = openLibraryDatabase(context)
                                     try {
-                                        db.remoteTrackDao().playableById(track.id, sourceKey)
+                                        val byId = db.remoteTrackDao().allForSource(sourceKey)
+                                            .associateBy { it.id }
+                                        visible.mapNotNull { shown ->
+                                            val item = byId[shown.id]
+                                            val size = item?.remoteSize
+                                            if (item == null || item.missingScans != 0 ||
+                                                size == null || size <= 0L ||
+                                                runCatching {
+                                                    WebDavPlaybackTarget.url(item.encodedPath)
+                                                }.isFailure) null
+                                            else QueueTrack(
+                                                id = shown.id, title = shown.title,
+                                                encodedPath = item.encodedPath,
+                                                remoteSize = size, remoteEtag = item.remoteEtag,
+                                            )
+                                        }
                                     } finally {
                                         db.close()
                                     }
                                 }
-                                val remoteSize = selected?.remoteSize
-                                if (selected == null || remoteSize == null) {
+                                if (queue.none { it.id == track.id }) {
                                     playbackState = "MISSING_TRACK"
                                 } else {
-                                    playback?.play(accountEmail, appPassword,
-                                        selected.encodedPath, remoteSize,
-                                        selected.remoteEtag, track.title)
+                                    val service = playback
+                                        ?: throw IllegalStateException("Playback service disconnected")
+                                    service.playQueue(accountEmail, appPassword,
+                                        queue, track.id)
+                                    queueTotal = queue.size
+                                    queuePosition = queue.indexOfFirst { it.id == track.id } + 1
                                 }
                             } catch (cancelled: CancellationException) {
                                 throw cancelled

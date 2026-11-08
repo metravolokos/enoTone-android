@@ -58,4 +58,7 @@
     <string name="playback_pause">Пауза</string>
     <string name="playback_resume">Продолжить</string>
     <string name="playback_stop">Стоп</string>
+    <string name="playback_previous">Предыдущий</string>
+    <string name="playback_next">Следующий</string>
+    <string name="playback_queue_position">Трек %1$d из %2$d в очереди</string>
 </resources>

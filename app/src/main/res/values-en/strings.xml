@@ -58,4 +58,7 @@
     <string name="playback_pause">Pause</string>
     <string name="playback_resume">Resume</string>
     <string name="playback_stop">Stop</string>
+    <string name="playback_previous">Previous</string>
+    <string name="playback_next">Next</string>
+    <string name="playback_queue_position">Track %1$d of %2$d in queue</string>
 </resources>
