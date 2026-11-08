@@ -100,7 +100,7 @@ interface RemoteTrackDao {
         WHERE id = :id AND sourceKey = :sourceKey AND encodedPath = :path
           AND remoteEtag IS :etag AND remoteSize IS :size
           AND remoteModified IS :modified AND missingScans = 0
-          AND tagScanCode IS NULL
+          AND (tagScanCode IS NULL OR tagScanCode LIKE 'RETRY_%')
           AND title IS NULL AND artist IS NULL
           AND album IS NULL AND albumArtist IS NULL
     """)
@@ -115,7 +115,8 @@ interface RemoteTrackDao {
     @Query("""
         SELECT * FROM remote_tracks
         WHERE sourceKey = :sourceKey AND missingScans = 0
-          AND remoteSize > 0 AND tagScanCode IS NULL
+          AND remoteSize > 0
+          AND (tagScanCode IS NULL OR tagScanCode LIKE 'RETRY_%')
           AND title IS NULL AND artist IS NULL
           AND album IS NULL AND albumArtist IS NULL
           AND (LOWER(fileName) LIKE '%.mp3' OR LOWER(fileName) LIKE '%.flac')
@@ -126,7 +127,7 @@ interface RemoteTrackDao {
     @Query("""
         SELECT COUNT(*) FROM remote_tracks
         WHERE sourceKey = :sourceKey AND missingScans = 0
-          AND tagScanCode IS NOT NULL
+          AND tagScanCode IS NOT NULL AND tagScanCode NOT LIKE 'RETRY_%'
     """)
     suspend fun finishedFastScanCount(sourceKey: String): Int
 
