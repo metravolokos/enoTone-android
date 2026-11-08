@@ -83,6 +83,7 @@ private fun DiagnosticScreen() {
     val tagMissing = stringResource(R.string.one_tag_missing)
     val fastTagReport = stringResource(R.string.fast_tag_report)
     val pilotReport = stringResource(R.string.pilot_report)
+    val pilotFailureDetail = stringResource(R.string.pilot_failure_detail)
     val pilotOffline = stringResource(R.string.pilot_offline_report)
     val pilotStopped = stringResource(R.string.pilot_stopped)
     val pilotFailed = stringResource(R.string.pilot_failed)
@@ -97,7 +98,11 @@ private fun DiagnosticScreen() {
             progress.requested, progress.attempted, progress.savedWithTags,
             progress.completedWithoutTags, progress.retryableErrors,
             progress.staleWrites, progress.getRequests, progress.downloadedBytes,
-            progress.remaining, progress.stopCode)
+            progress.remaining, progress.stopCode, progress.permanentErrors) +
+            if (progress.lastErrorStage == "NONE") "" else
+                "\n" + String.format(Locale.getDefault(), pilotFailureDetail,
+                    progress.lastErrorStage, progress.lastErrorReason,
+                    if (progress.lastErrorHttpStatus == 0) "—" else progress.lastErrorHttpStatus.toString())
 
     val runPilot: (Int) -> Unit = { count ->
         busy = true
@@ -505,7 +510,8 @@ private fun DiagnosticScreen() {
                         }
                     }
                     report = String.format(Locale.getDefault(), pilotOffline,
-                        stored.first, stored.second)
+                        stored.successful, stored.retryableErrors,
+                        stored.permanentErrors, stored.notAttempted)
                 } catch (_: Exception) {
                     report = pilotFailed
                 } finally {
