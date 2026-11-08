@@ -18,8 +18,6 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 @OptIn(UnstableApi::class)
 class PreviewAudioPlayback(
     context: Context,
-    private val email: String,
-    private val appPassword: String,
 ) : AutoCloseable {
     val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext)
         .build().apply {
@@ -34,13 +32,16 @@ class PreviewAudioPlayback(
             repeatMode = Player.REPEAT_MODE_OFF
         }
 
-    init {
+    fun play(
+        email: String,
+        appPassword: String,
+        encodedPath: String,
+        remoteSize: Long,
+        remoteEtag: String?,
+    ) {
         require(email.contains('@') && appPassword.isNotBlank()) {
             "Playback credentials required"
         }
-    }
-
-    fun play(encodedPath: String, remoteSize: Long, remoteEtag: String?) {
         val safeUrl = WebDavPlaybackTarget.url(encodedPath)
         val factory = WebDavMedia3DataSource.Factory(
             email, appPassword, remoteSize, remoteEtag)
