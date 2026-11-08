@@ -55,13 +55,20 @@ class EnoTonePlaybackService : MediaSessionService() {
     val queuePosition: Int get() = playback.logicalQueuePosition
     val loadedQueueSize: Int get() = playback.loadedQueueSize
     fun setupTimings(): PlaybackSetupTimings = playback.setupTimings()
+    fun handoffSnapshot(): HandoffSnapshot? = playback.handoffSnapshot()
 
     fun playNext() {
-        if (hasNext) playback.player.seekToNextMediaItem()
+        if (hasNext) {
+            playback.noteNextButton()
+            playback.player.seekToNextMediaItem()
+        }
     }
 
     fun playPrevious() {
-        if (hasPrevious) playback.player.seekToPreviousMediaItem()
+        if (hasPrevious) {
+            playback.notePreviousButton()
+            playback.player.seekToPreviousMediaItem()
+        }
     }
 
     fun cacheSnapshot(): TransientCacheStatus = playback.cacheSnapshot()
