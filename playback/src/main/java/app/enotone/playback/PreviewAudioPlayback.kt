@@ -5,6 +5,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -38,6 +39,7 @@ class PreviewAudioPlayback(
         encodedPath: String,
         remoteSize: Long,
         remoteEtag: String?,
+        title: String,
     ) {
         require(email.contains('@') && appPassword.isNotBlank()) {
             "Playback credentials required"
@@ -46,7 +48,10 @@ class PreviewAudioPlayback(
         val factory = WebDavMedia3DataSource.Factory(
             email, appPassword, remoteSize, remoteEtag)
         val source = ProgressiveMediaSource.Factory(factory)
-            .createMediaSource(MediaItem.fromUri(safeUrl))
+            .createMediaSource(MediaItem.Builder()
+                .setUri(safeUrl)
+                .setMediaMetadata(MediaMetadata.Builder().setTitle(title).build())
+                .build())
         player.setMediaSource(source)
         player.prepare()
         player.play()
