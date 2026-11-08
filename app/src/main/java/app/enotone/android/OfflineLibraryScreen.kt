@@ -40,6 +40,7 @@ import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.CachePhase
+import app.enotone.playback.PlaybackSetupTimings
 import app.enotone.playback.TransientCacheStatus
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.QueueTrack
@@ -86,6 +87,8 @@ internal fun OfflineLibraryScreen(
     var selectionStartedAt by remember { mutableStateOf(0L) }
     var roomDurationMs by remember { mutableStateOf<Long?>(null) }
     var media3DurationMs by remember { mutableStateOf<Long?>(null) }
+    var setupTimings by remember { mutableStateOf<PlaybackSetupTimings?>(null) }
+    var loadedQueueSources by remember { mutableStateOf(0) }
     var bufferingAfterTapMs by remember { mutableStateOf<Long?>(null) }
     var readyAfterTapMs by remember { mutableStateOf<Long?>(null) }
     var playingAfterTapMs by remember { mutableStateOf<Long?>(null) }
@@ -222,6 +225,7 @@ internal fun OfflineLibraryScreen(
         while (true) {
             cacheInfo = playback?.cacheSnapshot()
                 ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
+            loadedQueueSources = playback?.loadedQueueSize ?: 0
             delay(1_000L)
         }
     }
@@ -267,6 +271,19 @@ internal fun OfflineLibraryScreen(
                 ),
                 style = MaterialTheme.typography.bodySmall,
             )
+            setupTimings?.let { stages ->
+                Text(
+                    stringResource(
+                        R.string.playback_setup_breakdown,
+                        stages.queueMs,
+                        stages.routesAndCacheMs,
+                        stages.seedSourcesMs,
+                        stages.setSourcesMs,
+                        stages.prepareAndPlayMs,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
         if (selectedTitle != null) {
             Text(selectedTitle!!, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -299,6 +316,11 @@ internal fun OfflineLibraryScreen(
             if (queueTotal > 0) {
                 Text(stringResource(R.string.playback_queue_position,
                     queuePosition, queueTotal))
+                if (loadedQueueSources in 1 until queueTotal) {
+                    Text(stringResource(R.string.playback_queue_staging,
+                        loadedQueueSources, queueTotal),
+                        style = MaterialTheme.typography.bodySmall)
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(enabled = playback?.hasPrevious == true && !selecting,
@@ -363,6 +385,7 @@ internal fun OfflineLibraryScreen(
                         selectionStartedAt = SystemClock.elapsedRealtime()
                         roomDurationMs = null
                         media3DurationMs = null
+                        setupTimings = null
                         bufferingAfterTapMs = null
                         readyAfterTapMs = null
                         playingAfterTapMs = null
@@ -387,6 +410,8 @@ internal fun OfflineLibraryScreen(
                                         queue, track.id, useCacheOnNextPlay)
                                     media3DurationMs =
                                         SystemClock.elapsedRealtime() - media3StartedAt
+                                    setupTimings = service.setupTimings()
+                                    loadedQueueSources = service.loadedQueueSize
                                     queueTotal = queue.size
                                     queuePosition = queue.indexOfFirst { it.id == track.id } + 1
                                 }
