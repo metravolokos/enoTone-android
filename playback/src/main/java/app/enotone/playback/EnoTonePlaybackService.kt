@@ -61,6 +61,8 @@ class EnoTonePlaybackService : MediaSessionService() {
         if (hasPrevious) playback.player.seekToPreviousMediaItem()
     }
 
+    fun cacheSnapshot(): TransientCacheStatus = playback.cacheSnapshot()
+
     val repeatMode: Int get() = playback.player.repeatMode
     val shuffleEnabled: Boolean get() = playback.player.shuffleModeEnabled
 
