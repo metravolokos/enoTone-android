@@ -61,6 +61,18 @@ class EnoTonePlaybackService : MediaSessionService() {
         if (hasPrevious) playback.player.seekToPreviousMediaItem()
     }
 
+    val repeatMode: Int get() = playback.player.repeatMode
+    val shuffleEnabled: Boolean get() = playback.player.shuffleModeEnabled
+
+    /** Let ExoPlayer and MediaSession own the actual repeat and shuffle order. */
+    fun cycleRepeatMode() {
+        playback.player.repeatMode = PlaybackModes.nextRepeat(playback.player.repeatMode)
+    }
+
+    fun toggleShuffle() {
+        playback.player.shuffleModeEnabled = !playback.player.shuffleModeEnabled
+    }
+
     fun pause() = playback.pause()
     fun resume() = playback.resume()
     fun stopPlayback() = playback.stop()

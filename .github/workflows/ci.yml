@@ -166,12 +166,29 @@ jobs:
           "$apksigner" verify --print-certs "$apk" | grep "Signer #1 certificate SHA-256 digest:"
           echo "::notice::Isolated preview package; runner-generated debug signatures are not stable between runs"
       - name: Upload debug APK
+        id: upload_preview
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: enotone-preview-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 14
+      - name: Direct Preview ZIP link in run summary
+        if: success()
+        env:
+          PREVIEW_ARTIFACT_ID: ${{ steps.upload_preview.outputs.artifact-id }}
+        run: |
+          set -euo pipefail
+          test -n "$PREVIEW_ARTIFACT_ID"
+          {
+            echo '### Download enoTone Preview'
+            echo
+            echo "[Download APK ZIP](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts/${PREVIEW_ARTIFACT_ID})"
+            echo
+            echo 'Requires GitHub sign-in. Unzip and install app-debug.apk.'
+            echo 'Each Preview run has its own package ID and separate local Room database.'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload blocked diagnostic APK (not approved for installation)
         if: failure()
         uses: actions/upload-artifact@v4

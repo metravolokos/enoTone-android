@@ -61,4 +61,10 @@
     <string name="playback_previous">Previous</string>
     <string name="playback_next">Next</string>
     <string name="playback_queue_position">Track %1$d of %2$d in queue</string>
+    <string name="playback_repeat_control">Repeat: %1$s</string>
+    <string name="playback_repeat_off">off</string>
+    <string name="playback_repeat_one">track</string>
+    <string name="playback_repeat_all">queue</string>
+    <string name="playback_shuffle_on">Shuffle: on</string>
+    <string name="playback_shuffle_off">Shuffle: off</string>
 </resources>

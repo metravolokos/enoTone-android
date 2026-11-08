@@ -68,6 +68,8 @@ internal fun OfflineLibraryScreen(
     var playbackState by remember { mutableStateOf("IDLE") }
     var queuePosition by remember { mutableStateOf(0) }
     var queueTotal by remember { mutableStateOf(0) }
+    var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
+    var shuffleEnabled by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf(0) }
     var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
 
@@ -142,6 +144,12 @@ internal fun OfflineLibraryScreen(
                 queuePosition = (active?.queuePosition ?: 0) + 1
                 queueTotal = active?.queueSize ?: 0
             }
+            override fun onRepeatModeChanged(newMode: Int) {
+                repeatMode = newMode
+            }
+            override fun onShuffleModeEnabledChanged(enabled: Boolean) {
+                shuffleEnabled = enabled
+            }
             override fun onPlayerError(error: PlaybackException) {
                 errorCode = error.errorCode
                 playbackState = "ERROR"
@@ -152,6 +160,8 @@ internal fun OfflineLibraryScreen(
             selectedTitle = active.player.currentMediaItem?.mediaMetadata?.title?.toString()
             queuePosition = active.queuePosition + 1
             queueTotal = active.queueSize
+            repeatMode = active.repeatMode
+            shuffleEnabled = active.shuffleEnabled
             if (active.player.isPlaying) playbackState = "PLAYING"
         }
         onDispose { active?.player?.removeListener(listener) }
@@ -204,6 +214,22 @@ internal fun OfflineLibraryScreen(
                 Button(enabled = playback?.hasNext == true && !selecting,
                     onClick = { playback?.playNext() }) {
                     Text(stringResource(R.string.playback_next))
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val repeatLabel = when (repeatMode) {
+                    Player.REPEAT_MODE_ONE -> stringResource(R.string.playback_repeat_one)
+                    Player.REPEAT_MODE_ALL -> stringResource(R.string.playback_repeat_all)
+                    else -> stringResource(R.string.playback_repeat_off)
+                }
+                Button(enabled = playback != null && !selecting && queueTotal > 0,
+                    onClick = { playback?.cycleRepeatMode() }) {
+                    Text(stringResource(R.string.playback_repeat_control, repeatLabel))
+                }
+                Button(enabled = playback != null && !selecting && queueTotal > 0,
+                    onClick = { playback?.toggleShuffle() }) {
+                    Text(if (shuffleEnabled) stringResource(R.string.playback_shuffle_on)
+                         else stringResource(R.string.playback_shuffle_off))
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
