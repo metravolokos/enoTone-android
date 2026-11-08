@@ -74,4 +74,6 @@
     <string name="playback_mode_baseline">Next play: no cache (baseline)</string>
     <string name="playback_mode_cache">Next play: temporary cache (experiment)</string>
     <string name="playback_startup_timing">Timings, ms: Room %1$s · Media3 %2$s · BUFFERING after tap %3$s · READY %4$s · sound %5$s</string>
+    <string name="playback_setup_breakdown">Media3 phases, ms: queue %1$d · routes/cache %2$d · first items %3$d · set sources %4$d · start %5$d</string>
+    <string name="playback_queue_staging">Prepared in Media3: %1$d of %2$d tracks (not audio downloads)</string>
 </resources>
