@@ -67,5 +67,26 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("active?.pause()", ui)
 
 
+    def test_m4_queue_keeps_credentials_private_and_auto_advance_bounded(self):
+        service = (
+            ROOT / "playback/src/main/java/app/enotone/playback/"
+            "EnoTonePlaybackService.kt"
+        ).read_text(encoding="utf-8")
+        ui = (
+            ROOT / "app/src/main/java/app/enotone/android/"
+            "OfflineLibraryScreen.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("PlaybackQueue.create(tracks, selectedId)", service)
+        self.assertIn("Player.STATE_ENDED", service)
+        self.assertIn("playNext()", service)
+        self.assertIn("playPrevious()", service)
+        self.assertIn("credentials = null", service)
+        self.assertIn("queue = null", service)
+        self.assertIn("visible.mapNotNull", ui)
+        self.assertIn("playQueue(accountEmail, appPassword", ui)
+        self.assertNotIn("putExtra(", service)
+        self.assertNotIn("Log.", service)
+
+
 if __name__ == "__main__":
     unittest.main()
