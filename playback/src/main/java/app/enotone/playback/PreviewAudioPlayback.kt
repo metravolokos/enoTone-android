@@ -48,6 +48,13 @@ class PreviewAudioPlayback(
         if (!cacheEnabledForQueue) return
         val currentId = player.currentMediaItem?.mediaId ?: return
         if (fullyCachedCurrentId != currentId) return
+        // Media3's explicit manual-skip index need not mean automatic repeat-one.
+        // Never start a different GET while the player repeats one track.
+        if (player.repeatMode == Player.REPEAT_MODE_ONE) {
+            temporaryCache?.cancelNext()
+            scheduledNextId = null
+            return
+        }
         val nextIndex = player.nextMediaItemIndex
         val candidateId = if (nextIndex != C.INDEX_UNSET &&
             nextIndex in 0 until player.mediaItemCount) {
