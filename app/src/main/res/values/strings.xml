@@ -80,4 +80,16 @@
     <string name="playback_next_cache_complete">Следующий трек полностью загружен заранее</string>
     <string name="playback_next_cache_skipped">Предзагрузка следующего пропущена: размер или место</string>
     <string name="playback_next_cache_failed">Предзагрузка следующего не завершена; потоковое воспроизведение доступно</string>
+    <string name="playback_diagnostics_show">Показать диагностику</string>
+    <string name="playback_diagnostics_hide">Скрыть диагностику</string>
+    <string name="handoff_summary">Переход %1$s · %2$s · READY %3$s мс · Media3 PLAYING %4$s мс · следующий заранее в кэше: %5$s</string>
+    <string name="handoff_next_button">следующий</string>
+    <string name="handoff_previous_button">предыдущий</string>
+    <string name="handoff_auto">автоматически</string>
+    <string name="handoff_media_session">из уведомления / гарнитуры</string>
+    <string name="handoff_waiting">подготовка</string>
+    <string name="handoff_ready">готово</string>
+    <string name="handoff_failed">ошибка</string>
+    <string name="handoff_yes">да</string>
+    <string name="handoff_no">нет</string>
 </resources>
