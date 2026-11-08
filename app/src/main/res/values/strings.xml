@@ -61,4 +61,10 @@
     <string name="playback_previous">Предыдущий</string>
     <string name="playback_next">Следующий</string>
     <string name="playback_queue_position">Трек %1$d из %2$d в очереди</string>
+    <string name="playback_repeat_control">Повтор: %1$s</string>
+    <string name="playback_repeat_off">выкл.</string>
+    <string name="playback_repeat_one">трек</string>
+    <string name="playback_repeat_all">очередь</string>
+    <string name="playback_shuffle_on">Случайно: вкл.</string>
+    <string name="playback_shuffle_off">Случайно: выкл.</string>
 </resources>
