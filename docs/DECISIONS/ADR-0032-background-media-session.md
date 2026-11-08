@@ -8,7 +8,7 @@
 
 ## Решение
 
-- Перенести ExoPlayer в нативный `MediaSessionService` (Media3) с `MediaSession`, `foregroundServiceType="mediaPlayback"` и штатными разрешениями `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK`. Media3 автоматически управляет foreground-уведомлением, аудиофокусом и стандартными транспортными командами.
+- Перенести ExoPlayer в нативный `MediaSessionService` (Media3) с `MediaSession`, `foregroundServiceType="mediaPlayback"` и штатными разрешениями `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK`. Из-за локального Binder вызываем `addSession(session)` сразу после создания — иначе `onGetSession` не вызывается и служба не узнаёт о сессии. Media3 далее управляет foreground-уведомлением, аудиофокусом и стандартными транспортными командами.
 - `android:exported="false"` — не предоставлять сторонним приложениям общий binder к приватному плееру. Для UI использовать bind по явно заданному имени службы и приватному `ACTION_LOCAL_BIND`; все остальные bind-запросы передавать `super.onBind()` для Media3.
 - Передавать e-mail, пароль приложения, путь/size/ETag **через вызов локального binder в RAM**, не помещать их в URI, Intent extras, PendingIntent, MediaSession extras, SQLite, логи или публичные отчёты. Воспроизводимый URL остаётся единственно разрешённым `https://webdav.cloud.mail.ru/AllMusic/...`, с отключёнными redirect и строгим `206 / Content-Range` из ADR-0031.
 - Открытие экрана только привязывает UI к уже существующей службе. При закрытии экрана UI делает `unbindService`, **не** закрывает ExoPlayer и **не** ставит паузу: Android продолжает воспроизведение, пока играет трек. Media3 контролирует длительность жизни службы/уведомления.
