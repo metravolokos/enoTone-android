@@ -45,6 +45,7 @@ class MediaSessionContractTest(unittest.TestCase):
             "EnoTonePlaybackService.kt"
         ).read_text(encoding="utf-8")
         self.assertIn("MediaSession.Builder(", service)
+        self.assertIn("addSession(session)", service)
         self.assertIn("super.onBind(intent)", service)
         self.assertIn("ACTION_LOCAL_BIND", service)
         self.assertIn("session.release()", service)
