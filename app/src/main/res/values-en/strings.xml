@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">enoTone</string>
-    <string name="diagnostic_title">WebDAV diagnostics — M0</string>
-    <string name="diagnostic_explanation">Check Cloud.Mail.ru without saving your credentials or music.</string>
+    <string name="diagnostic_title">WebDAV diagnostics — M1</string>
+    <string name="diagnostic_explanation">Check Cloud.Mail.ru without storing your password. Import saves the file listing in a private on-device database.</string>
     <string name="email">Full email</string>
     <string name="app_password">External app password</string>
     <string name="test_file">Test audio file path, e.g. /AllMusic/test.mp3 (optional)</string>

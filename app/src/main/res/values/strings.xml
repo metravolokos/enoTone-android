@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">enoTone</string>
-    <string name="diagnostic_title">Диагностика WebDAV — M0</string>
-    <string name="diagnostic_explanation">Проверка Cloud.Mail.ru без сохранения пароля, медиатеки и любых учётных данных.</string>
+    <string name="diagnostic_title">Диагностика WebDAV — M1</string>
+    <string name="diagnostic_explanation">Диагностика Cloud.Mail.ru: пароль не сохраняется. Кнопка импорта сохраняет список файлов в приватную базу устройства.</string>
     <string name="email">Полный email</string>
     <string name="app_password">Пароль внешнего приложения</string>
     <string name="test_file">Путь к тестовому аудиофайлу, например /AllMusic/test.mp3 (необязательно)</string>
