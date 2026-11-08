@@ -51,6 +51,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":data:library"))
     implementation(project(":playback"))
+    implementation(libs.media3.exoplayer)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.material3)
     implementation(libs.compose.ui.tooling.preview)
