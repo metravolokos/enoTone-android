@@ -408,12 +408,13 @@ private fun DiagnosticScreen() {
                                     selected.fileName, reader.fileSize, reader::readAt)
                                 val stats = reader.stats()
                                 var persisted = false
-                                if (parsed.tags != null) {
+                                val extractedTags = parsed.tags
+                                if (extractedTags != null) {
                                     stage = "FAST_STORE"
                                     val storeDatabase = openLibraryDatabase(appContext)
                                     persisted = try {
                                         LibraryTagStore(storeDatabase).saveIfUnchanged(
-                                            email, selected, parsed.tags)
+                                            email, selected, extractedTags)
                                     } finally {
                                         storeDatabase.close()
                                     }
