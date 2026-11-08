@@ -50,7 +50,7 @@ class PreviewAudioPlayback(
 
     val logicalQueueSize: Int get() = expectedQueueSize
     val logicalQueuePosition: Int get() {
-        val id = player.currentMediaItem?.mediaId
+        val id = player.currentMediaItem?.mediaId ?: return 0
         return mediaIdIndices[id] ?: 0
     }
     val loadedQueueSize: Int get() =
