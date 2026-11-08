@@ -16,6 +16,7 @@ class PlaybackQueue private constructor(
     private val tracks: List<QueueTrack>,
     private var index: Int,
 ) {
+    val items: List<QueueTrack> get() = tracks
     val size: Int get() = tracks.size
     val position: Int get() = index
     val current: QueueTrack get() = tracks[index]
