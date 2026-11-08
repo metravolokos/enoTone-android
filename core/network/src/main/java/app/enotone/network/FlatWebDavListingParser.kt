@@ -167,11 +167,13 @@ class FlatWebDavListingParser(
                 return
             }
             val segment = path.removePrefix(encodedPrefix)
-            if (segment.contains('/') || segment.endsWith("%2F", ignoreCase = true)) {
+            // A direct child collection normally has a trailing slash ("sub/").
+            // Only additional separators beyond that represent nested descendants.
+            if (segment.trimEnd('/').contains('/')) {
                 nested++
                 return
             }
-            if (item.collection) {
+            if (item.collection || segment.endsWith('/')) {
                 directories++
                 return
             }
