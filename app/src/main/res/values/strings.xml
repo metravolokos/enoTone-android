@@ -67,4 +67,13 @@
     <string name="playback_repeat_all">очередь</string>
     <string name="playback_shuffle_on">Случайно: вкл.</string>
     <string name="playback_shuffle_off">Случайно: выкл.</string>
+    <string name="playback_cache_downloading">Временный кэш: %1$d / %2$d КиБ (скачивается также при паузе)</string>
+    <string name="playback_cache_complete">Трек полностью загружен во временный кэш</string>
+    <string name="playback_cache_skipped">Временный кэш пропущен: размер или свободное место</string>
+    <string name="playback_cache_failed">Временный кэш не завершён; потоковое воспроизведение доступно</string>
+    <string name="playback_mode_baseline">Следующий запуск: без кэша (контроль)</string>
+    <string name="playback_mode_cache">Следующий запуск: с кэшем (эксперимент)</string>
+    <string name="playback_startup_timing">Диагностика, мс: Room %1$s · Media3 %2$s · BUFFERING от нажатия %3$s · READY %4$s · звук %5$s</string>
+    <string name="playback_setup_breakdown">Этапы Media3, мс: очередь %1$d · URL/кэш %2$d · первые треки %3$d · установить %4$d · старт %5$d</string>
+    <string name="playback_queue_staging">Подготовлено в Media3: %1$d из %2$d треков (это не загрузка аудио)</string>
 </resources>

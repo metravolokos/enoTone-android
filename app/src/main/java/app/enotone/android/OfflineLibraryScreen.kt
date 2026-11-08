@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,11 +39,15 @@ import androidx.media3.common.MediaMetadata
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
+import app.enotone.playback.CachePhase
+import app.enotone.playback.PlaybackSetupTimings
+import app.enotone.playback.TransientCacheStatus
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.QueueTrack
 import app.enotone.playback.WebDavPlaybackTarget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -60,6 +65,11 @@ internal fun OfflineLibraryScreen(
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
     var tracks by remember(accountEmail) { mutableStateOf<List<OfflineTrackRow>>(emptyList()) }
+    // Store only local already-imported metadata in RAM for quick queue picks.
+    // Do not reopen/requery all 3590 Room records on every track tap.
+    var preparedById by remember(accountEmail) {
+        mutableStateOf<Map<String, QueueTrack>>(emptyMap())
+    }
     var search by remember(accountEmail) { mutableStateOf("") }
     var loading by remember(accountEmail) { mutableStateOf(true) }
     var failed by remember(accountEmail) { mutableStateOf(false) }
@@ -72,21 +82,52 @@ internal fun OfflineLibraryScreen(
     var shuffleEnabled by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf(0) }
     var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
+    // Diagnostic mode belongs only to the next tap, not to a running stream.
+    var useCacheOnNextPlay by remember { mutableStateOf(false) }
+    var selectionStartedAt by remember { mutableStateOf(0L) }
+    var roomDurationMs by remember { mutableStateOf<Long?>(null) }
+    var media3DurationMs by remember { mutableStateOf<Long?>(null) }
+    var setupTimings by remember { mutableStateOf<PlaybackSetupTimings?>(null) }
+    var loadedQueueSources by remember { mutableStateOf(0) }
+    var bufferingAfterTapMs by remember { mutableStateOf<Long?>(null) }
+    var readyAfterTapMs by remember { mutableStateOf<Long?>(null) }
+    var playingAfterTapMs by remember { mutableStateOf<Long?>(null) }
+    var cacheInfo by remember {
+        mutableStateOf(TransientCacheStatus(CachePhase.IDLE, 0L, 0L))
+    }
 
     LaunchedEffect(accountEmail) {
         loading = true
         failed = false
         try {
-            tracks = withContext(Dispatchers.IO) {
+            val (catalogue, prepared) = withContext(Dispatchers.IO) {
                 val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
                 val db = openLibraryDatabase(context)
                 try {
-                    OfflineTrackCatalog.build(sourceKey,
-                        db.remoteTrackDao().allForSource(sourceKey))
+                    val remote = db.remoteTrackDao().allForSource(sourceKey)
+                    val catalogue = OfflineTrackCatalog.build(sourceKey, remote)
+                    val byId = remote.associateBy { it.id }
+                    val prepared = catalogue.mapNotNull { shown ->
+                        val item = byId[shown.id]
+                        val size = item?.remoteSize
+                        if (item == null || item.missingScans != 0 ||
+                            size == null || size <= 0L ||
+                            runCatching { WebDavPlaybackTarget.url(item.encodedPath) }.isFailure
+                        ) null else QueueTrack(
+                            id = shown.id,
+                            title = shown.title,
+                            encodedPath = item.encodedPath,
+                            remoteSize = size,
+                            remoteEtag = item.remoteEtag,
+                        )
+                    }.associateBy { it.id }
+                    catalogue to prepared
                 } finally {
                     db.close()
                 }
             }
+            preparedById = prepared
+            tracks = catalogue
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -129,6 +170,15 @@ internal fun OfflineLibraryScreen(
         val active = playback
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
+                if (selectionStartedAt > 0L) {
+                    val elapsed = SystemClock.elapsedRealtime() - selectionStartedAt
+                    if (state == Player.STATE_BUFFERING && bufferingAfterTapMs == null) {
+                        bufferingAfterTapMs = elapsed
+                    }
+                    if (state == Player.STATE_READY && readyAfterTapMs == null) {
+                        readyAfterTapMs = elapsed
+                    }
+                }
                 playbackState = when (state) {
                     Player.STATE_BUFFERING -> "BUFFERING"
                     Player.STATE_READY -> if (active?.player?.isPlaying == true) "PLAYING" else "PAUSED"
@@ -137,6 +187,10 @@ internal fun OfflineLibraryScreen(
                 }
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying && selectionStartedAt > 0L && playingAfterTapMs == null) {
+                    playingAfterTapMs =
+                        SystemClock.elapsedRealtime() - selectionStartedAt
+                }
                 playbackState = if (isPlaying) "PLAYING" else "PAUSED"
             }
             override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -167,6 +221,15 @@ internal fun OfflineLibraryScreen(
         onDispose { active?.player?.removeListener(listener) }
     }
 
+    LaunchedEffect(playback) {
+        while (true) {
+            cacheInfo = playback?.cacheSnapshot()
+                ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
+            loadedQueueSources = playback?.loadedQueueSize ?: 0
+            delay(1_000L)
+        }
+    }
+
     val visible = remember(tracks, search) { OfflineTrackCatalog.search(tracks, search) }
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -188,6 +251,40 @@ internal fun OfflineLibraryScreen(
             singleLine = true,
         )
         Text(stringResource(R.string.library_count, visible.size, tracks.size))
+        Button(
+            enabled = !selecting,
+            onClick = { useCacheOnNextPlay = !useCacheOnNextPlay },
+        ) {
+            Text(stringResource(
+                if (useCacheOnNextPlay) R.string.playback_mode_cache
+                else R.string.playback_mode_baseline))
+        }
+        if (selectionStartedAt > 0L) {
+            Text(
+                stringResource(
+                    R.string.playback_startup_timing,
+                    roomDurationMs?.toString() ?: "—",
+                    media3DurationMs?.toString() ?: "—",
+                    bufferingAfterTapMs?.toString() ?: "—",
+                    readyAfterTapMs?.toString() ?: "—",
+                    playingAfterTapMs?.toString() ?: "—",
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            setupTimings?.let { stages ->
+                Text(
+                    stringResource(
+                        R.string.playback_setup_breakdown,
+                        stages.queueMs,
+                        stages.routesAndCacheMs,
+                        stages.seedSourcesMs,
+                        stages.setSourcesMs,
+                        stages.prepareAndPlayMs,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
         if (selectedTitle != null) {
             Text(selectedTitle!!, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.titleMedium)
@@ -202,9 +299,28 @@ internal fun OfflineLibraryScreen(
                 else -> stringResource(R.string.playback_loading)
             }
             Text(status)
+            if (cacheInfo.totalBytes > 0L) {
+                val cacheText = when (cacheInfo.phase) {
+                    CachePhase.DOWNLOADING -> stringResource(
+                        R.string.playback_cache_downloading,
+                        cacheInfo.cachedBytes / 1024,
+                        cacheInfo.totalBytes / 1024,
+                    )
+                    CachePhase.COMPLETE -> stringResource(R.string.playback_cache_complete)
+                    CachePhase.SKIPPED -> stringResource(R.string.playback_cache_skipped)
+                    CachePhase.FAILED -> stringResource(R.string.playback_cache_failed)
+                    CachePhase.IDLE -> ""
+                }
+                if (cacheText.isNotEmpty()) Text(cacheText)
+            }
             if (queueTotal > 0) {
                 Text(stringResource(R.string.playback_queue_position,
                     queuePosition, queueTotal))
+                if (loadedQueueSources in 1 until queueTotal) {
+                    Text(stringResource(R.string.playback_queue_staging,
+                        loadedQueueSources, queueTotal),
+                        style = MaterialTheme.typography.bodySmall)
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(enabled = playback?.hasPrevious == true && !selecting,
@@ -266,42 +382,36 @@ internal fun OfflineLibraryScreen(
                         }
                         selecting = true
                         playbackState = "LOADING"
+                        selectionStartedAt = SystemClock.elapsedRealtime()
+                        roomDurationMs = null
+                        media3DurationMs = null
+                        setupTimings = null
+                        bufferingAfterTapMs = null
+                        readyAfterTapMs = null
+                        playingAfterTapMs = null
                         scope.launch {
                             try {
-                                // Use the user's currently visible search order.
-                                // All metadata is read locally in a single Room query.
-                                // Only the selected item triggers a WebDAV stream.
-                                val queue = withContext(Dispatchers.IO) {
-                                    val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
-                                    val db = openLibraryDatabase(context)
-                                    try {
-                                        val byId = db.remoteTrackDao().allForSource(sourceKey)
-                                            .associateBy { it.id }
-                                        visible.mapNotNull { shown ->
-                                            val item = byId[shown.id]
-                                            val size = item?.remoteSize
-                                            if (item == null || item.missingScans != 0 ||
-                                                size == null || size <= 0L ||
-                                                runCatching {
-                                                    WebDavPlaybackTarget.url(item.encodedPath)
-                                                }.isFailure) null
-                                            else QueueTrack(
-                                                id = shown.id, title = shown.title,
-                                                encodedPath = item.encodedPath,
-                                                remoteSize = size, remoteEtag = item.remoteEtag,
-                                            )
-                                        }
-                                    } finally {
-                                        db.close()
-                                    }
+                                val roomStartedAt = SystemClock.elapsedRealtime()
+                                // The only Room read occurred on library opening.
+                                // Preserve the user's visible search order in RAM.
+                                // No network request or new DB query during queue selection.
+                                val queue = visible.mapNotNull { shown ->
+                                    preparedById[shown.id]
                                 }
+                                roomDurationMs =
+                                    SystemClock.elapsedRealtime() - roomStartedAt
                                 if (queue.none { it.id == track.id }) {
                                     playbackState = "MISSING_TRACK"
                                 } else {
                                     val service = playback
                                         ?: throw IllegalStateException("Playback service disconnected")
+                                    val media3StartedAt = SystemClock.elapsedRealtime()
                                     service.playQueue(accountEmail, appPassword,
-                                        queue, track.id)
+                                        queue, track.id, useCacheOnNextPlay)
+                                    media3DurationMs =
+                                        SystemClock.elapsedRealtime() - media3StartedAt
+                                    setupTimings = service.setupTimings()
+                                    loadedQueueSources = service.loadedQueueSize
                                     queueTotal = queue.size
                                     queuePosition = queue.indexOfFirst { it.id == track.id } + 1
                                 }

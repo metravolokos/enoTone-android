@@ -20,6 +20,7 @@ kotlin {
 dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.datasource)
+    implementation(libs.media3.database)
     implementation(libs.media3.session)
     testImplementation(libs.junit)
 }

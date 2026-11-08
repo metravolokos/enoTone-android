@@ -43,15 +43,18 @@ class EnoTonePlaybackService : MediaSessionService() {
         password: String,
         tracks: List<QueueTrack>,
         selectedId: String,
+        useTemporaryCache: Boolean,
     ) {
-        playback.playQueue(email, password, tracks, selectedId)
+        playback.playQueue(email, password, tracks, selectedId, useTemporaryCache)
     }
 
     val hasNext: Boolean get() = playback.player.hasNextMediaItem()
     val hasPrevious: Boolean get() = playback.player.hasPreviousMediaItem()
-    val queueSize: Int get() = playback.player.mediaItemCount
-    val queuePosition: Int get() =
-        playback.player.currentMediaItemIndex.coerceAtLeast(0)
+    /** Full logical context remains 3590 even while Media3 fills in chunks. */
+    val queueSize: Int get() = playback.logicalQueueSize
+    val queuePosition: Int get() = playback.logicalQueuePosition
+    val loadedQueueSize: Int get() = playback.loadedQueueSize
+    fun setupTimings(): PlaybackSetupTimings = playback.setupTimings()
 
     fun playNext() {
         if (hasNext) playback.player.seekToNextMediaItem()
@@ -60,6 +63,8 @@ class EnoTonePlaybackService : MediaSessionService() {
     fun playPrevious() {
         if (hasPrevious) playback.player.seekToPreviousMediaItem()
     }
+
+    fun cacheSnapshot(): TransientCacheStatus = playback.cacheSnapshot()
 
     val repeatMode: Int get() = playback.player.repeatMode
     val shuffleEnabled: Boolean get() = playback.player.shuffleModeEnabled
