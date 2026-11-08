@@ -101,3 +101,5 @@ SQL проверяет id, sourceKey, encodedPath, ETag, размер, modified 
 ## M3 — Media3 поток одного файла (Draft)
 Пройти `:playback:testDebugUnitTest` и `:app:lintDebug` в полном CI. JUnit проверяет строгое HTTPS same-origin /AllMusic и отказ от прямых/закодированных вложенных путей, query, fragment и path traversal. Проверьте GMS-free dependency + APK scan и Preview signing на точном HEAD.
 На Huawei в **новой отдельной** Preview: ввести пароль приложения и e-mail, один раз сохранить список /AllMusic, открыть медиатеку и нажать *один* MP3. Услышать звук, нажать паузу/продолжить/стоп, свернуть — воспроизведение должно поставить паузу. Затем отдельный FLAC. При ошибке прислать **только код** из UI, не полный URL, трек, заголовки или скриншот с личными данными. Никакой массовой индексации.
+
+- Обязательно выполнить `WebDavPlaybackRangeTest` для обоих `Content-Range` форматов (`bytes ...` и Cloud.Mail.ru `bytes=...`), неверных границ и ETag-version mismatch. Первый вариант M3 на OkHttp был блокирован GMS-free gate; в новой ветке **не** разрешается исключать строку из проверки: runtime APK должен пройти существующий строгий сканер.
