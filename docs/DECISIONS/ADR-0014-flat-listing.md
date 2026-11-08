@@ -17,3 +17,6 @@
 
 ## Проверка
 JUnit тесты: HTTP 200/404 propstat, файлы только напрямую внутри папки, подпапки, внешние URL, percent-encoded slash, кириллица NFD→NFC, дубль href, DTD/XXE, длина. CI Android build/lint/GMS и тесты на точном HEAD. Фактическая WebDAV XML на Huawei ещё не проверена.
+
+### Проверка Android Expat
+Android ExpatReader не поддерживает общие JAXP `FEATURE_SECURE_PROCESSING` и настройки external entities; при этом поддерживает SAX `lexical-handler`. Для Android Expat регистрируется LexicalHandler с немедленным отказом на `startDTD` плюс EntityResolver отказа; на остальных SAX реализациях обязательны FSP и запрет внешних entity. Если какой-либо XMLReader не даёт поставить требуемый handler, парсинг **не начинается**. Ссылки: https://android.googlesource.com/platform/libcore/+/master/luni/src/main/java/org/apache/harmony/xml/ExpatReader.java и https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html .

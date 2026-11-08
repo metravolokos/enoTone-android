@@ -3,7 +3,7 @@ package app.enotone.network
 import org.xml.sax.Attributes
 import org.xml.sax.InputSource
 import org.xml.sax.SAXException
-import org.xml.sax.helpers.DefaultHandler
+import org.xml.sax.ext.DefaultHandler2
 import java.io.InputStream
 import java.net.URI
 import java.net.URLDecoder
@@ -52,15 +52,20 @@ class FlatWebDavListingParser(
             val factory = SAXParserFactory.newInstance().apply {
                 isNamespaceAware = true
                 isValidating = false
-                setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
-                setFeature("http://xml.org/sax/features/external-general-entities", false)
-                setFeature("http://xml.org/sax/features/external-parameter-entities", false)
             }
             val reader = factory.newSAXParser().xmlReader
-            // DTDs are not valid WebDAV multistatus and must never reach an external resolver.
+            // Android's ExpatReader does not recognize generic JAXP security features.
+            // It DOES support the LexicalHandler property: startDTD rejects any DOCTYPE.
+            // Keep FSP and external entity features mandatory for other providers.
+            if (reader.javaClass.name != "org.apache.harmony.xml.ExpatReader") {
+                reader.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
+                reader.setFeature("http://xml.org/sax/features/external-general-entities", false)
+                reader.setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+            }
             reader.entityResolver = org.xml.sax.EntityResolver { _, _ ->
                 throw SAXException("External XML entities are forbidden")
             }
+            reader.setProperty("http://xml.org/sax/properties/lexical-handler", handler)
             reader.contentHandler = handler
             reader.parse(InputSource(input))
             return handler.finish()
@@ -70,7 +75,11 @@ class FlatWebDavListingParser(
         }
     }
 
-    private inner class Handler : DefaultHandler() {
+    private inner class Handler : DefaultHandler2() {
+        override fun startDTD(name: String?, publicId: String?, systemId: String?) {
+            throw SAXException("DOCTYPE forbidden")
+        }
+
         private var response: MutableResponse? = null
         private var propstat: MutablePropstat? = null
         private var capture: String? = null
