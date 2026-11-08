@@ -180,9 +180,10 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                 throw cancelled
             } catch (_: Exception) {
                 // Do not expose WebDAV exception messages or private metadata.
-                lastFailure = PilotFailures.classify(stage, reader?.stats())
-                authRejected = lastFailure.authRejected
-                recordCode = lastFailure.code
+                val failure = PilotFailures.classify(stage, reader?.stats())
+                lastFailure = failure
+                authRejected = failure.authRejected
+                recordCode = failure.code
             } finally {
                 val stats = reader?.stats()
                 gets += stats?.requests ?: 0
