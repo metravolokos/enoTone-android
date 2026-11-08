@@ -1,10 +1,9 @@
 # CHANGELOG
 
 ## Unreleased — M1
-- PR #2 merged: SAX parser XML DAV 207 с Unicode и защитой от XXE/внешних URL.
-- PR #3 merged: WebDAV клиент для одного PROPFIND /AllMusic Depth:1 и bounded XML; тесты 207/401/302.
-- Кнопка подсчёта аудиофайлов показывает только безопасные числа и не экспортирует приватные пути/имена/ETag.
-- Нет Room, тегов, полного индексатора, интерфейса медиатеки и проигрывания.
+- PR #4 merged: Huawei подтвердил 3590 прямых аудиофайлов /AllMusic, 0 пропусков и ошибок; зелёный CI #21.
+- Начата модель Room v1 (2.8.5, KSP 2.3.10): таблица треков, DAO, консервативный snapshot sync, SHA-256 ID по аккаунту/пути, тесты сравнения ETag и сохранения будущих тегов.
+- Добавлено исключение локальных данных из Android Backup и device transfer; схема Room v1 зафиксирована в Git после CI #24 и проверяется на совпадение с KSP output. Компоненты пока не соединены с UI; нужен новый CI.
 
 ## M0
-- PR #1 merged: Kotlin/Compose Android, GMS-free CI, реальный WebDAV диагностирован на Huawei.
+- PR #1 merged: Kotlin/Compose, WebDAV на Huawei, без GMS.

@@ -99,7 +99,24 @@ jobs:
       - name: Mock WebDAV tests
         run: python3 -m unittest discover -s tools -p 'test_*.py' -v
       - name: Build, JUnit and Lint
-        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :core:network:testDebugUnitTest :app:lintDebug
+        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :core:network:testDebugUnitTest :core:database:testDebugUnitTest :data:library:testDebugUnitTest :app:lintDebug
+      - name: Verify Room v1 schema matches committed JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import subprocess
+
+          path = pathlib.Path("core/database/schemas/app.enotone.database.EnoToneDatabase/1.json")
+          actual = json.loads(path.read_text(encoding="utf-8"))
+          saved = json.loads(subprocess.check_output(
+              ["git", "show", "HEAD:" + path.as_posix()], text=True))
+          assert actual == saved, "Room schema changed without an explicit migration"
+          assert actual["database"]["version"] == 1
+          print("Room schema v1 matches committed JSON")
+          PY
       - name: Resolved dependencies
         run: gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath > dependencies.txt
       - name: Check GMS-free dependencies and APK
