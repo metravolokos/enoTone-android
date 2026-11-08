@@ -47,3 +47,8 @@
 - По нажатию на трек в офлайн-медиатеке пробный Media3 ExoPlayer GET выбранного файла из Cloud.Mail.ru WebDAV; пароль только RAM и заголовок, редиректы запрещены; после блокировки GMS gate у OkHttp заменено на собственный HttpURLConnection Media3 DataSource со строгой проверкой HTTP 206 / Content-Range.
 - Кнопки пауза/продолжить/стоп, безопасные коды ошибок, автоматическая пауза при сворачивании. Foreground-only без очереди и кэша.
 - Новый тест валидатора WebDAV URL и ADR-0031; реальная совместимость на Huawei пока не подтверждена.
+
+## Unreleased — M3 background MediaSession (Draft)
+- Плеер вынесен из Compose-экрана в `MediaSessionService` с типом foreground mediaPlayback и стандартным медиауведомлением Android.
+- Приватный локальный Binder передаёт секреты только в RAM; экран при закрытии отключается от службы, не останавливая воспроизведение.
+- Добавлен contract-test AndroidManifest + жизненного цикла для безопасности; фон и медиа-кнопки на Huawei пока не проверены.
