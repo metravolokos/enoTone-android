@@ -43,8 +43,9 @@ class EnoTonePlaybackService : MediaSessionService() {
         password: String,
         tracks: List<QueueTrack>,
         selectedId: String,
+        useTemporaryCache: Boolean,
     ) {
-        playback.playQueue(email, password, tracks, selectedId)
+        playback.playQueue(email, password, tracks, selectedId, useTemporaryCache)
     }
 
     val hasNext: Boolean get() = playback.player.hasNextMediaItem()
