@@ -57,8 +57,13 @@ class WebDavRangeReader(
     appPassword: String,
     etag: String? = null,
     allowLoopbackHttpForTests: Boolean = false,
+    /** Optional tighter per-invocation limits for a multi-file manual pilot. */
+    maxRequests: Int = 128,
+    maxDownloadedBytes: Long = 8L * 1024 * 1024,
 ) : Closeable {
     private val url: java.net.URL
+    private val allowedRequests: Int
+    private val allowedBytes: Long
     private var auth: String?
     private val etagStrong = etag?.takeIf {
         it.length in 2..256 && it.first() == '"' && it.last() == '"' &&
@@ -81,6 +86,11 @@ class WebDavRangeReader(
     private var cacheEvictions = 0
 
     init {
+        require(maxRequests in 1..128 && maxDownloadedBytes in 1L..(8L * 1024 * 1024)) {
+            "Invalid per-file network budget"
+        }
+        allowedRequests = maxRequests
+        allowedBytes = maxDownloadedBytes
         val root = URI(libraryRoot)
         val testHost = allowLoopbackHttpForTests && root.scheme == "http" &&
             root.host in setOf("localhost", "127.0.0.1", "::1")
@@ -138,9 +148,9 @@ class WebDavRangeReader(
     }
 
     private fun loadBlock(start: Long): ByteArray {
-        if (calls >= MAX_GETS || bytesFetched >= MAX_BYTES ||
+        if (calls >= allowedRequests || bytesFetched >= allowedBytes ||
             System.nanoTime() - started > MAX_NS) reject(RangeReadIssue.LIMIT)
-        val n = minOf(BLOCK.toLong(), fileSize - start, MAX_BYTES - bytesFetched).toInt()
+        val n = minOf(BLOCK.toLong(), fileSize - start, allowedBytes - bytesFetched).toInt()
         if (n <= 0) reject(RangeReadIssue.LIMIT)
         val end = start + n - 1L
         val conn = url.openConnection() as HttpURLConnection
@@ -256,9 +266,7 @@ class WebDavRangeReader(
     private companion object {
         const val BLOCK = 64 * 1024
         const val MAX_CACHED_BLOCKS = 4
-        const val MAX_GETS = 128
-        const val MAX_BYTES = 8L * 1024 * 1024
-        const val MAX_NS = 40L * 1_000_000_000L
+         const val MAX_NS = 40L * 1_000_000_000L
         // Cloud.Mail.ru sends non-standard "bytes=..." in Content-Range.
         // Accept only that observed separator alongside the RFC "bytes ..." form.
         // matchEntire() and the checks above still enforce every numeric boundary.

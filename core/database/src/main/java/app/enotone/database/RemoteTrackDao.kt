@@ -85,6 +85,51 @@ interface RemoteTrackDao {
     """)
     suspend fun storedTagCoverage(sourceKey: String): SavedTagCoverage
 
+    /**
+     * Record a terminal fast-parser result atomically, only for the same source,
+     * snapshot version and an untouched row. Failures do not clobber existing tags.
+     * Room v2 adds tagScanCode; nullable on old installations until first attempt.
+     */
+    @Query("""
+        UPDATE remote_tracks
+        SET tagScanCode = :code,
+            title = :title,
+            artist = :artist,
+            album = :album,
+            albumArtist = :albumArtist
+        WHERE id = :id AND sourceKey = :sourceKey AND encodedPath = :path
+          AND remoteEtag IS :etag AND remoteSize IS :size
+          AND remoteModified IS :modified AND missingScans = 0
+          AND tagScanCode IS NULL
+          AND title IS NULL AND artist IS NULL
+          AND album IS NULL AND albumArtist IS NULL
+    """)
+    suspend fun recordFastScanIfUnchanged(
+        id: String, sourceKey: String, path: String,
+        etag: String?, size: Long?, modified: String?,
+        code: String, title: String?, artist: String?,
+        album: String?, albumArtist: String?,
+    ): Int
+
+    /** Only present files for this hashed account; deterministic ordering is app side. */
+    @Query("""
+        SELECT * FROM remote_tracks
+        WHERE sourceKey = :sourceKey AND missingScans = 0
+          AND remoteSize > 0 AND tagScanCode IS NULL
+          AND title IS NULL AND artist IS NULL
+          AND album IS NULL AND albumArtist IS NULL
+          AND (LOWER(fileName) LIKE '%.mp3' OR LOWER(fileName) LIKE '%.flac')
+    """)
+    suspend fun pendingFastScans(sourceKey: String): List<RemoteTrackEntity>
+
+    /** All counts are local; text, paths and private tags are never selected. */
+    @Query("""
+        SELECT COUNT(*) FROM remote_tracks
+        WHERE sourceKey = :sourceKey AND missingScans = 0
+          AND tagScanCode IS NOT NULL
+    """)
+    suspend fun finishedFastScanCount(sourceKey: String): Int
+
     @Query("SELECT COUNT(*) FROM remote_tracks WHERE sourceKey = :sourceKey AND missingScans = 0")
     suspend fun presentCount(sourceKey: String): Int
 }

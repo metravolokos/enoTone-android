@@ -115,7 +115,13 @@ jobs:
               ["git", "show", "HEAD:" + path.as_posix()], text=True))
           assert actual == saved, "Room schema changed without an explicit migration"
           assert actual["database"]["version"] == 1
-          print("Room schema v1 matches committed JSON")
+          upgraded = pathlib.Path("core/database/schemas/app.enotone.database.EnoToneDatabase/2.json")
+          assert upgraded.exists(), "Room must export the new v2 schema"
+          v2 = json.loads(upgraded.read_text(encoding="utf-8"))
+          assert v2["database"]["version"] == 2
+          assert any(f["columnName"] == "tagScanCode" for e in v2["database"]["entities"]
+                     if e["tableName"] == "remote_tracks" for f in e["fields"])
+          print("Room schema v1 preserved and v2 exported with checkpoint column")
           PY
       - name: Resolved dependencies
         run: gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath > dependencies.txt

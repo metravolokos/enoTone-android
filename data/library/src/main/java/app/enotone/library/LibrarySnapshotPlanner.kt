@@ -74,6 +74,7 @@ object LibrarySnapshotPlanner {
                 albumArtist = if (sameVersion) old?.albumArtist else null,
                 lastSeenEpoch = epoch,
                 missingScans = 0,
+                tagScanCode = if (sameVersion) old?.tagScanCode else null,
             )
         }
         val complete = listing.invalidEntries == 0 &&
