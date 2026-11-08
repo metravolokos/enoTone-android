@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">enoTone</string>
-    <string name="diagnostic_title">Диагностика WebDAV — M0</string>
-    <string name="diagnostic_explanation">Проверка Cloud.Mail.ru без сохранения пароля, медиатеки и любых учётных данных.</string>
+    <string name="diagnostic_title">Диагностика WebDAV — M1</string>
+    <string name="diagnostic_explanation">Диагностика Cloud.Mail.ru: пароль не сохраняется. Кнопка импорта сохраняет список файлов в приватную базу устройства.</string>
     <string name="email">Полный email</string>
     <string name="app_password">Пароль внешнего приложения</string>
     <string name="test_file">Путь к тестовому аудиофайлу, например /AllMusic/test.mp3 (необязательно)</string>
@@ -14,4 +14,9 @@
     <string name="file_count_failed">Не удалось прочитать список файлов. Проверьте подключение или попробуйте позднее.</string>
     <string name="webdav_http_failed">Не удалось прочитать список файлов: HTTP %1$d.</string>
     <string name="diagnostic_failed">Диагностика завершилась ошибкой. Учётные данные в отчёт не включены.</string>
+    <string name="save_local_library">Сохранить список музыки на устройстве</string>
+    <string name="read_local_library">Проверить сохранённый список (без сети)</string>
+    <string name="local_import_report">Найдено в облаке: %1$d. Сохранено локально: %2$d. Новых: %3$d, изменённых: %4$d, без изменений: %5$d.</string>
+    <string name="local_saved_report">В локальной медиатеке: %1$d аудиофайлов. Облако не запрашивалось.</string>
+    <string name="local_store_failed">Не удалось обновить или прочитать локальную медиатеку. Личные данные не включены в отчёт.</string>
 </resources>

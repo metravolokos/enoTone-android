@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">enoTone</string>
-    <string name="diagnostic_title">WebDAV diagnostics — M0</string>
-    <string name="diagnostic_explanation">Check Cloud.Mail.ru without saving your credentials or music.</string>
+    <string name="diagnostic_title">WebDAV diagnostics — M1</string>
+    <string name="diagnostic_explanation">Check Cloud.Mail.ru without storing your password. Import saves the file listing in a private on-device database.</string>
     <string name="email">Full email</string>
     <string name="app_password">External app password</string>
     <string name="test_file">Test audio file path, e.g. /AllMusic/test.mp3 (optional)</string>
@@ -14,4 +14,9 @@
     <string name="file_count_failed">Could not read the file listing. Check the connection or try again later.</string>
     <string name="webdav_http_failed">Could not read the file listing: HTTP %1$d.</string>
     <string name="diagnostic_failed">Diagnostics failed. Credentials are never included in this report.</string>
+    <string name="save_local_library">Save music listing on this device</string>
+    <string name="read_local_library">Check saved listing (offline)</string>
+    <string name="local_import_report">Found in cloud: %1$d. Saved locally: %2$d. New: %3$d, changed: %4$d, unchanged: %5$d.</string>
+    <string name="local_saved_report">Local library: %1$d audio files. No cloud request made.</string>
+    <string name="local_store_failed">Could not update or read the local library. Private data is not included in this report.</string>
 </resources>

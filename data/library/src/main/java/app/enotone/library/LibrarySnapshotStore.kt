@@ -10,6 +10,9 @@ import app.enotone.network.FlatWebDavListing
  * Passwords are not accepted or persisted in this layer.
  */
 class LibrarySnapshotStore(private val database: EnoToneDatabase) {
+    suspend fun presentCount(accountEmail: String): Int =
+        database.remoteTrackDao().presentCount(LibrarySnapshotPlanner.accountKey(accountEmail))
+
     suspend fun save(accountEmail: String, listing: FlatWebDavListing): SnapshotPlan {
         val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
         return database.withTransaction {
