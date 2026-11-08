@@ -68,6 +68,7 @@ private fun DiagnosticScreen() {
     val appContext = LocalContext.current.applicationContext
     val importReport = stringResource(R.string.local_import_report)
     val storedReport = stringResource(R.string.local_saved_report)
+    val storedTagsReport = stringResource(R.string.local_tag_coverage_report)
     val localFailed = stringResource(R.string.local_store_failed)
     val tagReport = stringResource(R.string.one_tag_report)
     val tagFailed = stringResource(R.string.one_tag_failed)
@@ -209,6 +210,38 @@ private fun DiagnosticScreen() {
             }
         }) {
             Text(stringResource(R.string.read_local_library))
+        }
+        Button(enabled = !busy && email.isNotBlank(), onClick = {
+            busy = true
+            report = ""
+            scope.launch {
+                try {
+                    val coverage = withContext(Dispatchers.IO) {
+                        val database = openLibraryDatabase(appContext)
+                        try {
+                            LibraryTagStore(database).storedCoverage(email)
+                        } finally {
+                            database.close()
+                        }
+                    }
+                    // Only aggregate counts reach the UI, never private metadata.
+                    report = String.format(
+                        Locale.getDefault(), storedTagsReport,
+                        coverage.presentTracks,
+                        coverage.tracksWithAnyTag,
+                        coverage.tracksWithTitle,
+                        coverage.tracksWithArtist,
+                        coverage.tracksWithAlbum,
+                        coverage.tracksWithAlbumArtist,
+                    )
+                } catch (_: Exception) {
+                    report = localFailed
+                } finally {
+                    busy = false
+                }
+            }
+        }) {
+            Text(stringResource(R.string.read_stored_tags_offline))
         }
         Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
             busy = true

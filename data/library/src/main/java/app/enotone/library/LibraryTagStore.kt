@@ -2,6 +2,7 @@ package app.enotone.library
 
 import app.enotone.database.EnoToneDatabase
 import app.enotone.database.RemoteTrackEntity
+import app.enotone.database.SavedTagCoverage
 
 /**
  * Opt-in persistence of metadata from ONE track. The DAO compares the entire
@@ -9,6 +10,12 @@ import app.enotone.database.RemoteTrackEntity
  * Does not store a password or perform network requests.
  */
 class LibraryTagStore(private val database: EnoToneDatabase) {
+    /** Offline summary only. Account separation is identical to the snapshot store. */
+    suspend fun storedCoverage(accountEmail: String): SavedTagCoverage =
+        database.remoteTrackDao().storedTagCoverage(
+            LibrarySnapshotPlanner.accountKey(accountEmail))
+
+
     suspend fun saveIfUnchanged(
         accountEmail: String,
         selected: RemoteTrackEntity,

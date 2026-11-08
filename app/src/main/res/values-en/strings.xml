@@ -24,5 +24,7 @@
     <string name="one_tag_missing">No matching local file or the path is invalid. Leave path blank to select one track automatically.</string>
     <string name="one_tag_failed">Could not read tags from one file. Limited to 8 MiB/128 requests. No private data included.</string>
     <string name="one_tag_failed_detail">One-file test failed. Stage: %1$s; code: %2$s; HTTP: %3$s; Range requests: %4$d; bytes received: %5$d. Limits unchanged: 8 MiB / 128 requests. No private file names or tags in this report.</string>
+    <string name="read_stored_tags_offline">Check saved tags (offline)</string>
+    <string name="local_tag_coverage_report">Offline Room: tracks — %1$d; with saved tags — %2$d; with title — %3$d; with artist — %4$d; with album — %5$d; with album artist — %6$d. Tag values are not displayed.</string>
     <string name="one_tag_range_mismatch">Range mismatch: %1$s. Expected (start-end/size): %2$s-%3$s/%4$s; server returned: %5$s-%6$s/%7$s. Numbers only, no raw headers.</string>
 </resources>
