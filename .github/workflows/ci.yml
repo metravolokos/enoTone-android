@@ -152,7 +152,8 @@ jobs:
           apk="app/build/outputs/apk/debug/app-debug.apk"
           aapt="$ANDROID_HOME/build-tools/36.0.0/aapt"
           apksigner="$ANDROID_HOME/build-tools/36.0.0/apksigner"
-          "$aapt" dump badging "$apk" | grep -E "^package: name='app.enotone.android.preview' "
+          "$aapt" dump badging "$apk" | grep -E "^package: name='app.enotone.android.preview.r${GITHUB_RUN_NUMBER}' "
+          "$aapt" dump badging "$apk" | grep -F "application-label:'enoTone Preview #${GITHUB_RUN_NUMBER}'"
           "$apksigner" verify --print-certs "$apk" | grep "Signer #1 certificate SHA-256 digest:"
           echo "::notice::Isolated preview package; runner-generated debug signatures are not stable between runs"
       - name: Upload debug APK

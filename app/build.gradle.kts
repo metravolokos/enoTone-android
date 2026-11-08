@@ -25,8 +25,12 @@ android {
             // CI debug signing is generated independently by each runner. Until a stable
             // private signing key is configured, test APKs MUST NOT claim the old app ID.
             // Protect the original on-device Room database by installing side-by-side.
-            applicationIdSuffix = ".preview"
-            versionNameSuffix = "-preview"
+            // Each CI run uses a distinct package until a protected stable signing key exists.
+            // Never make Android compare certificates from unrelated ephemeral runners.
+            val previewRun = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+            applicationIdSuffix = ".preview.r$previewRun"
+            versionNameSuffix = "-preview.r$previewRun"
+            manifestPlaceholders["previewLabel"] = "enoTone Preview #$previewRun"
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
