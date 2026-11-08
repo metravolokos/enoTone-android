@@ -100,6 +100,15 @@ jobs:
         run: python3 -m unittest discover -s tools -p 'test_*.py' -v
       - name: Build, JUnit and Lint
         run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :core:network:testDebugUnitTest :core:database:testDebugUnitTest :data:library:testDebugUnitTest :app:lintDebug
+      - name: Inspect Room schema export v1 (no user data)
+        shell: bash
+        run: |
+          set -euo pipefail
+          schema="core/database/schemas/app.enotone.database.EnoToneDatabase/1.json"
+          test -s "$schema"
+          echo "ROOM_SCHEMA_V1_START"
+          cat "$schema"
+          echo "ROOM_SCHEMA_V1_END"
       - name: Resolved dependencies
         run: gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath > dependencies.txt
       - name: Check GMS-free dependencies and APK
