@@ -42,6 +42,41 @@ class PreviewAudioPlayback(
     private var upstreamFactory: DataSource.Factory? = null
     private var fullyCachedCurrentId: String? = null
     private var scheduledNextId: String? = null
+    private val handoffTracker = PlaybackHandoffTracker()
+    fun handoffSnapshot(): HandoffSnapshot? = handoffTracker.snapshot()
+
+    fun noteNextButton() = handoffTracker.beginButtonSkip(
+        HandoffOrigin.NEXT_BUTTON, SystemClock.elapsedRealtime())
+
+    fun notePreviousButton() = handoffTracker.beginButtonSkip(
+        HandoffOrigin.PREVIOUS_BUTTON, SystemClock.elapsedRealtime())
+
+    /**
+     * Registered before the cache listener: capture a prefetched-next status
+     * before that listener cancels the former current/next downloads.
+     */
+    private val handoffListener = object : Player.Listener {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val preparedNext = mediaItem != null &&
+                mediaItem.mediaId == scheduledNextId &&
+                temporaryCache?.nextSnapshot()?.phase == CachePhase.COMPLETE
+            handoffTracker.onItemChanged(
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
+                preparedNext, SystemClock.elapsedRealtime())
+        }
+        override fun onPlaybackStateChanged(state: Int) {
+            when (state) {
+                Player.STATE_BUFFERING -> handoffTracker.onBuffering(SystemClock.elapsedRealtime())
+                Player.STATE_READY -> handoffTracker.onReady(SystemClock.elapsedRealtime())
+            }
+        }
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (isPlaying) handoffTracker.onPlaying(SystemClock.elapsedRealtime())
+        }
+        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+            handoffTracker.onError()
+        }
+    }
 
     /** Only resolve the upcoming file after the current is fully cached. */
     private fun refreshNextPrefetch() {
@@ -264,6 +299,7 @@ class PreviewAudioPlayback(
             )
             setHandleAudioBecomingNoisy(true)
             repeatMode = Player.REPEAT_MODE_OFF
+            addListener(handoffListener)
             addListener(cacheTransitionListener)
         }
 
@@ -288,6 +324,7 @@ class PreviewAudioPlayback(
     ) {
         clearScheduledWriter()
         cancelPlaylistFill()
+        handoffTracker.startNewQueue()
         pendingCache = null
         fullyCachedCurrentId = null
         scheduledNextId = null
@@ -337,6 +374,7 @@ class PreviewAudioPlayback(
     fun resume() = player.play()
 
     fun stop() {
+        handoffTracker.stop()
         clearScheduledWriter()
         fullyCachedCurrentId = null
         scheduledNextId = null
@@ -354,6 +392,7 @@ class PreviewAudioPlayback(
 
     override fun close() {
         stop()
+        player.removeListener(handoffListener)
         player.removeListener(cacheTransitionListener)
         player.release()
         temporaryCache?.close()
