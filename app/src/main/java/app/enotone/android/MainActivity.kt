@@ -32,6 +32,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.enotone.database.EnoToneDatabase
 import app.enotone.library.LibrarySnapshotStore
+import app.enotone.library.LibrarySnapshotPlanner
+import app.enotone.library.AndroidAudioTagReader
+import app.enotone.library.WebDavRangeReader
+import app.enotone.library.WebDavRangeMediaDataSource
+import app.enotone.database.RemoteTrackEntity
+import java.text.Normalizer
 import app.enotone.network.FlatLibraryWebDavClient
 import app.enotone.network.FlatWebDavHttpError
 import app.enotone.network.WebDavDiagnostics
@@ -62,6 +68,9 @@ private fun DiagnosticScreen() {
     val importReport = stringResource(R.string.local_import_report)
     val storedReport = stringResource(R.string.local_saved_report)
     val localFailed = stringResource(R.string.local_store_failed)
+    val tagReport = stringResource(R.string.one_tag_report)
+    val tagFailed = stringResource(R.string.one_tag_failed)
+    val tagMissing = stringResource(R.string.one_tag_missing)
     val missingCredentials = stringResource(R.string.missing_credentials)
     val diagnosticFailed = stringResource(R.string.diagnostic_failed)
     val countReport = stringResource(R.string.file_count_report)
@@ -197,6 +206,70 @@ private fun DiagnosticScreen() {
             }
         }) {
             Text(stringResource(R.string.read_local_library))
+        }
+        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
+            busy = true
+            report = ""
+            scope.launch {
+                try {
+                    val result = withContext(Dispatchers.IO) {
+                        val database = openLibraryDatabase(appContext)
+                        val selected = try {
+                            val sourceKey = LibrarySnapshotPlanner.accountKey(email)
+                            val available = database.remoteTrackDao().allForSource(sourceKey)
+                                .filter { it.missingScans == 0 && (it.remoteSize ?: 0L) > 0L }
+                            if (testFile.isBlank()) {
+                                // Exactly ONE track (MP3 preferred), never a bulk scan.
+                                available.sortedWith(
+                                    compareBy<RemoteTrackEntity> { !it.fileName.endsWith(".mp3", true) }
+                                        .thenBy { it.id }
+                                ).firstOrNull()
+                            } else {
+                                val path = testFile.trim()
+                                val name = path.removePrefix("/AllMusic/")
+                                if (!path.startsWith("/AllMusic/") || '/' in name || name.isBlank()) null
+                                else available.singleOrNull {
+                                    it.fileName == Normalizer.normalize(name, Normalizer.Form.NFC)
+                                }
+                            }
+                        } finally {
+                            database.close()
+                        }
+                        if (selected == null) {
+                            intArrayOf(-1, 0, 0, 0, 0, 0)
+                        } else {
+                            val reader = WebDavRangeReader(
+                                encodedPath = selected.encodedPath,
+                                fileSize = selected.remoteSize!!,
+                                email = email,
+                                appPassword = password,
+                                etag = selected.remoteEtag,
+                            )
+                            val source = WebDavRangeMediaDataSource(reader)
+                            try {
+                                val tags = AndroidAudioTagReader().read(source, selected.fileName)
+                                val stats = reader.stats()
+                                intArrayOf(1,
+                                    if (tags.title != null) 1 else 0,
+                                    if (tags.artist != null) 1 else 0,
+                                    if (tags.album != null) 1 else 0,
+                                    stats.requests, stats.downloadedBytes.toInt())
+                            } finally {
+                                source.close()
+                            }
+                        }
+                    }
+                    report = if (result[0] < 0) tagMissing else String.format(
+                        Locale.getDefault(), tagReport,
+                        result[1], result[2], result[3], result[4], result[5])
+                } catch (_: Exception) {
+                    report = tagFailed
+                } finally {
+                    busy = false
+                }
+            }
+        }) {
+            Text(stringResource(R.string.probe_one_audio_tag))
         }
         if (report.isNotEmpty()) Text(report, style = MaterialTheme.typography.bodyMedium)
     }
