@@ -24,4 +24,5 @@
     <string name="one_tag_missing">No matching local file or the path is invalid. Leave path blank to select one track automatically.</string>
     <string name="one_tag_failed">Could not read tags from one file. Limited to 8 MiB/128 requests. No private data included.</string>
     <string name="one_tag_failed_detail">One-file test failed. Stage: %1$s; code: %2$s; HTTP: %3$s; Range requests: %4$d; bytes received: %5$d. Limits unchanged: 8 MiB / 128 requests. No private file names or tags in this report.</string>
+    <string name="one_tag_range_mismatch">Range mismatch: %1$s. Expected (start-end/size): %2$s-%3$s/%4$s; server returned: %5$s-%6$s/%7$s. Numbers only, no raw headers.</string>
 </resources>

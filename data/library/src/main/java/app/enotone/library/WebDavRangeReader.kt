@@ -14,11 +14,26 @@ enum class RangeReadIssue {
     BAD_ENCODING, CHANGED_ETAG, SHORT_BODY, OVERSIZED_BODY, NETWORK,
 }
 
+/** Classification of an unexpected Content-Range, never an untrusted header value. */
+enum class ContentRangeMismatchKind { FORMAT, START, END, TOTAL, MULTIPLE, INVALID_BOUNDS }
+
+/** Only numeric metadata; no raw URLs, paths, headers, ETags or file names. */
+data class ContentRangeMismatch(
+    val kind: ContentRangeMismatchKind,
+    val expectedStart: Long,
+    val expectedEnd: Long,
+    val expectedTotal: Long,
+    val receivedStart: Long? = null,
+    val receivedEnd: Long? = null,
+    val receivedTotal: Long? = null,
+)
+
 data class RangeReadStats(
     val requests: Int,
     val downloadedBytes: Long,
     val httpStatus: Int? = null,
     val issue: RangeReadIssue? = null,
+    val rangeMismatch: ContentRangeMismatch? = null,
 )
 
 /** For ONE manually requested track; never a playback transport. 64 KiB RAM block,
@@ -46,6 +61,7 @@ class WebDavRangeReader(
     private var bytesFetched = 0L
     private var lastHttpStatus: Int? = null
     private var lastIssue: RangeReadIssue? = null
+    private var lastRangeMismatch: ContentRangeMismatch? = null
     private var cacheStart = -1L
     private var cache = ByteArray(0)
 
@@ -95,7 +111,7 @@ class WebDavRangeReader(
     }
 
     @Synchronized fun stats(): RangeReadStats =
-        RangeReadStats(calls, bytesFetched, lastHttpStatus, lastIssue)
+        RangeReadStats(calls, bytesFetched, lastHttpStatus, lastIssue, lastRangeMismatch)
 
     private fun reject(issue: RangeReadIssue): Nothing {
         lastIssue = issue
@@ -124,10 +140,37 @@ class WebDavRangeReader(
             val range = conn.getHeaderField("Content-Range")?.trim()
                 ?: reject(RangeReadIssue.MISSING_CONTENT_RANGE)
             val match = CONTENT_RANGE.matchEntire(range)
-                ?: reject(RangeReadIssue.BAD_CONTENT_RANGE)
-            if (match.groupValues[1].toLongOrNull() != start ||
-                match.groupValues[2].toLongOrNull() != end ||
-                match.groupValues[3].toLongOrNull() != fileSize) reject(RangeReadIssue.BAD_CONTENT_RANGE)
+            if (match == null) {
+                lastRangeMismatch = ContentRangeMismatch(
+                    ContentRangeMismatchKind.FORMAT, start, end, fileSize)
+                reject(RangeReadIssue.BAD_CONTENT_RANGE)
+            }
+            val gotStart = match.groupValues[1].toLongOrNull()
+            val gotEnd = match.groupValues[2].toLongOrNull()
+            val gotTotal = match.groupValues[3].toLongOrNull()
+            if (gotStart == null || gotEnd == null || gotTotal == null ||
+                gotEnd < gotStart || gotTotal <= gotEnd ||
+                gotStart != start || gotEnd != end || gotTotal != fileSize) {
+                val kind = if (gotStart == null || gotEnd == null || gotTotal == null ||
+                    gotEnd < gotStart || gotTotal <= gotEnd) {
+                    ContentRangeMismatchKind.INVALID_BOUNDS
+                } else {
+                    val startDiffers = gotStart != start
+                    val endDiffers = gotEnd != end
+                    val totalDiffers = gotTotal != fileSize
+                    when (listOf(startDiffers, endDiffers, totalDiffers).count { it }) {
+                        1 -> when {
+                            startDiffers -> ContentRangeMismatchKind.START
+                            endDiffers -> ContentRangeMismatchKind.END
+                            else -> ContentRangeMismatchKind.TOTAL
+                        }
+                        else -> ContentRangeMismatchKind.MULTIPLE
+                    }
+                }
+                lastRangeMismatch = ContentRangeMismatch(kind, start, end, fileSize,
+                    gotStart, gotEnd, gotTotal)
+                reject(RangeReadIssue.BAD_CONTENT_RANGE)
+            }
             val encoding = conn.getHeaderField("Content-Encoding")
             if (encoding != null && !encoding.equals("identity", true)) reject(RangeReadIssue.BAD_ENCODING)
             if (etagStrong != null) {
