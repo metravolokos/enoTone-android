@@ -329,4 +329,79 @@ class WebDavRangeReaderTest {
         } finally { server.shutdown() }
     }
 
+
+    @Test fun fourBlockLruAvoidsRepeatDownloadsWhenRetrieverJumpsBackward() {
+        val big = ByteArray(6 * 65536) { (it % 251).toByte() }
+        val server = MockWebServer()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(req: RecordedRequest): MockResponse {
+                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
+                val from = m.groupValues[1].toInt()
+                val to = m.groupValues[2].toInt()
+                return MockResponse().setResponseCode(206)
+                    .addHeader("Content-Range", "bytes=$from-$to/" + big.size)
+                    .addHeader("ETag", "\"v1\"")
+                    .setBody(Buffer().write(big, from, to - from + 1))
+            }
+        }
+        server.start()
+        try {
+            WebDavRangeReader(server.url("/AllMusic/").toString(), "/AllMusic/a.mp3",
+                big.size.toLong(), "private@example.test", "secret", "\"v1\"", true).use { src ->
+                val one = ByteArray(1)
+                fun check(block: Int) {
+                    val pos = block.toLong() * 65536L
+                    assertEquals(1, src.readAt(pos, one, 0, 1))
+                    assertEquals(big[pos.toInt()], one[0])
+                }
+                // Initial working set: blocks 0,1,2,3 (4 GET).
+                for (block in 0..3) check(block)
+                assertEquals(4, src.stats().requests)
+                // Revisit blocks 0 and 2 out of order: served from RAM, no GET.
+                check(0)
+                check(2)
+                assertEquals(4, src.stats().requests)
+                assertEquals(2, src.stats().cacheRevisitHits)
+                // Inserting block 4 evicts least-recently-used block 1.
+                check(4)
+                assertEquals(1, src.stats().cacheEvictions)
+                check(1)
+                assertEquals(2, src.stats().cacheEvictions)
+                assertEquals(6, src.stats().requests)
+                assertEquals(6L * 65536, src.stats().downloadedBytes)
+            }
+            assertEquals(6, server.requestCount)
+        } finally { server.shutdown() }
+    }
+
+    @Test fun repeatedNonAdjacentReadsDoNotConsumeExtraNetworkBudget() {
+        val server = MockWebServer()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(req: RecordedRequest): MockResponse {
+                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
+                val from = m.groupValues[1].toInt()
+                val to = m.groupValues[2].toInt()
+                return MockResponse().setResponseCode(206)
+                    .addHeader("Content-Range", "bytes $from-$to/" + payload.size)
+                    .setBody(Buffer().write(payload, from, to - from + 1))
+            }
+        }
+        server.start()
+        try {
+            reader(server).use { src ->
+                val out = ByteArray(1)
+                repeat(40) {
+                    assertEquals(1, src.readAt(0, out, 0, 1))
+                    assertEquals(1, src.readAt(65536, out, 0, 1))
+                }
+                assertEquals(2, src.stats().requests)
+                assertEquals(payload.size.toLong(), src.stats().downloadedBytes)
+                assertEquals(78, src.stats().cacheRevisitHits)
+                assertEquals(78, src.stats().cacheHits)
+                assertEquals(0, src.stats().cacheEvictions)
+            }
+            assertEquals(2, server.requestCount)
+        } finally { server.shutdown() }
+    }
+
 }

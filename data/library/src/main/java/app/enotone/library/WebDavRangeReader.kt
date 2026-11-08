@@ -5,6 +5,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLDecoder
+import java.util.LinkedHashMap
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
@@ -38,9 +39,13 @@ data class RangeReadStats(
     val issue: RangeReadIssue? = null,
     val rangeMismatch: ContentRangeMismatch? = null,
     val unknownTotalResponses: Int = 0,
+    val cacheHits: Int = 0,
+    val cacheRevisitHits: Int = 0,
+    val cacheEvictions: Int = 0,
 )
 
-/** For ONE manually requested track; never a playback transport. 64 KiB RAM block,
+/** For ONE manually requested track; never a playback transport.
+ * Four 64 KiB RAM blocks max (256 KiB total), bounded with access-order LRU.
  * 8 MiB / 128 GET / 40 second limits, HTTP 206 + exact Content-Range only.
  * No log output, redirects, network secrets on disk, or persistent audio cache.
  */
@@ -67,8 +72,13 @@ class WebDavRangeReader(
     private var lastIssue: RangeReadIssue? = null
     private var lastRangeMismatch: ContentRangeMismatch? = null
     private var unknownTotalResponses = 0
-    private var cacheStart = -1L
-    private var cache = ByteArray(0)
+    // Access-order LRU: a reused distant block must not trigger a second HTTP GET.
+    // This never holds more than 4 * 64 KiB and is cleared on close.
+    private val cacheBlocks = LinkedHashMap<Long, ByteArray>(4, 0.75f, true)
+    private var lastReadBlock = -1L
+    private var cacheHits = 0
+    private var cacheRevisitHits = 0
+    private var cacheEvictions = 0
 
     init {
         val root = URI(libraryRoot)
@@ -105,26 +115,29 @@ class WebDavRangeReader(
         if (length == 0) return 0
         if (position < 0L) throw IOException("Invalid position")
         if (position >= fileSize) return -1
-        if (cacheStart < 0 || position < cacheStart || position >= cacheStart + cache.size) {
-            loadBlock((position / BLOCK) * BLOCK)
-        }
-        val i = (position - cacheStart).toInt()
-        val n = minOf(length, cache.size - i)
+        val blockStart = (position / BLOCK) * BLOCK
+        val block = cacheBlocks[blockStart]?.also {
+            cacheHits++
+            if (lastReadBlock != blockStart) cacheRevisitHits++
+        } ?: loadBlock(blockStart)
+        lastReadBlock = blockStart
+        val i = (position - blockStart).toInt()
+        val n = minOf(length, block.size - i)
         if (n <= 0) throw IOException("Range unavailable")
-        System.arraycopy(cache, i, buffer, offset, n)
+        System.arraycopy(block, i, buffer, offset, n)
         return n
     }
 
     @Synchronized fun stats(): RangeReadStats =
         RangeReadStats(calls, bytesFetched, lastHttpStatus, lastIssue,
-            lastRangeMismatch, unknownTotalResponses)
+            lastRangeMismatch, unknownTotalResponses, cacheHits, cacheRevisitHits, cacheEvictions)
 
     private fun reject(issue: RangeReadIssue): Nothing {
         lastIssue = issue
         throw IOException("WebDAV Range read failed")
     }
 
-    private fun loadBlock(start: Long) {
+    private fun loadBlock(start: Long): ByteArray {
         if (calls >= MAX_GETS || bytesFetched >= MAX_BYTES ||
             System.nanoTime() - started > MAX_NS) reject(RangeReadIssue.LIMIT)
         val n = minOf(BLOCK.toLong(), fileSize - start, MAX_BYTES - bytesFetched).toInt()
@@ -211,8 +224,18 @@ class WebDavRangeReader(
                 }
                 if (input.read() != -1) reject(RangeReadIssue.OVERSIZED_BODY)
             }
-            cacheStart = start
-            cache = block
+            if (cacheBlocks.size >= MAX_CACHED_BLOCKS) {
+                val eldest = cacheBlocks.entries.iterator()
+                if (eldest.hasNext()) {
+                    val entry = eldest.next()
+                    // Wipe evicted audio bytes instead of leaving them in discarded arrays.
+                    entry.value.fill(0)
+                    eldest.remove()
+                    cacheEvictions++
+                }
+            }
+            cacheBlocks[start] = block
+            return block
         } catch (_: IOException) {
             // The HTTP library may include private URL details in its exception.
             if (lastIssue == null) lastIssue = RangeReadIssue.NETWORK
@@ -225,12 +248,14 @@ class WebDavRangeReader(
     @Synchronized override fun close() {
         closed = true
         auth = null
-        cacheStart = -1
-        cache = ByteArray(0)
+        cacheBlocks.values.forEach { it.fill(0) }
+        cacheBlocks.clear()
+        lastReadBlock = -1L
     }
 
     private companion object {
         const val BLOCK = 64 * 1024
+        const val MAX_CACHED_BLOCKS = 4
         const val MAX_GETS = 128
         const val MAX_BYTES = 8L * 1024 * 1024
         const val MAX_NS = 40L * 1_000_000_000L

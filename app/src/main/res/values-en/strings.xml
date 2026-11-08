@@ -20,7 +20,7 @@
     <string name="local_saved_report">Local library: %1$d audio files. No cloud request made.</string>
     <string name="local_store_failed">Could not update or read the local library. Private data is not included in this report.</string>
     <string name="probe_one_audio_tag">Read and save tags for one track (8 MiB)</string>
-    <string name="one_tag_report">One file: title present — %1$d; artist — %2$d; album — %3$d (1 = yes, 0 = no). Range requests: %4$d, downloaded bytes: %5$d. Saved in Room: %6$d (1 = yes, 0 = snapshot changed). Tag values are not displayed.</string>
+    <string name="one_tag_report">One file: title present — %1$d; artist — %2$d; album — %3$d (1 = yes, 0 = no). Range requests: %4$d, downloaded bytes: %5$d. Saved in Room: %6$d (1 = yes, 0 = snapshot changed). Revisited cached RAM blocks: %7$d; blocks evicted: %8$d. Tag values are not displayed.</string>
     <string name="one_tag_missing">No matching local file or the path is invalid. Leave path blank to select one track automatically.</string>
     <string name="one_tag_failed">Could not read tags from one file. Limited to 8 MiB/128 requests. No private data included.</string>
     <string name="one_tag_failed_detail">One-file test failed. Stage: %1$s; code: %2$s; HTTP: %3$s; Range requests: %4$d; bytes received: %5$d. Limits unchanged: 8 MiB / 128 requests. No private file names or tags in this report.</string>

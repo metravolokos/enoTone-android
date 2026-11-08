@@ -310,7 +310,8 @@ private fun DiagnosticScreen() {
                                     if (tags.artist != null) 1 else 0,
                                     if (tags.album != null) 1 else 0,
                                     stats.requests, stats.downloadedBytes.toInt(),
-                                    if (persisted) 1 else 0)
+                                    if (persisted) 1 else 0,
+                                    stats.cacheRevisitHits, stats.cacheEvictions)
                             } finally {
                                 source.close()
                             }
@@ -318,7 +319,8 @@ private fun DiagnosticScreen() {
                     }
                     report = if (result[0] < 0) tagMissing else String.format(
                         Locale.getDefault(), tagReport,
-                        result[1], result[2], result[3], result[4], result[5], result[6])
+                        result[1], result[2], result[3], result[4], result[5], result[6],
+                        result[7], result[8])
                 } catch (_: Exception) {
                     val stats = rangeReader?.stats()
                     val reason = stats?.issue?.name
