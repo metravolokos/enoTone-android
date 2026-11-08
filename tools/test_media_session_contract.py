@@ -67,7 +67,7 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("active?.pause()", ui)
 
 
-    def test_m4_queue_keeps_credentials_private_and_auto_advance_bounded(self):
+    def test_m4_native_playlist_exposes_standard_skip_and_stays_private(self):
         service = (
             ROOT / "playback/src/main/java/app/enotone/playback/"
             "EnoTonePlaybackService.kt"
@@ -76,12 +76,19 @@ class MediaSessionContractTest(unittest.TestCase):
             ROOT / "app/src/main/java/app/enotone/android/"
             "OfflineLibraryScreen.kt"
         ).read_text(encoding="utf-8")
-        self.assertIn("PlaybackQueue.create(tracks, selectedId)", service)
-        self.assertIn("Player.STATE_ENDED", service)
-        self.assertIn("playNext()", service)
-        self.assertIn("playPrevious()", service)
-        self.assertIn("credentials = null", service)
-        self.assertIn("queue = null", service)
+        player = (
+            ROOT / "playback/src/main/java/app/enotone/playback/"
+            "PreviewAudioPlayback.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("PlaybackQueue.create(tracks, selectedId)", player)
+        self.assertIn("setMediaSources(sources, queue.position, C.TIME_UNSET)", player)
+        self.assertIn("player.hasNextMediaItem()", service)
+        self.assertIn("player.hasPreviousMediaItem()", service)
+        self.assertIn("player.seekToNextMediaItem()", service)
+        self.assertIn("player.seekToPreviousMediaItem()", service)
+        self.assertNotIn("Player.STATE_ENDED", service)
+        self.assertNotIn("MediaSession.Callback", service)
+        self.assertNotIn("credentials = Credentials(", service)
         self.assertIn("visible.mapNotNull", ui)
         self.assertIn("playQueue(accountEmail, appPassword", ui)
         self.assertNotIn("putExtra(", service)

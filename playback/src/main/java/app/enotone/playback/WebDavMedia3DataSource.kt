@@ -21,15 +21,14 @@ import javax.net.ssl.HttpsURLConnection
  * redirects and accepts only a matching HTTP 206 / Content-Range response.
  */
 @OptIn(UnstableApi::class)
+/**
+ * Each open resolves its own file metadata from the validated RAM-only playlist.
+ * This avoids accidentally reusing the previous track's size/ETag on skip.
+ */
 internal class WebDavMedia3DataSource(
     private val authorization: String,
-    private val remoteSize: Long,
-    remoteEtag: String?,
+    private val files: Map<String, PlaybackRemoteFile>,
 ) : BaseDataSource(true) {
-    private val strongEtag = remoteEtag?.takeIf {
-        it.length in 2..256 && it.first() == '"' && it.last() == '"' &&
-            it.all { char -> char.code in 32..126 }
-    }
     private var connection: HttpsURLConnection? = null
     private var stream: InputStream? = null
     private var uri: Uri? = null
@@ -41,6 +40,12 @@ internal class WebDavMedia3DataSource(
         require(dataSpec.httpMethod == DataSpec.HTTP_METHOD_GET) { "Only GET allowed" }
         val safeUrl = WebDavPlaybackTarget.url(dataSpec.uri.encodedPath ?: "")
         require(dataSpec.uri.toString() == safeUrl) { "Playback URI mismatch" }
+        val remote = files[safeUrl] ?: throw IOException("Playback file not in queue")
+        val remoteSize = remote.size
+        val strongEtag = remote.etag?.takeIf {
+            it.length in 2..256 && it.first() == '"' && it.last() == '"' &&
+                it.all { char -> char.code in 32..126 }
+        }
         require(remoteSize > 0 && dataSpec.position in 0 until remoteSize &&
             dataSpec.length != 0L) { "Invalid playback position" }
 
@@ -141,23 +146,23 @@ internal class WebDavMedia3DataSource(
     class Factory(
         email: String,
         appPassword: String,
-        private val remoteSize: Long,
-        private val etag: String?,
+        tracks: List<QueueTrack>,
     ) : DataSource.Factory {
         private val auth: String
+        private val files: Map<String, PlaybackRemoteFile>
 
         init {
             require(email.contains('@') && appPassword.isNotBlank()) {
                 "Playback credentials required"
             }
+            files = WebDavPlaylistRoutes.index(tracks)
             val raw = (email.trim() + ":" + appPassword)
                 .toByteArray(StandardCharsets.UTF_8)
             auth = try { "Basic " + Base64.getEncoder().encodeToString(raw) }
                 finally { raw.fill(0) }
-            require(remoteSize > 0) { "Unknown playback size" }
         }
 
         override fun createDataSource(): DataSource =
-            WebDavMedia3DataSource(auth, remoteSize, etag)
+            WebDavMedia3DataSource(auth, files)
     }
 }
