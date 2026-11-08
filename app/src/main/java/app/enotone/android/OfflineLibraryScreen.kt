@@ -95,6 +95,9 @@ internal fun OfflineLibraryScreen(
     var cacheInfo by remember {
         mutableStateOf(TransientCacheStatus(CachePhase.IDLE, 0L, 0L))
     }
+    var nextCacheInfo by remember {
+        mutableStateOf(TransientCacheStatus(CachePhase.IDLE, 0L, 0L))
+    }
 
     LaunchedEffect(accountEmail) {
         loading = true
@@ -225,6 +228,8 @@ internal fun OfflineLibraryScreen(
         while (true) {
             cacheInfo = playback?.cacheSnapshot()
                 ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
+            nextCacheInfo = playback?.nextCacheSnapshot()
+                ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
             loadedQueueSources = playback?.loadedQueueSize ?: 0
             delay(1_000L)
         }
@@ -312,6 +317,20 @@ internal fun OfflineLibraryScreen(
                     CachePhase.IDLE -> ""
                 }
                 if (cacheText.isNotEmpty()) Text(cacheText)
+            }
+            if (nextCacheInfo.totalBytes > 0L) {
+                val nextText = when (nextCacheInfo.phase) {
+                    CachePhase.DOWNLOADING -> stringResource(
+                        R.string.playback_next_cache_downloading,
+                        nextCacheInfo.cachedBytes / 1024,
+                        nextCacheInfo.totalBytes / 1024,
+                    )
+                    CachePhase.COMPLETE -> stringResource(R.string.playback_next_cache_complete)
+                    CachePhase.SKIPPED -> stringResource(R.string.playback_next_cache_skipped)
+                    CachePhase.FAILED -> stringResource(R.string.playback_next_cache_failed)
+                    CachePhase.IDLE -> ""
+                }
+                if (nextText.isNotEmpty()) Text(nextText)
             }
             if (queueTotal > 0) {
                 Text(stringResource(R.string.playback_queue_position,

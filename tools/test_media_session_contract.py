@@ -169,5 +169,37 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("Log.", ui)
 
 
+    def test_m5b_one_next_only_after_current_complete(self):
+        module = ROOT / "playback/src/main/java/app/enotone/playback"
+        cache = (module / "TransientMediaCache.kt").read_text(encoding="utf-8")
+        player = (module / "PreviewAudioPlayback.kt").read_text(encoding="utf-8")
+        service = (module / "EnoTonePlaybackService.kt").read_text(encoding="utf-8")
+        ui = (
+            ROOT / "app/src/main/java/app/enotone/android/"
+            "OfflineLibraryScreen.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("onComplete: (() -> Unit)?", cache)
+        self.assertIn("CachePhase.COMPLETE", cache)
+        self.assertIn("onComplete()", cache)
+        self.assertIn("fun prefetchNext(", cache)
+        self.assertIn("Executors.newSingleThreadExecutor", cache)
+        self.assertIn("activeNextWriter?.cancel()", cache)
+        self.assertIn("nextGeneration.incrementAndGet()", cache)
+        self.assertIn("nextStatus", cache)
+        self.assertIn("fullyCachedCurrentId = selectedId", player)
+        self.assertIn("refreshNextPrefetch()", player)
+        self.assertIn("player.nextMediaItemIndex", player)
+        self.assertIn("player.mediaItemCount < expectedQueueSize", player)
+        self.assertIn("NextPrefetchSelection.select(", player)
+        self.assertIn("temporaryCache?.prefetchNext(", player)
+        self.assertIn("onShuffleModeEnabledChanged(", player)
+        self.assertIn("onRepeatModeChanged(", player)
+        self.assertIn("nextCacheSnapshot()", service)
+        self.assertIn("nextCacheInfo", ui)
+        self.assertNotIn("putExtra(", service)
+        self.assertNotIn("Log.", cache)
+        self.assertNotIn("Log.", player)
+
+
 if __name__ == "__main__":
     unittest.main()
