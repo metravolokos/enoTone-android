@@ -49,8 +49,8 @@ internal object PilotFailures {
                 httpStatus in 500..599 || httpStatus in listOf(408, 425, 429)
             ) -> "RETRY_HTTP"
             issue == RangeReadIssue.HTTP_STATUS -> "FAILED_HTTP"
-            issue in listOf(RangeReadIssue.NETWORK, RangeReadIssue.SHORT_BODY,
-                RangeReadIssue.CHANGED_ETAG) -> "RETRY_NETWORK"
+            issue == RangeReadIssue.NETWORK || issue == RangeReadIssue.SHORT_BODY ||
+                issue == RangeReadIssue.CHANGED_ETAG -> "RETRY_NETWORK"
             issue == RangeReadIssue.LIMIT -> "FAILED_BUDGET"
             issue != null -> "FAILED_RANGE"
             stage == "PARSER" -> "FAILED_PARSER"
