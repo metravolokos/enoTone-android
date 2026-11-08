@@ -60,6 +60,22 @@ class PilotBudgetTest {
         assertFalse(result.any { it.tagScanCode == "UNSUPPORTED_LAYOUT" })
     }
 
+    @Test fun singleBadFileDoesNotCauseCompletedFilesToBeReprocessed() {
+        val rows = (0 until 9).map { row(it, status = "FLAC_VORBIS") } +
+            row(9, status = "FAILED_HTTP") +
+            row(10, status = "RETRY_NETWORK") +
+            (11 until 22).map { row(it) }
+        val nextTen = PilotBudget.select(key, rows, 10)
+        assertEquals(10, nextTen.size)
+        assertTrue(nextTen.none { it.tagScanCode == "FLAC_VORBIS" })
+        assertTrue(nextTen.none { it.tagScanCode == "FAILED_HTTP" })
+        assertTrue(nextTen.all { it.tagScanCode == null })
+        // A second manual pilot can revisit temporary failures only after fresh candidates.
+        val retriesOnly = PilotBudget.select(key, rows.filter { it.tagScanCode != null }, 10)
+        assertEquals(1, retriesOnly.size)
+        assertEquals("RETRY_NETWORK", retriesOnly.single().tagScanCode)
+    }
+
     @Test fun doesNotTraverseNestedEntriesOrZeroSizedFiles() {
         val nested = row(1).copy(
             encodedPath = "/AllMusic/dir/sample_1.flac",

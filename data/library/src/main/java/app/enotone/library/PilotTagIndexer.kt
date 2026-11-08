@@ -23,6 +23,64 @@ data class PilotIndexProgress(
     val downloadedBytes: Long,
     val remaining: Int,
     val stopCode: String,
+    val lastErrorStage: String = "NONE",
+    val lastErrorReason: String = "NONE",
+    val lastErrorHttpStatus: Int = 0,
+    val permanentErrors: Int = 0,
+)
+
+/** Fixed, sanitized codes only: never include exception messages or remote metadata. */
+internal data class PilotFailure(
+    val code: String,
+    val stage: String,
+    val reason: String,
+    val httpStatus: Int,
+    val authRejected: Boolean = false,
+)
+
+internal object PilotFailures {
+    /** A parsed error code is not a successful completed tag check. */
+    fun fromParserResult(code: FastTagCode, stats: RangeReadStats?): PilotFailure? =
+        when (code) {
+            FastTagCode.INVALID_METADATA -> PilotFailure(
+                "FAILED_METADATA", "PARSER", code.name, stats?.httpStatus ?: 0)
+            FastTagCode.FAST_BUDGET_EXCEEDED -> PilotFailure(
+                "FAILED_BUDGET", "PARSER", code.name, stats?.httpStatus ?: 0)
+            else -> null
+        }
+
+    fun classify(stage: String, stats: RangeReadStats?): PilotFailure {
+        val issue = stats?.issue
+        val httpStatus = stats?.httpStatus ?: 0
+        val auth = issue == RangeReadIssue.HTTP_STATUS && httpStatus in listOf(401, 403)
+        val code = when {
+            auth -> "RETRY_AUTH"
+            issue == RangeReadIssue.HTTP_STATUS && (
+                httpStatus in 500..599 || httpStatus in listOf(408, 425, 429)
+            ) -> "RETRY_HTTP"
+            issue == RangeReadIssue.HTTP_STATUS -> "FAILED_HTTP"
+            issue == RangeReadIssue.NETWORK || issue == RangeReadIssue.SHORT_BODY ||
+                issue == RangeReadIssue.CHANGED_ETAG -> "RETRY_NETWORK"
+            issue == RangeReadIssue.LIMIT -> "FAILED_BUDGET"
+            issue != null -> "FAILED_RANGE"
+            stage == "PARSER" -> "FAILED_PARSER"
+            else -> "FAILED_PREPARATION"
+        }
+        return PilotFailure(
+            code = code,
+            stage = if (issue != null) "RANGE" else stage,
+            reason = issue?.name ?: if (stage == "PARSER") "PARSER_FAILURE" else "PREPARATION_FAILURE",
+            httpStatus = httpStatus,
+            authRejected = auth,
+        )
+    }
+}
+
+data class PilotCheckpointSummary(
+    val successful: Int,
+    val retryableErrors: Int,
+    val permanentErrors: Int,
+    val notAttempted: Int,
 )
 
 internal object PilotBudget {
@@ -55,11 +113,16 @@ internal object PilotBudget {
 
 class PilotTagIndexer(private val database: EnoToneDatabase) {
     /** Uses only local SQLite and the account's SHA key; no password or HTTP. */
-    suspend fun offlineCheckpoint(email: String): Pair<Int, Int> {
+    suspend fun offlineCheckpoint(email: String): PilotCheckpointSummary {
         val sourceKey = LibrarySnapshotPlanner.accountKey(email)
         val dao = database.remoteTrackDao()
-        return dao.finishedFastScanCount(sourceKey) to
-            dao.pendingFastScans(sourceKey).size
+        val retryable = dao.retryableFastScanCount(sourceKey)
+        return PilotCheckpointSummary(
+            successful = dao.finishedFastScanCount(sourceKey),
+            retryableErrors = retryable,
+            permanentErrors = dao.permanentFastScanCount(sourceKey),
+            notAttempted = (dao.pendingFastScans(sourceKey).size - retryable).coerceAtLeast(0),
+        )
     }
 
     suspend fun run(
@@ -79,6 +142,8 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
         var completedWithoutTags = 0
         var retryableErrors = 0
         var staleWrites = 0
+        var permanentErrors = 0
+        var lastFailure: PilotFailure? = null
         var gets = 0
         var bytes = 0L
         var stop = "COMPLETED"
@@ -86,7 +151,10 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
             val remaining = dao.pendingFastScans(sourceKey).size
             return PilotIndexProgress(
                 count, attempted, savedWithTags, completedWithoutTags,
-                retryableErrors, staleWrites, gets, bytes, remaining, stop)
+                retryableErrors, staleWrites, gets, bytes, remaining, stop,
+                lastFailure?.stage ?: "NONE",
+                lastFailure?.reason ?: "NONE",
+                lastFailure?.httpStatus ?: 0, permanentErrors)
         }
         for (item in candidates) {
             currentCoroutineContext().ensureActive()
@@ -104,6 +172,7 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
             var result: FastTagRead? = null
             var recordCode = "RETRY_ERROR"
             var authRejected = false
+            var stage = "RANGE"
             try {
                 currentCoroutineContext().ensureActive()
                 reader = WebDavRangeReader(
@@ -113,17 +182,23 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                     maxDownloadedBytes = minOf(6L * 65536, remainingBytes),
                 )
                 reader.use { range ->
+                    stage = "PARSER"
                     result = FastAudioTagReader().read(item.fileName, range.fileSize, range::readAt)
-                    recordCode = requireNotNull(result).code.name
+                    val parsed = requireNotNull(result)
+                    recordCode = parsed.code.name
+                    PilotFailures.fromParserResult(parsed.code, range.stats())?.let { failure ->
+                        lastFailure = failure
+                        recordCode = failure.code
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
                 // Do not expose WebDAV exception messages or private metadata.
-                val stats = reader?.stats()
-                authRejected = stats?.issue == RangeReadIssue.HTTP_STATUS &&
-                    stats.httpStatus in listOf(401, 403)
-                recordCode = if (authRejected) "RETRY_AUTH" else "RETRY_NETWORK"
+                val failure = PilotFailures.classify(stage, reader?.stats())
+                lastFailure = failure
+                authRejected = failure.authRejected
+                recordCode = failure.code
             } finally {
                 val stats = reader?.stats()
                 gets += stats?.requests ?: 0
@@ -148,6 +223,7 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
             when {
                 !saved -> staleWrites++
                 recordCode.startsWith("RETRY_") -> retryableErrors++
+                recordCode.startsWith("FAILED_") -> permanentErrors++
                 tags != null -> savedWithTags++
                 else -> completedWithoutTags++
             }

@@ -128,8 +128,26 @@ interface RemoteTrackDao {
         SELECT COUNT(*) FROM remote_tracks
         WHERE sourceKey = :sourceKey AND missingScans = 0
           AND tagScanCode IS NOT NULL AND tagScanCode NOT LIKE 'RETRY_%'
+          AND tagScanCode NOT LIKE 'FAILED_%'
+          AND tagScanCode NOT IN ('INVALID_METADATA', 'FAST_BUDGET_EXCEEDED')
     """)
     suspend fun finishedFastScanCount(sourceKey: String): Int
+
+    /** Distinguish files never attempted from temporary failures after app restart. */
+    @Query("""
+        SELECT COUNT(*) FROM remote_tracks
+        WHERE sourceKey = :sourceKey AND missingScans = 0
+          AND tagScanCode LIKE 'RETRY_%'
+    """)
+    suspend fun retryableFastScanCount(sourceKey: String): Int
+
+    @Query("""
+        SELECT COUNT(*) FROM remote_tracks
+        WHERE sourceKey = :sourceKey AND missingScans = 0
+          AND (tagScanCode LIKE 'FAILED_%'
+            OR tagScanCode IN ('INVALID_METADATA', 'FAST_BUDGET_EXCEEDED'))
+    """)
+    suspend fun permanentFastScanCount(sourceKey: String): Int
 
     @Query("SELECT COUNT(*) FROM remote_tracks WHERE sourceKey = :sourceKey AND missingScans = 0")
     suspend fun presentCount(sourceKey: String): Int
