@@ -22,6 +22,15 @@ interface RemoteTrackDao {
     @Query("SELECT * FROM remote_tracks WHERE sourceKey = :sourceKey")
     suspend fun allForSource(sourceKey: String): List<RemoteTrackEntity>
 
+    /** Resolve a local track ID only within its active account/snapshot. */
+    @Query("""
+        SELECT * FROM remote_tracks
+        WHERE id = :id AND sourceKey = :sourceKey
+          AND missingScans = 0 AND remoteSize > 0
+        LIMIT 1
+    """)
+    suspend fun playableById(id: String, sourceKey: String): RemoteTrackEntity?
+
     @Query("SELECT COALESCE(MAX(lastSeenEpoch), 0) FROM remote_tracks WHERE sourceKey = :sourceKey")
     suspend fun latestEpoch(sourceKey: String): Long
 
