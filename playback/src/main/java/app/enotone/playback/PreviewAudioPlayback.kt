@@ -7,64 +7,46 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import okhttp3.Credentials
-import okhttp3.OkHttpClient
-import java.nio.charset.StandardCharsets
 
 /**
- * One-track, foreground-only Media3 proof-of-playback; no session/service yet.
- *
- * Auth credentials stay in process memory, are not saved or placed in the URI.
- * The HTTP transport disables all redirects so Authorization never follows a
- * 302 to an unrelated host. HTTPS host/path are validated before every play.
+ * One-track, foreground-only Media3 proof-of-playback; no media service yet.
+ * Uses a strict 206/Content-Range HTTP source without OkHttp/GMS runtime.
+ * Credentials remain in memory and never appear in the audio URI or Room.
  */
 @OptIn(UnstableApi::class)
 class PreviewAudioPlayback(
     context: Context,
-    email: String,
-    appPassword: String,
+    private val email: String,
+    private val appPassword: String,
 ) : AutoCloseable {
-    private val httpClient = OkHttpClient.Builder()
-        .followRedirects(false)
-        .followSslRedirects(false)
-        .build()
-
-    val player: ExoPlayer
+    val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext)
+        .build().apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                true,
+            )
+            setHandleAudioBecomingNoisy(true)
+            repeatMode = Player.REPEAT_MODE_OFF
+        }
 
     init {
         require(email.contains('@') && appPassword.isNotBlank()) {
             "Playback credentials required"
         }
-        val factory = OkHttpDataSource.Factory(httpClient)
-            .setDefaultRequestProperties(
-                mapOf(
-                    "Authorization" to Credentials.basic(
-                        email.trim(), appPassword, StandardCharsets.UTF_8),
-                    "Accept-Encoding" to "identity",
-                )
-            )
-
-        player = ExoPlayer.Builder(context.applicationContext)
-            .setMediaSourceFactory(ProgressiveMediaSource.Factory(factory))
-            .build().apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(C.USAGE_MEDIA)
-                        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                        .build(),
-                    true,
-                )
-                setHandleAudioBecomingNoisy(true)
-                repeatMode = Player.REPEAT_MODE_OFF
-            }
     }
 
-    fun play(encodedPath: String) {
+    fun play(encodedPath: String, remoteSize: Long, remoteEtag: String?) {
         val safeUrl = WebDavPlaybackTarget.url(encodedPath)
-        player.setMediaItem(MediaItem.fromUri(safeUrl))
+        val factory = WebDavMedia3DataSource.Factory(
+            email, appPassword, remoteSize, remoteEtag)
+        val source = ProgressiveMediaSource.Factory(factory)
+            .createMediaSource(MediaItem.fromUri(safeUrl))
+        player.setMediaSource(source)
         player.prepare()
         player.play()
     }
@@ -81,7 +63,5 @@ class PreviewAudioPlayback(
     override fun close() {
         stop()
         player.release()
-        httpClient.connectionPool.evictAll()
-        httpClient.dispatcher.executorService.shutdown()
     }
 }
