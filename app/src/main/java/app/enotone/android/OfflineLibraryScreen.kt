@@ -30,7 +30,6 @@ import app.enotone.library.OfflineTrackRow
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 /**
  * Read-only M2 preview: existing Room snapshot only. No password required and no WebDAV.
@@ -87,8 +86,7 @@ internal fun OfflineLibraryScreen(accountEmail: String, onBack: () -> Unit) {
             label = { Text(stringResource(R.string.library_search)) },
             singleLine = true,
         )
-        Text(String.format(Locale.getDefault(),
-            stringResource(R.string.library_count), visible.size, tracks.size))
+        Text(stringResource(R.string.library_count, visible.size, tracks.size))
         when {
             loading -> Text(stringResource(R.string.library_loading))
             failed -> Text(stringResource(R.string.library_failed))
