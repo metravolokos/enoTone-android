@@ -78,3 +78,9 @@
 Добавлен разовый запуск выбранного трека из Room через ExoPlayer 1.11.1 / защищённый `HttpsURLConnection` Media3 DataSource без OkHttp и GMS, с отключёнными redirect, заголовком Basic Auth только в памяти и HTTPS whitelist. UI даёт паузу/продолжение/стоп, показывает только номер ошибки. Пока foreground-only без MediaSessionService/очереди/дискового кэша; **воспроизведение на Huawei ещё не подтверждено**. Нужен зелёный CI точного HEAD и проверка одного MP3, затем FLAC.
 
 - Первый CI M3 #73: Gradle/JUnit/lint и Room schema зелёные, но GMS gate красный из-за строки опционального Google Conscrypt в OkHttp. Зависимость OkHttp удалена из runtime, добавлен отдельный Media3 DataSource. Нужен повторный CI; запрещено игнорировать GMS gate.
+
+## Huawei Preview #82 — первый звук подтверждён (2026-11-08)
+Владелец ответил «Работает» после теста первого выбранного трека через Media3. PR #22 объединён в main с зелёным CI #82 и строгим GMS-free gate. Успех паузы/продолжения/стопа отдельно не подтверждён; фон, MediaSession и Bluetooth не входили в #82.
+
+## Draft M3 — MediaSessionService (ADR-0032)
+ExoPlayer перенесён в приватную MediaSessionService, Android media playback foreground notification управляется Media3. Compose-экран только подключается к службе, при закрытии отсоединяется, не останавливает музыку. Пароль и идентификаторы файла передаются только в оперативной памяти через приватный Binder, не сериализуются в Intent. Статус Draft, ожидает точный CI и проверки в фоне на Huawei.
