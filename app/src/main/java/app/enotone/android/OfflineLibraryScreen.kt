@@ -38,11 +38,14 @@ import androidx.media3.common.MediaMetadata
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
+import app.enotone.playback.CachePhase
+import app.enotone.playback.TransientCacheStatus
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.QueueTrack
 import app.enotone.playback.WebDavPlaybackTarget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -72,6 +75,9 @@ internal fun OfflineLibraryScreen(
     var shuffleEnabled by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf(0) }
     var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
+    var cacheInfo by remember {
+        mutableStateOf(TransientCacheStatus(CachePhase.IDLE, 0L, 0L))
+    }
 
     LaunchedEffect(accountEmail) {
         loading = true
@@ -167,6 +173,14 @@ internal fun OfflineLibraryScreen(
         onDispose { active?.player?.removeListener(listener) }
     }
 
+    LaunchedEffect(playback) {
+        while (true) {
+            cacheInfo = playback?.cacheSnapshot()
+                ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
+            delay(1_000L)
+        }
+    }
+
     val visible = remember(tracks, search) { OfflineTrackCatalog.search(tracks, search) }
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -202,6 +216,20 @@ internal fun OfflineLibraryScreen(
                 else -> stringResource(R.string.playback_loading)
             }
             Text(status)
+            if (cacheInfo.totalBytes > 0L) {
+                val cacheText = when (cacheInfo.phase) {
+                    CachePhase.DOWNLOADING -> stringResource(
+                        R.string.playback_cache_downloading,
+                        cacheInfo.cachedBytes / 1024,
+                        cacheInfo.totalBytes / 1024,
+                    )
+                    CachePhase.COMPLETE -> stringResource(R.string.playback_cache_complete)
+                    CachePhase.SKIPPED -> stringResource(R.string.playback_cache_skipped)
+                    CachePhase.FAILED -> stringResource(R.string.playback_cache_failed)
+                    CachePhase.IDLE -> ""
+                }
+                if (cacheText.isNotEmpty()) Text(cacheText)
+            }
             if (queueTotal > 0) {
                 Text(stringResource(R.string.playback_queue_position,
                     queuePosition, queueTotal))
