@@ -39,6 +39,16 @@ internal data class PilotFailure(
 )
 
 internal object PilotFailures {
+    /** A parsed error code is not a successful completed tag check. */
+    fun fromParserResult(code: FastTagCode, stats: RangeReadStats?): PilotFailure? =
+        when (code) {
+            FastTagCode.INVALID_METADATA -> PilotFailure(
+                "FAILED_METADATA", "PARSER", code.name, stats?.httpStatus ?: 0)
+            FastTagCode.FAST_BUDGET_EXCEEDED -> PilotFailure(
+                "FAILED_BUDGET", "PARSER", code.name, stats?.httpStatus ?: 0)
+            else -> null
+        }
+
     fun classify(stage: String, stats: RangeReadStats?): PilotFailure {
         val issue = stats?.issue
         val httpStatus = stats?.httpStatus ?: 0
@@ -174,7 +184,12 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                 reader.use { range ->
                     stage = "PARSER"
                     result = FastAudioTagReader().read(item.fileName, range.fileSize, range::readAt)
-                    recordCode = requireNotNull(result).code.name
+                    val parsed = requireNotNull(result)
+                    recordCode = parsed.code.name
+                    PilotFailures.fromParserResult(parsed.code, range.stats())?.let { failure ->
+                        lastFailure = failure
+                        recordCode = failure.code
+                    }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
