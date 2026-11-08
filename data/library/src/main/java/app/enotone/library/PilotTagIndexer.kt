@@ -54,6 +54,14 @@ internal object PilotBudget {
 }
 
 class PilotTagIndexer(private val database: EnoToneDatabase) {
+    /** Uses only local SQLite and the account's SHA key; no password or HTTP. */
+    suspend fun offlineCheckpoint(email: String): Pair<Int, Int> {
+        val sourceKey = LibrarySnapshotPlanner.accountKey(email)
+        val dao = database.remoteTrackDao()
+        return dao.finishedFastScanCount(sourceKey) to
+            dao.pendingFastScans(sourceKey).size
+    }
+
     suspend fun run(
         email: String,
         password: String,

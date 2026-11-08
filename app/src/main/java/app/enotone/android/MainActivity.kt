@@ -83,6 +83,7 @@ private fun DiagnosticScreen() {
     val tagMissing = stringResource(R.string.one_tag_missing)
     val fastTagReport = stringResource(R.string.fast_tag_report)
     val pilotReport = stringResource(R.string.pilot_report)
+    val pilotOffline = stringResource(R.string.pilot_offline_report)
     val pilotStopped = stringResource(R.string.pilot_stopped)
     val pilotFailed = stringResource(R.string.pilot_failed)
     val missingCredentials = stringResource(R.string.missing_credentials)
@@ -489,6 +490,30 @@ private fun DiagnosticScreen() {
             }
         }) {
             Text(stringResource(R.string.fast_probe_one_track))
+        }
+        Button(enabled = !busy && email.isNotBlank(), onClick = {
+            busy = true
+            report = ""
+            scope.launch {
+                try {
+                    val stored = withContext(Dispatchers.IO) {
+                        val database = openLibraryDatabase(appContext)
+                        try {
+                            PilotTagIndexer(database).offlineCheckpoint(email)
+                        } finally {
+                            database.close()
+                        }
+                    }
+                    report = String.format(Locale.getDefault(), pilotOffline,
+                        stored.first, stored.second)
+                } catch (_: Exception) {
+                    report = pilotFailed
+                } finally {
+                    busy = false
+                }
+            }
+        }) {
+            Text(stringResource(R.string.pilot_check_offline))
         }
         Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(),
             onClick = { runPilot(10) }) {

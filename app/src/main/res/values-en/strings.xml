@@ -29,6 +29,8 @@
     <string name="one_tag_range_mismatch">Range mismatch: %1$s. Expected (start-end/size): %2$s-%3$s/%4$s; server returned: %5$s-%6$s/%7$s. Numbers only, no raw headers.</string>
     <string name="fast_probe_one_track">Fast MP3/FLAC tags — one track only</string>
     <string name="fast_tag_report">Fast parser: %1$s. Embedded fields: title — %2$d, artist — %3$d, album — %4$d. Range requests: %5$d; bytes downloaded: %6$d; saved in Room: %7$d. Unsupported layouts do not trigger the slow extractor. Tag values are never displayed.</string>
+    <string name="pilot_check_offline">Check pilot checkpoint (offline)</string>
+    <string name="pilot_offline_report">Offline Room: completed pilot checks — %1$d; pending or retryable — %2$d. No private data is displayed.</string>
     <string name="pilot_ten">Pilot index: up to 10 tracks</string>
     <string name="pilot_twenty">Pilot index: up to 20 tracks</string>
     <string name="pilot_cancel">Stop pilot</string>

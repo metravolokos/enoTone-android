@@ -29,6 +29,8 @@
     <string name="one_tag_range_mismatch">Диапазон: %1$s. Ожидалось (начало-конец/размер): %2$s-%3$s/%4$s; сервер сообщил: %5$s-%6$s/%7$s. Только числа, без исходных заголовков.</string>
     <string name="fast_probe_one_track">Быстро прочитать MP3/FLAC — один файл</string>
     <string name="fast_tag_report">Быстрый разбор: %1$s. Встроенные теги: название — %2$d, исполнитель — %3$d, альбом — %4$d. Range-запросов: %5$d; скачано байт: %6$d; сохранено в Room: %7$d. Если формат пропущен, медленный извлекатель не запускался. Содержимое тегов не выводится.</string>
+    <string name="pilot_check_offline">Проверить прогресс пилота (без сети)</string>
+    <string name="pilot_offline_report">Room без сети: завершено пилотных проверок — %1$d; ожидают проверки или повтора — %2$d. Личные данные не выводятся.</string>
     <string name="pilot_ten">Пилотная индексация: до 10 треков</string>
     <string name="pilot_twenty">Пилотная индексация: до 20 треков</string>
     <string name="pilot_cancel">Остановить пилот</string>
