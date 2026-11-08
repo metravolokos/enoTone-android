@@ -9,4 +9,9 @@
     <string name="run_probe">Check connection</string>
     <string name="running">Checking…</string>
     <string name="missing_credentials">Enter your full email and external app password.</string>
+    <string name="count_audio_files">Count audio files in /AllMusic</string>
+    <string name="file_count_report">Audio files: %1$d. Skipped folders: %2$d, nested items: %3$d, other files: %4$d, invalid entries: %5$d.</string>
+    <string name="file_count_failed">Could not read the file listing. Check the connection or try again later.</string>
+    <string name="webdav_http_failed">Could not read the file listing: HTTP %1$d.</string>
+    <string name="diagnostic_failed">Diagnostics failed. Credentials are never included in this report.</string>
 </resources>

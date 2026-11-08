@@ -9,4 +9,9 @@
     <string name="run_probe">Проверить соединение</string>
     <string name="running">Проверяем…</string>
     <string name="missing_credentials">Введите email и отдельный пароль внешнего приложения.</string>
+    <string name="count_audio_files">Посчитать аудиофайлы в /AllMusic</string>
+    <string name="file_count_report">Найдено аудиофайлов: %1$d. Пропущено папок: %2$d, вложенных элементов: %3$d, других файлов: %4$d, некорректных записей: %5$d.</string>
+    <string name="file_count_failed">Не удалось прочитать список файлов. Проверьте подключение или попробуйте позднее.</string>
+    <string name="webdav_http_failed">Не удалось прочитать список файлов: HTTP %1$d.</string>
+    <string name="diagnostic_failed">Диагностика завершилась ошибкой. Учётные данные в отчёт не включены.</string>
 </resources>

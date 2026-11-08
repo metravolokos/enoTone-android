@@ -27,10 +27,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import app.enotone.network.FlatLibraryWebDavClient
+import app.enotone.network.FlatWebDavHttpError
 import app.enotone.network.WebDavDiagnostics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,6 +53,11 @@ private fun DiagnosticScreen() {
     var report by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val missingCredentials = stringResource(R.string.missing_credentials)
+    val diagnosticFailed = stringResource(R.string.diagnostic_failed)
+    val countReport = stringResource(R.string.file_count_report)
+    val countFailed = stringResource(R.string.file_count_failed)
+    val httpFailure = stringResource(R.string.webdav_http_failed)
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -77,7 +85,7 @@ private fun DiagnosticScreen() {
         }
         Button(enabled = !busy, onClick = {
             if (email.isBlank() || password.isBlank()) {
-                report = "Укажите email и пароль внешнего приложения."
+                report = missingCredentials
             } else {
                 busy = true
                 report = ""
@@ -86,6 +94,8 @@ private fun DiagnosticScreen() {
                         report = withContext(Dispatchers.IO) {
                             WebDavDiagnostics().inspect(email, password, testFile, testInfinity).toSanitizedText()
                         }
+                    } catch (_: Exception) {
+                        report = diagnosticFailed
                     } finally {
                         busy = false
                     }
@@ -93,6 +103,36 @@ private fun DiagnosticScreen() {
             }
         }) {
             Text(if (busy) stringResource(R.string.running) else stringResource(R.string.run_probe))
+        }
+        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
+            busy = true
+            report = ""
+            scope.launch {
+                try {
+                    val counts = withContext(Dispatchers.IO) {
+                        FlatLibraryWebDavClient().use { client ->
+                            val listing = client.list(email, password)
+                            intArrayOf(
+                                listing.tracks.size, listing.skippedDirectories,
+                                listing.skippedNested, listing.skippedNonAudio, listing.invalidEntries,
+                            )
+                        }
+                    }
+                    // Only counters cross into UI. Never display or log private remote paths.
+                    report = String.format(
+                        Locale.getDefault(), countReport,
+                        counts[0], counts[1], counts[2], counts[3], counts[4],
+                    )
+                } catch (e: FlatWebDavHttpError) {
+                    report = String.format(Locale.getDefault(), httpFailure, e.statusCode)
+                } catch (_: Exception) {
+                    report = countFailed
+                } finally {
+                    busy = false
+                }
+            }
+        }) {
+            Text(stringResource(R.string.count_audio_files))
         }
         if (report.isNotEmpty()) Text(report, style = MaterialTheme.typography.bodyMedium)
     }
