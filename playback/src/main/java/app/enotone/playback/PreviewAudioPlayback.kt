@@ -40,6 +40,31 @@ class PreviewAudioPlayback(
     private var cacheEnabledForQueue = false
     private var activeRoutes: Map<String, QueueTrack> = emptyMap()
     private var upstreamFactory: DataSource.Factory? = null
+    private var fullyCachedCurrentId: String? = null
+    private var scheduledNextId: String? = null
+
+    /** Only resolve the upcoming file after the current is fully cached. */
+    private fun refreshNextPrefetch() {
+        if (!cacheEnabledForQueue) return
+        val currentId = player.currentMediaItem?.mediaId ?: return
+        if (fullyCachedCurrentId != currentId) return
+        val nextIndex = player.nextMediaItemIndex
+        val candidateId = if (nextIndex != C.INDEX_UNSET &&
+            nextIndex in 0 until player.mediaItemCount) {
+            player.getMediaItemAt(nextIndex).mediaId
+        } else null
+        val next = NextPrefetchSelection.select(currentId, candidateId, activeRoutes)
+        if (next?.id == scheduledNextId) return
+        temporaryCache?.cancelNext()
+        scheduledNextId = null
+        if (next == null) return
+        val upstream = upstreamFactory ?: return
+        val nextUri = player.getMediaItemAt(nextIndex).localConfiguration?.uri ?: return
+        scheduledNextId = next.id
+        // Same read-only cache and per-item WebDAV Range metadata as playback.
+        temporaryCache?.prefetchNext(
+            TransientCachePolicy.key(next), nextUri, next.remoteSize, upstream)
+    }
     private val cacheHandler = Handler(Looper.getMainLooper())
     private var pendingPlaylist: StagedPlaylistPlan? = null
     private var pendingMediaFactory: ProgressiveMediaSource.Factory? = null
@@ -143,10 +168,18 @@ class PreviewAudioPlayback(
                     pending.mediaId,
                 )) return@Runnable
             pendingCache = null
-            // Crucially this does NOT consult playWhenReady. Pause does not
-            // stop downloading once the first READY has been reached.
+            // Pause does not stop either full-file download.
+            val selectedId = pending.mediaId
             temporaryCache?.prefetchCurrent(
-                pending.key, pending.uri, pending.size, pending.upstream)
+                pending.key, pending.uri, pending.size, pending.upstream,
+                onComplete = {
+                    if (cacheEnabledForQueue &&
+                        player.currentMediaItem?.mediaId == selectedId) {
+                        fullyCachedCurrentId = selectedId
+                        refreshNextPrefetch()
+                    }
+                },
+            )
         }
         scheduledWriter = task
         cacheHandler.postDelayed(task, CacheStartPolicy.START_DELAY_MS)
@@ -156,6 +189,8 @@ class PreviewAudioPlayback(
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             clearScheduledWriter()
             pendingCache = null
+            fullyCachedCurrentId = null
+            scheduledNextId = null
             temporaryCache?.stopCurrent()
             if (!cacheEnabledForQueue) return
             val selected = mediaItem?.let { activeRoutes[it.mediaId] }
@@ -168,6 +203,25 @@ class PreviewAudioPlayback(
             // Wait for this item's first READY before competing for WebDAV.
             // This also handles a transition into an already-prepared item.
             scheduleAfterFirstBuffer()
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+            // The next target may change while a finished current track plays.
+            refreshNextPrefetch()
+        }
+
+        override fun onRepeatModeChanged(repeatMode: Int) {
+            refreshNextPrefetch()
+        }
+
+        override fun onTimelineChanged(
+            timeline: androidx.media3.common.Timeline,
+            reason: Int,
+        ) {
+            // With staged playlist fill the next item may appear after COMPLETE.
+            if (fullyCachedCurrentId != null && scheduledNextId == null) {
+                refreshNextPrefetch()
+            }
         }
 
         override fun onPlaybackStateChanged(state: Int) {
@@ -199,6 +253,9 @@ class PreviewAudioPlayback(
     fun cacheSnapshot(): TransientCacheStatus =
         temporaryCache?.snapshot() ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
 
+    fun nextCacheSnapshot(): TransientCacheStatus =
+        temporaryCache?.nextSnapshot() ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
+
     /**
      * Give Media3 the real local playlist, so Android notification and Bluetooth
      * use standard seekToNext/Previous media-item commands, not custom actions.
@@ -215,6 +272,8 @@ class PreviewAudioPlayback(
         clearScheduledWriter()
         cancelPlaylistFill()
         pendingCache = null
+        fullyCachedCurrentId = null
+        scheduledNextId = null
         temporaryCache?.stopCurrent()
         cacheEnabledForQueue = useTemporaryCache
 
@@ -262,6 +321,8 @@ class PreviewAudioPlayback(
 
     fun stop() {
         clearScheduledWriter()
+        fullyCachedCurrentId = null
+        scheduledNextId = null
         cancelPlaylistFill()
         expectedQueueSize = 0
         mediaIdIndices = emptyMap()
