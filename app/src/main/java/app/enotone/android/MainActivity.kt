@@ -70,6 +70,7 @@ private fun DiagnosticScreen() {
     val localFailed = stringResource(R.string.local_store_failed)
     val tagReport = stringResource(R.string.one_tag_report)
     val tagFailed = stringResource(R.string.one_tag_failed)
+    val tagFailedDetail = stringResource(R.string.one_tag_failed_detail)
     val tagMissing = stringResource(R.string.one_tag_missing)
     val missingCredentials = stringResource(R.string.missing_credentials)
     val diagnosticFailed = stringResource(R.string.diagnostic_failed)
@@ -211,6 +212,8 @@ private fun DiagnosticScreen() {
             busy = true
             report = ""
             scope.launch {
+                var tagStage = "LOCAL_DB"
+                var rangeReader: WebDavRangeReader? = null
                 try {
                     val result = withContext(Dispatchers.IO) {
                         val database = openLibraryDatabase(appContext)
@@ -238,6 +241,7 @@ private fun DiagnosticScreen() {
                         if (selected == null) {
                             intArrayOf(-1, 0, 0, 0, 0, 0)
                         } else {
+                            tagStage = "SOURCE"
                             val reader = WebDavRangeReader(
                                 encodedPath = selected.encodedPath,
                                 fileSize = selected.remoteSize!!,
@@ -245,8 +249,16 @@ private fun DiagnosticScreen() {
                                 appPassword = password,
                                 etag = selected.remoteEtag,
                             )
+                            rangeReader = reader
                             val source = WebDavRangeMediaDataSource(reader)
                             try {
+                                // Separate an HTTP/Range failure from a platform extractor failure.
+                                // Exactly one 64-KiB block at most; reused by the retriever.
+                                tagStage = "RANGE"
+                                if (source.readAt(0, ByteArray(1), 0, 1) != 1) {
+                                    throw java.io.IOException("Range probe unavailable")
+                                }
+                                tagStage = "EXTRACTOR"
                                 val tags = AndroidAudioTagReader().read(source, selected.fileName)
                                 val stats = reader.stats()
                                 intArrayOf(1,
@@ -263,7 +275,14 @@ private fun DiagnosticScreen() {
                         Locale.getDefault(), tagReport,
                         result[1], result[2], result[3], result[4], result[5])
                 } catch (_: Exception) {
-                    report = tagFailed
+                    val stats = rangeReader?.stats()
+                    val reason = stats?.issue?.name
+                        ?: if (tagStage == "EXTRACTOR") "PLATFORM_EXTRACTOR" else "PREPARATION"
+                    report = String.format(
+                        Locale.getDefault(), tagFailedDetail, tagStage, reason,
+                        stats?.httpStatus?.toString() ?: "—",
+                        stats?.requests ?: 0, stats?.downloadedBytes ?: 0L,
+                    )
                 } finally {
                     busy = false
                 }

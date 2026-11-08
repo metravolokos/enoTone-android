@@ -62,6 +62,8 @@ class WebDavRangeReaderTest {
                     catch (e: IOException) {
                         assertFalse(e.message.orEmpty().contains("private"))
                         assertFalse(e.message.orEmpty().contains("secret"))
+                        assertEquals(code, src.stats().httpStatus)
+                        assertEquals(RangeReadIssue.HTTP_STATUS, src.stats().issue)
                     }
                 }
                 assertEquals(1, server.requestCount)
@@ -79,7 +81,10 @@ class WebDavRangeReaderTest {
                     .setBody(Buffer().write(payload, 0, 65536)))
                 reader(server).use { src ->
                     try { src.readAt(0, ByteArray(1), 0, 1); fail("Must reject") }
-                    catch (_: IOException) {}
+                    catch (_: IOException) {
+                        assertEquals(RangeReadIssue.BAD_CONTENT_RANGE, src.stats().issue)
+                        assertEquals(206, src.stats().httpStatus)
+                    }
                 }
             } finally { server.shutdown() }
         }
@@ -91,7 +96,9 @@ class WebDavRangeReaderTest {
                 .addHeader("ETag", "\"v2\"").setBody(Buffer().write(payload, 0, 65536)))
             reader(server).use { src ->
                 try { src.readAt(0, ByteArray(1), 0, 1); fail("Must reject") }
-                catch (_: IOException) {}
+                catch (_: IOException) {
+                    assertEquals(RangeReadIssue.CHANGED_ETAG, src.stats().issue)
+                }
             }
         } finally { server.shutdown() }
     }
@@ -128,7 +135,9 @@ class WebDavRangeReaderTest {
                 for (i in 0 until 128) assertEquals(1, src.readAt(i.toLong() * 65536, out, 0, 1))
                 assertEquals(8L * 1024 * 1024, src.stats().downloadedBytes)
                 try { src.readAt(128L * 65536, out, 0, 1); fail("Budget exceeded") }
-                catch (_: IOException) {}
+                catch (_: IOException) {
+                    assertEquals(RangeReadIssue.LIMIT, src.stats().issue)
+                }
                 assertEquals(128, server.requestCount)
             }
         } finally { server.shutdown() }
