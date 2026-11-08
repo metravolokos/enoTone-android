@@ -114,5 +114,25 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("Log.", service)
 
 
+    def test_m5_current_cache_is_transient_and_pause_independent(self):
+        module = ROOT / "playback/src/main/java/app/enotone/playback"
+        cache = (module / "TransientMediaCache.kt").read_text(encoding="utf-8")
+        player = (module / "PreviewAudioPlayback.kt").read_text(encoding="utf-8")
+        service = (module / "EnoTonePlaybackService.kt").read_text(encoding="utf-8")
+        self.assertIn("context.cacheDir", cache)
+        self.assertIn("directory.deleteRecursively()", cache)
+        self.assertIn("CacheWriter(", cache)
+        self.assertIn("writer.cache()", cache)
+        self.assertIn("setCacheWriteDataSinkFactory(null)", cache)
+        self.assertIn("TransientCachePolicy.canDownload(", cache)
+        self.assertIn("onMediaItemTransition(", player)
+        self.assertIn("setCustomCacheKey(TransientCachePolicy.key(item))", player)
+        self.assertIn("temporaryCache.prefetchCurrent(", player)
+        self.assertIn("fun cacheSnapshot()", service)
+        self.assertNotIn("putExtra(", service)
+        self.assertNotIn("Log.", cache)
+        self.assertNotIn("Log.", player)
+
+
 if __name__ == "__main__":
     unittest.main()
