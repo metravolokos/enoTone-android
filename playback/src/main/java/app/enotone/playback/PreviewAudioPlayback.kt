@@ -1,6 +1,7 @@
 package app.enotone.playback
 
 import android.content.Context
+import androidx.media3.datasource.DataSource
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -20,6 +21,26 @@ import androidx.media3.exoplayer.source.ProgressiveMediaSource
 class PreviewAudioPlayback(
     context: Context,
 ) : AutoCloseable {
+    private val temporaryCache = TransientMediaCache(context.applicationContext)
+    private var activeRoutes: Map<String, QueueTrack> = emptyMap()
+    private var upstreamFactory: DataSource.Factory? = null
+    private val cacheTransitionListener = object : Player.Listener {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val selected = mediaItem?.let { activeRoutes[it.mediaId] }
+            val source = upstreamFactory
+            val config = mediaItem?.localConfiguration
+            if (selected == null || source == null || config == null) {
+                temporaryCache.stopCurrent()
+                return
+            }
+            temporaryCache.prefetchCurrent(
+                TransientCachePolicy.key(selected),
+                config.uri,
+                selected.remoteSize,
+                source,
+            )
+        }
+    }
     val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext)
         .build().apply {
             setAudioAttributes(
@@ -31,7 +52,10 @@ class PreviewAudioPlayback(
             )
             setHandleAudioBecomingNoisy(true)
             repeatMode = Player.REPEAT_MODE_OFF
+            addListener(cacheTransitionListener)
         }
+
+    fun cacheSnapshot(): TransientCacheStatus = temporaryCache.snapshot()
 
     /**
      * Give Media3 the real local playlist, so Android notification and Bluetooth
@@ -47,12 +71,17 @@ class PreviewAudioPlayback(
     ) {
         val queue = PlaybackQueue.create(tracks, selectedId)
         val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
-        val mediaFactory = ProgressiveMediaSource.Factory(factory)
+        val mediaFactory = ProgressiveMediaSource.Factory(
+            temporaryCache.forPlayback(factory))
+        // Route mapping is ready before setMediaSources raises the transition.
+        activeRoutes = queue.items.associateBy { it.id }
+        upstreamFactory = factory
         val sources = queue.items.map { item ->
             mediaFactory.createMediaSource(
                 MediaItem.Builder()
                     .setMediaId(item.id)
                     .setUri(WebDavPlaybackTarget.url(item.encodedPath))
+                    .setCustomCacheKey(TransientCachePolicy.key(item))
                     .setMediaMetadata(
                         MediaMetadata.Builder().setTitle(item.title).build())
                     .build())
@@ -67,12 +96,17 @@ class PreviewAudioPlayback(
     fun resume() = player.play()
 
     fun stop() {
+        temporaryCache.stopCurrent()
         player.stop()
         player.clearMediaItems()
+        activeRoutes = emptyMap()
+        upstreamFactory = null
     }
 
     override fun close() {
         stop()
+        player.removeListener(cacheTransitionListener)
         player.release()
+        temporaryCache.close()
     }
 }
