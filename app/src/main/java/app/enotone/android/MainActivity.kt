@@ -32,6 +32,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.enotone.database.EnoToneDatabase
 import app.enotone.library.LibrarySnapshotStore
+import app.enotone.library.LibraryTagStore
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.AndroidAudioTagReader
 import app.enotone.library.WebDavRangeReader
@@ -240,7 +241,7 @@ private fun DiagnosticScreen() {
                             database.close()
                         }
                         if (selected == null) {
-                            intArrayOf(-1, 0, 0, 0, 0, 0)
+                            intArrayOf(-1, 0, 0, 0, 0, 0, 0)
                         } else {
                             tagStage = "SOURCE"
                             val reader = WebDavRangeReader(
@@ -262,11 +263,21 @@ private fun DiagnosticScreen() {
                                 tagStage = "EXTRACTOR"
                                 val tags = AndroidAudioTagReader().read(source, selected.fileName)
                                 val stats = reader.stats()
+                                // Persist only if Room still contains the same file version.
+                                tagStage = "STORE"
+                                val writeDatabase = openLibraryDatabase(appContext)
+                                val persisted = try {
+                                    LibraryTagStore(writeDatabase).saveIfUnchanged(
+                                        email, selected, tags)
+                                } finally {
+                                    writeDatabase.close()
+                                }
                                 intArrayOf(1,
                                     if (tags.title != null) 1 else 0,
                                     if (tags.artist != null) 1 else 0,
                                     if (tags.album != null) 1 else 0,
-                                    stats.requests, stats.downloadedBytes.toInt())
+                                    stats.requests, stats.downloadedBytes.toInt(),
+                                    if (persisted) 1 else 0)
                             } finally {
                                 source.close()
                             }
@@ -274,11 +285,15 @@ private fun DiagnosticScreen() {
                     }
                     report = if (result[0] < 0) tagMissing else String.format(
                         Locale.getDefault(), tagReport,
-                        result[1], result[2], result[3], result[4], result[5])
+                        result[1], result[2], result[3], result[4], result[5], result[6])
                 } catch (_: Exception) {
                     val stats = rangeReader?.stats()
                     val reason = stats?.issue?.name
-                        ?: if (tagStage == "EXTRACTOR") "PLATFORM_EXTRACTOR" else "PREPARATION"
+                        ?: when (tagStage) {
+                            "EXTRACTOR" -> "PLATFORM_EXTRACTOR"
+                            "STORE" -> "LOCAL_DB_WRITE"
+                            else -> "PREPARATION"
+                        }
                     report = String.format(
                         Locale.getDefault(), tagFailedDetail, tagStage, reason,
                         stats?.httpStatus?.toString() ?: "—",

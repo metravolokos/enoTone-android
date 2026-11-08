@@ -24,6 +24,34 @@ interface RemoteTrackDao {
     """)
     suspend fun markMissing(sourceKey: String, seenEpoch: Long)
 
+    /** Atomic compare-and-set: prevents stale one-track tag updates after a rescan. */
+    @Query("""
+        UPDATE remote_tracks
+        SET title = :title,
+            artist = :artist,
+            album = :album,
+            albumArtist = :albumArtist
+        WHERE id = :id
+          AND sourceKey = :sourceKey
+          AND encodedPath = :encodedPath
+          AND remoteEtag IS :expectedEtag
+          AND remoteSize IS :expectedSize
+          AND remoteModified IS :expectedModified
+          AND missingScans = 0
+    """)
+    suspend fun saveTagsIfSnapshotMatches(
+        id: String,
+        sourceKey: String,
+        encodedPath: String,
+        expectedEtag: String?,
+        expectedSize: Long?,
+        expectedModified: String?,
+        title: String?,
+        artist: String?,
+        album: String?,
+        albumArtist: String?,
+    ): Int
+
     @Query("SELECT COUNT(*) FROM remote_tracks WHERE sourceKey = :sourceKey AND missingScans = 0")
     suspend fun presentCount(sourceKey: String): Int
 }
