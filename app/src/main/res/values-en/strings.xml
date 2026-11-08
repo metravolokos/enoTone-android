@@ -23,4 +23,5 @@
     <string name="one_tag_report">One file: title present — %1$d; artist — %2$d; album — %3$d (1 = yes, 0 = no). Range requests: %4$d, downloaded bytes: %5$d. Tag values are not displayed or saved.</string>
     <string name="one_tag_missing">No matching local file or the path is invalid. Leave path blank to select one track automatically.</string>
     <string name="one_tag_failed">Could not read tags from one file. Limited to 8 MiB/128 requests. No private data included.</string>
+    <string name="one_tag_failed_detail">One-file test failed. Stage: %1$s; code: %2$s; HTTP: %3$s; Range requests: %4$d; bytes received: %5$d. Limits unchanged: 8 MiB / 128 requests. No private file names or tags in this report.</string>
 </resources>

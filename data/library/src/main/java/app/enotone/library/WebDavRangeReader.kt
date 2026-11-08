@@ -8,7 +8,18 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
-data class RangeReadStats(val requests: Int, val downloadedBytes: Long)
+/** Whitelisted codes only: no URL, remote path, ETag or exception messages. */
+enum class RangeReadIssue {
+    LIMIT, HTTP_STATUS, MISSING_CONTENT_RANGE, BAD_CONTENT_RANGE,
+    BAD_ENCODING, CHANGED_ETAG, SHORT_BODY, OVERSIZED_BODY, NETWORK,
+}
+
+data class RangeReadStats(
+    val requests: Int,
+    val downloadedBytes: Long,
+    val httpStatus: Int? = null,
+    val issue: RangeReadIssue? = null,
+)
 
 /** For ONE manually requested track; never a playback transport. 64 KiB RAM block,
  * 8 MiB / 128 GET / 40 second limits, HTTP 206 + exact Content-Range only.
@@ -33,6 +44,8 @@ class WebDavRangeReader(
     private val started = System.nanoTime()
     private var calls = 0
     private var bytesFetched = 0L
+    private var lastHttpStatus: Int? = null
+    private var lastIssue: RangeReadIssue? = null
     private var cacheStart = -1L
     private var cache = ByteArray(0)
 
@@ -81,13 +94,19 @@ class WebDavRangeReader(
         return n
     }
 
-    @Synchronized fun stats(): RangeReadStats = RangeReadStats(calls, bytesFetched)
+    @Synchronized fun stats(): RangeReadStats =
+        RangeReadStats(calls, bytesFetched, lastHttpStatus, lastIssue)
+
+    private fun reject(issue: RangeReadIssue): Nothing {
+        lastIssue = issue
+        throw IOException("WebDAV Range read failed")
+    }
 
     private fun loadBlock(start: Long) {
         if (calls >= MAX_GETS || bytesFetched >= MAX_BYTES ||
-            System.nanoTime() - started > MAX_NS) throw IOException("Metadata probe limit reached")
+            System.nanoTime() - started > MAX_NS) reject(RangeReadIssue.LIMIT)
         val n = minOf(BLOCK.toLong(), fileSize - start, MAX_BYTES - bytesFetched).toInt()
-        if (n <= 0) throw IOException("Metadata probe limit reached")
+        if (n <= 0) reject(RangeReadIssue.LIMIT)
         val end = start + n - 1L
         val conn = url.openConnection() as HttpURLConnection
         try {
@@ -100,34 +119,39 @@ class WebDavRangeReader(
             conn.setRequestProperty("Accept-Encoding", "identity")
             if (etagStrong != null) conn.setRequestProperty("If-Range", etagStrong)
             calls++
-            if (conn.responseCode != HttpURLConnection.HTTP_PARTIAL) throw IOException("Expected 206")
-            val match = conn.getHeaderField("Content-Range")?.trim()?.let {
-                CONTENT_RANGE.matchEntire(it)
-            } ?: throw IOException("Missing Content-Range")
+            lastHttpStatus = conn.responseCode
+            if (lastHttpStatus != HttpURLConnection.HTTP_PARTIAL) reject(RangeReadIssue.HTTP_STATUS)
+            val range = conn.getHeaderField("Content-Range")?.trim()
+                ?: reject(RangeReadIssue.MISSING_CONTENT_RANGE)
+            val match = CONTENT_RANGE.matchEntire(range)
+                ?: reject(RangeReadIssue.BAD_CONTENT_RANGE)
             if (match.groupValues[1].toLongOrNull() != start ||
                 match.groupValues[2].toLongOrNull() != end ||
-                match.groupValues[3].toLongOrNull() != fileSize) throw IOException("Bad Content-Range")
+                match.groupValues[3].toLongOrNull() != fileSize) reject(RangeReadIssue.BAD_CONTENT_RANGE)
             val encoding = conn.getHeaderField("Content-Encoding")
-            if (encoding != null && !encoding.equals("identity", true)) throw IOException("Bad encoding")
+            if (encoding != null && !encoding.equals("identity", true)) reject(RangeReadIssue.BAD_ENCODING)
             if (etagStrong != null) {
                 val received = conn.getHeaderField("ETag")
-                if (received != null && received != etagStrong) throw IOException("Changed ETag")
+                if (received != null && received != etagStrong) reject(RangeReadIssue.CHANGED_ETAG)
             }
             val block = ByteArray(n)
             conn.inputStream.use { input ->
                 var total = 0
                 while (total < n) {
                     val count = input.read(block, total, n - total)
-                    if (count < 0) throw IOException("Short Range")
-                    if (count > 0) total += count
+                    if (count < 0) reject(RangeReadIssue.SHORT_BODY)
+                    if (count > 0) {
+                        total += count
+                        bytesFetched += count
+                    }
                 }
-                if (input.read() != -1) throw IOException("Oversized Range")
+                if (input.read() != -1) reject(RangeReadIssue.OVERSIZED_BODY)
             }
-            bytesFetched += n
             cacheStart = start
             cache = block
         } catch (_: IOException) {
-            // Never expose any server/Java exception with a private URL in it.
+            // The HTTP library may include private URL details in its exception.
+            if (lastIssue == null) lastIssue = RangeReadIssue.NETWORK
             throw IOException("WebDAV Range read failed")
         } finally {
             conn.disconnect()
