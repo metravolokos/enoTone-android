@@ -64,6 +64,11 @@ internal fun OfflineLibraryScreen(
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
     var tracks by remember(accountEmail) { mutableStateOf<List<OfflineTrackRow>>(emptyList()) }
+    // Store only local already-imported metadata in RAM for quick queue picks.
+    // Do not reopen/requery all 3590 Room records on every track tap.
+    var preparedById by remember(accountEmail) {
+        mutableStateOf<Map<String, QueueTrack>>(emptyMap())
+    }
     var search by remember(accountEmail) { mutableStateOf("") }
     var loading by remember(accountEmail) { mutableStateOf(true) }
     var failed by remember(accountEmail) { mutableStateOf(false) }
@@ -92,16 +97,34 @@ internal fun OfflineLibraryScreen(
         loading = true
         failed = false
         try {
-            tracks = withContext(Dispatchers.IO) {
+            val (catalogue, prepared) = withContext(Dispatchers.IO) {
                 val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
                 val db = openLibraryDatabase(context)
                 try {
-                    OfflineTrackCatalog.build(sourceKey,
-                        db.remoteTrackDao().allForSource(sourceKey))
+                    val remote = db.remoteTrackDao().allForSource(sourceKey)
+                    val catalogue = OfflineTrackCatalog.build(sourceKey, remote)
+                    val byId = remote.associateBy { it.id }
+                    val prepared = catalogue.mapNotNull { shown ->
+                        val item = byId[shown.id]
+                        val size = item?.remoteSize
+                        if (item == null || item.missingScans != 0 ||
+                            size == null || size <= 0L ||
+                            runCatching { WebDavPlaybackTarget.url(item.encodedPath) }.isFailure
+                        ) null else QueueTrack(
+                            id = shown.id,
+                            title = shown.title,
+                            encodedPath = item.encodedPath,
+                            remoteSize = size,
+                            remoteEtag = item.remoteEtag,
+                        )
+                    }.associateBy { it.id }
+                    catalogue to prepared
                 } finally {
                     db.close()
                 }
             }
+            preparedById = prepared
+            tracks = catalogue
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -346,32 +369,11 @@ internal fun OfflineLibraryScreen(
                         scope.launch {
                             try {
                                 val roomStartedAt = SystemClock.elapsedRealtime()
-                                // Use the user's currently visible search order.
-                                // All metadata is read locally in a single Room query.
-                                // Only the selected item triggers a WebDAV stream.
-                                val queue = withContext(Dispatchers.IO) {
-                                    val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
-                                    val db = openLibraryDatabase(context)
-                                    try {
-                                        val byId = db.remoteTrackDao().allForSource(sourceKey)
-                                            .associateBy { it.id }
-                                        visible.mapNotNull { shown ->
-                                            val item = byId[shown.id]
-                                            val size = item?.remoteSize
-                                            if (item == null || item.missingScans != 0 ||
-                                                size == null || size <= 0L ||
-                                                runCatching {
-                                                    WebDavPlaybackTarget.url(item.encodedPath)
-                                                }.isFailure) null
-                                            else QueueTrack(
-                                                id = shown.id, title = shown.title,
-                                                encodedPath = item.encodedPath,
-                                                remoteSize = size, remoteEtag = item.remoteEtag,
-                                            )
-                                        }
-                                    } finally {
-                                        db.close()
-                                    }
+                                // The only Room read occurred on library opening.
+                                // Preserve the user's visible search order in RAM.
+                                // No network request or new DB query during queue selection.
+                                val queue = visible.mapNotNull { shown ->
+                                    preparedById[shown.id]
                                 }
                                 roomDurationMs =
                                     SystemClock.elapsedRealtime() - roomStartedAt
