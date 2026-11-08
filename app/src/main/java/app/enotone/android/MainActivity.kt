@@ -133,7 +133,8 @@ private fun DiagnosticScreen() {
     }
 
     if (showingLibrary) {
-        OfflineLibraryScreen(accountEmail = email, onBack = { showingLibrary = false })
+        OfflineLibraryScreen(accountEmail = email, appPassword = password,
+            onBack = { showingLibrary = false })
         return
     }
 
