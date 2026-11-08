@@ -67,3 +67,9 @@
 - Режим повтора (выкл. → текущий трек → очередь) и включаемый случайный порядок через native Media3 Player.
 - Состояние кнопок синхронизируется через Media3 listener и восстанавливается при возврате к экрану; лишние GET, новый кэш и миграции Room не добавлены.
 - JVM-тесты повтора, contract-test и ADR-0035; Huawei ещё не проверен.
+
+## Unreleased — M5-A transient current cache (Draft)
+- Media3 SimpleCache/CacheWriter в app-private cacheDir: полная загрузка текущего файла отдельно от play/pause, read-only cache при воспроизведении, LRU 512 МиБ.
+- Один файл до 256 МиБ при резерве 128 МиБ; ETag-versioned opaque cache keys, локальный прогресс в KiB, очистка на закрытии службы/новом запуске.
+- Stream fallback при проблемах кэша; предзагрузка следующего и бесшовный switch уже открытого соединения — не здесь.
+- JVM тесты границ/ключей, Python service contract, ADR-0036. Реальное поведение на Huawei ещё не проверено.
