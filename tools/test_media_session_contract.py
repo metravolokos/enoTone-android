@@ -189,6 +189,7 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertIn("fullyCachedCurrentId = selectedId", player)
         self.assertIn("refreshNextPrefetch()", player)
         self.assertIn("player.nextMediaItemIndex", player)
+        self.assertIn("player.mediaItemCount < expectedQueueSize", player)
         self.assertIn("NextPrefetchSelection.select(", player)
         self.assertIn("temporaryCache?.prefetchNext(", player)
         self.assertIn("onShuffleModeEnabledChanged(", player)
