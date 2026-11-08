@@ -36,6 +36,8 @@ import app.enotone.library.LibraryTagStore
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.AndroidAudioTagReader
 import app.enotone.library.FastAudioTagReader
+import app.enotone.library.PilotTagIndexer
+import app.enotone.library.PilotIndexProgress
 import app.enotone.library.WebDavRangeReader
 import app.enotone.library.WebDavRangeMediaDataSource
 import app.enotone.database.RemoteTrackEntity
@@ -43,7 +45,9 @@ import java.text.Normalizer
 import app.enotone.network.FlatLibraryWebDavClient
 import app.enotone.network.FlatWebDavHttpError
 import app.enotone.network.WebDavDiagnostics
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -65,6 +69,7 @@ private fun DiagnosticScreen() {
     var testInfinity by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    var pilotJob by remember { mutableStateOf<Job?>(null) }
     val scope = rememberCoroutineScope()
     val appContext = LocalContext.current.applicationContext
     val importReport = stringResource(R.string.local_import_report)
@@ -77,11 +82,48 @@ private fun DiagnosticScreen() {
     val tagRangeMismatch = stringResource(R.string.one_tag_range_mismatch)
     val tagMissing = stringResource(R.string.one_tag_missing)
     val fastTagReport = stringResource(R.string.fast_tag_report)
+    val pilotReport = stringResource(R.string.pilot_report)
+    val pilotStopped = stringResource(R.string.pilot_stopped)
+    val pilotFailed = stringResource(R.string.pilot_failed)
     val missingCredentials = stringResource(R.string.missing_credentials)
     val diagnosticFailed = stringResource(R.string.diagnostic_failed)
     val countReport = stringResource(R.string.file_count_report)
     val countFailed = stringResource(R.string.file_count_failed)
     val httpFailure = stringResource(R.string.webdav_http_failed)
+
+    fun showPilot(progress: PilotIndexProgress): String =
+        String.format(Locale.getDefault(), pilotReport,
+            progress.requested, progress.attempted, progress.savedWithTags,
+            progress.completedWithoutTags, progress.retryableErrors,
+            progress.staleWrites, progress.getRequests, progress.downloadedBytes,
+            progress.remaining, progress.stopCode)
+
+    val runPilot: (Int) -> Unit = { count ->
+        busy = true
+        report = ""
+        pilotJob = scope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    val database = openLibraryDatabase(appContext)
+                    try {
+                        PilotTagIndexer(database).run(email, password, count) { progress ->
+                            withContext(Dispatchers.Main) { report = showPilot(progress) }
+                        }
+                    } finally {
+                        database.close()
+                    }
+                }
+                report = showPilot(result)
+            } catch (_: CancellationException) {
+                report = pilotStopped
+            } catch (_: Exception) {
+                report = pilotFailed
+            } finally {
+                pilotJob = null
+                busy = false
+            }
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -447,6 +489,19 @@ private fun DiagnosticScreen() {
             }
         }) {
             Text(stringResource(R.string.fast_probe_one_track))
+        }
+        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(),
+            onClick = { runPilot(10) }) {
+            Text(stringResource(R.string.pilot_ten))
+        }
+        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(),
+            onClick = { runPilot(20) }) {
+            Text(stringResource(R.string.pilot_twenty))
+        }
+        Button(enabled = busy && pilotJob != null, onClick = {
+            pilotJob?.cancel()
+        }) {
+            Text(stringResource(R.string.pilot_cancel))
         }
         if (report.isNotEmpty()) Text(report, style = MaterialTheme.typography.bodyMedium)
     }
