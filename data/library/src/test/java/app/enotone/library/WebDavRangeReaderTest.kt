@@ -192,13 +192,13 @@ class WebDavRangeReaderTest {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
-                val match = Regex("""bytes=(\\d+)-(\\d+)""")
+                val match = Regex("""bytes=(\d+)-(\d+)""")
                     .matchEntire(req.getHeader("Range")!!)!!
                 val start = match.groupValues[1].toInt()
                 val end = match.groupValues[2].toInt()
                 return MockResponse().setResponseCode(206)
                     .addHeader("Content-Range", "bytes $start-$end/*")
-                    .addHeader("ETag", "\\"v1\\"")
+                    .addHeader("ETag", "\"v1\"")
                     .setBody(Buffer().write(payload, start, end - start + 1))
             }
         }
