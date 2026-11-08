@@ -38,4 +38,12 @@
     <string name="pilot_failed">Pilot interrupted. Existing checkpoints remain in Room. Private data is not displayed.</string>
     <string name="pilot_report">Pilot cap: %1$d files; attempted: %2$d; saved tags: %3$d; no tags/unsupported: %4$d; retryable failures: %5$d; stale entries: %6$d; HTTP GET: %7$d; downloaded bytes: %8$d; remaining/pending retry: %9$d; outcome: %10$s; permanent failures: %11$d. Each file checkpoints to Room; private details are hidden.</string>
     <string name="pilot_failure_detail">Last failure: stage %1$s; reason %2$s; HTTP %3$s. No track name, path or credentials are shown.</string>
+    <string name="library_open">Open offline library</string>
+    <string name="library_back">Back</string>
+    <string name="library_title">Tracks</string>
+    <string name="library_search">Search tracks, artists, albums</string>
+    <string name="library_count">Showing %1$d of %2$d tracks</string>
+    <string name="library_loading">Reading local library…</string>
+    <string name="library_failed">Unable to read local library.</string>
+    <string name="library_empty">No tracks yet. First save the /AllMusic file list on this device.</string>
 </resources>
