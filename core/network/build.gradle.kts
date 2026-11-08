@@ -17,7 +17,7 @@ kotlin {
     }
 }
 dependencies {
-    implementation(libs.okhttp)
+    implementation(libs.ktor.client.cio)
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
 }

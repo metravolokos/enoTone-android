@@ -17,7 +17,7 @@ class WebDavDiagnosticsTest {
             server.enqueue(MockResponse().setResponseCode(401)
                 .addHeader("Location", "https://evil.example/private"))
             server.enqueue(MockResponse().setResponseCode(206).addHeader("Accept-Ranges", "bytes"))
-            val report = WebDavDiagnostics(server.url("/")).inspect(
+            val report = WebDavDiagnostics(server.url("/").toString(), allowLoopbackHttpForTests = true).inspect(
                 "private-user@example.test", "SECRET_PASSWORD",
                 "/AllMusic/Тест.mp3",
             )
@@ -45,10 +45,27 @@ class WebDavDiagnosticsTest {
         server.start()
         try {
             repeat(2) { server.enqueue(MockResponse().setResponseCode(207)) }
-            val report = WebDavDiagnostics(server.url("/")).inspect("u", "p", "/AllMusic/../private.mp3")
+            val report = WebDavDiagnostics(server.url("/").toString(), allowLoopbackHttpForTests = true)
+                .inspect("u", "p", "/AllMusic/../private.mp3")
             assertEquals(4, report.steps.size)
             assertEquals(null, report.steps[3].httpStatus)
             assertEquals(2, server.requestCount)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test fun rejectsCleartextExceptExplicitLoopbackTest() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            var rejected = false
+            try {
+                WebDavDiagnostics(server.url("/").toString())
+            } catch (_: IllegalArgumentException) {
+                rejected = true
+            }
+            assertTrue(rejected)
         } finally {
             server.shutdown()
         }
