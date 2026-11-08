@@ -21,8 +21,6 @@ import javax.net.ssl.HttpsURLConnection
  * redirects and accepts only a matching HTTP 206 / Content-Range response.
  */
 @OptIn(UnstableApi::class)
-internal data class PlaybackRemoteFile(val size: Long, val etag: String?)
-
 /**
  * Each open resolves its own file metadata from the validated RAM-only playlist.
  * This avoids accidentally reusing the previous track's size/ETag on skip.
@@ -157,15 +155,7 @@ internal class WebDavMedia3DataSource(
             require(email.contains('@') && appPassword.isNotBlank()) {
                 "Playback credentials required"
             }
-            require(tracks.isNotEmpty() && tracks.size <= PlaybackQueue.MAX_TRACKS) {
-                "Invalid playback queue size"
-            }
-            files = tracks.associate { track ->
-                require(track.remoteSize > 0) { "Invalid playback file size" }
-                WebDavPlaybackTarget.url(track.encodedPath) to PlaybackRemoteFile(
-                    track.remoteSize, track.remoteEtag)
-            }
-            require(files.size == tracks.size) { "Duplicate playback URL" }
+            files = WebDavPlaylistRoutes.index(tracks)
             val raw = (email.trim() + ":" + appPassword)
                 .toByteArray(StandardCharsets.UTF_8)
             auth = try { "Basic " + Base64.getEncoder().encodeToString(raw) }
