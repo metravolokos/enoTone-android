@@ -67,4 +67,8 @@
     <string name="playback_repeat_all">очередь</string>
     <string name="playback_shuffle_on">Случайно: вкл.</string>
     <string name="playback_shuffle_off">Случайно: выкл.</string>
+    <string name="playback_cache_downloading">Временный кэш: %1$d / %2$d КиБ (скачивается также при паузе)</string>
+    <string name="playback_cache_complete">Трек полностью загружен во временный кэш</string>
+    <string name="playback_cache_skipped">Временный кэш пропущен: размер или свободное место</string>
+    <string name="playback_cache_failed">Временный кэш не завершён; потоковое воспроизведение доступно</string>
 </resources>
