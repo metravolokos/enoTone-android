@@ -22,6 +22,11 @@ android {
         // AndroidX Activity ships an unused optional Google Play Photo Picker action.
         // R8 removes unused code; the APK GMS gate remains strict and unmodified.
         getByName("debug") {
+            // CI debug signing is generated independently by each runner. Until a stable
+            // private signing key is configured, test APKs MUST NOT claim the old app ID.
+            // Protect the original on-device Room database by installing side-by-side.
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-preview"
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
