@@ -43,8 +43,9 @@ class EnoTonePlaybackService : MediaSessionService() {
         encodedPath: String,
         remoteSize: Long,
         etag: String?,
+        title: String,
     ) {
-        playback.play(email, password, encodedPath, remoteSize, etag)
+        playback.play(email, password, encodedPath, remoteSize, etag, title)
     }
 
     fun pause() = playback.pause()
