@@ -129,4 +129,17 @@
     <string name="managed_index_internal_failure">Indexing failed internally: stage %1$s, category %2$s. Saved tags remain intact.</string>
     <string name="managed_index_all">Index all remaining MP3/FLAC</string>
     <string name="managed_index_all_explanation">One explicit start automatically chains capped batches. Up to 80 batches / 4,800 GET / 320 MiB / four hours; resume safely from Room if the limit is reached. Bounded pauses and retries on transient server errors; authentication failure stops the run. Works in background; does not auto-start after device reboot. Other audio formats are not yet supported by the fast tag parser.</string>
+
+    <string name="library_sync_changes">Refresh library: discover new and changed files</string>
+    <string name="library_find_missing_album">Find files without an album (offline)</string>
+    <string name="library_missing_album_count">Found locally (up to 30 shown): %1$d</string>
+    <string name="library_missing_album_filename">File: %1$s</string>
+    <string name="library_missing_album_scan_code">Previous tag scan: %1$s</string>
+    <string name="library_refresh_one">Read this file’s tags again</string>
+    <string name="library_refresh_queued">File queued for a bounded background rescan. Existing tags stay visible until replacement succeeds.</string>
+    <string name="library_refresh_all">Reindex all MP3/FLAC (confirmation required)</string>
+    <string name="library_refresh_all_confirm">Confirm full-library tag reindex</string>
+    <string name="library_refresh_all_warning">This re-reads the entire library and uses network traffic. Previously saved tags stay visible until replaced. If interrupted, resume via continuous indexing.</string>
+    <string name="library_refresh_cancel">Cancel</string>
+    <string name="library_refresh_all_queued">Queued for tag re-reading: %1$d files. Continuous background indexing started.</string>
 </resources>
