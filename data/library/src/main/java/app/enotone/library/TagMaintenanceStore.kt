@@ -48,7 +48,7 @@ class TagMaintenanceStore(private val database: EnoToneDatabase) {
         }
         var reader: WebDavRangeReader? = null
         return try {
-            reader = WebDavRangeReader(
+            val active = WebDavRangeReader(
                 encodedPath = selected.encodedPath,
                 fileSize = requireNotNull(selected.remoteSize),
                 email = email,
@@ -57,7 +57,8 @@ class TagMaintenanceStore(private val database: EnoToneDatabase) {
                 maxRequests = 6,
                 maxDownloadedBytes = 6L * 65536L,
             )
-            val result = reader.use { source ->
+            reader = active
+            val result = active.use { source ->
                 FastAudioTagReader().read(
                     selected.fileName, source.fileSize, source::readAt,
                 )
@@ -69,7 +70,7 @@ class TagMaintenanceStore(private val database: EnoToneDatabase) {
             )
             AlbumSourceProbe(
                 result.code.name, valid,
-                result.embeddedAlbum, reader.stats().requests,
+                result.embeddedAlbum, active.stats().requests,
             )
         } catch (cancelled: CancellationException) {
             throw cancelled
