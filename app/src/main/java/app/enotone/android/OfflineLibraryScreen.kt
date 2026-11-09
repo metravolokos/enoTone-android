@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +33,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,6 +49,7 @@ import app.enotone.playback.HandoffOrigin
 import app.enotone.playback.HandoffPhase
 import app.enotone.playback.HandoffSnapshot
 import app.enotone.playback.PlaybackSetupTimings
+import app.enotone.playback.PlaybackSeekPolicy
 import app.enotone.playback.TransientCacheStatus
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.QueueTrack
@@ -81,6 +85,11 @@ internal fun OfflineLibraryScreen(
     var selecting by remember { mutableStateOf(false) }
     var selectedTitle by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf("IDLE") }
+    var positionMs by remember { mutableStateOf(0L) }
+    var durationMs by remember { mutableStateOf(0L) }
+    var canSeek by remember { mutableStateOf(false) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubFraction by remember { mutableStateOf(0f) }
     var queuePosition by remember { mutableStateOf(0) }
     var queueTotal by remember { mutableStateOf(0) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
@@ -240,6 +249,15 @@ internal fun OfflineLibraryScreen(
                 ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
             loadedQueueSources = playback?.loadedQueueSize ?: 0
             handoffInfo = playback?.handoffSnapshot()
+            val active = playback
+            // The bound service remains the source of truth for position,
+            // including after background playback or external media controls.
+            positionMs = active?.player?.currentPosition?.coerceAtLeast(0L) ?: 0L
+            val availableDuration = active?.player?.duration ?: 0L
+            durationMs = if (PlaybackSeekPolicy.isKnownDuration(availableDuration)) {
+                availableDuration
+            } else 0L
+            canSeek = active?.canSeekCurrent == true
             delay(500L)
         }
     }
@@ -320,6 +338,38 @@ internal fun OfflineLibraryScreen(
                 else -> stringResource(R.string.playback_loading)
             }
             Text(status)
+            val shownFraction = if (isScrubbing) scrubFraction
+                else PlaybackSeekPolicy.fraction(positionMs, durationMs)
+            val shownPositionMs = if (isScrubbing) {
+                PlaybackSeekPolicy.positionForFraction(durationMs, scrubFraction) ?: 0L
+            } else positionMs
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(PlaybackSeekPolicy.formatTime(shownPositionMs))
+                Text(
+                    if (PlaybackSeekPolicy.isKnownDuration(durationMs)) {
+                        PlaybackSeekPolicy.formatTime(durationMs)
+                    } else stringResource(R.string.playback_duration_unknown),
+                )
+            }
+            val seekDescription = stringResource(R.string.playback_seek_slider)
+            Slider(
+                value = shownFraction,
+                onValueChange = { value ->
+                    isScrubbing = true
+                    scrubFraction = value
+                },
+                onValueChangeFinished = {
+                    playback?.seekToFraction(scrubFraction)
+                    isScrubbing = false
+                },
+                modifier = Modifier.fillMaxWidth().semantics {
+                    contentDescription = seekDescription
+                },
+                enabled = canSeek && !selecting,
+            )
             handoffInfo?.let { handoff ->
                 val kind = when (handoff.origin) {
                     HandoffOrigin.NEXT_BUTTON -> stringResource(R.string.handoff_next_button)
