@@ -235,5 +235,101 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("putExtra(", service)
 
 
+    def test_m6b_seek_uses_native_player_without_untrusted_remote_url(self):
+        base = ROOT / "playback/src/main/java/app/enotone/playback"
+        service = (base / "EnoTonePlaybackService.kt").read_text(encoding="utf-8")
+        policy = (base / "PlaybackSeekPolicy.kt").read_text(encoding="utf-8")
+        ui = (
+            ROOT / "app/src/main/java/app/enotone/android/"
+            "OfflineLibraryScreen.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM", service)
+        self.assertIn("fun seekToFraction(", service)
+        self.assertIn("PlaybackSeekPolicy.positionForFraction(", service)
+        self.assertIn("player.seekTo(target)", service)
+        self.assertIn("fun isKnownDuration(", policy)
+        self.assertIn("fraction.isFinite()", policy)
+        self.assertIn("coerceIn(0L, durationMs)", policy)
+        self.assertIn("fun formatTime(", policy)
+        self.assertIn("Slider(", ui)
+        self.assertIn("onValueChangeFinished", ui)
+        self.assertIn("seekToFraction(scrubFraction)", ui)
+        self.assertIn("canSeek = active?.canSeekCurrent == true", ui)
+        self.assertIn("contentDescription = seekDescription", ui)
+        self.assertIn("delay(500L)", ui)
+        self.assertNotIn("allForSource(sourceKey)", service)
+        self.assertNotIn("Log.", policy)
+        self.assertNotIn("putExtra(", service)
+
+
+    def test_m6b_manual_skip_and_guarded_end_continuation(self):
+        base = ROOT / "playback/src/main/java/app/enotone/playback"
+        service = (base / "EnoTonePlaybackService.kt").read_text(encoding="utf-8")
+        player = (base / "PreviewAudioPlayback.kt").read_text(encoding="utf-8")
+        policy = (base / "PlaybackContinuationPolicy.kt").read_text(encoding="utf-8")
+        tests = (ROOT / "playback/src/test/java/app/enotone/playback/"
+                 "PlaybackContinuationPolicyTest.kt").read_text(encoding="utf-8")
+        self.assertIn("player.seekToNextMediaItem()", service)
+        self.assertIn("player.seekToPreviousMediaItem()", service)
+        self.assertEqual(service.count("playback.resumeAfterManualSkip()"), 2)
+        self.assertIn("fun resumeAfterManualSkip()", player)
+        self.assertIn("player.play()", player)
+        self.assertIn("Player.STATE_ENDED", player)
+        self.assertIn("scheduleEndRecoveryIfNeeded()", player)
+        self.assertIn("cacheHandler.post {", player)
+        self.assertIn("lastEndRecoveryId == endedId", player)
+        ui = (ROOT / "app/src/main/java/app/enotone/android/"
+              "OfflineLibraryScreen.kt").read_text(encoding="utf-8")
+        self.assertIn("private fun media3PlaybackLabel(", ui)
+        self.assertIn("if (player.playerError != null) return \"ERROR\"", ui)
+        self.assertIn('Player.STATE_BUFFERING -> "BUFFERING"', ui)
+        self.assertIn('Player.STATE_ENDED -> "ENDED"', ui)
+        self.assertIn("playbackState = media3PlaybackLabel(active?.player)", ui)
+        self.assertNotIn('playbackState = if (isPlaying) "PLAYING" else "PAUSED"', ui)
+        self.assertIn("playWhenReady = player.playWhenReady", player)
+        self.assertIn("player.playbackSuppressionReason", player)
+        self.assertIn("hasNext = player.hasNextMediaItem()", player)
+        self.assertIn("!repeatOne && unsuppressed", policy)
+        self.assertIn("neverOverridesExplicitPauseFocusLossOrRepeatOne", tests)
+        self.assertNotIn("putExtra(", service)
+        self.assertNotIn("Log.", policy)
+
+
+    def test_m6b_eof_boundary_matches_media3_and_never_calls_webdav(self):
+        base = ROOT / "playback/src/main/java/app/enotone/playback"
+        source = (base / "WebDavMedia3DataSource.kt").read_text(encoding="utf-8")
+        window = (base / "PlaybackReadWindow.kt").read_text(encoding="utf-8")
+        tests = (ROOT / "playback/src/test/java/app/enotone/playback/"
+                 "PlaybackReadWindowTest.kt").read_text(encoding="utf-8")
+        self.assertIn("PlaybackReadWindow.resolve(", source)
+        self.assertIn("if (window.endInclusive == null)", source)
+        self.assertLess(source.index("if (window.endInclusive == null)"),
+                        source.index("conn = URL(safeUrl).openConnection()"))
+        self.assertIn("bytesLeft = 0L", source)
+        self.assertIn("return window.openReturnLength", source)
+        self.assertIn("PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE", source)
+        self.assertIn("if (position == size)", window)
+        self.assertIn("endInclusive = null", window)
+        self.assertIn("exactEofIsLegalWithoutAnyNetworkRange", tests)
+        self.assertIn("beyondEofRemainsRejectedAndNumbersAreValidated", tests)
+
+    def test_m6b_error_diagnostics_exposes_only_fixed_codes(self):
+        base = ROOT / "playback/src/main/java/app/enotone/playback"
+        source = (base / "WebDavMedia3DataSource.kt").read_text(encoding="utf-8")
+        issue = (base / "PlaybackDataIssue.kt").read_text(encoding="utf-8")
+        ui = (ROOT / "app/src/main/java/app/enotone/android/"
+              "OfflineLibraryScreen.kt").read_text(encoding="utf-8")
+        self.assertIn("PlaybackDataIssue.OPEN_RANGE", source)
+        self.assertIn("PlaybackDataIssue.READ_TRUNCATED", source)
+        self.assertIn("PlaybackDataIssue.OPEN_NETWORK", source)
+        self.assertIn("PlaybackDataIssueClassifier.classify(error)", ui)
+        self.assertIn("errorReadIssue.name", ui)
+        self.assertIn("enum class PlaybackDataIssue", issue)
+        self.assertNotIn("error.message", ui)
+        self.assertNotIn("error.cause.toString()", ui)
+        self.assertNotIn("Log.", issue)
+        self.assertNotIn("printStackTrace", source)
+
+
 if __name__ == "__main__":
     unittest.main()

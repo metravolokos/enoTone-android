@@ -61,6 +61,7 @@ class EnoTonePlaybackService : MediaSessionService() {
         if (hasNext) {
             playback.noteNextButton()
             playback.player.seekToNextMediaItem()
+            playback.resumeAfterManualSkip()
         }
     }
 
@@ -68,6 +69,7 @@ class EnoTonePlaybackService : MediaSessionService() {
         if (hasPrevious) {
             playback.notePreviousButton()
             playback.player.seekToPreviousMediaItem()
+            playback.resumeAfterManualSkip()
         }
     }
 
@@ -84,6 +86,27 @@ class EnoTonePlaybackService : MediaSessionService() {
 
     fun toggleShuffle() {
         playback.player.shuffleModeEnabled = !playback.player.shuffleModeEnabled
+    }
+
+    /**
+     * Seek within the current Media3 item only. In M5 cache mode an already
+     * committed span is read locally; unavailable bytes use the same strictly
+     * validated HTTPS Range DataSource. No new WebDAV listing is triggered.
+     */
+    val canSeekCurrent: Boolean
+        get() = playback.player.isCommandAvailable(
+            Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM) &&
+            PlaybackSeekPolicy.isKnownDuration(playback.player.duration)
+
+    fun seekToFraction(fraction: Float): Boolean {
+        val player = playback.player
+        if (!player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) {
+            return false
+        }
+        val target = PlaybackSeekPolicy.positionForFraction(player.duration, fraction)
+            ?: return false
+        player.seekTo(target)
+        return true
     }
 
     fun pause() = playback.pause()

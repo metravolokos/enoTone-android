@@ -43,6 +43,9 @@ class PreviewAudioPlayback(
     private var fullyCachedCurrentId: String? = null
     private var scheduledNextId: String? = null
     private val handoffTracker = PlaybackHandoffTracker()
+    // A single guarded recovery per ended item. Do not override Pause or
+    // an audio focus suppression.
+    private var lastEndRecoveryId: String? = null
     fun handoffSnapshot(): HandoffSnapshot? = handoffTracker.snapshot()
 
     fun noteNextButton() = handoffTracker.beginButtonSkip(
@@ -75,6 +78,7 @@ class PreviewAudioPlayback(
             when (state) {
                 Player.STATE_BUFFERING -> handoffTracker.onBuffering(SystemClock.elapsedRealtime())
                 Player.STATE_READY -> handoffTracker.onReady(SystemClock.elapsedRealtime())
+                Player.STATE_ENDED -> scheduleEndRecoveryIfNeeded()
             }
         }
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -125,6 +129,34 @@ class PreviewAudioPlayback(
             TransientCachePolicy.key(next), nextUri, next.remoteSize, upstream)
     }
     private val cacheHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * Normal Media3 auto-advance needs no intervention. If a real next item
+     * exists but the player unexpectedly enters ENDED with playWhenReady, make
+     * one deferred, rechecked attempt. Explicit Pause/focus loss stays paused.
+     */
+    private fun scheduleEndRecoveryIfNeeded() {
+        val endedId = player.currentMediaItem?.mediaId ?: return
+        if (lastEndRecoveryId == endedId || !canRecoverEnded()) return
+        cacheHandler.post {
+            if (player.currentMediaItem?.mediaId != endedId ||
+                lastEndRecoveryId == endedId || !canRecoverEnded()) return@post
+            lastEndRecoveryId = endedId
+            player.seekToNextMediaItem()
+            resumeAfterManualSkip()
+        }
+    }
+
+    private fun canRecoverEnded(): Boolean =
+        PlaybackContinuationPolicy.shouldAutoRecover(
+            ended = player.playbackState == Player.STATE_ENDED,
+            playWhenReady = player.playWhenReady,
+            hasNext = player.hasNextMediaItem(),
+            repeatOne = player.repeatMode == Player.REPEAT_MODE_ONE,
+            unsuppressed = player.playbackSuppressionReason ==
+                Player.PLAYBACK_SUPPRESSION_REASON_NONE,
+        )
+
     private var pendingPlaylist: StagedPlaylistPlan? = null
     private var pendingMediaFactory: ProgressiveMediaSource.Factory? = null
     private var scheduledPlaylistFill: Runnable? = null
@@ -332,6 +364,7 @@ class PreviewAudioPlayback(
         clearScheduledWriter()
         cancelPlaylistFill()
         handoffTracker.startNewQueue()
+        lastEndRecoveryId = null
         pendingCache = null
         fullyCachedCurrentId = null
         scheduledNextId = null
@@ -376,12 +409,20 @@ class PreviewAudioPlayback(
         )
     }
 
+    /** Explicit Next/Previous means play the selected item, even after ENDED. */
+    fun resumeAfterManualSkip() {
+        if (player.playbackState == Player.STATE_ENDED ||
+            player.playbackState == Player.STATE_IDLE) player.prepare()
+        player.play()
+    }
+
     fun pause() = player.pause()
 
     fun resume() = player.play()
 
     fun stop() {
         handoffTracker.stop()
+        lastEndRecoveryId = null
         clearScheduledWriter()
         fullyCachedCurrentId = null
         scheduledNextId = null

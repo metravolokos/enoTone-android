@@ -3,10 +3,12 @@ package app.enotone.playback
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DataSourceException
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -46,18 +48,25 @@ internal class WebDavMedia3DataSource(
             it.length in 2..256 && it.first() == '"' && it.last() == '"' &&
                 it.all { char -> char.code in 32..126 }
         }
-        require(remoteSize > 0 && dataSpec.position in 0 until remoteSize &&
-            dataSpec.length != 0L) { "Invalid playback position" }
-
-        val end = if (dataSpec.length == C.LENGTH_UNSET.toLong()) {
-            remoteSize - 1
-        } else {
-            val bounded = minOf(dataSpec.length, remoteSize - dataSpec.position)
-            require(bounded > 0) { "Invalid playback length" }
-            dataSpec.position + bounded - 1
-        }
-        val count = end - dataSpec.position + 1
+        // Media3 DataSource contract: an open *at* EOF is valid and read()
+        // must return RESULT_END_OF_INPUT. The previous strict `until size`
+        // check threw an unspecified IO error near a track boundary.
+        val window = PlaybackReadWindow.resolve(
+            remoteSize, dataSpec.position, dataSpec.length,
+        ) ?: throw DataSourceException(
+            PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE,
+        )
         transferInitializing(dataSpec)
+        if (window.endInclusive == null) {
+            // No invalid bytes=size-... Range, no network, no ETag exposure.
+            uri = dataSpec.uri
+            bytesLeft = 0L
+            opened = true
+            transferStarted(dataSpec)
+            return window.openReturnLength
+        }
+        val end = window.endInclusive
+        val count = window.bytesAvailable
         var conn: HttpsURLConnection? = null
         try {
             conn = URL(safeUrl).openConnection() as HttpsURLConnection
@@ -70,23 +79,27 @@ internal class WebDavMedia3DataSource(
             conn.setRequestProperty("Accept-Encoding", "identity")
             if (strongEtag != null) conn.setRequestProperty("If-Range", strongEtag)
             if (conn.responseCode != HttpURLConnection.HTTP_PARTIAL) {
-                throw IOException("Playback HTTP status rejected")
+                throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_STATUS)
             }
-            WebDavPlaybackRange.count(conn.getHeaderField("Content-Range"),
-                dataSpec.position, end, remoteSize)
+            try {
+                WebDavPlaybackRange.count(conn.getHeaderField("Content-Range"),
+                    dataSpec.position, end, remoteSize)
+            } catch (_: IOException) {
+                throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_RANGE)
+            }
             val encoding = conn.getHeaderField("Content-Encoding")
             if (encoding != null && !encoding.equals("identity", ignoreCase = true)) {
-                throw IOException("Playback encoded response rejected")
+                throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_ENCODING)
             }
             if (strongEtag != null) {
                 val received = conn.getHeaderField("ETag")
                 if (received != null && received != strongEtag) {
-                    throw IOException("Playback version changed")
+                    throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_VERSION)
                 }
             }
             val declared = conn.getHeaderField("Content-Length")?.toLongOrNull()
             if (declared != null && declared != count) {
-                throw IOException("Playback body length mismatch")
+                throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_LENGTH)
             }
             stream = conn.inputStream
             connection = conn
@@ -94,12 +107,14 @@ internal class WebDavMedia3DataSource(
             uri = dataSpec.uri
             opened = true
             transferStarted(dataSpec)
-            return count
-        } catch (_: Exception) {
+            return window.openReturnLength
+        } catch (failure: Exception) {
             try { conn?.inputStream?.close() } catch (_: Exception) { }
             conn?.disconnect()
-            // Never propagate exception text: network libraries may include private URLs.
-            throw IOException("WebDAV playback open rejected")
+            // Do not wrap the original IOException as a cause: it may reveal
+            // private URLs or authorization data through a library exception.
+            if (failure is PlaybackDataIssueException) throw failure
+            throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_NETWORK)
         }
     }
 
@@ -112,9 +127,11 @@ internal class WebDavMedia3DataSource(
         val received = try {
             input.read(buffer, offset, minOf(length.toLong(), bytesLeft).toInt())
         } catch (_: Exception) {
-            throw IOException("WebDAV playback read failed")
+            throw PlaybackDataIssueException(PlaybackDataIssue.READ_NETWORK)
         }
-        if (received <= 0) throw IOException("Truncated playback body")
+        if (received <= 0) {
+            throw PlaybackDataIssueException(PlaybackDataIssue.READ_TRUNCATED)
+        }
         bytesLeft -= received
         bytesTransferred(received)
         return received

@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +33,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,6 +49,9 @@ import app.enotone.playback.HandoffOrigin
 import app.enotone.playback.HandoffPhase
 import app.enotone.playback.HandoffSnapshot
 import app.enotone.playback.PlaybackSetupTimings
+import app.enotone.playback.PlaybackSeekPolicy
+import app.enotone.playback.PlaybackDataIssue
+import app.enotone.playback.PlaybackDataIssueClassifier
 import app.enotone.playback.TransientCacheStatus
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.QueueTrack
@@ -55,6 +61,21 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/**
+ * isPlaying=false also occurs during BUFFERING and after ENDED. Never report
+ * those states as a user Pause, or hide an underlying Media3 player error.
+ */
+private fun media3PlaybackLabel(player: Player?): String {
+    if (player == null) return "IDLE"
+    if (player.playerError != null) return "ERROR"
+    return when (player.playbackState) {
+        Player.STATE_BUFFERING -> "BUFFERING"
+        Player.STATE_READY -> if (player.isPlaying) "PLAYING" else "PAUSED"
+        Player.STATE_ENDED -> "ENDED"
+        else -> "IDLE"
+    }
+}
 
 /**
  * M2 offline catalogue + M3 one-track MediaSessionService playback.
@@ -81,11 +102,17 @@ internal fun OfflineLibraryScreen(
     var selecting by remember { mutableStateOf(false) }
     var selectedTitle by remember { mutableStateOf<String?>(null) }
     var playbackState by remember { mutableStateOf("IDLE") }
+    var positionMs by remember { mutableStateOf(0L) }
+    var durationMs by remember { mutableStateOf(0L) }
+    var canSeek by remember { mutableStateOf(false) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubFraction by remember { mutableStateOf(0f) }
     var queuePosition by remember { mutableStateOf(0) }
     var queueTotal by remember { mutableStateOf(0) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
     var shuffleEnabled by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf(0) }
+    var errorReadIssue by remember { mutableStateOf(PlaybackDataIssue.UNKNOWN) }
     var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
     // Diagnostic mode belongs only to the next tap, not to a running stream.
     // Accepted M5 mode is the normal default; raw WebDAV remains diagnostic.
@@ -190,19 +217,14 @@ internal fun OfflineLibraryScreen(
                         readyAfterTapMs = elapsed
                     }
                 }
-                playbackState = when (state) {
-                    Player.STATE_BUFFERING -> "BUFFERING"
-                    Player.STATE_READY -> if (active?.player?.isPlaying == true) "PLAYING" else "PAUSED"
-                    Player.STATE_ENDED -> "ENDED"
-                    else -> "IDLE"
-                }
+                playbackState = media3PlaybackLabel(active?.player)
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying && selectionStartedAt > 0L && playingAfterTapMs == null) {
                     playingAfterTapMs =
                         SystemClock.elapsedRealtime() - selectionStartedAt
                 }
-                playbackState = if (isPlaying) "PLAYING" else "PAUSED"
+                playbackState = media3PlaybackLabel(active?.player)
             }
             override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
                 selectedTitle = mediaMetadata.title?.toString()
@@ -217,6 +239,7 @@ internal fun OfflineLibraryScreen(
             }
             override fun onPlayerError(error: PlaybackException) {
                 errorCode = error.errorCode
+                errorReadIssue = PlaybackDataIssueClassifier.classify(error)
                 playbackState = "ERROR"
             }
         }
@@ -227,7 +250,7 @@ internal fun OfflineLibraryScreen(
             queueTotal = active.queueSize
             repeatMode = active.repeatMode
             shuffleEnabled = active.shuffleEnabled
-            if (active.player.isPlaying) playbackState = "PLAYING"
+            playbackState = media3PlaybackLabel(active.player)
         }
         onDispose { active?.player?.removeListener(listener) }
     }
@@ -240,6 +263,15 @@ internal fun OfflineLibraryScreen(
                 ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
             loadedQueueSources = playback?.loadedQueueSize ?: 0
             handoffInfo = playback?.handoffSnapshot()
+            val active = playback
+            // The bound service remains the source of truth for position,
+            // including after background playback or external media controls.
+            positionMs = active?.player?.currentPosition?.coerceAtLeast(0L) ?: 0L
+            val availableDuration = active?.player?.duration ?: 0L
+            durationMs = if (PlaybackSeekPolicy.isKnownDuration(availableDuration)) {
+                availableDuration
+            } else 0L
+            canSeek = active?.canSeekCurrent == true
             delay(500L)
         }
     }
@@ -320,6 +352,42 @@ internal fun OfflineLibraryScreen(
                 else -> stringResource(R.string.playback_loading)
             }
             Text(status)
+            if (playbackState == "ERROR" && errorCode != 0) {
+                Text(stringResource(R.string.playback_error_stage, errorReadIssue.name),
+                    style = MaterialTheme.typography.bodySmall)
+            }
+            val shownFraction = if (isScrubbing) scrubFraction
+                else PlaybackSeekPolicy.fraction(positionMs, durationMs)
+            val shownPositionMs = if (isScrubbing) {
+                PlaybackSeekPolicy.positionForFraction(durationMs, scrubFraction) ?: 0L
+            } else positionMs
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(PlaybackSeekPolicy.formatTime(shownPositionMs))
+                Text(
+                    if (PlaybackSeekPolicy.isKnownDuration(durationMs)) {
+                        PlaybackSeekPolicy.formatTime(durationMs)
+                    } else stringResource(R.string.playback_duration_unknown),
+                )
+            }
+            val seekDescription = stringResource(R.string.playback_seek_slider)
+            Slider(
+                value = shownFraction,
+                onValueChange = { value ->
+                    isScrubbing = true
+                    scrubFraction = value
+                },
+                onValueChangeFinished = {
+                    playback?.seekToFraction(scrubFraction)
+                    isScrubbing = false
+                },
+                modifier = Modifier.fillMaxWidth().semantics {
+                    contentDescription = seekDescription
+                },
+                enabled = canSeek && !selecting,
+            )
             handoffInfo?.let { handoff ->
                 val kind = when (handoff.origin) {
                     HandoffOrigin.NEXT_BUTTON -> stringResource(R.string.handoff_next_button)
@@ -456,6 +524,7 @@ internal fun OfflineLibraryScreen(
                         selecting = true
                         playbackState = "LOADING"
                         selectionStartedAt = SystemClock.elapsedRealtime()
+                        errorReadIssue = PlaybackDataIssue.UNKNOWN
                         roomDurationMs = null
                         media3DurationMs = null
                         setupTimings = null
