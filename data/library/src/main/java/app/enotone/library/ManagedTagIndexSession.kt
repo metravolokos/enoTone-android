@@ -145,7 +145,7 @@ class ManagedTagIndexSession(
             stop = when {
                 result.stopCode in setOf("AUTH_REJECTED", "RETRY_BACKOFF", "NETWORK_POLICY") ->
                     result.stopCode
-                result.attempted == 0 || remaining == 0 ->
+                (result.attempted == 0 && result.getRequests == 0) || remaining == 0 ->
                     "NO_ELIGIBLE_FILES"
                 result.stopCode !in setOf("COMPLETED", "NETWORK_BUDGET", "TIME_BUDGET") ->
                     result.stopCode
