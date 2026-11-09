@@ -12,6 +12,137 @@ class ManagedTagIndexSessionTest {
         PilotIndexProgress(100, attempted, attempted, 0, 0, 0,
             gets, bytes, remaining, stop)
 
+    @Test fun continuousChainsEightyCappedBatchesWithoutManualRestart() = runBlocking {
+        var calls = 0
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { },
+            runBatch = { _, _, gate, _ ->
+                calls++
+                assertEquals(null, gate())
+                // Keep the remaining count above zero, triggering the global
+                // automatic batch cap rather than an artificial completion.
+                batch(remaining = 100)
+            },
+        )
+        val result = session.run("synthetic@example.test", "password", { true },
+            mode = ManagedIndexMode.CONTINUOUS)
+        assertEquals(80, calls)
+        assertEquals(80, result.completedBatches)
+        assertEquals(80 * 60, result.getRequests)
+        assertEquals(80 * 3932160L, result.downloadedBytes)
+        assertEquals("SESSION_BATCH_LIMIT", result.stopCode)
+        assertTrue(result.getRequests <= ManagedIndexLimits.MAX_CONTINUOUS_GETS)
+        assertTrue(result.downloadedBytes <= ManagedIndexLimits.MAX_CONTINUOUS_BYTES)
+    }
+
+    @Test fun continuousStopsAutomaticallyWhenAllEligibleFilesAreDone() = runBlocking {
+        var calls = 0
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { },
+            runBatch = { _, _, _, _ ->
+                calls++
+                batch(remaining = if (calls == 3) 0 else 250)
+            },
+        )
+        val result = session.run("synthetic@example.test", "password", { true },
+            mode = ManagedIndexMode.CONTINUOUS)
+        assertEquals(3, calls)
+        assertEquals(156, result.savedWithTags)
+        assertEquals("NO_ELIGIBLE_FILES", result.stopCode)
+    }
+
+    @Test fun continuousBacksOffAndRecoversFromOneServerFailureWave() = runBlocking {
+        val waits = mutableListOf<Long>()
+        val states = mutableListOf<String>()
+        var calls = 0
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { waits.add(it) },
+            runBatch = { _, _, _, _ ->
+                calls++
+                if (calls == 1) batch(attempted = 1, gets = 3,
+                    bytes = 3L * 65536, remaining = 3000, stop = "RETRY_BACKOFF")
+                else batch(attempted = 10, gets = 10, bytes = 10L * 65536,
+                    remaining = 0, stop = "COMPLETED")
+            },
+        )
+        val result = session.run("synthetic@example.test", "password", { true },
+            onProgress = { states.add(it.stopCode) },
+            mode = ManagedIndexMode.CONTINUOUS)
+        assertEquals(2, calls)
+        assertEquals("NO_ELIGIBLE_FILES", result.stopCode)
+        assertTrue(states.contains("COOLDOWN"))
+        assertEquals(listOf(30_000L, 1500L), waits)
+    }
+
+    @Test fun continuousStopsAfterThreeConsecutiveServerFailureWaves() = runBlocking {
+        var calls = 0
+        val waits = mutableListOf<Long>()
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { waits.add(it) },
+            runBatch = { _, _, _, _ ->
+                calls++
+                batch(attempted = 1, gets = 4, bytes = 4L * 65536,
+                    remaining = 3000, stop = "RETRY_BACKOFF")
+            },
+        )
+        val result = session.run("synthetic@example.test", "password", { true },
+            mode = ManagedIndexMode.CONTINUOUS)
+        assertEquals(3, calls)
+        assertEquals("RETRY_BACKOFF", result.stopCode)
+        assertEquals(listOf(30_000L, 1500L, 60_000L, 1500L), waits)
+    }
+
+    @Test fun continuousObeysFourHourElapsedTimeCap() = runBlocking {
+        var clock = 0L
+        var calls = 0
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { clock += it * 1_000_000L +
+                ManagedIndexLimits.MAX_CONTINUOUS_NANOS },
+            nowNanos = { clock },
+            runBatch = { _, _, _, _ ->
+                calls++
+                batch(remaining = 3000)
+            },
+        )
+        val result = session.run("synthetic@example.test", "password", { true },
+            mode = ManagedIndexMode.CONTINUOUS)
+        assertEquals(1, calls)
+        assertEquals("SESSION_TIME_BUDGET", result.stopCode)
+    }
+
+    @Test fun continuousStopsAfterThreeBatchesWithNoCompletedFiles() = runBlocking {
+        var calls = 0
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { },
+            runBatch = { _, _, _, _ ->
+                calls++
+                batch(attempted = 0, gets = 60, bytes = 3932160,
+                    remaining = 3274, stop = "NETWORK_BUDGET")
+            },
+        )
+        val result = session.run("synthetic@example.test", "password", { true },
+            mode = ManagedIndexMode.CONTINUOUS)
+        assertEquals(3, calls)
+        assertEquals("NO_PROGRESS", result.stopCode)
+        assertEquals(180, result.getRequests)
+    }
+
+    @Test fun continuousNeverRetriesAuthenticationFailure() = runBlocking {
+        var calls = 0
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { },
+            runBatch = { _, _, _, _ ->
+                calls++
+                batch(attempted = 1, gets = 1, bytes = 65536,
+                    remaining = 3000, stop = "AUTH_REJECTED")
+            },
+        )
+        val result = session.run("synthetic@example.test", "password", { true },
+            mode = ManagedIndexMode.CONTINUOUS)
+        assertEquals(1, calls)
+        assertEquals("AUTH_REJECTED", result.stopCode)
+    }
+
     @Test fun fourPassesNeverExceedSessionRequestOrByteCaps() = runBlocking {
         var calls = 0
         val session = ManagedTagIndexSession { _, _, gate, onProgress ->
