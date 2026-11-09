@@ -1,5 +1,7 @@
 """M1 tag maintenance: offline diagnostics, safe refresh and incremental list sync."""
 import pathlib
+import re
+import sqlite3
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -47,6 +49,70 @@ class TagMaintenanceContractTest(unittest.TestCase):
         self.assertIn("scheduleOne", store)
         self.assertIn("scheduleAll", store)
         self.assertNotIn("DELETE FROM remote_tracks", dao)
+
+    def test_actual_sql_keeps_old_metadata_during_failed_refresh(self):
+        source = self.text("core/database/src/main/java/app/enotone/database/RemoteTrackDao.kt")
+        sql = dict((name, query) for query, name in re.findall(
+            r'@Query\\("""(.*?)"""\\)\\s*suspend fun (\\w+)\\(',
+            source, flags=re.S,
+        ))
+        # The expression above intentionally mirrors Room's literal @Query syntax.
+        if not sql:
+            sql = dict((name, query) for query, name in re.findall(
+                r'@Query\\(\\s*"{3}(.*?)"{3}\\s*\\)\\s*suspend fun (\\w+)\\(',
+                source, flags=re.S,
+            ))
+        self.assertIn("requestTagRefresh", sql)
+        self.assertIn("recordFastScanIfUnchanged", sql)
+        self.assertIn("pendingFastScans", sql)
+
+        db = sqlite3.connect(":memory:")
+        try:
+            db.execute("""
+                CREATE TABLE remote_tracks (
+                    id TEXT PRIMARY KEY, sourceKey TEXT, encodedPath TEXT,
+                    fileName TEXT, remoteEtag TEXT, remoteSize INTEGER,
+                    remoteModified TEXT, missingScans INTEGER,
+                    title TEXT, artist TEXT, album TEXT, albumArtist TEXT,
+                    tagScanCode TEXT
+                )
+            """)
+            db.execute("""
+                INSERT INTO remote_tracks VALUES
+                    ('a', 'source-a', '/AllMusic/a.flac', 'a.flac',
+                     'etag-a', 80000, NULL, 0,
+                     'Old title', 'Old artist', NULL, 'Old Album Artist',
+                     'FLAC_VORBIS')
+            """)
+            db.execute(sql["requestTagRefresh"], {"id": "a", "sourceKey": "source-a"})
+            self.assertEqual(db.execute(
+                "SELECT title, artist, tagScanCode FROM remote_tracks WHERE id='a'"
+            ).fetchone(), ("Old title", "Old artist", "RETRY_REFRESH"))
+            self.assertEqual(len(db.execute(
+                sql["pendingFastScans"], {"sourceKey": "source-a"}
+            ).fetchall()), 1)
+
+            args = dict(id="a", sourceKey="source-a", path="/AllMusic/a.flac",
+                        etag="etag-a", size=80000, modified=None,
+                        code="RETRY_NETWORK", title=None, artist=None,
+                        album=None, albumArtist=None)
+            db.execute(sql["recordFastScanIfUnchanged"], args)
+            self.assertEqual(db.execute(
+                "SELECT title, artist, tagScanCode FROM remote_tracks WHERE id='a'"
+            ).fetchone(), ("Old title", "Old artist", "RETRY_REFRESH"))
+
+            args.update(code="FLAC_VORBIS", title="New title",
+                        artist="New artist", album="Now has album",
+                        albumArtist="Album Artist")
+            db.execute(sql["recordFastScanIfUnchanged"], args)
+            self.assertEqual(db.execute(
+                "SELECT title, album, tagScanCode FROM remote_tracks WHERE id='a'"
+            ).fetchone(), ("New title", "Now has album", "FLAC_VORBIS"))
+            self.assertEqual(len(db.execute(
+                sql["pendingFastScans"], {"sourceKey": "source-a"}
+            ).fetchall()), 0)
+        finally:
+            db.close()
 
     def test_ui_has_opt_in_confirmation_no_secret_or_accidental_bulk_scan(self):
         ui = self.text("app/src/main/java/app/enotone/android/MainActivity.kt")
