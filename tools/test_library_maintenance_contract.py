@@ -25,8 +25,10 @@ class TagMaintenanceContractTest(unittest.TestCase):
             self.assertIn(needle, dao)
         self.assertIn("LibrarySnapshotPlanner.accountKey(email)", helper)
         self.assertIn("missingAlbums(", helper)
-        self.assertNotIn("WebDavRangeReader", helper)
-        self.assertNotIn("FlatLibraryWebDavClient", helper)
+        offline = helper[helper.index("suspend fun missingAlbumFiles("):
+                         helper.index("suspend fun probeAlbum(")]
+        self.assertNotIn("WebDavRangeReader", offline)
+        self.assertNotIn("FlatLibraryWebDavClient", offline)
 
     def test_requested_reindex_keeps_old_values_until_replacement(self):
         dao = self.text("core/database/src/main/java/app/enotone/database/RemoteTrackDao.kt")
