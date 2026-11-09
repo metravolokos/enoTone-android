@@ -44,6 +44,7 @@ import app.enotone.library.LibraryTagStore
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.AndroidAudioTagReader
 import app.enotone.library.FastAudioTagReader
+import app.enotone.library.ManagedIndexMode
 import app.enotone.library.PilotTagIndexer
 import app.enotone.library.PilotIndexProgress
 import app.enotone.library.WebDavRangeReader
@@ -173,10 +174,12 @@ private fun DiagnosticScreen() {
     // Notification controls are part of the manual background-indexing UX.
     // Android 13+ asks for that permission only after the user presses Start.
     var notificationPermissionDenied by remember { mutableStateOf(false) }
-    val launchManagedForegroundService: () -> Unit = {
+    var requestedContinuousIndex by remember { mutableStateOf(false) }
+    val launchManagedForegroundService: (Boolean) -> Unit = { continuous ->
+        val mode = if (continuous) ManagedIndexMode.CONTINUOUS else ManagedIndexMode.BOUNDED
         if (!busy && managedStatus.state != ManagedScanState.RUNNING &&
             !managedStatus.terminating && email.isNotBlank() && password.isNotBlank() &&
-            ManagedScanRuntime.prepare(email, password)) {
+            ManagedScanRuntime.prepare(email, password, mode)) {
             try {
                 appContext.startForegroundService(
                     Intent(appContext, IndexingForegroundService::class.java)
@@ -191,16 +194,17 @@ private fun DiagnosticScreen() {
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         notificationPermissionDenied = !granted
-        if (granted) launchManagedForegroundService()
+        if (granted) launchManagedForegroundService(requestedContinuousIndex)
     }
-    val startManagedSession: () -> Unit = {
+    val startManagedSession: (Boolean) -> Unit = { continuous ->
+        requestedContinuousIndex = continuous
         if (Build.VERSION.SDK_INT >= 33 &&
             appContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {
             notificationPermissionDenied = false
-            launchManagedForegroundService()
+            launchManagedForegroundService(continuous)
         }
     }
 
@@ -697,12 +701,21 @@ private fun DiagnosticScreen() {
             enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
                 !managedStatus.terminating &&
                 email.isNotBlank() && password.isNotBlank(),
-            onClick = { startManagedSession() }) {
+            onClick = { startManagedSession(false) }) {
             Text(stringResource(if (managedStatus.state in setOf(ManagedScanState.PAUSED,
                     ManagedScanState.STOPPED, ManagedScanState.COMPLETE,
                     ManagedScanState.ERROR))
                 R.string.managed_index_resume else R.string.managed_index_start))
         }
+        Button(modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
+                !managedStatus.terminating &&
+                email.isNotBlank() && password.isNotBlank(),
+            onClick = { startManagedSession(true) }) {
+            Text(stringResource(R.string.managed_index_all))
+        }
+        Text(stringResource(R.string.managed_index_all_explanation),
+            style = MaterialTheme.typography.bodySmall)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = managedStatus.state == ManagedScanState.RUNNING,
                 onClick = {
