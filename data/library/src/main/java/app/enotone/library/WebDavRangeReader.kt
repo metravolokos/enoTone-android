@@ -44,6 +44,32 @@ data class RangeReadStats(
     val cacheEvictions: Int = 0,
 )
 
+/**
+ * Shared reservation across concurrent metadata readers. A 64-KiB request is
+ * reserved before opening the connection. Failed requests retain their
+ * reservation: totals remain bounded even when a server fails mid-response.
+ * Exact completed byte and GET counters remain on individual readers.
+ */
+class SharedRangeBudget(private val maxGets: Int, private val maxBytes: Long) {
+    init { require(maxGets > 0 && maxBytes > 0L) }
+    private var reservedGets = 0
+    private var reservedBytes = 0L
+
+    @Synchronized fun tryReserve(bytes: Int): Boolean {
+        require(bytes > 0)
+        if (reservedGets >= maxGets || bytes.toLong() > maxBytes - reservedBytes) return false
+        reservedGets++
+        reservedBytes += bytes
+        return true
+    }
+
+    @Synchronized fun canStartFile(): Boolean =
+        reservedGets < maxGets && maxBytes - reservedBytes >= 65536L
+
+    @Synchronized fun reservedRequests(): Int = reservedGets
+    @Synchronized fun reservedBytes(): Long = reservedBytes
+}
+
 /** For ONE manually requested track; never a playback transport.
  * Four 64 KiB RAM blocks max (256 KiB total), bounded with access-order LRU.
  * 8 MiB / 128 GET / 40 second limits, HTTP 206 + exact Content-Range only.
@@ -60,6 +86,7 @@ class WebDavRangeReader(
     /** Optional tighter per-invocation limits for a multi-file manual pilot. */
     maxRequests: Int = 128,
     maxDownloadedBytes: Long = 8L * 1024 * 1024,
+    private val sharedBudget: SharedRangeBudget? = null,
 ) : Closeable {
     private val url: java.net.URL
     private val allowedRequests: Int
@@ -152,6 +179,8 @@ class WebDavRangeReader(
             System.nanoTime() - started > MAX_NS) reject(RangeReadIssue.LIMIT)
         val n = minOf(BLOCK.toLong(), fileSize - start, allowedBytes - bytesFetched).toInt()
         if (n <= 0) reject(RangeReadIssue.LIMIT)
+        // Global cap applies to all parallel tracks and all retries.
+        if (sharedBudget != null && !sharedBudget.tryReserve(n)) reject(RangeReadIssue.LIMIT)
         val end = start + n - 1L
         val conn = url.openConnection() as HttpURLConnection
         try {

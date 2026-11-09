@@ -6,10 +6,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 
 /**
- * One explicit foreground indexing session. Four sequential existing capped
- * pilot passes, not one unlimited fetch loop. Each pass is independently
- * limited to <=60 GET / <=4 MiB, with checkpoints committed per file in Room.
- * No scheduled workers, service, background task, automatic restart or auth storage.
+ * One explicit user-controlled session. Four sequential batches, with up to
+ * four parallel per-file readers INSIDE each batch. All requests and retries
+ * share the same 60 GET / 4 MiB cap; Room checkpoints each completed file.
+ * The Android foreground service owns this coroutine and credentials in RAM.
  */
 object ManagedIndexLimits {
     const val MAX_BATCHES = 4
@@ -34,11 +34,14 @@ data class ManagedIndexProgress(
     val downloadedBytes: Long,
     val remaining: Int,
     val stopCode: String,
+    val lastErrorStage: String = "NONE",
+    val lastErrorReason: String = "NONE",
+    val lastErrorHttpStatus: Int = 0,
 )
 
 /**
- * Injected single-batch runner keeps session accounting testable with synthetic
- * data and guarantees existing PilotTagIndexer CAS writes / network limits.
+ * Injected per-batch runner keeps aggregate accounting testable without
+ * accessing real WebDAV data or depending on a device-specific runtime.
  */
 class ManagedTagIndexSession(
     private val runBatch: suspend (
@@ -50,19 +53,18 @@ class ManagedTagIndexSession(
 ) {
     constructor(database: EnoToneDatabase) : this(
         { email, password, gate, progress ->
-            PilotTagIndexer(database).run(
+            ParallelTagIndexer(database).run(
                 email, password, PilotBudget.RESUME_LIMIT,
                 onProgress = progress,
                 beforeFile = gate,
-                stopOnRetryableFailure = true,
             )
         }
     )
 
     /**
-     * Caller checks current Android network type; denied network means no
-     * additional file starts. A switch during one already-open file can finish
-     * its bounded range requests before the next file boundary.
+     * Legacy predicate is retained for compatibility with tests/callers. The
+     * foreground service supplies { true }: Wi-Fi/mobile transport does not
+     * change the network policy.
      */
     suspend fun run(
         email: String,
@@ -82,6 +84,9 @@ class ManagedTagIndexSession(
         var bytes = 0L
         var remaining = 0
         var stop = "SESSION_LIMIT"
+        var lastStage = "NONE"
+        var lastReason = "NONE"
+        var lastHttp = 0
 
         fun snapshot(partial: PilotIndexProgress? = null, code: String = stop) =
             ManagedIndexProgress(
@@ -96,6 +101,10 @@ class ManagedTagIndexSession(
                 downloadedBytes = bytes + (partial?.downloadedBytes ?: 0L),
                 remaining = partial?.remaining ?: remaining,
                 stopCode = code,
+                lastErrorStage = partial?.lastErrorStage?.takeIf { it != "NONE" } ?: lastStage,
+                lastErrorReason = partial?.lastErrorReason?.takeIf { it != "NONE" } ?: lastReason,
+                lastErrorHttpStatus = if (partial?.lastErrorStage != null &&
+                    partial.lastErrorStage != "NONE") partial.lastErrorHttpStatus else lastHttp,
             )
 
         while (ManagedIndexLimits.underGlobalCaps(batches, gets, bytes)) {
@@ -127,11 +136,16 @@ class ManagedTagIndexSession(
             gets += result.getRequests
             bytes += result.downloadedBytes
             remaining = result.remaining
+            if (result.lastErrorStage != "NONE") {
+                lastStage = result.lastErrorStage
+                lastReason = result.lastErrorReason
+                lastHttp = result.lastErrorHttpStatus
+            }
             batches++
             stop = when {
                 result.stopCode in setOf("AUTH_REJECTED", "RETRY_BACKOFF", "NETWORK_POLICY") ->
                     result.stopCode
-                result.attempted == 0 || remaining == 0 ->
+                (result.attempted == 0 && result.getRequests == 0) || remaining == 0 ->
                     "NO_ELIGIBLE_FILES"
                 result.stopCode !in setOf("COMPLETED", "NETWORK_BUDGET", "TIME_BUDGET") ->
                     result.stopCode

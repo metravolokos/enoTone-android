@@ -725,6 +725,12 @@ private fun DiagnosticScreen() {
                 current.retryableErrors, current.permanentErrors, current.getRequests,
                 current.downloadedBytes, current.remaining, current.stopCode),
                 style = MaterialTheme.typography.bodyMedium)
+            if (current.lastErrorStage != "NONE") {
+                Text(stringResource(R.string.managed_index_last_error,
+                    current.lastErrorStage, current.lastErrorReason,
+                    current.lastErrorHttpStatus),
+                    style = MaterialTheme.typography.bodySmall)
+            }
         }
         val managedMessage = when (managedStatus.state) {
             ManagedScanState.PAUSED -> managedPaused
