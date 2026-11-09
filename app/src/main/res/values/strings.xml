@@ -92,4 +92,6 @@
     <string name="handoff_failed">ошибка</string>
     <string name="handoff_yes">да</string>
     <string name="handoff_no">нет</string>
+    <string name="playback_seek_slider">Перемотка внутри текущего трека</string>
+    <string name="playback_duration_unknown">--:--</string>
 </resources>
