@@ -27,6 +27,7 @@ internal enum class ManagedScanState { IDLE, RUNNING, PAUSED, STOPPED, COMPLETE,
 internal data class ManagedScanStatus(
     val state: ManagedScanState = ManagedScanState.IDLE,
     val progress: ManagedIndexProgress? = null,
+    val terminating: Boolean = false,
 )
 
 /**
@@ -38,21 +39,27 @@ internal object ManagedScanRuntime {
     val status = MutableStateFlow(ManagedScanStatus())
     private var pending: StoredWebDavLogin? = null
 
-    @Synchronized fun prepare(email: String, password: String) {
+    @Synchronized fun prepare(email: String, password: String): Boolean {
         require(email.isNotBlank() && password.isNotBlank())
-        if (status.value.state == ManagedScanState.RUNNING) return
+        if (status.value.state == ManagedScanState.RUNNING || status.value.terminating) return false
         pending = StoredWebDavLogin(email, password)
         status.value = ManagedScanStatus(ManagedScanState.RUNNING)
+        return true
     }
 
     @Synchronized fun claim(): StoredWebDavLogin? =
         pending.also { pending = null }
 
-    @Synchronized fun update(state: ManagedScanState, progress: ManagedIndexProgress? = null) {
+    @Synchronized fun update(
+        state: ManagedScanState,
+        progress: ManagedIndexProgress? = null,
+        terminating: Boolean = false,
+    ) {
         // A delayed progress callback must never undo a user's Pause/Stop.
-        if (state == ManagedScanState.RUNNING && status.value.state != ManagedScanState.RUNNING) return
+        if (state == ManagedScanState.RUNNING &&
+            (status.value.state != ManagedScanState.RUNNING || status.value.terminating)) return
         if (state != ManagedScanState.RUNNING) pending = null
-        status.value = ManagedScanStatus(state, progress ?: status.value.progress)
+        status.value = ManagedScanStatus(state, progress ?: status.value.progress, terminating)
     }
 }
 
@@ -88,10 +95,10 @@ class IndexingForegroundService : Service() {
     }
 
     private fun startFromUser() {
-        if (indexJob?.isActive == true) return
+        if (indexJob != null) return
         val login = ManagedScanRuntime.claim()
         if (login == null) {
-            ManagedScanRuntime.update(ManagedScanState.ERROR)
+            ManagedScanRuntime.update(ManagedScanState.ERROR, terminating = true)
             stopSelf()
             return
         }
@@ -99,7 +106,7 @@ class IndexingForegroundService : Service() {
             createChannel()
             enterForeground(buildNotification(null))
         } catch (_: RuntimeException) {
-            ManagedScanRuntime.update(ManagedScanState.ERROR)
+            ManagedScanRuntime.update(ManagedScanState.ERROR, terminating = true)
             stopSelf()
             return
         }
@@ -134,6 +141,7 @@ class IndexingForegroundService : Service() {
                         if (final.stopCode in setOf("AUTH_REJECTED", "RETRY_BACKOFF"))
                             ManagedScanState.ERROR else ManagedScanState.COMPLETE,
                         final,
+                        terminating = true,
                     )
                 } finally {
                     database.close()
@@ -142,7 +150,7 @@ class IndexingForegroundService : Service() {
                 // Pause/stop was set before cancellation; preserve its reason.
             } catch (_: Exception) {
                 // Never publish exception messages, file names or remote paths.
-                ManagedScanRuntime.update(ManagedScanState.ERROR)
+                ManagedScanRuntime.update(ManagedScanState.ERROR, terminating = true)
             } finally {
                 withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
@@ -153,9 +161,11 @@ class IndexingForegroundService : Service() {
     }
 
     private fun cancelSession(reason: ManagedScanState) {
-        ManagedScanRuntime.update(reason)
+        // A cancelled Job may still be completing its finally block.
+        val hadJob = indexJob != null
+        ManagedScanRuntime.update(reason, terminating = hadJob)
         indexJob?.cancel()
-        if (indexJob?.isActive != true) stopSelf()
+        if (!hadJob) stopSelf()
     }
 
     private fun createChannel() {
@@ -221,8 +231,12 @@ class IndexingForegroundService : Service() {
     }
 
     override fun onDestroy() {
-        if (ManagedScanRuntime.status.value.state == ManagedScanState.RUNNING) {
+        val last = ManagedScanRuntime.status.value
+        if (last.state == ManagedScanState.RUNNING) {
             ManagedScanRuntime.update(ManagedScanState.PAUSED)
+        } else if (last.terminating) {
+            // Resume is safe only after this service instance has stopped.
+            ManagedScanRuntime.update(last.state, terminating = false)
         }
         indexJob?.cancel()
         scope.cancel()
