@@ -82,6 +82,7 @@ private fun DiagnosticScreen() {
     // Private per-track audit appears only on device, never in diagnostics.
     var tagAuditRows by remember { mutableStateOf<List<RemoteTrackEntity>>(emptyList()) }
     var tagAuditSelectedId by remember { mutableStateOf<String?>(null) }
+    var tagAuditSearch by remember { mutableStateOf("") }
     var tagAuditMessage by remember { mutableStateOf("") }
     var confirmRefreshAll by remember { mutableStateOf(false) }
     var showingLibrary by remember { mutableStateOf(false) }
@@ -125,6 +126,7 @@ private fun DiagnosticScreen() {
     val pilotOffline = stringResource(R.string.pilot_offline_report)
     val pilotStopped = stringResource(R.string.pilot_stopped)
     val pilotFailed = stringResource(R.string.pilot_failed)
+    val auditNoSearch = stringResource(R.string.tag_audit_no_search)
     val auditNoMissing = stringResource(R.string.tag_audit_no_missing)
     val auditSelectOne = stringResource(R.string.tag_audit_select_one)
     val auditFailed = stringResource(R.string.tag_audit_failed)
@@ -495,6 +497,37 @@ private fun DiagnosticScreen() {
                 }
             }) { Text(stringResource(R.string.tag_audit_missing_album_artist)) }
         }
+        OutlinedTextField(
+            value = tagAuditSearch,
+            onValueChange = { tagAuditSearch = it },
+            label = { Text(stringResource(R.string.tag_audit_search_hint)) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && email.isNotBlank() && tagAuditSearch.isNotBlank(),
+            onClick = {
+                busy = true
+                tagAuditMessage = ""
+                scope.launch {
+                    try {
+                        tagAuditRows = withContext(Dispatchers.IO) {
+                            val database = openLibraryDatabase(appContext)
+                            try {
+                                LibraryTagStore(database).findTracks(
+                                    email, tagAuditSearch)
+                            } finally { database.close() }
+                        }
+                        tagAuditSelectedId = null
+                        tagAuditMessage = if (tagAuditRows.isEmpty())
+                            auditNoSearch else auditSelectOne
+                    } catch (_: Exception) {
+                        tagAuditMessage = auditFailed
+                    } finally { busy = false }
+                }
+            },
+        ) { Text(stringResource(R.string.tag_audit_search_action)) }
         if (tagAuditRows.isNotEmpty()) {
             Text(stringResource(R.string.tag_audit_first_rows, tagAuditRows.size),
                 style = MaterialTheme.typography.bodySmall)
