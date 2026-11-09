@@ -1,5 +1,6 @@
 package app.enotone.android
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -117,7 +118,15 @@ class IndexingForegroundService : Service() {
                             ManagedScanRuntime.update(ManagedScanState.RUNNING, progress)
                             withContext(Dispatchers.Main) {
                                 val manager = getSystemService(NotificationManager::class.java)
-                                manager?.notify(NOTIFICATION_ID, buildNotification(progress))
+                                if (Build.VERSION.SDK_INT < 33 ||
+                                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                                    android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                                    try {
+                                        manager?.notify(NOTIFICATION_ID, buildNotification(progress))
+                                    } catch (_: SecurityException) {
+                                        // Revoked while indexing: foreground work can finish safely.
+                                    }
+                                }
                             }
                         },
                     )
