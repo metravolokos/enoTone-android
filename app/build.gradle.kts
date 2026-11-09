@@ -58,6 +58,9 @@ android {
             // Distinct from release and from legacy .preview.r<N> debug builds.
             // Subsequent stablePreview builds have the SAME package and cert.
             initWith(getByName("release"))
+            // The library modules only publish debug/release variants.
+            // Without an explicit fallback AGP cannot resolve :playback et al.
+            matchingFallbacks += listOf("release", "debug")
             applicationIdSuffix = ".preview"
             versionNameSuffix = "-preview"
             signingConfig = signingConfigs.getByName("stablePreview")

@@ -19,6 +19,7 @@ class StablePreviewContractTest(unittest.TestCase):
         self.assertIn('create("stablePreview")', self.gradle)
         self.assertIn('applicationIdSuffix = ".preview"', self.gradle)
         self.assertIn('getByName("release")', self.gradle)
+        self.assertIn('matchingFallbacks += listOf("release", "debug")', self.gradle)
         self.assertIn('isDebuggable = false', self.gradle)
         self.assertIn('GITHUB_RUN_NUMBER', self.gradle)
         self.assertIn('assembleStablePreview", "packageStablePreview"', self.gradle)
