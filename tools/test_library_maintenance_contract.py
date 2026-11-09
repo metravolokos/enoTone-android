@@ -108,6 +108,32 @@ class TagMaintenanceContractTest(unittest.TestCase):
         finally:
             db.close()
 
+    def test_album_source_probe_is_bounded_and_never_writes_room(self):
+        code = self.text("data/library/src/main/java/app/enotone/library/TagMaintenanceStore.kt")
+        ui = self.text("app/src/main/java/app/enotone/android/MainActivity.kt")
+        for item in (
+            "suspend fun probeAlbum(",
+            "playableById(id, key)",
+            "eligibleForSingleTagWrite(key, selected)",
+            "FastAudioTagReader().read(",
+            "maxRequests = 6",
+            "maxDownloadedBytes = 6L * 65536L",
+            "result.embeddedAlbum",
+            '"READ_ERROR", false, false',
+            "catch (cancelled: CancellationException)",
+        ):
+            self.assertIn(item, code)
+        probe = code[code.index("suspend fun probeAlbum("):
+                     code.index("suspend fun scheduleOne(")]
+        self.assertNotIn("recordFastScanIfUnchanged", probe)
+        self.assertNotIn("saveTagsIfSnapshotMatches", probe)
+        for item in (
+            "R.string.library_probe_album_source",
+            "R.string.library_album_probe_report",
+            "TagMaintenanceStore(db).probeAlbum(",
+        ):
+            self.assertIn(item, ui)
+
     def test_ui_has_opt_in_confirmation_no_secret_or_accidental_bulk_scan(self):
         ui = self.text("app/src/main/java/app/enotone/android/MainActivity.kt")
         for needle in (
