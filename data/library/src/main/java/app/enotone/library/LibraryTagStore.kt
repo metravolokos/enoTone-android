@@ -10,6 +10,25 @@ import app.enotone.database.SavedTagCoverage
  * Does not store a password or perform network requests.
  */
 class LibraryTagStore(private val database: EnoToneDatabase) {
+    /** Local-only inspection; filenames never sent to analytics. */
+    suspend fun missingAlbum(accountEmail: String): List<RemoteTrackEntity> =
+        database.remoteTrackDao().tracksWithoutAlbum(
+            LibrarySnapshotPlanner.accountKey(accountEmail))
+
+    suspend fun missingAlbumArtist(accountEmail: String): List<RemoteTrackEntity> =
+        database.remoteTrackDao().tracksWithoutAlbumArtist(
+            LibrarySnapshotPlanner.accountKey(accountEmail))
+
+    /** Queue a specific file for the existing bounded/background reader. */
+    suspend fun queueOneForRefresh(accountEmail: String, id: String): Boolean =
+        database.remoteTrackDao().queueTagRefreshById(
+            LibrarySnapshotPlanner.accountKey(accountEmail), id) == 1
+
+    /** No network and no tag deletion. A managed start is still required. */
+    suspend fun queueAllForRefresh(accountEmail: String): Int =
+        database.remoteTrackDao().queueAllTagRefresh(
+            LibrarySnapshotPlanner.accountKey(accountEmail))
+
     /** Offline summary only. Account separation is identical to the snapshot store. */
     suspend fun storedCoverage(accountEmail: String): SavedTagCoverage =
         database.remoteTrackDao().storedTagCoverage(
