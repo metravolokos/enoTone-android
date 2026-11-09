@@ -124,4 +124,5 @@
     <string name="managed_index_stopped">Остановлено пользователем. Проиндексированные файлы сохранены.</string>
     <string name="managed_index_failed">Сессия прервана. Сохранённые теги и список не удалены.</string>
     <string name="managed_index_report">Сессия — порций завершено: %1$d; обработано: %2$d; с тегами: %3$d; временные ошибки: %4$d; постоянные ошибки: %5$d; GET: %6$d; байт: %7$d; осталось: %8$d; статус: %9$s.</string>
+    <string name="managed_notification_permission_denied">Разрешите уведомления для запуска управляемой фоновой индексации с кнопками паузы и остановки.</string>
 </resources>
