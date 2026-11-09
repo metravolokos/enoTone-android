@@ -87,9 +87,8 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
 
         val sourceKey = LibrarySnapshotPlanner.accountKey(email)
         val dao = database.remoteTrackDao()
-        val candidates = runStage("DB_SELECT") {
-            PilotBudget.select(sourceKey, dao.pendingFastScans(sourceKey), count)
-        }
+        val pending = runStage("DB_SELECT") { dao.pendingFastScans(sourceKey) }
+        val candidates = PilotBudget.select(sourceKey, pending, count)
         val shared = SharedRangeBudget(
             PilotBudget.requestCap(count), PilotBudget.byteCap(count),
         )
@@ -102,6 +101,10 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
         // throttle upstream workers instead of building an unbounded RAM queue.
         val completed = Channel<CompletedTagFile>(ParallelTagPolicy.WORKERS)
         var processed = 0
+        // Room already gave us the eligible pending count. Each successful
+        // terminal CAS removes exactly one pending entry, so avoid running a
+        // 3,500-row SELECT after every file and contending with the writer.
+        var remainingEstimate = pending.size
         var tagged = 0
         var withoutTags = 0
         var retryableErrors = 0
@@ -148,6 +151,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                     lastFailure = outcome.failure ?: lastFailure
 
                     if (committed) {
+                        if (!outcome.retryable) remainingEstimate--
                         if (outcome.retryable) {
                             consecutiveFailures++
                             if (consecutiveFailures >=
@@ -163,9 +167,6 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                         }
                     }
                 }
-                val remaining = runStage("DB_COUNT") {
-                    dao.pendingFastScans(sourceKey).size
-                }
                 val report = PilotIndexProgress(
                     requested = count,
                     attempted = processed,
@@ -175,7 +176,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                     staleWrites = staleWrites,
                     getRequests = getRequests,
                     downloadedBytes = downloadedBytes,
-                    remaining = remaining,
+                    remaining = remainingEstimate,
                     stopCode = stop.get() ?: "RUNNING",
                     lastErrorStage = lastFailure?.stage ?: "NONE",
                     lastErrorReason = lastFailure?.reason ?: "NONE",
