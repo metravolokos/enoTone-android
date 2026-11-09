@@ -142,4 +142,10 @@
     <string name="library_refresh_all_warning">Будет повторно прочитана вся медиатека, что расходует трафик. Уже сохранённые теги останутся доступны до их успешного обновления. При прерывании можно продолжить по кнопке непрерывной индексации.</string>
     <string name="library_refresh_cancel">Отмена</string>
     <string name="library_refresh_all_queued">Поставлено в очередь на повторное чтение: %1$d файлов. Запущена длительная фоновая индексация.</string>
+
+    <string name="library_probe_album_source">Проверить ALBUM в исходном файле</string>
+    <string name="library_album_probe_unknown">Не удалось подтвердить — чтение или формат не поддержаны</string>
+    <string name="library_album_probe_present">Тег ALBUM найден в исходном файле</string>
+    <string name="library_album_probe_absent">Тег ALBUM не обнаружен в исходном файле</string>
+    <string name="library_album_probe_report">Проверка исходного файла: %1$s. Код: %2$s; HTTP GET: %3$d. Сохранённые теги не изменены.</string>
 </resources>
