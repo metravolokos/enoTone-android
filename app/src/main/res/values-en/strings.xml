@@ -126,4 +126,5 @@
     <string name="managed_index_report">Session — batches completed: %1$d; processed: %2$d; with tags: %3$d; retryable errors: %4$d; permanent errors: %5$d; GETs: %6$d; bytes: %7$d; remaining: %8$d; status: %9$s.</string>
     <string name="managed_notification_permission_denied">Enable notifications to start managed background indexing with Pause and Stop controls.</string>
     <string name="managed_index_last_error">Last failure: stage %1$s, reason %2$s, HTTP %3$d (0 means no HTTP response).</string>
+    <string name="managed_index_internal_failure">Indexing failed internally: stage %1$s, category %2$s. Saved tags remain intact.</string>
 </resources>
