@@ -1,42 +1,29 @@
-"""M6 approved enoTone design tokens contract.
+"""Guard the user's decision: retain standard Material Design colors in M6.
 
-Source (approved visual concept, not generated assets):
-metravolokos/enotone-design/tokens/colors.json v1.3.
+The previous design-project palette is NOT approved for the Android player.
+Do not carry tokens across repositories until the owner accepts the UI design.
 """
 from pathlib import Path
-import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+UI = ROOT / "app/src/main/java/app/enotone/android"
 
 
 class ThemeContractTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.theme = (ROOT / "app/src/main/java/app/enotone/android/"
-                     "EnoToneTheme.kt").read_text(encoding="utf-8")
-        cls.activity = (ROOT / "app/src/main/java/app/enotone/android/"
-                        "MainActivity.kt").read_text(encoding="utf-8")
+    def test_default_material_theme_is_used_in_android(self):
+        activity = (UI / "MainActivity.kt").read_text(encoding="utf-8")
+        self.assertIn("MaterialTheme { DiagnosticScreen() }", activity)
+        self.assertNotIn("EnoToneTheme { DiagnosticScreen() }", activity)
+        self.assertFalse((UI / "EnoToneTheme.kt").exists())
 
-    def test_themes_use_exact_approved_background_surface_and_accent(self):
-        # Color tokens are case-insensitive hexadecimal literals in Compose.
-        text = self.theme.upper()
-        expected = {
-            "EDE9E5", "F8F5F1", "E2DCD6", "211E1C", "5C544E",
-            "EBAE9F", "A24F3E", "1B1A19", "252321", "2F2C2A",
-            "F4ECE4", "B9AEA4", "8FB0C2",
-        }
-        actual = set(re.findall(r"COLOR\(0XFF([0-9A-F]{6})\)", text))
-        self.assertTrue(expected.issubset(actual), expected - actual)
-
-    def test_pink_buttons_have_dark_labels_in_both_themes(self):
-        self.assertIn("primary = Color(0xFFEBAE9F)", self.theme)
-        self.assertIn("onPrimary = Color(0xFF211E1C)", self.theme)
-        self.assertIn("onPrimary = Color(0xFF1B1A19)", self.theme)
-        self.assertIn("isSystemInDarkTheme()", self.theme)
-        self.assertNotIn("dynamicLightColorScheme", self.theme)
-        self.assertNotIn("dynamicDarkColorScheme", self.theme)
-        self.assertIn("EnoToneTheme { DiagnosticScreen() }", self.activity)
+    def test_unapproved_palette_is_not_shipped(self):
+        # No copy of the old project's colors in the current Compose screens.
+        activity = (UI / "MainActivity.kt").read_text(encoding="utf-8")
+        library = (UI / "OfflineLibraryScreen.kt").read_text(encoding="utf-8")
+        for token in ("0xFFEBAE9F", "0xFFEDE9E5", "0xFF1B1A19"):
+            self.assertNotIn(token, activity)
+            self.assertNotIn(token, library)
 
 
 if __name__ == "__main__":
