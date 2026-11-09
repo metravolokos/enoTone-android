@@ -171,7 +171,8 @@ class ManagedIndexContractTest(unittest.TestCase):
             "ManagedScanRuntime.status.collectAsState()",
             "IndexingForegroundService.ACTION_PAUSE",
             "IndexingForegroundService.ACTION_STOP",
-            "onClick = { startManagedSession() }",
+            "onClick = { startManagedSession(false) }",
+            "onClick = { startManagedSession(true) }",
         ):
             self.assertIn(needle, main)
         for needle in (
