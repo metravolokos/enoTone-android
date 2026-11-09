@@ -185,9 +185,12 @@ private fun DiagnosticScreen() {
                 val result = withContext(Dispatchers.IO) {
                     val database = openLibraryDatabase(appContext)
                     try {
-                        PilotTagIndexer(database).run(email, password, count) { progress ->
-                            withContext(Dispatchers.Main) { report = showPilot(progress) }
-                        }
+                        PilotTagIndexer(database).run(
+                            email, password, count,
+                            onProgress = { progress ->
+                                withContext(Dispatchers.Main) { report = showPilot(progress) }
+                            },
+                        )
                     } finally {
                         database.close()
                     }
