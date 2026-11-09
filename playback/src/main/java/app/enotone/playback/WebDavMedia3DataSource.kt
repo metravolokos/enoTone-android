@@ -79,23 +79,27 @@ internal class WebDavMedia3DataSource(
             conn.setRequestProperty("Accept-Encoding", "identity")
             if (strongEtag != null) conn.setRequestProperty("If-Range", strongEtag)
             if (conn.responseCode != HttpURLConnection.HTTP_PARTIAL) {
-                throw IOException("Playback HTTP status rejected")
+                throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_STATUS)
             }
-            WebDavPlaybackRange.count(conn.getHeaderField("Content-Range"),
-                dataSpec.position, end, remoteSize)
+            try {
+                WebDavPlaybackRange.count(conn.getHeaderField("Content-Range"),
+                    dataSpec.position, end, remoteSize)
+            } catch (_: IOException) {
+                throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_RANGE)
+            }
             val encoding = conn.getHeaderField("Content-Encoding")
             if (encoding != null && !encoding.equals("identity", ignoreCase = true)) {
-                throw IOException("Playback encoded response rejected")
+                throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_ENCODING)
             }
             if (strongEtag != null) {
                 val received = conn.getHeaderField("ETag")
                 if (received != null && received != strongEtag) {
-                    throw IOException("Playback version changed")
+                    throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_VERSION)
                 }
             }
             val declared = conn.getHeaderField("Content-Length")?.toLongOrNull()
             if (declared != null && declared != count) {
-                throw IOException("Playback body length mismatch")
+                throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_LENGTH)
             }
             stream = conn.inputStream
             connection = conn
@@ -104,11 +108,13 @@ internal class WebDavMedia3DataSource(
             opened = true
             transferStarted(dataSpec)
             return window.openReturnLength
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
             try { conn?.inputStream?.close() } catch (_: Exception) { }
             conn?.disconnect()
-            // Never propagate exception text: network libraries may include private URLs.
-            throw IOException("WebDAV playback open rejected")
+            // Do not wrap the original IOException as a cause: it may reveal
+            // private URLs or authorization data through a library exception.
+            if (failure is PlaybackDataIssueException) throw failure
+            throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_NETWORK)
         }
     }
 
@@ -121,9 +127,11 @@ internal class WebDavMedia3DataSource(
         val received = try {
             input.read(buffer, offset, minOf(length.toLong(), bytesLeft).toInt())
         } catch (_: Exception) {
-            throw IOException("WebDAV playback read failed")
+            throw PlaybackDataIssueException(PlaybackDataIssue.READ_NETWORK)
         }
-        if (received <= 0) throw IOException("Truncated playback body")
+        if (received <= 0) {
+            throw PlaybackDataIssueException(PlaybackDataIssue.READ_TRUNCATED)
+        }
         bytesLeft -= received
         bytesTransferred(received)
         return received
