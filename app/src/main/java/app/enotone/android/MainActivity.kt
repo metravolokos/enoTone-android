@@ -79,6 +79,11 @@ private fun DiagnosticScreen() {
     var busy by remember { mutableStateOf(false) }
     var pilotJob by remember { mutableStateOf<Job?>(null) }
     val managedStatus by ManagedScanRuntime.status.collectAsState()
+    // Private per-track audit appears only on device, never in diagnostics.
+    var tagAuditRows by remember { mutableStateOf<List<RemoteTrackEntity>>(emptyList()) }
+    var tagAuditSelectedId by remember { mutableStateOf<String?>(null) }
+    var tagAuditMessage by remember { mutableStateOf("") }
+    var confirmRefreshAll by remember { mutableStateOf(false) }
     var showingLibrary by remember { mutableStateOf(false) }
     var vaultState by remember { mutableStateOf(CredentialVaultState.NONE) }
     var vaultBusy by remember { mutableStateOf(true) }
@@ -120,6 +125,11 @@ private fun DiagnosticScreen() {
     val pilotOffline = stringResource(R.string.pilot_offline_report)
     val pilotStopped = stringResource(R.string.pilot_stopped)
     val pilotFailed = stringResource(R.string.pilot_failed)
+    val auditNoMissing = stringResource(R.string.tag_audit_no_missing)
+    val auditSelectOne = stringResource(R.string.tag_audit_select_one)
+    val auditFailed = stringResource(R.string.tag_audit_failed)
+    val auditQueued = stringResource(R.string.tag_audit_queued)
+    val auditQueuedAll = stringResource(R.string.tag_audit_all_queued)
     val managedPaused = stringResource(R.string.managed_index_paused)
     val managedStopped = stringResource(R.string.managed_index_stopped)
     val managedError = stringResource(R.string.managed_index_failed)
@@ -350,7 +360,11 @@ private fun DiagnosticScreen() {
         }) {
             Text(stringResource(R.string.count_audio_files))
         }
-        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
+        // One shallow /AllMusic listing, no destructive re-import.
+        Button(enabled = !busy &&
+            managedStatus.state != ManagedScanState.RUNNING &&
+            !managedStatus.terminating &&
+            email.isNotBlank() && password.isNotBlank(), onClick = {
             busy = true
             report = ""
             scope.launch {
@@ -437,6 +451,126 @@ private fun DiagnosticScreen() {
         }) {
             Text(stringResource(R.string.read_stored_tags_offline))
         }
+        Text(stringResource(R.string.tag_audit_title),
+            style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.tag_audit_explanation),
+            style = MaterialTheme.typography.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(enabled = !busy && email.isNotBlank(), onClick = {
+                busy = true
+                tagAuditMessage = ""
+                scope.launch {
+                    try {
+                        tagAuditRows = withContext(Dispatchers.IO) {
+                            val database = openLibraryDatabase(appContext)
+                            try { LibraryTagStore(database).missingAlbum(email) }
+                            finally { database.close() }
+                        }
+                        tagAuditSelectedId = null
+                        tagAuditMessage = if (tagAuditRows.isEmpty())
+                            auditNoMissing else auditSelectOne
+                    } catch (_: Exception) {
+                        tagAuditMessage = auditFailed
+                    } finally { busy = false }
+                }
+            }) { Text(stringResource(R.string.tag_audit_missing_album)) }
+            Button(enabled = !busy && email.isNotBlank(), onClick = {
+                busy = true
+                tagAuditMessage = ""
+                scope.launch {
+                    try {
+                        tagAuditRows = withContext(Dispatchers.IO) {
+                            val database = openLibraryDatabase(appContext)
+                            try { LibraryTagStore(database).missingAlbumArtist(email) }
+                            finally { database.close() }
+                        }
+                        tagAuditSelectedId = null
+                        tagAuditMessage = if (tagAuditRows.isEmpty())
+                            auditNoMissing else auditSelectOne
+                    } catch (_: Exception) {
+                        tagAuditMessage = auditFailed
+                    } finally { busy = false }
+                }
+            }) { Text(stringResource(R.string.tag_audit_missing_album_artist)) }
+        }
+        if (tagAuditRows.isNotEmpty()) {
+            Text(stringResource(R.string.tag_audit_first_rows, tagAuditRows.size),
+                style = MaterialTheme.typography.bodySmall)
+            tagAuditRows.forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(row.fileName, modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = { tagAuditSelectedId = row.id }) {
+                        Text(stringResource(if (tagAuditSelectedId == row.id)
+                            R.string.tag_audit_selected else R.string.tag_audit_select))
+                    }
+                }
+            }
+        }
+        tagAuditRows.firstOrNull { it.id == tagAuditSelectedId }?.let { selected ->
+            Text(stringResource(R.string.tag_audit_selected_details,
+                selected.title ?: "—", selected.artist ?: "—",
+                selected.album ?: "—", selected.albumArtist ?: "—",
+                selected.tagScanCode ?: "—"),
+                style = MaterialTheme.typography.bodySmall)
+            Button(
+                enabled = !busy && email.isNotBlank() &&
+                    managedStatus.state != ManagedScanState.RUNNING &&
+                    !managedStatus.terminating,
+                onClick = {
+                    busy = true
+                    scope.launch {
+                        try {
+                            val queued = withContext(Dispatchers.IO) {
+                                val database = openLibraryDatabase(appContext)
+                                try {
+                                    LibraryTagStore(database).queueOneForRefresh(
+                                        email, selected.id)
+                                } finally { database.close() }
+                            }
+                            tagAuditMessage = if (queued) auditQueued else auditFailed
+                        } catch (_: Exception) {
+                            tagAuditMessage = auditFailed
+                        } finally { busy = false }
+                    }
+                },
+            ) { Text(stringResource(R.string.tag_audit_queue_selected)) }
+        }
+        if (tagAuditMessage.isNotEmpty()) {
+            Text(tagAuditMessage, style = MaterialTheme.typography.bodySmall)
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Checkbox(checked = confirmRefreshAll,
+                onCheckedChange = { confirmRefreshAll = it })
+            Text(stringResource(R.string.tag_audit_refresh_all_confirm),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall)
+        }
+        Button(
+            enabled = !busy && confirmRefreshAll && email.isNotBlank() &&
+                managedStatus.state != ManagedScanState.RUNNING &&
+                !managedStatus.terminating,
+            onClick = {
+                busy = true
+                scope.launch {
+                    try {
+                        val queued = withContext(Dispatchers.IO) {
+                            val database = openLibraryDatabase(appContext)
+                            try { LibraryTagStore(database).queueAllForRefresh(email) }
+                            finally { database.close() }
+                        }
+                        tagAuditMessage = String.format(Locale.getDefault(),
+                            auditQueuedAll, queued)
+                        confirmRefreshAll = false
+                    } catch (_: Exception) {
+                        tagAuditMessage = auditFailed
+                    } finally { busy = false }
+                }
+            },
+        ) { Text(stringResource(R.string.tag_audit_queue_all)) }
+        Text(stringResource(R.string.tag_audit_queue_instructions),
+            style = MaterialTheme.typography.bodySmall)
+
         Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
             busy = true
             report = ""
