@@ -65,24 +65,31 @@ class ParallelTagPolicyTest {
         }
         server.start()
         val quota = SharedRangeBudget(1, 65536L)
+        val executor = Executors.newFixedThreadPool(2)
+        val start = CountDownLatch(1)
         try {
-            val results = (0..1).map { n ->
-                try {
-                    WebDavRangeReader(
-                        server.url("/AllMusic/").toString(),
-                        "/AllMusic/synthetic_$n.mp3", 65536L,
-                        "user@example.test", "test-password", null, true,
-                        sharedBudget = quota,
-                    ).use {
-                        it.readAt(0L, ByteArray(1), 0, 1)
-                        true
-                    }
-                } catch (_: IOException) { false }
+            val tasks = (0..1).map { n ->
+                executor.submit<Boolean> {
+                    start.await()
+                    try {
+                        WebDavRangeReader(
+                            server.url("/AllMusic/").toString(),
+                            "/AllMusic/synthetic_$n.mp3", 65536L,
+                            "user@example.test", "test-password", null, true,
+                            sharedBudget = quota,
+                        ).use {
+                            it.readAt(0L, ByteArray(1), 0, 1)
+                            true
+                        }
+                    } catch (_: IOException) { false }
+                }
             }
-            assertEquals(1, results.count { it })
+            start.countDown()
+            assertEquals(1, tasks.count { it.get(10, TimeUnit.SECONDS) })
             assertEquals(1, server.requestCount)
             assertEquals(1, quota.reservedRequests())
         } finally {
+            executor.shutdownNow()
             server.shutdown()
         }
     }
