@@ -61,6 +61,7 @@ class EnoTonePlaybackService : MediaSessionService() {
         if (hasNext) {
             playback.noteNextButton()
             playback.player.seekToNextMediaItem()
+            playback.resumeAfterManualSkip()
         }
     }
 
@@ -68,6 +69,7 @@ class EnoTonePlaybackService : MediaSessionService() {
         if (hasPrevious) {
             playback.notePreviousButton()
             playback.player.seekToPreviousMediaItem()
+            playback.resumeAfterManualSkip()
         }
     }
 
