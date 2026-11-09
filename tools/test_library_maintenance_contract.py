@@ -97,6 +97,14 @@ class TagMaintenanceContractTest(unittest.TestCase):
                 "SELECT title, artist, tagScanCode FROM remote_tracks WHERE id='a'"
             ).fetchone(), ("Old title", "Old artist", "RETRY_REFRESH"))
 
+            # A fresh read with no detectable embedded tags must never erase
+            # a previous good entry just because the parser returned nothing.
+            args.update(code="NO_EMBEDDED_TAGS")
+            db.execute(sql["recordFastScanIfUnchanged"], args)
+            self.assertEqual(db.execute(
+                "SELECT title, artist, tagScanCode FROM remote_tracks WHERE id='a'"
+            ).fetchone(), ("Old title", "Old artist", "NO_EMBEDDED_TAGS"))
+            db.execute(sql["requestTagRefresh"], {"id": "a", "sourceKey": "source-a"})
             args.update(code="FLAC_VORBIS", title="New title",
                         artist="New artist", album="Now has album",
                         albumArtist="Album Artist")
