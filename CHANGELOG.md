@@ -124,3 +124,6 @@
 
 ## Huawei smoke — opt-in secure sign-in #172 (2026-11-09)
 - Owner confirmed that saving and restoring sign-in works on signed Stable Preview #172, and the existing local library and playback remain accessible. **Credential deletion smoke remains open**; full feature acceptance is pending this separate check. No additional code changes.
+
+## Accepted on Huawei — M0-K secure credentials (2026-11-09)
+- Owner confirmed both opt-in saved-login restore and explicit removal after restart in Stable Preview #172, with Room music list preserved and no new import. Safe sign-in lifecycle accepted; no runtime changes in this docs PR.
