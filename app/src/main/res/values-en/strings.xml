@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">enoTone</string>
     <string name="diagnostic_title">WebDAV diagnostics — M1</string>
-    <string name="diagnostic_explanation">Check Cloud.Mail.ru without storing your password. Import saves the file listing in a private on-device database.</string>
+    <string name="diagnostic_explanation">Cloud.Mail.ru diagnostics: imports save the file list in a private on-device database. Saving sign-in credentials is optional.</string>
     <string name="email">Full email</string>
     <string name="app_password">External app password</string>
     <string name="test_file">Test audio file path, e.g. /AllMusic/test.mp3 (optional)</string>
@@ -95,4 +95,11 @@
     <string name="playback_seek_slider">Seek within current track</string>
     <string name="playback_duration_unknown">--:--</string>
     <string name="playback_error_stage">Failure source: %1$s (safe code only)</string>
+    <string name="credential_vault_explanation">You can save sign-in on this device. Credentials are encrypted using Android Keystore; saving is optional and backups are disabled. Clearing saved sign-in does not stop audio already playing.</string>
+    <string name="credential_vault_save">Save sign-in on this device</string>
+    <string name="credential_vault_clear">Forget saved sign-in</string>
+    <string name="credential_vault_restored">Saved sign-in restored on this device.</string>
+    <string name="credential_vault_saved">Sign-in securely saved on this device.</string>
+    <string name="credential_vault_deleted">Saved sign-in erased; music library unchanged.</string>
+    <string name="credential_vault_failed">Could not read or update protected sign-in. You can still sign in manually.</string>
 </resources>
