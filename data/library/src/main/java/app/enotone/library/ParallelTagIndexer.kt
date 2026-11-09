@@ -10,7 +10,6 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.join
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
@@ -137,24 +136,25 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                 getRequests += file.attempts.sumOf { it.stats.requests }
                 downloadedBytes += file.attempts.sumOf { it.stats.downloadedBytes }
                 if (committed != null) {
+                    val outcome = requireNotNull(attempt)
                     processed++
                     if (!committed) staleWrites++
                     else when {
-                        attempt!!.retryable -> retryableErrors++
-                        attempt.code.startsWith("FAILED_") -> permanentErrors++
-                        attempt.tags != null -> tagged++
+                        outcome.retryable -> retryableErrors++
+                        outcome.code.startsWith("FAILED_") -> permanentErrors++
+                        outcome.tags != null -> tagged++
                         else -> withoutTags++
                     }
-                    lastFailure = attempt!!.failure ?: lastFailure
+                    lastFailure = outcome.failure ?: lastFailure
 
                     if (committed) {
-                        if (attempt.retryable) {
+                        if (outcome.retryable) {
                             consecutiveFailures++
                             if (consecutiveFailures >=
                                 ParallelTagPolicy.MAX_CONSECUTIVE_TRANSIENT_FAILURES) {
                                 stop.compareAndSet(null, "RETRY_BACKOFF")
                             }
-                            if (attempt.throttled &&
+                            if (outcome.throttled &&
                                 ++finalThrottles >= ParallelTagPolicy.MAX_FINAL_THROTTLES) {
                                 stop.compareAndSet(null, "RETRY_BACKOFF")
                             }
