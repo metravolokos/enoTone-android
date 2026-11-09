@@ -9,6 +9,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -121,7 +122,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
 
         val workers = (0 until ParallelTagPolicy.WORKERS).map {
             launch(Dispatchers.IO) {
-                while (true) {
+                while (currentCoroutineContext().isActive) {
                     currentCoroutineContext().ensureActive()
                     if (stop.get() != null) break
                     if (System.nanoTime() - started >= PilotBudget.MAX_BATCH_NANOS) {
