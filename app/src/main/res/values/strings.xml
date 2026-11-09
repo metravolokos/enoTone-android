@@ -94,4 +94,5 @@
     <string name="handoff_no">нет</string>
     <string name="playback_seek_slider">Перемотка внутри текущего трека</string>
     <string name="playback_duration_unknown">--:--</string>
+    <string name="playback_error_stage">Источник ошибки: %1$s (только безопасный код)</string>
 </resources>
