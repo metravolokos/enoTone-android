@@ -45,7 +45,7 @@ class ManagedIndexContractTest(unittest.TestCase):
             "launch(Dispatchers.IO)",
             "delay(pause)",
             "recordFastScanIfUnchanged(",
-            'stop.compareAndSet(null, "AUTH_REJECTED")',
+            'stop.set("AUTH_REJECTED")',
         ):
             self.assertIn(needle, parallel)
         for needle in (
