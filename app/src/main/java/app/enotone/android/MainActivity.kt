@@ -119,7 +119,6 @@ private fun DiagnosticScreen() {
     val pilotOffline = stringResource(R.string.pilot_offline_report)
     val pilotStopped = stringResource(R.string.pilot_stopped)
     val pilotFailed = stringResource(R.string.pilot_failed)
-    val managedFormat = stringResource(R.string.managed_index_report)
     val managedPaused = stringResource(R.string.managed_index_paused)
     val managedStopped = stringResource(R.string.managed_index_stopped)
     val managedError = stringResource(R.string.managed_index_failed)
@@ -721,7 +720,7 @@ private fun DiagnosticScreen() {
                 }) { Text(stringResource(R.string.managed_index_stop)) }
         }
         managedStatus.progress?.let { current ->
-            Text(String.format(Locale.getDefault(), managedFormat,
+            Text(stringResource(R.string.managed_index_report,
                 current.completedBatches, current.attempted, current.savedWithTags,
                 current.retryableErrors, current.permanentErrors, current.getRequests,
                 current.downloadedBytes, current.remaining, current.stopCode),
