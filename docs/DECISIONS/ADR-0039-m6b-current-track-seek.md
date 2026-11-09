@@ -1,6 +1,6 @@
 # ADR-0039 — M6-B: перемотка внутри текущего трека
 
-Дата: 2026-11-09. Статус: Draft до CI и Huawei smoke.
+Дата: 2026-11-09. Статус: **Принято** — точный CI #157 и Huawei Preview #157; PR #30 объединён.
 
 ## Контекст
 
@@ -33,3 +33,6 @@
 Выбрано минимальное исправление без смены WebDAV/CacheDataSource: (а) явные кнопки Next/Previous трактуются как намерение начать проигрывание нового элемента, с prepare при ENDED/IDLE; (б) для неожиданного STATE_ENDED c playWhenReady=true, существующим next, без audio-focus suppression и вне repeat-one — одна отложенная перепроверяемая попытка продолжить. При обычной Media3 AUTO-транзиции ничего дополнительно не делаем. Не используем безусловный play() в каждом onMediaItemTransition: это нарушило бы добровольную Pause и аудиофокус. Не выполняем бесконтрольный retry при HTTP-ошибках и не меняем кэш/потоки.
 
 Новый PlaybackContinuationPolicyTest покрывает остановку на последнем, Pause/focus suppression и repeat-one; Python contract проверяет wiring. Ни один тест на JVM не доказывает реальную связку Media3 + Huawei; **PR остаётся Draft до exact-HEAD CI и повторного теста в новой Preview**.
+
+## Финальная приёмка (2026-11-09)
+Перемотка и основные переходы Media3 подтверждены на Huawei Preview #157; проверены последовательный и shuffle автопереходы, Next после Pause и repeat-one. CI #157 success, PR #30 merged (`6d14ee81`). Прежние Draft/ошибки описывают историю тестов; zero-GET и PCM gapless не измерялись.
