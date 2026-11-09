@@ -68,14 +68,14 @@ data class ManagedIndexProgress(
  * accessing real WebDAV data or depending on a device-specific runtime.
  */
 class ManagedTagIndexSession(
+    private val waitBetweenBatches: suspend (Long) -> Unit = { delay(it) },
+    private val nowNanos: () -> Long = System::nanoTime,
     private val runBatch: suspend (
         email: String,
         password: String,
         beforeFile: suspend () -> String?,
         onProgress: suspend (PilotIndexProgress) -> Unit,
     ) -> PilotIndexProgress,
-    private val waitBetweenBatches: suspend (Long) -> Unit = { delay(it) },
-    private val nowNanos: () -> Long = System::nanoTime,
 ) {
     constructor(database: EnoToneDatabase) : this(
         { email, password, gate, progress ->
