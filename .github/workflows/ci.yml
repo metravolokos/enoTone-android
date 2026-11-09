@@ -189,6 +189,89 @@ jobs:
             echo 'Requires GitHub sign-in. Unzip and install app-debug.apk.'
             echo 'Each Preview run has its own package ID and separate local Room database.'
           } >> "$GITHUB_STEP_SUMMARY"
+      # Stable Preview is an opt-in, main-only update channel. Never make
+      # signing secrets accessible to pull_request builds or untrusted forks.
+      - name: Prepare stable Preview keystore (main only)
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.ENOTONE_STABLE_PREVIEW_ENABLED == 'true'
+        shell: bash
+        env:
+          ENOTONE_KEYSTORE_BASE64: ${{ secrets.ENOTONE_PREVIEW_KEYSTORE_BASE64 }}
+          ENOTONE_PREVIEW_KEYSTORE_PASSWORD: ${{ secrets.ENOTONE_PREVIEW_KEYSTORE_PASSWORD }}
+          ENOTONE_PREVIEW_CERT_SHA256: ${{ vars.ENOTONE_PREVIEW_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          if [ -z "$ENOTONE_KEYSTORE_BASE64" ] ||
+             [ -z "$ENOTONE_PREVIEW_KEYSTORE_PASSWORD" ] ||
+             [ -z "$ENOTONE_PREVIEW_CERT_SHA256" ]; then
+            echo "::error::Stable Preview signing configuration is incomplete"
+            exit 1
+          fi
+          printf '%s' "$ENOTONE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/enotone-preview.p12"
+          test -s "$RUNNER_TEMP/enotone-preview.p12"
+
+      - name: Build and verify stable Preview APK (main only)
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.ENOTONE_STABLE_PREVIEW_ENABLED == 'true'
+        shell: bash
+        env:
+          ENOTONE_PREVIEW_KEYSTORE_PATH: ${{ runner.temp }}/enotone-preview.p12
+          ENOTONE_PREVIEW_KEYSTORE_PASSWORD: ${{ secrets.ENOTONE_PREVIEW_KEYSTORE_PASSWORD }}
+          ENOTONE_PREVIEW_CERT_SHA256: ${{ vars.ENOTONE_PREVIEW_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:assembleStablePreview
+          apk="app/build/outputs/apk/stablePreview/app-stablePreview.apk"
+          test -s "$apk"
+          aapt="$ANDROID_HOME/build-tools/36.0.0/aapt"
+          apksigner="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          "$aapt" dump badging "$apk" |
+            grep -F "package: name='app.enotone.android.preview' versionCode='${GITHUB_RUN_NUMBER}' "
+          "$aapt" dump badging "$apk" | grep -F "application-label:'enoTone Preview'"
+          actual="$("$apksigner" verify --print-certs "$apk" |
+            sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)"
+          test -n "$actual"
+          wanted="$(printf '%s' "$ENOTONE_PREVIEW_CERT_SHA256" |
+            tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          if [ "$actual" != "$wanted" ]; then
+            echo "::error::Stable Preview signing certificate fingerprint mismatch"
+            exit 1
+          fi
+          python3 tools/check_no_gms.py dependencies.txt "$apk"
+          echo "::notice::Stable Preview APK: same package and pinned signing certificate for updates"
+
+      - name: Upload verified stable Preview APK
+        id: upload_stable_preview
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.ENOTONE_STABLE_PREVIEW_ENABLED == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: enotone-stable-preview-apk
+          path: app/build/outputs/apk/stablePreview/app-stablePreview.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Link stable Preview in run summary
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.ENOTONE_STABLE_PREVIEW_ENABLED == 'true'
+        shell: bash
+        env:
+          STABLE_ARTIFACT_ID: ${{ steps.upload_stable_preview.outputs.artifact-id }}
+        run: |
+          set -euo pipefail
+          test -n "$STABLE_ARTIFACT_ID"
+          {
+            echo '### Stable enoTone Preview (in-place updates)'
+            echo
+            echo "[Download stable Preview APK ZIP](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts/${STABLE_ARTIFACT_ID})"
+            echo
+            echo 'Install once; install following stable Preview builds over it without uninstalling.'
+            echo 'The old per-run .preview.rN packages have separate Room databases.'
+            echo 'Do not use old per-run debug artifacts as upgrades.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Delete transient signing file
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/enotone-preview.p12"
+
       - name: Upload blocked diagnostic APK (not approved for installation)
         if: failure()
         uses: actions/upload-artifact@v4
