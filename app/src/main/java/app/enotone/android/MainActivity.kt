@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +53,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
+private enum class CredentialVaultState { NONE, RESTORED, SAVED, DELETED, FAILED }
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,8 +74,31 @@ private fun DiagnosticScreen() {
     var busy by remember { mutableStateOf(false) }
     var pilotJob by remember { mutableStateOf<Job?>(null) }
     var showingLibrary by remember { mutableStateOf(false) }
+    var vaultState by remember { mutableStateOf(CredentialVaultState.NONE) }
+    var vaultBusy by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val appContext = LocalContext.current.applicationContext
+
+    // Read only once per Activity creation. A missing entry does not create
+    // any key; changes typed by the user during this read are not overwritten.
+    LaunchedEffect(appContext) {
+        try {
+            val restored = withContext(Dispatchers.IO) {
+                LocalCredentialVault.restore(appContext)
+            }
+            if (restored != null && email.isBlank() && password.isBlank()) {
+                email = restored.email
+                password = restored.password
+                vaultState = CredentialVaultState.RESTORED
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            vaultState = CredentialVaultState.FAILED
+        } finally {
+            vaultBusy = false
+        }
+    }
     val importReport = stringResource(R.string.local_import_report)
     val storedReport = stringResource(R.string.local_saved_report)
     val storedTagsReport = stringResource(R.string.local_tag_coverage_report)
@@ -156,6 +182,64 @@ private fun DiagnosticScreen() {
             label = { Text(stringResource(R.string.app_password)) }, singleLine = true,
             visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(),
         )
+        // Saving is explicit and optional. Editing fields alone never writes
+        // secrets to disk; the vault is separate from Room and from Media3.
+        Text(stringResource(R.string.credential_vault_explanation),
+            style = MaterialTheme.typography.bodySmall)
+        // Long RU/EN labels must remain usable on narrow Huawei screens.
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(modifier = Modifier.fillMaxWidth(),
+                enabled = !vaultBusy && !busy &&
+                email.isNotBlank() && password.isNotBlank(),
+                onClick = {
+                    vaultBusy = true
+                    scope.launch {
+                        try {
+                            withContext(Dispatchers.IO) {
+                                LocalCredentialVault.save(appContext, email, password)
+                            }
+                            vaultState = CredentialVaultState.SAVED
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            vaultState = CredentialVaultState.FAILED
+                        } finally {
+                            vaultBusy = false
+                        }
+                    }
+                }) { Text(stringResource(R.string.credential_vault_save)) }
+            Button(modifier = Modifier.fillMaxWidth(),
+                enabled = !vaultBusy && !busy, onClick = {
+                vaultBusy = true
+                scope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            LocalCredentialVault.clear(appContext)
+                        }
+                        email = ""
+                        password = ""
+                        vaultState = CredentialVaultState.DELETED
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        vaultState = CredentialVaultState.FAILED
+                    } finally {
+                        vaultBusy = false
+                    }
+                }
+            }) { Text(stringResource(R.string.credential_vault_clear)) }
+        }
+        when (vaultState) {
+            CredentialVaultState.RESTORED ->
+                Text(stringResource(R.string.credential_vault_restored))
+            CredentialVaultState.SAVED ->
+                Text(stringResource(R.string.credential_vault_saved))
+            CredentialVaultState.DELETED ->
+                Text(stringResource(R.string.credential_vault_deleted))
+            CredentialVaultState.FAILED ->
+                Text(stringResource(R.string.credential_vault_failed))
+            CredentialVaultState.NONE -> Unit
+        }
         OutlinedTextField(
             value = testFile, onValueChange = { testFile = it },
             label = { Text(stringResource(R.string.test_file)) },

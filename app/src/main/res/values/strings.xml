@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">enoTone</string>
     <string name="diagnostic_title">Диагностика WebDAV — M1</string>
-    <string name="diagnostic_explanation">Диагностика Cloud.Mail.ru: пароль не сохраняется. Кнопка импорта сохраняет список файлов в приватную базу устройства.</string>
+    <string name="diagnostic_explanation">Диагностика Cloud.Mail.ru: список файлов сохраняется в приватную базу устройства. Сохранение входа — только по отдельной кнопке.</string>
     <string name="email">Полный email</string>
     <string name="app_password">Пароль внешнего приложения</string>
     <string name="test_file">Путь к тестовому аудиофайлу, например /AllMusic/test.mp3 (необязательно)</string>
@@ -95,4 +95,11 @@
     <string name="playback_seek_slider">Перемотка внутри текущего трека</string>
     <string name="playback_duration_unknown">--:--</string>
     <string name="playback_error_stage">Источник ошибки: %1$s (только безопасный код)</string>
+    <string name="credential_vault_explanation">Можно сохранить вход на этом устройстве. Данные шифруются ключом Android Keystore; сохранение добровольное, резервное копирование отключено. Удаление сохранённого входа не останавливает уже играющий трек.</string>
+    <string name="credential_vault_save">Сохранить вход на устройстве</string>
+    <string name="credential_vault_clear">Удалить сохранённый вход</string>
+    <string name="credential_vault_restored">Сохранённый вход восстановлен на этом устройстве.</string>
+    <string name="credential_vault_saved">Вход защищён и сохранён на этом устройстве.</string>
+    <string name="credential_vault_deleted">Сохранённые данные входа удалены. Медиатека не затронута.</string>
+    <string name="credential_vault_failed">Не удалось прочитать или изменить защищённые данные входа. Можно продолжить вручную.</string>
 </resources>
