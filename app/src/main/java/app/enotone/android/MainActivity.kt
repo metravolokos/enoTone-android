@@ -2,6 +2,8 @@ package app.enotone.android
 
 import android.os.Bundle
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.room.Room
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +42,8 @@ import app.enotone.library.AndroidAudioTagReader
 import app.enotone.library.FastAudioTagReader
 import app.enotone.library.PilotTagIndexer
 import app.enotone.library.PilotIndexProgress
+import app.enotone.library.ManagedTagIndexSession
+import app.enotone.library.ManagedIndexProgress
 import app.enotone.library.WebDavRangeReader
 import app.enotone.library.WebDavRangeMediaDataSource
 import app.enotone.database.RemoteTrackEntity
@@ -54,8 +59,25 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 
 private enum class CredentialVaultState { NONE, RESTORED, SAVED, DELETED, FAILED }
+private enum class ManagedScanState { IDLE, RUNNING, PAUSED, STOPPED, COMPLETE, ERROR }
+
+/** Fail closed if Wi-Fi is absent. Mobile/VPN requires explicit per-run opt-in. */
+internal fun managedIndexNetworkAllowed(context: Context, allowMobile: Boolean): Boolean {
+    val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        ?: return false
+    val active = manager.activeNetwork ?: return false
+    val capabilities = manager.getNetworkCapabilities(active) ?: return false
+    return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+        (allowMobile || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
+}
 
 class MainActivity : ComponentActivity() {
+    // Only metadata scans are paused on background; Media3 playback is untouched.
+    internal var pauseManagedIndexOnStop: (() -> Unit)? = null
+    override fun onStop() {
+        pauseManagedIndexOnStop?.invoke()
+        super.onStop()
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -73,11 +95,31 @@ private fun DiagnosticScreen() {
     var report by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var pilotJob by remember { mutableStateOf<Job?>(null) }
+    var managedJob by remember { mutableStateOf<Job?>(null) }
+    var managedState by remember { mutableStateOf(ManagedScanState.IDLE) }
+    var managedReport by remember { mutableStateOf("") }
+    var allowMobileIndexing by remember { mutableStateOf(false) }
     var showingLibrary by remember { mutableStateOf(false) }
     var vaultState by remember { mutableStateOf(CredentialVaultState.NONE) }
     var vaultBusy by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
-    val appContext = LocalContext.current.applicationContext
+    val currentContext = LocalContext.current
+    val appContext = currentContext.applicationContext
+    val ownerActivity = currentContext as? MainActivity
+
+    DisposableEffect(ownerActivity) {
+        // Android/Huawei background restrictions: never keep scanning unseen.
+        ownerActivity?.pauseManagedIndexOnStop = {
+            if (managedJob?.isActive == true) {
+                managedState = ManagedScanState.PAUSED
+                managedJob?.cancel()
+            }
+        }
+        onDispose {
+            ownerActivity?.pauseManagedIndexOnStop = null
+            managedJob?.cancel()
+        }
+    }
 
     // Read only once per Activity creation. A missing entry does not create
     // any key; changes typed by the user during this read are not overwritten.
@@ -114,6 +156,10 @@ private fun DiagnosticScreen() {
     val pilotOffline = stringResource(R.string.pilot_offline_report)
     val pilotStopped = stringResource(R.string.pilot_stopped)
     val pilotFailed = stringResource(R.string.pilot_failed)
+    val managedFormat = stringResource(R.string.managed_index_report)
+    val managedPaused = stringResource(R.string.managed_index_paused)
+    val managedStopped = stringResource(R.string.managed_index_stopped)
+    val managedError = stringResource(R.string.managed_index_failed)
     val missingCredentials = stringResource(R.string.missing_credentials)
     val diagnosticFailed = stringResource(R.string.diagnostic_failed)
     val countReport = stringResource(R.string.file_count_report)
@@ -154,6 +200,61 @@ private fun DiagnosticScreen() {
             } finally {
                 pilotJob = null
                 busy = false
+            }
+        }
+    }
+
+    val startManagedSession: () -> Unit = {
+        if (!busy && email.isNotBlank() && password.isNotBlank()) {
+            busy = true
+            managedState = ManagedScanState.RUNNING
+            managedReport = ""
+            val activeEmail = email
+            val activePassword = password
+            val permitMobile = allowMobileIndexing
+            managedJob = scope.launch {
+                try {
+                    val result = withContext(Dispatchers.IO) {
+                        val database = openLibraryDatabase(appContext)
+                        try {
+                            ManagedTagIndexSession(database).run(
+                                activeEmail, activePassword,
+                                networkAllowed = {
+                                    managedIndexNetworkAllowed(appContext, permitMobile)
+                                },
+                                onProgress = { current ->
+                                    withContext(Dispatchers.Main) {
+                                        managedReport = String.format(Locale.getDefault(),
+                                            managedFormat, current.completedBatches,
+                                            current.attempted, current.savedWithTags,
+                                            current.retryableErrors, current.permanentErrors,
+                                            current.getRequests, current.downloadedBytes,
+                                            current.remaining, current.stopCode)
+                                    }
+                                },
+                            )
+                        } finally {
+                            database.close()
+                        }
+                    }
+                    managedReport = String.format(Locale.getDefault(), managedFormat,
+                        result.completedBatches, result.attempted, result.savedWithTags,
+                        result.retryableErrors, result.permanentErrors, result.getRequests,
+                        result.downloadedBytes, result.remaining, result.stopCode)
+                    managedState = ManagedScanState.COMPLETE
+                } catch (cancelled: CancellationException) {
+                    managedReport += if (managedState == ManagedScanState.STOPPED)
+                        "\n" + managedStopped else "\n" + managedPaused
+                    if (managedState != ManagedScanState.STOPPED)
+                        managedState = ManagedScanState.PAUSED
+                    throw cancelled
+                } catch (_: Exception) {
+                    managedState = ManagedScanState.ERROR
+                    managedReport += "\n" + managedError
+                } finally {
+                    managedJob = null
+                    busy = false
+                }
             }
         }
     }
@@ -638,6 +739,37 @@ private fun DiagnosticScreen() {
         }) {
             Text(stringResource(R.string.pilot_cancel))
         }
+
+        Text(stringResource(R.string.managed_index_title),
+            style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.managed_index_explanation),
+            style = MaterialTheme.typography.bodySmall)
+        Row {
+            Checkbox(checked = allowMobileIndexing, enabled = !busy,
+                onCheckedChange = { allowMobileIndexing = it })
+            Text(stringResource(R.string.managed_index_allow_mobile),
+                style = MaterialTheme.typography.bodySmall)
+        }
+        Button(modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && email.isNotBlank() && password.isNotBlank(),
+            onClick = { startManagedSession() }) {
+            Text(stringResource(if (managedState == ManagedScanState.PAUSED)
+                R.string.managed_index_resume else R.string.managed_index_start))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(enabled = managedState == ManagedScanState.RUNNING &&
+                managedJob?.isActive == true, onClick = {
+                    managedState = ManagedScanState.PAUSED
+                    managedJob?.cancel()
+                }) { Text(stringResource(R.string.managed_index_pause)) }
+            Button(enabled = managedState == ManagedScanState.RUNNING ||
+                managedState == ManagedScanState.PAUSED, onClick = {
+                    managedState = ManagedScanState.STOPPED
+                    managedJob?.cancel()
+                }) { Text(stringResource(R.string.managed_index_stop)) }
+        }
+        if (managedReport.isNotEmpty())
+            Text(managedReport, style = MaterialTheme.typography.bodyMedium)
         if (report.isNotEmpty()) Text(report, style = MaterialTheme.typography.bodyMedium)
     }
 }

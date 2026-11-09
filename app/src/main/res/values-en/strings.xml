@@ -112,4 +112,15 @@
     <string name="library_groups_empty">No recognized groups yet. Tags can be indexed later in small batches.</string>
     <string name="pilot_resume_bounded">Resume indexing (up to 100 files)</string>
     <string name="pilot_resume_explanation">One manual session: up to 60 HTTP GETs and 4 MiB downloaded, a roughly 3-minute time stop checked between files. Completed results stay in Room. You can stop and resume; there is no automatic whole-folder scan. Mobile data charges may apply.</string>
+    <string name="managed_index_title">Managed indexing</string>
+    <string name="managed_index_explanation">Explicit start, screen must stay open: up to 4 batches per session, at most 240 HTTP GETs / 16 MiB. Every batch is separately limited to 60 GETs / 4 MiB / roughly 3 minutes. Results are checkpointed in Room after each file. Indexing pauses when the app is backgrounded or locked. Network and authentication errors stop the session. Wi-Fi only by default.</string>
+    <string name="managed_index_allow_mobile">Allow mobile data and non-Wi-Fi networks for the next session (may use cellular data)</string>
+    <string name="managed_index_start">Start bounded session</string>
+    <string name="managed_index_resume">Resume from saved progress</string>
+    <string name="managed_index_pause">Pause</string>
+    <string name="managed_index_stop">Stop</string>
+    <string name="managed_index_paused">Paused. Completed files stay saved; resume explicitly when ready.</string>
+    <string name="managed_index_stopped">Stopped by user. Indexed files are preserved.</string>
+    <string name="managed_index_failed">Session interrupted; saved tags and file list remain intact.</string>
+    <string name="managed_index_report">Session — batches completed: %1$d; processed: %2$d; with tags: %3$d; retryable errors: %4$d; permanent errors: %5$d; GETs: %6$d; bytes: %7$d; remaining: %8$d; status: %9$s.</string>
 </resources>

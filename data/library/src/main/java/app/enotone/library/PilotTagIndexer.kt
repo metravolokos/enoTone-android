@@ -135,6 +135,10 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
         password: String,
         count: Int,
         onProgress: suspend (PilotIndexProgress) -> Unit = {},
+        // Optional policy gate for managed sessions; old 10/20/100 pilots
+        // retain their previously accepted behavior.
+        beforeFile: suspend () -> String? = { null },
+        stopOnRetryableFailure: Boolean = false,
     ): PilotIndexProgress {
         require(PilotBudget.validCount(count))
         require(password.isNotBlank())
@@ -169,6 +173,13 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
             }
             if (!PilotBudget.mayStartFile(gets, bytes, count)) {
                 stop = "NETWORK_BUDGET"
+                break
+            }
+            // Check network policy before every new file; no HTTP after a
+            // network change has been noticed at the file boundary.
+            val policyStop = beforeFile()
+            if (policyStop != null) {
+                stop = policyStop
                 break
             }
             val remainingGets = PilotBudget.requestCap(count) - gets
@@ -233,6 +244,12 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                 else -> completedWithoutTags++
             }
             onProgress(report())
+            // Managed sessions must not hammer a throttled/failed server.
+            // Retryable items stay in Room and can be retried manually later.
+            if (stopOnRetryableFailure && recordCode.startsWith("RETRY_")) {
+                stop = "RETRY_BACKOFF"
+                break
+            }
             // Stop if the cumulative HTTP budget is exhausted. No automatic retry.
             if (!PilotBudget.mayStartFile(gets, bytes, count)) {
                 stop = "NETWORK_BUDGET"
