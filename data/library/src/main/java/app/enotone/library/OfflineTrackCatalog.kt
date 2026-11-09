@@ -12,6 +12,7 @@ data class OfflineTrackRow(
     val title: String,
     val artist: String?,
     val album: String?,
+    val albumArtist: String? = null,
 )
 
 object OfflineTrackCatalog {
@@ -26,6 +27,7 @@ object OfflineTrackCatalog {
                     title = track.title?.takeIf { it.isNotBlank() } ?: fallback,
                     artist = track.artist?.takeIf { it.isNotBlank() },
                     album = track.album?.takeIf { it.isNotBlank() },
+                    albumArtist = track.albumArtist?.takeIf { it.isNotBlank() },
                 )
             }
             .sortedWith(compareBy<OfflineTrackRow> { it.title.lowercase(Locale.ROOT) }
@@ -37,7 +39,7 @@ object OfflineTrackCatalog {
             .split(Regex("\\s+")).filter { it.isNotBlank() }
         if (terms.isEmpty()) return items
         return items.filter { row ->
-            val haystack = listOfNotNull(row.title, row.artist, row.album)
+            val haystack = listOfNotNull(row.title, row.artist, row.album, row.albumArtist)
                 .joinToString(" ").lowercase(Locale.ROOT)
             terms.all { haystack.contains(it) }
         }

@@ -7,6 +7,8 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.SystemClock
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +44,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.MediaMetadata
 import app.enotone.library.LibrarySnapshotPlanner
+import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.CachePhase
@@ -77,6 +80,8 @@ private fun media3PlaybackLabel(player: Player?): String {
     }
 }
 
+private enum class LibrarySection { TRACKS, ALBUMS, ARTISTS }
+
 /**
  * M2 offline catalogue + M3 one-track MediaSessionService playback.
  * The track list stays local. A tap with RAM-only credentials starts a single
@@ -97,6 +102,8 @@ internal fun OfflineLibraryScreen(
         mutableStateOf<Map<String, QueueTrack>>(emptyMap())
     }
     var search by remember(accountEmail) { mutableStateOf("") }
+    var section by remember(accountEmail) { mutableStateOf(LibrarySection.TRACKS) }
+    var selectedGroupKey by remember(accountEmail) { mutableStateOf<String?>(null) }
     var loading by remember(accountEmail) { mutableStateOf(true) }
     var failed by remember(accountEmail) { mutableStateOf(false) }
     var selecting by remember { mutableStateOf(false) }
@@ -276,7 +283,28 @@ internal fun OfflineLibraryScreen(
         }
     }
 
-    val visible = remember(tracks, search) { OfflineTrackCatalog.search(tracks, search) }
+    // Pure RAM grouping from the single Room snapshot; never scans cloud files.
+    val groups = remember(tracks, section) {
+        when (section) {
+            LibrarySection.ALBUMS -> OfflineLibraryGrouping.albums(tracks)
+            LibrarySection.ARTISTS -> OfflineLibraryGrouping.artists(tracks)
+            LibrarySection.TRACKS -> emptyList()
+        }
+    }
+    val selectedGroup = groups.firstOrNull { it.key == selectedGroupKey }
+    val shownGroups = remember(groups, search) {
+        groups.filter { OfflineLibraryGrouping.matches(it, search) }
+    }
+    // The visible set is also the playback queue context; no Media3 changes.
+    val visible = remember(tracks, section, selectedGroup, search) {
+        val candidates = when (section) {
+            LibrarySection.TRACKS -> tracks
+            else -> selectedGroup?.let { group ->
+                tracks.filter { it.id in group.trackIds }
+            } ?: emptyList()
+        }
+        OfflineTrackCatalog.search(candidates, search)
+    }
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -284,10 +312,38 @@ internal fun OfflineLibraryScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = onBack) { Text(stringResource(R.string.library_back)) }
             Text(
-                text = stringResource(R.string.library_title),
+                text = stringResource(when (section) {
+                    LibrarySection.TRACKS -> R.string.library_tab_tracks
+                    LibrarySection.ALBUMS -> R.string.library_tab_albums
+                    LibrarySection.ARTISTS -> R.string.library_tab_artists
+                }),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(top = 10.dp),
             )
+        }
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            OutlinedButton(enabled = !selecting, onClick = {
+                section = LibrarySection.TRACKS
+                selectedGroupKey = null
+                search = ""
+            }) { Text(stringResource(R.string.library_tab_tracks)) }
+            OutlinedButton(enabled = !selecting, onClick = {
+                section = LibrarySection.ALBUMS
+                selectedGroupKey = null
+                search = ""
+            }) { Text(stringResource(R.string.library_tab_albums)) }
+            OutlinedButton(enabled = !selecting, onClick = {
+                section = LibrarySection.ARTISTS
+                selectedGroupKey = null
+                search = ""
+            }) { Text(stringResource(R.string.library_tab_artists)) }
+        }
+        if (section != LibrarySection.TRACKS && selectedGroup != null) {
+            OutlinedButton(onClick = { selectedGroupKey = null; search = "" }) {
+                Text(stringResource(R.string.library_group_back))
+            }
+            Text(selectedGroup.name, style = MaterialTheme.typography.titleMedium)
         }
         OutlinedTextField(
             value = search,
@@ -296,7 +352,15 @@ internal fun OfflineLibraryScreen(
             label = { Text(stringResource(R.string.library_search)) },
             singleLine = true,
         )
-        Text(stringResource(R.string.library_count, visible.size, tracks.size))
+        if (section != LibrarySection.TRACKS && selectedGroup == null) {
+            Text(stringResource(R.string.library_group_count, shownGroups.size))
+            Text(stringResource(R.string.library_group_tags_only),
+                style = MaterialTheme.typography.bodySmall)
+        } else {
+            Text(stringResource(R.string.library_count, visible.size,
+                if (section == LibrarySection.TRACKS) tracks.size
+                else selectedGroup?.trackIds?.size ?: 0))
+        }
         OutlinedButton(onClick = { showDiagnostics = !showDiagnostics }) {
             Text(stringResource(
                 if (showDiagnostics) R.string.playback_diagnostics_hide
@@ -510,6 +574,32 @@ internal fun OfflineLibraryScreen(
             loading -> Text(stringResource(R.string.library_loading))
             failed -> Text(stringResource(R.string.library_failed))
             tracks.isEmpty() -> Text(stringResource(R.string.library_empty))
+            section != LibrarySection.TRACKS && selectedGroup == null -> {
+                if (shownGroups.isEmpty()) {
+                    Text(stringResource(R.string.library_groups_empty))
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(shownGroups, key = { it.key }) { group ->
+                            Column(modifier = Modifier.fillMaxWidth().clickable {
+                                selectedGroupKey = group.key
+                                search = ""
+                            }.padding(vertical = 4.dp)) {
+                                Text(group.name, maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis)
+                                val summary = listOfNotNull(group.subtitle,
+                                    stringResource(R.string.library_group_tracks,
+                                        group.trackIds.size)).joinToString(" · ")
+                                Text(summary, style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            }
             else -> LazyColumn(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
