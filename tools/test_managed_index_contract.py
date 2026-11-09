@@ -64,9 +64,9 @@ class ManagedIndexContractTest(unittest.TestCase):
             "networkAllowed = { true }",
             "override fun onTimeout(startId: Int, fgsType: Int)",
             "stopForeground(STOP_FOREGROUND_REMOVE)",
-            "record",  # Comment/doc refers to checkpoints, not secrets.
+            "ManagedScanRuntime.update(",
         ):
-            self.assertIn(needle, service.lower() if needle == "record" else service)
+            self.assertIn(needle, service)
         for forbidden in (
             "onStop()", "pauseManagedIndexOnStop", "TRANSPORT_WIFI",
             "allowMobileIndexing", "managedIndexNetworkAllowed",
