@@ -50,6 +50,8 @@ import app.enotone.playback.HandoffPhase
 import app.enotone.playback.HandoffSnapshot
 import app.enotone.playback.PlaybackSetupTimings
 import app.enotone.playback.PlaybackSeekPolicy
+import app.enotone.playback.PlaybackDataIssue
+import app.enotone.playback.PlaybackDataIssueClassifier
 import app.enotone.playback.TransientCacheStatus
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.QueueTrack
@@ -110,6 +112,7 @@ internal fun OfflineLibraryScreen(
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
     var shuffleEnabled by remember { mutableStateOf(false) }
     var errorCode by remember { mutableStateOf(0) }
+    var errorReadIssue by remember { mutableStateOf(PlaybackDataIssue.UNKNOWN) }
     var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
     // Diagnostic mode belongs only to the next tap, not to a running stream.
     // Accepted M5 mode is the normal default; raw WebDAV remains diagnostic.
@@ -236,6 +239,7 @@ internal fun OfflineLibraryScreen(
             }
             override fun onPlayerError(error: PlaybackException) {
                 errorCode = error.errorCode
+                errorReadIssue = PlaybackDataIssueClassifier.classify(error)
                 playbackState = "ERROR"
             }
         }
@@ -348,6 +352,10 @@ internal fun OfflineLibraryScreen(
                 else -> stringResource(R.string.playback_loading)
             }
             Text(status)
+            if (playbackState == "ERROR" && errorCode != 0) {
+                Text(stringResource(R.string.playback_error_stage, errorReadIssue.name),
+                    style = MaterialTheme.typography.bodySmall)
+            }
             val shownFraction = if (isScrubbing) scrubFraction
                 else PlaybackSeekPolicy.fraction(positionMs, durationMs)
             val shownPositionMs = if (isScrubbing) {
@@ -516,6 +524,7 @@ internal fun OfflineLibraryScreen(
                         selecting = true
                         playbackState = "LOADING"
                         selectionStartedAt = SystemClock.elapsedRealtime()
+                        errorReadIssue = PlaybackDataIssue.UNKNOWN
                         roomDurationMs = null
                         media3DurationMs = null
                         setupTimings = null
