@@ -30,7 +30,9 @@ class BoundedTagResumeContractTest(unittest.TestCase):
         assert "onClick = { runPilot(10) }" in ui
         assert "onClick = { runPilot(20) }" in ui
         assert "pilotJob?.cancel()" in ui
-        assert "PilotTagIndexer(database).run(email, password, count)" in ui
+        assert "PilotTagIndexer(database).run(" in ui
+        assert "email, password, count," in ui
+        assert "onProgress = { progress ->" in ui
         assert "LocalCredentialVault.restore(appContext)" in ui
         assert "R.string.pilot_resume_explanation" in ui
         assert "onClick = { runPilot(3590) }" not in ui
