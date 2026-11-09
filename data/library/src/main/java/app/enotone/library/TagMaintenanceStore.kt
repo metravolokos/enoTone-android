@@ -2,6 +2,7 @@ package app.enotone.library
 
 import app.enotone.database.EnoToneDatabase
 import app.enotone.database.MissingAlbumDiagnostic
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
@@ -70,6 +71,8 @@ class TagMaintenanceStore(private val database: EnoToneDatabase) {
                 result.code.name, valid,
                 result.embeddedAlbum, reader.stats().requests,
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             // No exception message, path, credentials or remote tag values.
             AlbumSourceProbe(
