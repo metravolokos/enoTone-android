@@ -118,12 +118,24 @@ interface RemoteTrackDao {
                     THEN 'RETRY_REFRESH'
                 ELSE :code END,
             title = CASE WHEN :code LIKE 'RETRY_%' OR :code LIKE 'FAILED_%'
+                  OR (tagScanCode = 'RETRY_REFRESH'
+                      AND :title IS NULL AND :artist IS NULL
+                      AND :album IS NULL AND :albumArtist IS NULL)
                 THEN title ELSE :title END,
             artist = CASE WHEN :code LIKE 'RETRY_%' OR :code LIKE 'FAILED_%'
+                  OR (tagScanCode = 'RETRY_REFRESH'
+                      AND :title IS NULL AND :artist IS NULL
+                      AND :album IS NULL AND :albumArtist IS NULL)
                 THEN artist ELSE :artist END,
             album = CASE WHEN :code LIKE 'RETRY_%' OR :code LIKE 'FAILED_%'
+                  OR (tagScanCode = 'RETRY_REFRESH'
+                      AND :title IS NULL AND :artist IS NULL
+                      AND :album IS NULL AND :albumArtist IS NULL)
                 THEN album ELSE :album END,
             albumArtist = CASE WHEN :code LIKE 'RETRY_%' OR :code LIKE 'FAILED_%'
+                  OR (tagScanCode = 'RETRY_REFRESH'
+                      AND :title IS NULL AND :artist IS NULL
+                      AND :album IS NULL AND :albumArtist IS NULL)
                 THEN albumArtist ELSE :albumArtist END
         WHERE id = :id AND sourceKey = :sourceKey AND encodedPath = :path
           AND remoteEtag IS :etag AND remoteSize IS :size
