@@ -53,15 +53,9 @@ class TagMaintenanceContractTest(unittest.TestCase):
     def test_actual_sql_keeps_old_metadata_during_failed_refresh(self):
         source = self.text("core/database/src/main/java/app/enotone/database/RemoteTrackDao.kt")
         sql = dict((name, query) for query, name in re.findall(
-            r'@Query\\("""(.*?)"""\\)\\s*suspend fun (\\w+)\\(',
+            r'@Query\(\s*"""(.*?)"""\s*\)\s*suspend fun (\w+)\(',
             source, flags=re.S,
         ))
-        # The expression above intentionally mirrors Room's literal @Query syntax.
-        if not sql:
-            sql = dict((name, query) for query, name in re.findall(
-                r'@Query\\(\\s*"{3}(.*?)"{3}\\s*\\)\\s*suspend fun (\\w+)\\(',
-                source, flags=re.S,
-            ))
         self.assertIn("requestTagRefresh", sql)
         self.assertIn("recordFastScanIfUnchanged", sql)
         self.assertIn("pendingFastScans", sql)
