@@ -102,16 +102,23 @@ interface RemoteTrackDao {
     @Query("""
         UPDATE remote_tracks
         SET tagScanCode = :code,
-            title = :title,
-            artist = :artist,
-            album = :album,
-            albumArtist = :albumArtist
+            -- Refresh failures must not erase previously known good metadata.
+            -- Only a successfully parsed ID3/Vorbis payload replaces old tags.
+            title = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :title ELSE title END,
+            artist = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :artist ELSE artist END,
+            album = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :album ELSE album END,
+            albumArtist = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :albumArtist ELSE albumArtist END
         WHERE id = :id AND sourceKey = :sourceKey AND encodedPath = :path
           AND remoteEtag IS :etag AND remoteSize IS :size
           AND remoteModified IS :modified AND missingScans = 0
           AND (tagScanCode IS NULL OR tagScanCode LIKE 'RETRY_%')
-          AND title IS NULL AND artist IS NULL
-          AND album IS NULL AND albumArtist IS NULL
+          AND (tagScanCode LIKE 'RETRY_%' OR
+              (title IS NULL AND artist IS NULL
+               AND album IS NULL AND albumArtist IS NULL))
     """)
     suspend fun recordFastScanIfUnchanged(
         id: String, sourceKey: String, path: String,
@@ -125,12 +132,61 @@ interface RemoteTrackDao {
         SELECT * FROM remote_tracks
         WHERE sourceKey = :sourceKey AND missingScans = 0
           AND remoteSize > 0
-          AND (tagScanCode IS NULL OR tagScanCode LIKE 'RETRY_%')
-          AND title IS NULL AND artist IS NULL
-          AND album IS NULL AND albumArtist IS NULL
+          AND ((tagScanCode IS NULL AND title IS NULL AND artist IS NULL
+                AND album IS NULL AND albumArtist IS NULL)
+               OR tagScanCode LIKE 'RETRY_%')
           AND (LOWER(fileName) LIKE '%.mp3' OR LOWER(fileName) LIKE '%.flac')
     """)
     suspend fun pendingFastScans(sourceKey: String): List<RemoteTrackEntity>
+
+    /**
+     * Read-only on-device audit. Private filenames and tag values may appear
+     * only on the local screen; never in logs, GitHub issues or telemetry.
+     */
+    @Query("""
+        SELECT * FROM remote_tracks
+        WHERE sourceKey = :sourceKey AND missingScans = 0
+          AND album IS NULL
+        ORDER BY fileName COLLATE NOCASE, id
+        LIMIT :limit
+    """)
+    suspend fun tracksWithoutAlbum(sourceKey: String, limit: Int = 30): List<RemoteTrackEntity>
+
+    @Query("""
+        SELECT * FROM remote_tracks
+        WHERE sourceKey = :sourceKey AND missingScans = 0
+          AND albumArtist IS NULL
+        ORDER BY fileName COLLATE NOCASE, id
+        LIMIT :limit
+    """)
+    suspend fun tracksWithoutAlbumArtist(sourceKey: String, limit: Int = 30): List<RemoteTrackEntity>
+
+    /**
+     * Explicit local queue request. Does not erase tag values; a later
+     * managed scan will re-fetch this single version with bounded HTTP Range.
+     */
+    @Query("""
+        UPDATE remote_tracks
+        SET tagScanCode = 'RETRY_REFRESH'
+        WHERE sourceKey = :sourceKey AND id = :id AND missingScans = 0
+          AND remoteSize > 0
+          AND (LOWER(fileName) LIKE '%.mp3' OR LOWER(fileName) LIKE '%.flac')
+    """)
+    suspend fun queueTagRefreshById(sourceKey: String, id: String): Int
+
+    /**
+     * Explicit all-files refresh queue for the current account. Does not
+     * delete or null tags. One atomic UPDATE, no additional Room schema.
+     * Actual HTTP requests still require user-started managed indexing.
+     */
+    @Query("""
+        UPDATE remote_tracks
+        SET tagScanCode = 'RETRY_REFRESH'
+        WHERE sourceKey = :sourceKey AND missingScans = 0
+          AND remoteSize > 0
+          AND (LOWER(fileName) LIKE '%.mp3' OR LOWER(fileName) LIKE '%.flac')
+    """)
+    suspend fun queueAllTagRefresh(sourceKey: String): Int
 
     /** All counts are local; text, paths and private tags are never selected. */
     @Query("""
