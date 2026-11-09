@@ -623,6 +623,16 @@ private fun DiagnosticScreen() {
             onClick = { runPilot(20) }) {
             Text(stringResource(R.string.pilot_twenty))
         }
+        // Explicit, bounded foreground-only resume: ≤100 candidates,
+        // ≤60 GET, ≤4 MiB, 180-second soft wall-clock cap per press.
+        // Checkpoints already committed in Room are never re-downloaded.
+        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { runPilot(100) }) {
+            Text(stringResource(R.string.pilot_resume_bounded))
+        }
+        Text(stringResource(R.string.pilot_resume_explanation),
+            style = MaterialTheme.typography.bodySmall)
         Button(enabled = busy && pilotJob != null, onClick = {
             pilotJob?.cancel()
         }) {

@@ -8,9 +8,10 @@ import kotlinx.coroutines.ensureActive
 import java.util.Locale
 
 /**
- * Deliberately small, user-triggered, sequential pilot: 10 or 20 files only.
- * Every result is checkpointed in Room before the next GET; process death
- * therefore cannot erase completed work. No background job or saved password.
+ * User-triggered sequential indexing: 10/20-file pilots or a bounded resume
+ * up to 100 candidates, with the SAME per-run ceilings on network and time.
+ * Every result is checkpointed in Room before the next GET. Process death
+ * cannot erase completed work. No background jobs or saved password here.
  */
 data class PilotIndexProgress(
     val requested: Int,
@@ -88,7 +89,11 @@ internal object PilotBudget {
     const val MAX_BATCH_GETS = 60
     const val MAX_BATCH_NANOS = 180L * 1_000_000_000L
     private const val BLOCK = 65536L
-    fun validCount(count: Int): Boolean = count == 10 || count == 20
+    // The 100-file mode is a candidate ceiling, NEVER a promise of 100 GETs.
+    // It shares the existing 60-request, 4-MiB, ~180-second hard/soft caps.
+    const val RESUME_LIMIT = 100
+    fun validCount(count: Int): Boolean =
+        count == 10 || count == 20 || count == RESUME_LIMIT
     fun requestCap(count: Int) = minOf(MAX_BATCH_GETS, count * 3)
     fun byteCap(count: Int) = minOf(MAX_BATCH_BYTES, count * 256L * 1024)
     fun mayStartFile(usedGets: Int, usedBytes: Long, count: Int): Boolean =
