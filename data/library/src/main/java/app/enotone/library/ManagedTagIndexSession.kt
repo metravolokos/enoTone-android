@@ -34,6 +34,9 @@ data class ManagedIndexProgress(
     val downloadedBytes: Long,
     val remaining: Int,
     val stopCode: String,
+    val lastErrorStage: String = "NONE",
+    val lastErrorReason: String = "NONE",
+    val lastErrorHttpStatus: Int = 0,
 )
 
 /**
@@ -81,6 +84,9 @@ class ManagedTagIndexSession(
         var bytes = 0L
         var remaining = 0
         var stop = "SESSION_LIMIT"
+        var lastStage = "NONE"
+        var lastReason = "NONE"
+        var lastHttp = 0
 
         fun snapshot(partial: PilotIndexProgress? = null, code: String = stop) =
             ManagedIndexProgress(
@@ -95,6 +101,10 @@ class ManagedTagIndexSession(
                 downloadedBytes = bytes + (partial?.downloadedBytes ?: 0L),
                 remaining = partial?.remaining ?: remaining,
                 stopCode = code,
+                lastErrorStage = partial?.lastErrorStage?.takeIf { it != "NONE" } ?: lastStage,
+                lastErrorReason = partial?.lastErrorReason?.takeIf { it != "NONE" } ?: lastReason,
+                lastErrorHttpStatus = if (partial?.lastErrorStage != null &&
+                    partial.lastErrorStage != "NONE") partial.lastErrorHttpStatus else lastHttp,
             )
 
         while (ManagedIndexLimits.underGlobalCaps(batches, gets, bytes)) {
@@ -126,6 +136,11 @@ class ManagedTagIndexSession(
             gets += result.getRequests
             bytes += result.downloadedBytes
             remaining = result.remaining
+            if (result.lastErrorStage != "NONE") {
+                lastStage = result.lastErrorStage
+                lastReason = result.lastErrorReason
+                lastHttp = result.lastErrorHttpStatus
+            }
             batches++
             stop = when {
                 result.stopCode in setOf("AUTH_REJECTED", "RETRY_BACKOFF", "NETWORK_POLICY") ->
