@@ -30,6 +30,8 @@ object PlaybackSeekPolicy {
         val seconds = (totalSeconds % 60L).toString().padStart(2, '0')
         val minutes = ((totalSeconds / 60L) % 60L).toString().padStart(2, '0')
         val hours = totalSeconds / 3600L
-        return if (hours > 0L) "$hours:$minutes:$seconds" else "$minutes:$seconds"
+        return if (hours > 0L) {
+            "${hours.toString().padStart(2, '0')}:$minutes:$seconds"
+        } else "$minutes:$seconds"
     }
 }
