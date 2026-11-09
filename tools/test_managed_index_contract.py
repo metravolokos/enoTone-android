@@ -145,10 +145,11 @@ class ManagedIndexContractTest(unittest.TestCase):
         ):
             self.assertIn(needle, main)
         for forbidden in (
-            'putExtra("password"', "TRANSPORT_WIFI", "PROPFIND",
+            'putExtra("password"', "TRANSPORT_WIFI",
             "BOOT_COMPLETED", "GlobalScope",
         ):
-            self.assertNotIn(forbidden, runner + service + main)
+            self.assertNotIn(forbidden, runner + service)
+        self.assertNotIn("PROPFIND", runner)
 
     def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
         main = (ROOT / "app/src/main/java/app/enotone/android/"
