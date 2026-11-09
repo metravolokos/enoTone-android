@@ -295,5 +295,41 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("Log.", policy)
 
 
+    def test_m6b_eof_boundary_matches_media3_and_never_calls_webdav(self):
+        base = ROOT / "playback/src/main/java/app/enotone/playback"
+        source = (base / "WebDavMedia3DataSource.kt").read_text(encoding="utf-8")
+        window = (base / "PlaybackReadWindow.kt").read_text(encoding="utf-8")
+        tests = (ROOT / "playback/src/test/java/app/enotone/playback/"
+                 "PlaybackReadWindowTest.kt").read_text(encoding="utf-8")
+        self.assertIn("PlaybackReadWindow.resolve(", source)
+        self.assertIn("if (window.endInclusive == null)", source)
+        self.assertLess(source.index("if (window.endInclusive == null)"),
+                        source.index("conn = URL(safeUrl).openConnection()"))
+        self.assertIn("bytesLeft = 0L", source)
+        self.assertIn("return window.openReturnLength", source)
+        self.assertIn("PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE", source)
+        self.assertIn("if (position == size)", window)
+        self.assertIn("endInclusive = null", window)
+        self.assertIn("exactEofIsLegalWithoutAnyNetworkRange", tests)
+        self.assertIn("beyondEofRemainsRejectedAndNumbersAreValidated", tests)
+
+    def test_m6b_error_diagnostics_exposes_only_fixed_codes(self):
+        base = ROOT / "playback/src/main/java/app/enotone/playback"
+        source = (base / "WebDavMedia3DataSource.kt").read_text(encoding="utf-8")
+        issue = (base / "PlaybackDataIssue.kt").read_text(encoding="utf-8")
+        ui = (ROOT / "app/src/main/java/app/enotone/android/"
+              "OfflineLibraryScreen.kt").read_text(encoding="utf-8")
+        self.assertIn("PlaybackDataIssue.OPEN_RANGE", source)
+        self.assertIn("PlaybackDataIssue.READ_TRUNCATED", source)
+        self.assertIn("PlaybackDataIssue.OPEN_NETWORK", source)
+        self.assertIn("PlaybackDataIssueClassifier.classify(error)", ui)
+        self.assertIn("errorReadIssue.name", ui)
+        self.assertIn("enum class PlaybackDataIssue", issue)
+        self.assertNotIn("error.message", ui)
+        self.assertNotIn("error.cause.toString()", ui)
+        self.assertNotIn("Log.", issue)
+        self.assertNotIn("printStackTrace", source)
+
+
 if __name__ == "__main__":
     unittest.main()
