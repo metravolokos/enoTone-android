@@ -4,35 +4,47 @@ import app.enotone.database.EnoToneDatabase
 import app.enotone.database.RemoteTrackEntity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * First measured parallel phase: four files at a time, one HTTP request at a
- * time PER FILE. Every request, including a retry, must reserve from the SAME
- * 60-GET / 4-MiB budget before opening a connection.
+ * Four HTTP readers, never four database writers. All four workers share one
+ * atomic HTTP request/byte budget. No personal file/credential data in errors.
  */
 internal object ParallelTagPolicy {
     const val WORKERS = 4
     const val MAX_RETRIES = 2
     const val MAX_CONSECUTIVE_TRANSIENT_FAILURES = 4
     const val MAX_FINAL_THROTTLES = 2
+
     fun retryDelayMs(attemptIndex: Int, throttled: Boolean): Long =
         if (throttled) (if (attemptIndex == 0) 8_000L else 16_000L)
         else (if (attemptIndex == 0) 1_000L else 3_000L)
 }
 
-/** No personal fields may be published in an index progress snapshot. */
+/** Fixed, non-sensitive pipeline stage; no exception message may reach the UI. */
+class TagBatchStageException(val phase: String, cause: Exception) :
+    IllegalStateException("TAG_BATCH_STAGE_$phase", cause)
+
+private suspend fun <T> runStage(phase: String, block: suspend () -> T): T =
+    try {
+        block()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        if (failure is TagBatchStageException) throw failure
+        throw TagBatchStageException(phase, failure)
+    }
+
 private data class ParallelTagAttempt(
     val code: String,
     val tags: AudioTagFields?,
@@ -46,10 +58,21 @@ private data class ParallelTagAttempt(
         stats.issue == RangeReadIssue.HTTP_STATUS && stats.httpStatus == 429
 }
 
+private data class CompletedTagFile(
+    val item: RemoteTrackEntity,
+    val attempts: List<ParallelTagAttempt>,
+    val final: ParallelTagAttempt?,
+)
+
 /**
- * Only managed background sessions use this implementation. Original pilot
- * buttons remain sequential and unchanged. Jobs and Range readers are not
- * shared between files; a global request budget and Room CAS are shared.
+ * The per-file downloads run concurrently on Dispatchers.IO.
+ *
+ * All Room CAS writes, progress counters, pending queries and notification
+ * callbacks run through ONE collector coroutine. This avoids concurrent Room
+ * write/observe operations and serializes progress reports on Huawei.
+ *
+ * A worker never calls a DAO or the UI. A failed collector cancels the whole
+ * scope and reports a fixed stage, rather than a stale RUNNING state.
  */
 class ParallelTagIndexer(private val database: EnoToneDatabase) {
     suspend fun run(
@@ -64,19 +87,24 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
 
         val sourceKey = LibrarySnapshotPlanner.accountKey(email)
         val dao = database.remoteTrackDao()
-        val candidates = PilotBudget.select(sourceKey, dao.pendingFastScans(sourceKey), count)
+        val pending = runStage("DB_SELECT") { dao.pendingFastScans(sourceKey) }
+        val candidates = PilotBudget.select(sourceKey, pending, count)
         val shared = SharedRangeBudget(
             PilotBudget.requestCap(count), PilotBudget.byteCap(count),
         )
         val nextCandidate = AtomicInteger(0)
         val stop = AtomicReference<String?>(null)
-        val consecutiveFailures = AtomicInteger(0)
-        val finalThrottles = AtomicInteger(0)
         val cooldownUntil = AtomicLong(0L)
         val started = System.nanoTime()
-        val progressMutex = Mutex()
 
+        // Channel capacity bounded to the active worker count. Slow Room writes
+        // throttle upstream workers instead of building an unbounded RAM queue.
+        val completed = Channel<CompletedTagFile>(ParallelTagPolicy.WORKERS)
         var processed = 0
+        // Room already gave us the eligible pending count. Each successful
+        // terminal CAS removes exactly one pending entry, so avoid running a
+        // 3,500-row SELECT after every file and contending with the writer.
+        var remainingEstimate = pending.size
         var tagged = 0
         var withoutTags = 0
         var retryableErrors = 0
@@ -84,18 +112,34 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
         var staleWrites = 0
         var getRequests = 0
         var downloadedBytes = 0L
+        var consecutiveFailures = 0
+        var finalThrottles = 0
         var lastFailure: PilotFailure? = null
 
-        suspend fun checkpoint(attempts: List<ParallelTagAttempt>,
-                               outcome: ParallelTagAttempt?,
-                               committed: Boolean?) {
-            // Each file is checkpointed independently. In-flight jobs may finish
-            // after another worker has exhausted the common network budget.
-            val remaining = dao.pendingFastScans(sourceKey).size
-            progressMutex.withLock {
-                getRequests += attempts.sumOf { it.stats.requests }
-                downloadedBytes += attempts.sumOf { it.stats.downloadedBytes }
-                if (outcome != null && committed != null) {
+        val collector = launch(Dispatchers.IO) {
+            for (file in completed) {
+                // One writer owns all DB updates. Every completed success is
+                // checkpointed in Room before its public progress event.
+                val attempt = file.final
+                val committed = if (attempt == null) null else runStage("DB_WRITE") {
+                    dao.recordFastScanIfUnchanged(
+                        id = file.item.id,
+                        sourceKey = sourceKey,
+                        path = file.item.encodedPath,
+                        etag = file.item.remoteEtag,
+                        size = file.item.remoteSize,
+                        modified = file.item.remoteModified,
+                        code = attempt.code,
+                        title = attempt.tags?.title,
+                        artist = attempt.tags?.artist,
+                        album = attempt.tags?.album,
+                        albumArtist = attempt.tags?.albumArtist,
+                    ) == 1
+                }
+                getRequests += file.attempts.sumOf { it.stats.requests }
+                downloadedBytes += file.attempts.sumOf { it.stats.downloadedBytes }
+                if (committed != null) {
+                    val outcome = requireNotNull(attempt)
                     processed++
                     if (!committed) staleWrites++
                     else when {
@@ -105,18 +149,41 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                         else -> withoutTags++
                     }
                     lastFailure = outcome.failure ?: lastFailure
+
+                    if (committed) {
+                        if (!outcome.retryable) remainingEstimate--
+                        if (outcome.retryable) {
+                            consecutiveFailures++
+                            if (consecutiveFailures >=
+                                ParallelTagPolicy.MAX_CONSECUTIVE_TRANSIENT_FAILURES) {
+                                stop.compareAndSet(null, "RETRY_BACKOFF")
+                            }
+                            if (outcome.throttled &&
+                                ++finalThrottles >= ParallelTagPolicy.MAX_FINAL_THROTTLES) {
+                                stop.compareAndSet(null, "RETRY_BACKOFF")
+                            }
+                        } else {
+                            consecutiveFailures = 0
+                        }
+                    }
                 }
-                onProgress(PilotIndexProgress(
-                    requested = count, attempted = processed,
-                    savedWithTags = tagged, completedWithoutTags = withoutTags,
-                    retryableErrors = retryableErrors, staleWrites = staleWrites,
-                    getRequests = getRequests, downloadedBytes = downloadedBytes,
-                    remaining = remaining, stopCode = stop.get() ?: "RUNNING",
+                val report = PilotIndexProgress(
+                    requested = count,
+                    attempted = processed,
+                    savedWithTags = tagged,
+                    completedWithoutTags = withoutTags,
+                    retryableErrors = retryableErrors,
+                    staleWrites = staleWrites,
+                    getRequests = getRequests,
+                    downloadedBytes = downloadedBytes,
+                    remaining = remainingEstimate,
+                    stopCode = stop.get() ?: "RUNNING",
                     lastErrorStage = lastFailure?.stage ?: "NONE",
                     lastErrorReason = lastFailure?.reason ?: "NONE",
                     lastErrorHttpStatus = lastFailure?.httpStatus ?: 0,
                     permanentErrors = permanentErrors,
-                ))
+                )
+                runStage("PROGRESS") { onProgress(report) }
             }
         }
 
@@ -133,7 +200,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                         stop.compareAndSet(null, "NETWORK_BUDGET")
                         break
                     }
-                    val policyStop = beforeFile()
+                    val policyStop = runStage("POLICY") { beforeFile() }
                     if (policyStop != null) {
                         stop.compareAndSet(null, policyStop)
                         break
@@ -155,9 +222,13 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                             stop.compareAndSet(null, "NETWORK_BUDGET")
                             break
                         }
+                        // Also honor global 429 cooldown before the first request
+                        // for a NEW file; other workers must not bypass it.
                         val waitMs = (cooldownUntil.get() -
                             System.nanoTime()) / 1_000_000L
                         if (waitMs > 0L) delay(waitMs)
+                        if (stop.get() != null) break
+
                         val attempt = readFile(item, email, password, shared)
                         attempts.add(attempt)
                         if (attempt.exhaustedGlobalBudget) {
@@ -177,51 +248,35 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                         }
                         delay(pause)
                     }
-
-                    if (final == null || stop.get() == "AUTH_REJECTED") {
-                        checkpoint(attempts, null, null)
-                        continue
-                    }
-                    val committed = dao.recordFastScanIfUnchanged(
-                        id = item.id, sourceKey = sourceKey, path = item.encodedPath,
-                        etag = item.remoteEtag, size = item.remoteSize,
-                        modified = item.remoteModified, code = final.code,
-                        title = final.tags?.title, artist = final.tags?.artist,
-                        album = final.tags?.album, albumArtist = final.tags?.albumArtist,
-                    ) == 1
-                    if (committed) {
-                        if (final.retryable) {
-                            if (consecutiveFailures.incrementAndGet() >=
-                                ParallelTagPolicy.MAX_CONSECUTIVE_TRANSIENT_FAILURES) {
-                                stop.compareAndSet(null, "RETRY_BACKOFF")
-                            }
-                            if (final.throttled &&
-                                finalThrottles.incrementAndGet() >=
-                                ParallelTagPolicy.MAX_FINAL_THROTTLES) {
-                                stop.compareAndSet(null, "RETRY_BACKOFF")
-                            }
-                        } else {
-                            consecutiveFailures.set(0)
-                        }
-                    }
-                    checkpoint(attempts, final, committed)
+                    // The collector owns all file checkpoints and progress.
+                    // Also count GETs spent by interrupted/failed attempts.
+                    completed.send(CompletedTagFile(item, attempts.toList(),
+                        if (stop.get() == "AUTH_REJECTED") null else final))
                 }
             }
         }
 
         workers.joinAll()
-        val remaining = dao.pendingFastScans(sourceKey).size
+        completed.close()
+        collector.join()
+
+        val remaining = runStage("DB_FINAL") { dao.pendingFastScans(sourceKey).size }
         val endCode = stop.get() ?: when {
             candidates.isEmpty() || remaining == 0 -> "COMPLETED"
             nextCandidate.get() >= candidates.size -> "COMPLETED"
             else -> "NETWORK_BUDGET"
         }
         PilotIndexProgress(
-            requested = count, attempted = processed,
-            savedWithTags = tagged, completedWithoutTags = withoutTags,
-            retryableErrors = retryableErrors, staleWrites = staleWrites,
-            getRequests = getRequests, downloadedBytes = downloadedBytes,
-            remaining = remaining, stopCode = endCode,
+            requested = count,
+            attempted = processed,
+            savedWithTags = tagged,
+            completedWithoutTags = withoutTags,
+            retryableErrors = retryableErrors,
+            staleWrites = staleWrites,
+            getRequests = getRequests,
+            downloadedBytes = downloadedBytes,
+            remaining = remaining,
+            stopCode = endCode,
             lastErrorStage = lastFailure?.stage ?: "NONE",
             lastErrorReason = lastFailure?.reason ?: "NONE",
             lastErrorHttpStatus = lastFailure?.httpStatus ?: 0,

@@ -67,7 +67,7 @@ class ManagedIndexContractTest(unittest.TestCase):
               "MainActivity.kt").read_text(encoding="utf-8")
         for needle in (
             'stopCode = "FAILED_INTERNAL"',
-            'lastErrorStage = stage',
+            'lastErrorStage = location',
             'ManagedScanRuntime.fail(stage, failure)',
             'failureStage = if (state == last.state) last.failureStage else null',
             'status.value = ManagedScanStatus(',
@@ -79,6 +79,36 @@ class ManagedIndexContractTest(unittest.TestCase):
             "R.string.managed_index_internal_failure",
         ):
             self.assertIn(needle, ui)
+
+    def test_single_room_collector_with_four_independent_network_workers(self):
+        parallel = (ROOT / "data/library/src/main/java/app/enotone/library/"
+                    "ParallelTagIndexer.kt").read_text(encoding="utf-8")
+        service = (ROOT / "app/src/main/java/app/enotone/android/"
+                   "IndexingForegroundService.kt").read_text(encoding="utf-8")
+        # The only CAS write and report callback occur in ONE collector.
+        collector_start = parallel.index("val collector = launch(Dispatchers.IO)")
+        worker_start = parallel.index("val workers = (0 until ParallelTagPolicy.WORKERS)")
+        assert collector_start < worker_start
+        collector = parallel[collector_start:worker_start]
+        workers = parallel[worker_start:]
+        self.assertIn("for (file in completed)", collector)
+        self.assertIn("recordFastScanIfUnchanged(", collector)
+        self.assertIn('runStage("PROGRESS") { onProgress(report) }', collector)
+        self.assertNotIn("recordFastScanIfUnchanged(", workers)
+        self.assertNotIn("onProgress(", workers)
+        self.assertIn("Channel<CompletedTagFile>(ParallelTagPolicy.WORKERS)", parallel)
+        self.assertIn("completed.send(CompletedTagFile(", workers)
+        self.assertIn("workers.joinAll()", workers)
+        self.assertIn("completed.close()", workers)
+        self.assertIn("collector.join()", workers)
+        # Avoid a SQLite SELECT of all 3,500 pending rows after every file.
+        self.assertNotIn('runStage("DB_COUNT")', collector)
+        self.assertIn("var remainingEstimate = pending.size", parallel)
+        self.assertIn("remaining = remainingEstimate", collector)
+        # UI failure codes are fixed strings and unwrap no raw messages.
+        self.assertIn("class TagBatchStageException(", parallel)
+        self.assertIn("cause is TagBatchStageException", service)
+        self.assertNotIn("cause.message", service)
 
     def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
         main = (ROOT / "app/src/main/java/app/enotone/android/"

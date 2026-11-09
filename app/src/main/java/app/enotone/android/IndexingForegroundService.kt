@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.IBinder
 import app.enotone.library.ManagedIndexProgress
 import app.enotone.library.ManagedTagIndexSession
+import app.enotone.library.TagBatchStageException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -83,7 +84,10 @@ internal object ManagedScanRuntime {
     @Synchronized fun fail(stage: String, cause: Exception) {
         // Classify only exception types, NEVER exception messages/stack traces
         // that might contain private remote paths or authorization details.
-        val reason = when (cause) {
+        val source = if (cause is TagBatchStageException)
+            cause.cause as? Exception ?: cause else cause
+        val location = if (cause is TagBatchStageException) cause.phase else stage
+        val reason = when (source) {
             is SQLiteException -> "SQLITE"
             is SecurityException -> "SECURITY"
             is java.io.IOException -> "IO"
@@ -95,13 +99,13 @@ internal object ManagedScanRuntime {
         val last = status.value
         val stopped = last.progress?.copy(
             stopCode = "FAILED_INTERNAL",
-            lastErrorStage = stage,
+            lastErrorStage = location,
             lastErrorReason = reason,
             lastErrorHttpStatus = 0,
         )
         status.value = ManagedScanStatus(
             ManagedScanState.ERROR, stopped, terminating = true,
-            failureStage = stage, failureReason = reason,
+            failureStage = location, failureReason = reason,
         )
     }
 }

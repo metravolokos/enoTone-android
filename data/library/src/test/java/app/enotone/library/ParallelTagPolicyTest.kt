@@ -14,6 +14,15 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class ParallelTagPolicyTest {
+    @Test fun batchStageFailureHasOnlyFixedNonSensitiveMessage() {
+        val cause = IllegalStateException("https://private.example/AllMusic/secret.mp3")
+        val wrapped = TagBatchStageException("DB_WRITE", cause)
+        assertEquals("DB_WRITE", wrapped.phase)
+        assertEquals("TAG_BATCH_STAGE_DB_WRITE", wrapped.message)
+        assertFalse(wrapped.message.orEmpty().contains("private"))
+        assertEquals(cause, wrapped.cause)
+    }
+
     @Test fun parallelismAndRetriesAreBounded() {
         assertEquals(4, ParallelTagPolicy.WORKERS)
         assertEquals(2, ParallelTagPolicy.MAX_RETRIES)
