@@ -106,8 +106,10 @@ internal object PilotBudget {
             .filter { eligibleForSingleTagWrite(sourceKey, it) }
             .filter {
                 (it.tagScanCode?.startsWith("RETRY_") != false) &&
-                    it.title == null && it.artist == null &&
-                    it.album == null && it.albumArtist == null &&
+                    // Retry entries may retain last-known-good tags during refresh.
+                    (it.tagScanCode?.startsWith("RETRY_") == true ||
+                        (it.title == null && it.artist == null &&
+                            it.album == null && it.albumArtist == null)) &&
                     (it.fileName.endsWith(".mp3", true) || it.fileName.endsWith(".flac", true))
             }
             .sortedWith(compareBy<RemoteTrackEntity> { it.tagScanCode != null }
