@@ -14,7 +14,7 @@
     <string name="file_count_failed">Не удалось прочитать список файлов. Проверьте подключение или попробуйте позднее.</string>
     <string name="webdav_http_failed">Не удалось прочитать список файлов: HTTP %1$d.</string>
     <string name="diagnostic_failed">Диагностика завершилась ошибкой. Учётные данные в отчёт не включены.</string>
-    <string name="save_local_library">Сохранить список музыки на устройстве</string>
+    <string name="save_local_library">Обновить каталог /AllMusic (новые и изменённые файлы)</string>
     <string name="read_local_library">Проверить сохранённый список (без сети)</string>
     <string name="local_import_report">Найдено в облаке: %1$d. Сохранено локально: %2$d. Новых: %3$d, изменённых: %4$d, без изменений: %5$d.</string>
     <string name="local_saved_report">В локальной медиатеке: %1$d аудиофайлов. Облако не запрашивалось.</string>
@@ -129,4 +129,24 @@
     <string name="managed_index_internal_failure">Внутренний сбой индексации: этап %1$s, категория %2$s. Сохранённые теги не потеряны.</string>
     <string name="managed_index_all">Индексировать все оставшиеся MP3/FLAC</string>
     <string name="managed_index_all_explanation">Один ручной запуск с автоматическим переходом между порциями. До 80 порций / 4800 GET / 320 МиБ / 4 часов, после чего можно продолжить с сохранённого места. При временной перегрузке сервера — ограниченные паузы и повторы; при отказе авторизации — остановка. Работает в фоне; нет автозапуска после перезагрузки телефона. Другие форматы пока не входят в быстрый парсер.</string>
+    <string name="tag_audit_title">Проверка и повторная индексация тегов</string>
+    <string name="tag_audit_explanation">Локально покажем файлы, у которых не заполнены поля. Имя и значения тегов видны только на устройстве. Отсутствие поля не обязательно означает ошибку чтения.</string>
+    <string name="tag_audit_missing_album">Без альбома</string>
+    <string name="tag_audit_missing_album_artist">Без исполнителя альбома</string>
+    <string name="tag_audit_first_rows">Показано не более 30 записей, сейчас: %1$d.</string>
+    <string name="tag_audit_selected">Выбран</string>
+    <string name="tag_audit_select">Выбрать</string>
+    <string name="tag_audit_selected_details">Название: %1$s; исполнитель: %2$s; альбом: %3$s; исполнитель альбома: %4$s; результат парсера: %5$s.</string>
+    <string name="tag_audit_queue_selected">Поставить выбранный файл на переиндексацию</string>
+    <string name="tag_audit_no_missing">В этом поле пропусков нет.</string>
+    <string name="tag_audit_select_one">Выбери файл, чтобы посмотреть его поля и назначить повторное чтение.</string>
+    <string name="tag_audit_failed">Не удалось прочитать или изменить запись. Исходные теги не удалены.</string>
+    <string name="tag_audit_queued">Файл поставлен в очередь. Старые теги сохранены. Запусти управляемую индексацию для повторного чтения.</string>
+    <string name="tag_audit_refresh_all_confirm">Подтверждаю повторное чтение тегов всех MP3/FLAC. Это потребует сетевых запросов, но не удалит текущие теги.</string>
+    <string name="tag_audit_queue_all">Назначить полную повторную индексацию</string>
+    <string name="tag_audit_all_queued">В очередь повторного чтения поставлено записей: %1$d. Текущие теги сохранены. Для выполнения запусти управляемую индексацию.</string>
+    <string name="tag_audit_queue_instructions">После назначения повторного чтения нажми «Индексировать все оставшиеся MP3/FLAC». Для новых файлов сначала нажми «Обновить каталог /AllMusic»: неизменённые записи и теги сохраняются, новые попадают в очередь первичной индексации.</string>
+    <string name="tag_audit_search_hint">Имя файла или название трека (без сети)</string>
+    <string name="tag_audit_search_action">Найти трек для переиндексации</string>
+    <string name="tag_audit_no_search">Совпадений в локальной медиатеке не найдено.</string>
 </resources>

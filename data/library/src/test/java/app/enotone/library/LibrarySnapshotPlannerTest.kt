@@ -36,6 +36,31 @@ class LibrarySnapshotPlannerTest {
         assertEquals(2L, second.upserts.single().lastSeenEpoch)
     }
 
+    @Test fun incrementalRefreshAddsNewTrackWhilePreservingExistingTagsAndIds() {
+        val original = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("etag-old"))), emptyList(), 1)
+            .upserts.single().copy(
+                title = "Original private title",
+                album = "Original private album",
+                tagScanCode = "FLAC_VORBIS",
+            )
+        val second = RemoteAudioFile("new-song.mp3",
+            "/AllMusic/new-song.mp3", "etag-new", 12345L, null)
+        val updated = LibrarySnapshotPlanner.plan(account,
+            listing(listOf(audio("etag-old"), second)), listOf(original), 2)
+        assertEquals(1, updated.inserted)
+        assertEquals(1, updated.unchanged)
+        assertEquals(0, updated.changed)
+        val first = updated.upserts.first { it.id == original.id }
+        assertEquals(original.title, first.title)
+        assertEquals(original.album, first.album)
+        assertEquals(original.tagScanCode, first.tagScanCode)
+        val added = updated.upserts.single { it.fileName == "new-song.mp3" }
+        assertNull(added.title)
+        assertNull(added.tagScanCode)
+        assertEquals(0, added.missingScans)
+    }
+
     @Test fun changedEtagClearsTagsWithoutChangingId() {
         val old = LibrarySnapshotPlanner.plan(account, listing(listOf(audio("v1"))), emptyList(), 1)
             .upserts.single().copy(title = "private title", album = "private album",

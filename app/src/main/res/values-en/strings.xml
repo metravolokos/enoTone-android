@@ -14,7 +14,7 @@
     <string name="file_count_failed">Could not read the file listing. Check the connection or try again later.</string>
     <string name="webdav_http_failed">Could not read the file listing: HTTP %1$d.</string>
     <string name="diagnostic_failed">Diagnostics failed. Credentials are never included in this report.</string>
-    <string name="save_local_library">Save music listing on this device</string>
+    <string name="save_local_library">Refresh /AllMusic catalogue (new and changed files)</string>
     <string name="read_local_library">Check saved listing (offline)</string>
     <string name="local_import_report">Found in cloud: %1$d. Saved locally: %2$d. New: %3$d, changed: %4$d, unchanged: %5$d.</string>
     <string name="local_saved_report">Local library: %1$d audio files. No cloud request made.</string>
@@ -129,4 +129,24 @@
     <string name="managed_index_internal_failure">Indexing failed internally: stage %1$s, category %2$s. Saved tags remain intact.</string>
     <string name="managed_index_all">Index all remaining MP3/FLAC</string>
     <string name="managed_index_all_explanation">One explicit start automatically chains capped batches. Up to 80 batches / 4,800 GET / 320 MiB / four hours; resume safely from Room if the limit is reached. Bounded pauses and retries on transient server errors; authentication failure stops the run. Works in background; does not auto-start after device reboot. Other audio formats are not yet supported by the fast tag parser.</string>
+    <string name="tag_audit_title">Inspect and reindex tags</string>
+    <string name="tag_audit_explanation">Show local files with missing metadata fields. Names and tag values appear only on this device. A missing field is not necessarily a parsing error.</string>
+    <string name="tag_audit_missing_album">Missing album</string>
+    <string name="tag_audit_missing_album_artist">Missing album artist</string>
+    <string name="tag_audit_first_rows">Up to 30 entries shown, currently: %1$d.</string>
+    <string name="tag_audit_selected">Selected</string>
+    <string name="tag_audit_select">Select</string>
+    <string name="tag_audit_selected_details">Title: %1$s; artist: %2$s; album: %3$s; album artist: %4$s; parser result: %5$s.</string>
+    <string name="tag_audit_queue_selected">Queue selected file for reindex</string>
+    <string name="tag_audit_no_missing">No missing values in this field.</string>
+    <string name="tag_audit_select_one">Select a file to inspect its metadata and schedule a re-read.</string>
+    <string name="tag_audit_failed">Unable to read or update this record. Existing tags were not deleted.</string>
+    <string name="tag_audit_queued">File queued for reindex. Existing tags were preserved. Start managed indexing to read it again.</string>
+    <string name="tag_audit_refresh_all_confirm">I confirm re-reading tags for all MP3/FLAC files. This will use network requests but will not remove existing tags.</string>
+    <string name="tag_audit_queue_all">Queue full tag reindex</string>
+    <string name="tag_audit_all_queued">Queued records for tag re-reading: %1$d. Existing tags were preserved. Start managed indexing to perform the work.</string>
+    <string name="tag_audit_queue_instructions">After queuing a refresh, press “Index all remaining MP3/FLAC”. To add new files, first press “Refresh /AllMusic catalogue”: unchanged entries and tags are preserved and new files become eligible for indexing.</string>
+    <string name="tag_audit_search_hint">Filename or track title (offline)</string>
+    <string name="tag_audit_search_action">Find track to reindex</string>
+    <string name="tag_audit_no_search">No matches in the saved library.</string>
 </resources>
