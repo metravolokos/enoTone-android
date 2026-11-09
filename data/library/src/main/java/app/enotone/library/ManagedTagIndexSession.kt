@@ -6,20 +6,44 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 
 /**
- * One explicit user-controlled session. Four sequential batches, with up to
- * four parallel per-file readers INSIDE each batch. All requests and retries
- * share the same 60 GET / 4 MiB cap; Room checkpoints each completed file.
- * The Android foreground service owns this coroutine and credentials in RAM.
+ * BOUNDED keeps the approved four-batch smoke-test behavior. CONTINUOUS
+ * chains the same capped four-reader batches until all eligible files are
+ * indexed or a safety/time/network boundary is reached. A user explicitly
+ * chooses the mode; there is no auto-start at boot/process restart.
  */
+enum class ManagedIndexMode { BOUNDED, CONTINUOUS }
+
 object ManagedIndexLimits {
     const val MAX_BATCHES = 4
     const val MAX_TOTAL_GETS = MAX_BATCHES * PilotBudget.MAX_BATCH_GETS
     const val MAX_TOTAL_BYTES = MAX_BATCHES * PilotBudget.MAX_BATCH_BYTES
     const val BETWEEN_BATCH_DELAY_MS = 1500L
+    // 80 * 60 GET covers ~3,274 remaining tracks at the observed ~1.16 GET
+    // per track, with a small margin. A strict four-hour wall cap is still
+    // below Android 15's six-hour dataSync foreground-service quota.
+    const val MAX_CONTINUOUS_BATCHES = 80
+    const val MAX_CONTINUOUS_GETS = MAX_CONTINUOUS_BATCHES * PilotBudget.MAX_BATCH_GETS
+    const val MAX_CONTINUOUS_BYTES = MAX_CONTINUOUS_BATCHES * PilotBudget.MAX_BATCH_BYTES
+    const val MAX_CONTINUOUS_NANOS = 4L * 60L * 60L * 1_000_000_000L
+    const val MAX_BACKOFF_CYCLES = 3
 
-    fun underGlobalCaps(batches: Int, gets: Int, bytes: Long): Boolean =
-        batches in 0 until MAX_BATCHES && gets <= MAX_TOTAL_GETS &&
-            bytes <= MAX_TOTAL_BYTES
+    fun maxBatches(mode: ManagedIndexMode): Int =
+        if (mode == ManagedIndexMode.CONTINUOUS) MAX_CONTINUOUS_BATCHES else MAX_BATCHES
+
+    fun underGlobalCaps(
+        batches: Int, gets: Int, bytes: Long,
+        mode: ManagedIndexMode = ManagedIndexMode.BOUNDED,
+    ): Boolean {
+        val limit = maxBatches(mode)
+        return batches in 0 until limit &&
+            gets <= limit * PilotBudget.MAX_BATCH_GETS &&
+            bytes <= limit * PilotBudget.MAX_BATCH_BYTES
+    }
+
+    fun backoffMs(cycle: Int): Long {
+        require(cycle in 1 until MAX_BACKOFF_CYCLES)
+        return if (cycle == 1) 30_000L else 60_000L
+    }
 }
 
 data class ManagedIndexProgress(
@@ -50,6 +74,8 @@ class ManagedTagIndexSession(
         beforeFile: suspend () -> String?,
         onProgress: suspend (PilotIndexProgress) -> Unit,
     ) -> PilotIndexProgress,
+    private val waitBetweenBatches: suspend (Long) -> Unit = { delay(it) },
+    private val nowNanos: () -> Long = System::nanoTime,
 ) {
     constructor(database: EnoToneDatabase) : this(
         { email, password, gate, progress ->
@@ -71,6 +97,7 @@ class ManagedTagIndexSession(
         password: String,
         networkAllowed: () -> Boolean,
         onProgress: suspend (ManagedIndexProgress) -> Unit = {},
+        mode: ManagedIndexMode = ManagedIndexMode.BOUNDED,
     ): ManagedIndexProgress {
         require(email.isNotBlank() && password.isNotBlank())
         var batches = 0
@@ -87,6 +114,12 @@ class ManagedTagIndexSession(
         var lastStage = "NONE"
         var lastReason = "NONE"
         var lastHttp = 0
+        val sessionStarted = nowNanos()
+        var backoffCycles = 0
+        var consecutiveEmptyBatches = 0
+        fun timedOut(): Boolean =
+            mode == ManagedIndexMode.CONTINUOUS &&
+                nowNanos() - sessionStarted >= ManagedIndexLimits.MAX_CONTINUOUS_NANOS
 
         fun snapshot(partial: PilotIndexProgress? = null, code: String = stop) =
             ManagedIndexProgress(
@@ -107,16 +140,28 @@ class ManagedTagIndexSession(
                     partial.lastErrorStage != "NONE") partial.lastErrorHttpStatus else lastHttp,
             )
 
-        while (ManagedIndexLimits.underGlobalCaps(batches, gets, bytes)) {
+        while (ManagedIndexLimits.underGlobalCaps(batches, gets, bytes, mode)) {
             currentCoroutineContext().ensureActive()
-            if (batches > 0) delay(ManagedIndexLimits.BETWEEN_BATCH_DELAY_MS)
+            if (timedOut()) {
+                stop = "SESSION_TIME_BUDGET"
+                break
+            }
+            if (batches > 0) {
+                waitBetweenBatches(ManagedIndexLimits.BETWEEN_BATCH_DELAY_MS)
+            }
             if (!networkAllowed()) {
                 stop = "NETWORK_POLICY"
                 break
             }
+            // The clock guard is checked both between batches and at file
+            // boundaries. Wi-Fi/mobile transport is never inspected here.
             val result = runBatch(
                 email, password,
-                { if (networkAllowed()) null else "NETWORK_POLICY" },
+                { when {
+                    timedOut() -> "SESSION_TIME_BUDGET"
+                    !networkAllowed() -> "NETWORK_POLICY"
+                    else -> null
+                } },
                 { progress ->
                     onProgress(snapshot(progress, "RUNNING"))
                 },
@@ -142,19 +187,42 @@ class ManagedTagIndexSession(
                 lastHttp = result.lastErrorHttpStatus
             }
             batches++
+            consecutiveEmptyBatches =
+                if (result.attempted == 0 && result.getRequests > 0) consecutiveEmptyBatches + 1
+                else 0
+            if (mode == ManagedIndexMode.CONTINUOUS &&
+                result.stopCode == "RETRY_BACKOFF") backoffCycles++
+            else if (result.savedWithTags > 0) backoffCycles = 0
             stop = when {
-                result.stopCode in setOf("AUTH_REJECTED", "RETRY_BACKOFF", "NETWORK_POLICY") ->
-                    result.stopCode
-                (result.attempted == 0 && result.getRequests == 0) || remaining == 0 ->
+                result.stopCode in setOf("AUTH_REJECTED", "NETWORK_POLICY",
+                    "SESSION_TIME_BUDGET") -> result.stopCode
+                remaining == 0 || (result.attempted == 0 && result.getRequests == 0) ->
                     "NO_ELIGIBLE_FILES"
+                consecutiveEmptyBatches >= 3 -> "NO_PROGRESS"
+                result.stopCode == "RETRY_BACKOFF" -> when {
+                    mode == ManagedIndexMode.BOUNDED ||
+                        backoffCycles >= ManagedIndexLimits.MAX_BACKOFF_CYCLES -> "RETRY_BACKOFF"
+                    else -> "COOLDOWN"
+                }
                 result.stopCode !in setOf("COMPLETED", "NETWORK_BUDGET", "TIME_BUDGET") ->
                     result.stopCode
-                batches >= ManagedIndexLimits.MAX_BATCHES ->
-                    "SESSION_LIMIT"
+                batches >= ManagedIndexLimits.maxBatches(mode) ->
+                    if (mode == ManagedIndexMode.CONTINUOUS) "SESSION_BATCH_LIMIT"
+                    else "SESSION_LIMIT"
                 else -> "RUNNING"
             }
             onProgress(snapshot())
-            if (stop != "RUNNING") break
+            if (stop == "COOLDOWN") {
+                // Throttling is server-wide, not just a single file. Back off
+                // before starting a fresh bounded batch; cancellation works.
+                waitBetweenBatches(ManagedIndexLimits.backoffMs(backoffCycles))
+                stop = "RUNNING"
+            } else if (stop != "RUNNING") break
+        }
+        if (stop == "RUNNING" &&
+            !ManagedIndexLimits.underGlobalCaps(batches, gets, bytes, mode)) {
+            stop = if (mode == ManagedIndexMode.CONTINUOUS) "SESSION_BATCH_LIMIT"
+                else "SESSION_LIMIT"
         }
         return snapshot(code = stop)
     }
