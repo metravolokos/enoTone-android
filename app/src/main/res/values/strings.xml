@@ -129,4 +129,17 @@
     <string name="managed_index_internal_failure">Внутренний сбой индексации: этап %1$s, категория %2$s. Сохранённые теги не потеряны.</string>
     <string name="managed_index_all">Индексировать все оставшиеся MP3/FLAC</string>
     <string name="managed_index_all_explanation">Один ручной запуск с автоматическим переходом между порциями. До 80 порций / 4800 GET / 320 МиБ / 4 часов, после чего можно продолжить с сохранённого места. При временной перегрузке сервера — ограниченные паузы и повторы; при отказе авторизации — остановка. Работает в фоне; нет автозапуска после перезагрузки телефона. Другие форматы пока не входят в быстрый парсер.</string>
+
+    <string name="library_sync_changes">Обновить список: новые и изменённые файлы</string>
+    <string name="library_find_missing_album">Показать файлы без альбома (без сети)</string>
+    <string name="library_missing_album_count">Найдено в локальной базе (показано до 30): %1$d</string>
+    <string name="library_missing_album_filename">Файл: %1$s</string>
+    <string name="library_missing_album_scan_code">Результат последнего чтения: %1$s</string>
+    <string name="library_refresh_one">Повторно прочитать теги этого файла</string>
+    <string name="library_refresh_queued">Файл добавлен в очередь, запускается ограниченная фоновая индексация. Старые теги сохранены до завершения повторного чтения.</string>
+    <string name="library_refresh_all">Переиндексировать все MP3/FLAC (с подтверждением)</string>
+    <string name="library_refresh_all_confirm">Подтвердить переиндексацию всей медиатеки</string>
+    <string name="library_refresh_all_warning">Будет повторно прочитана вся медиатека, что расходует трафик. Уже сохранённые теги останутся доступны до их успешного обновления. При прерывании можно продолжить по кнопке непрерывной индексации.</string>
+    <string name="library_refresh_cancel">Отмена</string>
+    <string name="library_refresh_all_queued">Поставлено в очередь на повторное чтение: %1$d файлов. Запущена длительная фоновая индексация.</string>
 </resources>
