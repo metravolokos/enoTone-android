@@ -61,6 +61,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
+ * isPlaying=false also occurs during BUFFERING and after ENDED. Never report
+ * those states as a user Pause, or hide an underlying Media3 player error.
+ */
+private fun media3PlaybackLabel(player: Player?): String {
+    if (player == null) return "IDLE"
+    if (player.playerError != null) return "ERROR"
+    return when (player.playbackState) {
+        Player.STATE_BUFFERING -> "BUFFERING"
+        Player.STATE_READY -> if (player.isPlaying) "PLAYING" else "PAUSED"
+        Player.STATE_ENDED -> "ENDED"
+        else -> "IDLE"
+    }
+}
+
+/**
  * M2 offline catalogue + M3 one-track MediaSessionService playback.
  * The track list stays local. A tap with RAM-only credentials starts a single
  * stream hosted by the service, which may continue after the screen closes.
@@ -199,19 +214,14 @@ internal fun OfflineLibraryScreen(
                         readyAfterTapMs = elapsed
                     }
                 }
-                playbackState = when (state) {
-                    Player.STATE_BUFFERING -> "BUFFERING"
-                    Player.STATE_READY -> if (active?.player?.isPlaying == true) "PLAYING" else "PAUSED"
-                    Player.STATE_ENDED -> "ENDED"
-                    else -> "IDLE"
-                }
+                playbackState = media3PlaybackLabel(active?.player)
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying && selectionStartedAt > 0L && playingAfterTapMs == null) {
                     playingAfterTapMs =
                         SystemClock.elapsedRealtime() - selectionStartedAt
                 }
-                playbackState = if (isPlaying) "PLAYING" else "PAUSED"
+                playbackState = media3PlaybackLabel(active?.player)
             }
             override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
                 selectedTitle = mediaMetadata.title?.toString()
@@ -236,7 +246,7 @@ internal fun OfflineLibraryScreen(
             queueTotal = active.queueSize
             repeatMode = active.repeatMode
             shuffleEnabled = active.shuffleEnabled
-            if (active.player.isPlaying) playbackState = "PLAYING"
+            playbackState = media3PlaybackLabel(active.player)
         }
         onDispose { active?.player?.removeListener(listener) }
     }
