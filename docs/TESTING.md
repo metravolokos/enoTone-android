@@ -200,3 +200,12 @@ Preview #147: `errorCode=2000` на 03:54/03:55, хотя current и next cache 
 - Python guard: only explicit UI button; Wi-Fi only default; `ACCESS_NETWORK_STATE`; Android `onStop` cancels metadata job; per-file gate and 4-batch cap; no PROPFIND, no secret logging; unchanged playback/Room schema.
 - Huawei: stable signed APK install over #181, preserved 62 previous tags and account; first check **without Wi‑Fi** (mobile check disabled) must yield NETWORK_POLICY with 0 GET. On Wi-Fi, one manual capped session and report completed batches, attempted/tagged/errors/GET/bytes/remaining. Pause by button or background and resume on explicit action, check persisted checkpoint; don't trigger all 3590 behind user's back.
 - Budget: ≤60 GET/4 MiB **per pass**, ≤240 GET/16 MiB per session, ~180 seconds soft each pass + bounded per-file reader. Foreground only, no automatic background continuation; no new MP3/FLAC file formats.
+
+## Huawei Stable Preview — M1 background без Wi-Fi (ADR-0047; Draft)
+1. Дождаться зелёного CI **точного HEAD** и подписанной Stable Preview из main, не устанавливать неподписанный другой пакет вместо стабильного. Обновлять поверх, не удалять данные. Перед запуском проверить локальный список (3590) и существующее число законченных тегов (последняя подтверждённая база 62).
+2. Войти в приложение, вручную нажать **«Начать ограниченную сессию»**. Видно уведомление «Управляемая индексация» с числовым прогрессом; новый PROPFIND не нужен.
+3. Свернуть приложение и заблокировать экран на 1–2 минуты; затем открыть и сравнить рост обработанных файлов/HTTP GET. Медиа3-плейер не должен останавливаться из-за индексации. Производитель может ограничить службу — фиксировать как отдельную аппаратную проблему.
+4. Пауза из уведомления, проверить отсутствие нового роста, затем **Продолжить** из UI; «Стоп» и повторный запуск. После остановки имеющиеся теги в Room не исчезают. Режимов Wi-Fi-only/allow mobile больше нет.
+5. Отдельно проверить запуск при выключенном Wi-Fi и разрешённом другом соединении; индексация не должна отказываться только из-за типа сети. При отключении сети допускается завершение текущего ограниченного запроса и безопасная остановка по сетевой ошибке.
+6. Проверка ресурсоёмкости: ≤4 порции / ≤240 GET / ≤16 МиБ в одной сессии, остановка при 401/403/429/5xx без retry-цикла. При убийстве процесса — нет автозапуска, только сохранённый checkpoint.
+7. Для отчёта прислать **только** числа до/после, GET/байты/ошибки и факт работы при сворачивании/блокировке. Никаких имён файлов, email, пароля, URL и ETag в публичном GitHub.

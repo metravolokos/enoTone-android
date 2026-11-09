@@ -1,4 +1,4 @@
-"""Managed tag indexing guard: explicit foreground user action and hard caps."""
+"""Managed tag indexing: bounded, foreground service, no Wi-Fi policy."""
 import pathlib
 import unittest
 import xml.etree.ElementTree as ET
@@ -20,43 +20,60 @@ class ManagedIndexContractTest(unittest.TestCase):
             "PilotBudget.RESUME_LIMIT",
             "stopOnRetryableFailure = true",
             "delay(ManagedIndexLimits.BETWEEN_BATCH_DELAY_MS)",
-            "if (!networkAllowed())",
-            'if (networkAllowed()) null else "NETWORK_POLICY"',
         ):
             self.assertIn(needle, runner)
         for needle in (
             "beforeFile: suspend () -> String? = { null }",
-            "val policyStop = beforeFile()",
             'stop = "RETRY_BACKOFF"',
             "recordFastScanIfUnchanged(",
+            "onProgress(report())",
         ):
             self.assertIn(needle, indexer)
         for forbidden in ("WorkManager", "GlobalScope", "PROPFIND", "while (true)", "Log."):
             self.assertNotIn(forbidden, runner)
 
-    def test_wifi_default_and_background_stop(self):
+    def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
         main = (ROOT / "app/src/main/java/app/enotone/android/"
                 "MainActivity.kt").read_text(encoding="utf-8")
-        manifest = ET.parse(ROOT / "app/src/main/AndroidManifest.xml").getroot()
+        service = (ROOT / "app/src/main/java/app/enotone/android/"
+                   "IndexingForegroundService.kt").read_text(encoding="utf-8")
+        xml = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+        manifest = ET.fromstring(xml)
         permissions = [p.attrib.get(f"{ANDROID}name")
                        for p in manifest.findall("uses-permission")]
-        self.assertIn("android.permission.ACCESS_NETWORK_STATE", permissions)
+        self.assertIn("android.permission.FOREGROUND_SERVICE_DATA_SYNC", permissions)
+        services = manifest.find("application").findall("service")
+        self.assertTrue(any(s.attrib.get(f"{ANDROID}name") == ".IndexingForegroundService" and
+                            s.attrib.get(f"{ANDROID}foregroundServiceType") == "dataSync" and
+                            s.attrib.get(f"{ANDROID}exported") == "false" for s in services))
         for needle in (
-            "var allowMobileIndexing by remember { mutableStateOf(false) }",
-            "NetworkCapabilities.TRANSPORT_WIFI",
-            "override fun onStop()",
-            "pauseManagedIndexOnStop?.invoke()",
-            "managedJob?.cancel()",
+            "appContext.startForegroundService(",
+            "IndexingForegroundService.ACTION_START",
+            "ManagedScanRuntime.status.collectAsState()",
+            "IndexingForegroundService.ACTION_PAUSE",
+            "IndexingForegroundService.ACTION_STOP",
             "onClick = { startManagedSession() }",
-            "ManagedTagIndexSession(database).run(",
-            "R.string.managed_index_allow_mobile",
-            "ManagedScanState.PAUSED",
-            "ManagedScanState.STOPPED",
         ):
             self.assertIn(needle, main)
-        self.assertNotIn("Log.", main)
-        self.assertNotIn("WorkManager", main)
-        self.assertIn('android:allowBackup="false"', (ROOT / "app/src/main/AndroidManifest.xml").read_text())
+        for needle in (
+            "class IndexingForegroundService : Service()",
+            "ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC",
+            "START_NOT_STICKY",
+            "ManagedScanRuntime.claim()",
+            "ManagedTagIndexSession(database).run(",
+            "networkAllowed = { true }",
+            "override fun onTimeout(startId: Int, fgsType: Int)",
+            "stopForeground(STOP_FOREGROUND_REMOVE)",
+            "ManagedScanRuntime.update(",
+        ):
+            self.assertIn(needle, service)
+        for forbidden in (
+            "override fun onStop()", "pauseManagedIndexOnStop", "TRANSPORT_WIFI",
+            "allowMobileIndexing", "managedIndexNetworkAllowed",
+            "putExtra(\"password\"", "Log.",
+        ):
+            self.assertNotIn(forbidden, main + service)
+        self.assertIn('android:allowBackup="false"', xml)
 
 
 if __name__ == "__main__":
