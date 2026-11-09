@@ -19,7 +19,7 @@ class ManagedIndexContractTest(unittest.TestCase):
             "const val MAX_TOTAL_BYTES = MAX_BATCHES * PilotBudget.MAX_BATCH_BYTES",
             "PilotBudget.RESUME_LIMIT",
             "ParallelTagIndexer(database).run(",
-            "delay(ManagedIndexLimits.BETWEEN_BATCH_DELAY_MS)",
+            "waitBetweenBatches(ManagedIndexLimits.BETWEEN_BATCH_DELAY_MS)",
         ):
             self.assertIn(needle, runner)
         for needle in (
@@ -109,6 +109,46 @@ class ManagedIndexContractTest(unittest.TestCase):
         self.assertIn("class TagBatchStageException(", parallel)
         self.assertIn("cause is TagBatchStageException", service)
         self.assertNotIn("cause.message", service)
+
+    def test_explicit_continuous_mode_has_global_caps_and_no_secret_intent(self):
+        runner = (ROOT / "data/library/src/main/java/app/enotone/library/"
+                  "ManagedTagIndexSession.kt").read_text(encoding="utf-8")
+        service = (ROOT / "app/src/main/java/app/enotone/android/"
+                   "IndexingForegroundService.kt").read_text(encoding="utf-8")
+        main = (ROOT / "app/src/main/java/app/enotone/android/"
+                "MainActivity.kt").read_text(encoding="utf-8")
+        for needle in (
+            "enum class ManagedIndexMode { BOUNDED, CONTINUOUS }",
+            "const val MAX_CONTINUOUS_BATCHES = 80",
+            "const val MAX_CONTINUOUS_NANOS = 4L * 60L * 60L * 1_000_000_000L",
+            "const val MAX_BACKOFF_CYCLES = 3",
+            "ManagedIndexLimits.underGlobalCaps(batches, gets, bytes, mode)",
+            'stop = "SESSION_TIME_BUDGET"',
+            'stop = "RUNNING"',
+            'stop == "COOLDOWN"',
+            "waitBetweenBatches(ManagedIndexLimits.backoffMs(backoffCycles))",
+        ):
+            self.assertIn(needle, runner)
+        for needle in (
+            "private var pending: PendingIndexRun? = null",
+            "ManagedIndexMode.BOUNDED",
+            "request.mode",
+            "START_NOT_STICKY",
+        ):
+            self.assertIn(needle, service)
+        for needle in (
+            "ManagedIndexMode.CONTINUOUS",
+            "ManagedScanRuntime.prepare(email, password, mode)",
+            "startManagedSession(true)",
+            "startManagedSession(false)",
+            "R.string.managed_index_all",
+        ):
+            self.assertIn(needle, main)
+        for forbidden in (
+            'putExtra("password"', "TRANSPORT_WIFI", "PROPFIND",
+            "BOOT_COMPLETED", "GlobalScope",
+        ):
+            self.assertNotIn(forbidden, runner + service + main)
 
     def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
         main = (ROOT / "app/src/main/java/app/enotone/android/"
