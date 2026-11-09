@@ -142,4 +142,10 @@
     <string name="library_refresh_all_warning">This re-reads the entire library and uses network traffic. Previously saved tags stay visible until replaced. If interrupted, resume via continuous indexing.</string>
     <string name="library_refresh_cancel">Cancel</string>
     <string name="library_refresh_all_queued">Queued for tag re-reading: %1$d files. Continuous background indexing started.</string>
+
+    <string name="library_probe_album_source">Check ALBUM in the source file</string>
+    <string name="library_album_probe_unknown">Could not confirm — read failed or format unsupported</string>
+    <string name="library_album_probe_present">Embedded ALBUM tag found in the source file</string>
+    <string name="library_album_probe_absent">No embedded ALBUM tag detected in the source file</string>
+    <string name="library_album_probe_report">Source check: %1$s. Code: %2$s; HTTP GET: %3$d. Saved tags unchanged.</string>
 </resources>
