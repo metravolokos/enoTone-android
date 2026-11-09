@@ -498,6 +498,7 @@ private fun DiagnosticScreen() {
                                     if (queued) {
                                         maintenanceReport = appContext.getString(
                                             R.string.library_refresh_queued)
+                                        busy = false
                                         startManagedSession(false)
                                     } else {
                                         maintenanceReport = appContext.getString(
@@ -534,6 +535,7 @@ private fun DiagnosticScreen() {
                             }
                             maintenanceReport = appContext.getString(
                                 R.string.library_refresh_all_queued, count)
+                            busy = false
                             if (count > 0) startManagedSession(true)
                         } catch (cancelled: CancellationException) {
                             throw cancelled
