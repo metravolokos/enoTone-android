@@ -67,7 +67,7 @@ class ManagedIndexContractTest(unittest.TestCase):
               "MainActivity.kt").read_text(encoding="utf-8")
         for needle in (
             'stopCode = "FAILED_INTERNAL"',
-            'lastErrorStage = stage',
+            'lastErrorStage = location',
             'ManagedScanRuntime.fail(stage, failure)',
             'failureStage = if (state == last.state) last.failureStage else null',
             'status.value = ManagedScanStatus(',
