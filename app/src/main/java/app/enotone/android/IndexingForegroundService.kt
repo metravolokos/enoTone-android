@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.database.sqlite.SQLiteException
 import android.os.Build
 import android.os.IBinder
 import app.enotone.library.ManagedIndexProgress
@@ -28,6 +29,9 @@ internal data class ManagedScanStatus(
     val state: ManagedScanState = ManagedScanState.IDLE,
     val progress: ManagedIndexProgress? = null,
     val terminating: Boolean = false,
+    // Fixed codes only: never a Throwable message, URL, username or file name.
+    val failureStage: String? = null,
+    val failureReason: String? = null,
 )
 
 /**
@@ -59,7 +63,42 @@ internal object ManagedScanRuntime {
         if (state == ManagedScanState.RUNNING &&
             (status.value.state != ManagedScanState.RUNNING || status.value.terminating)) return
         if (state != ManagedScanState.RUNNING) pending = null
-        status.value = ManagedScanStatus(state, progress ?: status.value.progress, terminating)
+        val last = status.value
+        val terminalCode = when (state) {
+            ManagedScanState.PAUSED -> "PAUSED"
+            ManagedScanState.STOPPED -> "STOPPED"
+            ManagedScanState.ERROR -> "FAILED_INTERNAL"
+            else -> null
+        }
+        val finalProgress = progress ?: last.progress?.let {
+            if (terminalCode == null) it else it.copy(stopCode = terminalCode)
+        }
+        status.value = ManagedScanStatus(state, finalProgress, terminating)
+    }
+
+    @Synchronized fun fail(stage: String, cause: Exception) {
+        // Classify only exception types, NEVER exception messages/stack traces
+        // that might contain private remote paths or authorization details.
+        val reason = when (cause) {
+            is SQLiteException -> "SQLITE"
+            is SecurityException -> "SECURITY"
+            is java.io.IOException -> "IO"
+            is IllegalArgumentException -> "ARGUMENT"
+            is IllegalStateException -> "STATE"
+            else -> "UNEXPECTED"
+        }
+        pending = null
+        val last = status.value
+        val stopped = last.progress?.copy(
+            stopCode = "FAILED_INTERNAL",
+            lastErrorStage = stage,
+            lastErrorReason = reason,
+            lastErrorHttpStatus = 0,
+        )
+        status.value = ManagedScanStatus(
+            ManagedScanState.ERROR, stopped, terminating = true,
+            failureStage = stage, failureReason = reason,
+        )
     }
 }
 
@@ -112,9 +151,11 @@ class IndexingForegroundService : Service() {
         }
 
         indexJob = scope.launch(Dispatchers.IO) {
+            var stage = "DATABASE_OPEN"
             try {
                 val database = openLibraryDatabase(applicationContext)
                 try {
+                    stage = "INDEX_BATCH"
                     val final = ManagedTagIndexSession(database).run(
                         login.email,
                         login.password,
@@ -130,8 +171,9 @@ class IndexingForegroundService : Service() {
                                     android.content.pm.PackageManager.PERMISSION_GRANTED) {
                                     try {
                                         manager?.notify(NOTIFICATION_ID, buildNotification(progress))
-                                    } catch (_: SecurityException) {
-                                        // Revoked while indexing: foreground work can finish safely.
+                                    } catch (_: RuntimeException) {
+                                        // The notification is optional telemetry: failures
+                                        // must NEVER cancel a healthy tag scan.
                                     }
                                 }
                             }
@@ -144,13 +186,15 @@ class IndexingForegroundService : Service() {
                         terminating = true,
                     )
                 } finally {
+                    stage = "DATABASE_CLOSE"
                     database.close()
                 }
             } catch (_: CancellationException) {
                 // Pause/stop was set before cancellation; preserve its reason.
-            } catch (_: Exception) {
-                // Never publish exception messages, file names or remote paths.
-                ManagedScanRuntime.update(ManagedScanState.ERROR, terminating = true)
+            } catch (failure: Exception) {
+                // Numeric progress survives, with a safe terminal reason rather
+                // than stale RUNNING. No exception message or stack is emitted.
+                ManagedScanRuntime.fail(stage, failure)
             } finally {
                 withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
