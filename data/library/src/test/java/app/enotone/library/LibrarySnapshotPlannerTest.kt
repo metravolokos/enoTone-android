@@ -48,6 +48,40 @@ class LibrarySnapshotPlannerTest {
         assertNull(updated.upserts.single().tagScanCode)
     }
 
+    @Test fun incrementalListAddsOnlyNewFilesAndPreservesUnchangedTagCheckpoints() {
+        val existing = LibrarySnapshotPlanner.plan(account,
+            listing(listOf(audio("v1"))), emptyList(), 1).upserts.single()
+            .copy(title = "Existing title", album = "Existing album",
+                tagScanCode = "FLAC_VORBIS")
+        val newlyAdded = RemoteAudioFile("fresh.flac", "/AllMusic/fresh.flac",
+            "\"fresh-1\"", 1234L, null)
+        val next = LibrarySnapshotPlanner.plan(account,
+            listing(listOf(audio("v1"), newlyAdded)), listOf(existing), 2)
+        assertEquals(1, next.inserted)
+        assertEquals(0, next.changed)
+        assertEquals(1, next.unchanged)
+        val prior = next.upserts.first { it.id == existing.id }
+        assertEquals("Existing album", prior.album)
+        assertEquals("FLAC_VORBIS", prior.tagScanCode)
+        val fresh = next.upserts.first { it.id != existing.id }
+        assertNull(fresh.tagScanCode)
+        assertNull(fresh.album)
+        assertEquals(0, fresh.missingScans)
+    }
+
+    @Test fun unchangedListingPreservesRequestedTagRefreshMarker() {
+        val old = LibrarySnapshotPlanner.plan(account,
+            listing(listOf(audio("v1"))), emptyList(), 1)
+            .upserts.single().copy(
+                title = "Visible old title", album = "Visible old album",
+                tagScanCode = "RETRY_REFRESH",
+            )
+        val next = LibrarySnapshotPlanner.plan(account,
+            listing(listOf(audio("v1"))), listOf(old), 2)
+        assertEquals("RETRY_REFRESH", next.upserts.single().tagScanCode)
+        assertEquals("Visible old album", next.upserts.single().album)
+    }
+
     @Test fun missingEtagUsesSizeAndModifiedOrMarksChanged() {
         val first = LibrarySnapshotPlanner.plan(account,
             listing(listOf(audio(null, 50L, "Sun, 08 Nov 2026 00:00:00 GMT"))), emptyList(), 1)
