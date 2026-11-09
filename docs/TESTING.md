@@ -160,3 +160,6 @@ Huawei: отдельная Preview с однократным импортом т
 
 ### Huawei #147: повторный регрессионный тест EOF на следующей Preview
 Preview #147: `errorCode=2000` на 03:54/03:55, хотя current и next cache COMPLETE. Проверить новую ветку исправления DataSource EOF без сетевого вызова (ADR-0040); одно только значение 2000 не раскрывает этап. После полного зелёного CI повторить естественный конец, seek близко к концу полностью закэшированного файла, Next из Pause и авто-next, Repeat One. При ошибке прислать **числа**: Media3 errorCode и безопасный код стадии (`OPEN_STATUS`, `OPEN_RANGE`, `OPEN_ENCODING`, `OPEN_VERSION`, `OPEN_LENGTH`, `OPEN_NETWORK`, `READ_NETWORK`, `READ_TRUNCATED`, `UNKNOWN`). Не прикладывать в публичный Git имена/URL/пароль.
+
+### Huawei Preview #157 — M6-B принято (2026-11-09)
+Владелец подтвердил: перемотка проверена; естественные переходы работают в обычной и случайной очереди; ручной Next после Pause и в shuffle работает; repeat-one работает. CI #157 зелёный на HEAD `7c058e5e257982a38d021aff76e639f927f7f2d6`, PR #30 объединён (squash `6d14ee81d3da50c611f854ddaf140930dfb745d3`). Никаких приватных имён файлов в Git. Не расширять приёмку до непроверенных форматов, PCM gapless и zero GET.
