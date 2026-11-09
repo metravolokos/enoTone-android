@@ -41,6 +41,8 @@ class OptionalWebDavCredentialVaultContractTest(unittest.TestCase):
         self.assertIn('CredentialVaultState.FAILED', main)
         self.assertIn('R.string.credential_vault_save', main)
         self.assertIn('R.string.credential_vault_clear', main)
+        self.assertIn('Column(verticalArrangement = Arrangement.spacedBy(8.dp))', main)
+        self.assertIn('Button(modifier = Modifier.fillMaxWidth()', main)
         self.assertNotIn('Log.', main)
         self.assertNotIn('androidx.security.crypto', main)
 

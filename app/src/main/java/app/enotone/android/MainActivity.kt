@@ -186,8 +186,10 @@ private fun DiagnosticScreen() {
         // secrets to disk; the vault is separate from Room and from Media3.
         Text(stringResource(R.string.credential_vault_explanation),
             style = MaterialTheme.typography.bodySmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !vaultBusy && !busy &&
+        // Long RU/EN labels must remain usable on narrow Huawei screens.
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(modifier = Modifier.fillMaxWidth(),
+                enabled = !vaultBusy && !busy &&
                 email.isNotBlank() && password.isNotBlank(),
                 onClick = {
                     vaultBusy = true
@@ -206,7 +208,8 @@ private fun DiagnosticScreen() {
                         }
                     }
                 }) { Text(stringResource(R.string.credential_vault_save)) }
-            Button(enabled = !vaultBusy && !busy, onClick = {
+            Button(modifier = Modifier.fillMaxWidth(),
+                enabled = !vaultBusy && !busy, onClick = {
                 vaultBusy = true
                 scope.launch {
                     try {
