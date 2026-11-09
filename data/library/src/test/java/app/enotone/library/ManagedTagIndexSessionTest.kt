@@ -110,6 +110,23 @@ class ManagedTagIndexSessionTest {
         assertEquals("SESSION_TIME_BUDGET", result.stopCode)
     }
 
+    @Test fun continuousStopsAfterThreeBatchesWithNoCompletedFiles() = runBlocking {
+        var calls = 0
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { },
+            runBatch = { _, _, _, _ ->
+                calls++
+                batch(attempted = 0, gets = 60, bytes = 3932160,
+                    remaining = 3274, stop = "NETWORK_BUDGET")
+            },
+        )
+        val result = session.run("synthetic@example.test", "password", { true },
+            mode = ManagedIndexMode.CONTINUOUS)
+        assertEquals(3, calls)
+        assertEquals("NO_PROGRESS", result.stopCode)
+        assertEquals(180, result.getRequests)
+    }
+
     @Test fun continuousNeverRetriesAuthenticationFailure() = runBlocking {
         var calls = 0
         val session = ManagedTagIndexSession(
