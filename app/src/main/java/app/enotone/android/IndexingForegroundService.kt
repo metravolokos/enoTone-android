@@ -73,7 +73,11 @@ internal object ManagedScanRuntime {
         val finalProgress = progress ?: last.progress?.let {
             if (terminalCode == null) it else it.copy(stopCode = terminalCode)
         }
-        status.value = ManagedScanStatus(state, finalProgress, terminating)
+        status.value = ManagedScanStatus(
+            state, finalProgress, terminating,
+            failureStage = if (state == last.state) last.failureStage else null,
+            failureReason = if (state == last.state) last.failureReason else null,
+        )
     }
 
     @Synchronized fun fail(stage: String, cause: Exception) {
@@ -185,8 +189,8 @@ class IndexingForegroundService : Service() {
                         final,
                         terminating = true,
                     )
-                } finally {
                     stage = "DATABASE_CLOSE"
+                } finally {
                     database.close()
                 }
             } catch (_: CancellationException) {
