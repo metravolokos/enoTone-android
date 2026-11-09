@@ -19,6 +19,13 @@ class LibraryTagStore(private val database: EnoToneDatabase) {
         database.remoteTrackDao().tracksWithoutAlbumArtist(
             LibrarySnapshotPlanner.accountKey(accountEmail))
 
+    suspend fun findTracks(accountEmail: String, text: String): List<RemoteTrackEntity> =
+        if (text.isBlank()) emptyList()
+        else database.remoteTrackDao().findTracksForReindex(
+            LibrarySnapshotPlanner.accountKey(accountEmail),
+            "%" + text.trim().take(120) + "%",
+        )
+
     /** Queue a specific file for the existing bounded/background reader. */
     suspend fun queueOneForRefresh(accountEmail: String, id: String): Boolean =
         database.remoteTrackDao().queueTagRefreshById(
