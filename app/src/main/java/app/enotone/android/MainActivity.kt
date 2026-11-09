@@ -725,12 +725,18 @@ private fun DiagnosticScreen() {
                 current.retryableErrors, current.permanentErrors, current.getRequests,
                 current.downloadedBytes, current.remaining, current.stopCode),
                 style = MaterialTheme.typography.bodyMedium)
-            if (current.lastErrorStage != "NONE") {
+            if (current.lastErrorStage != "NONE" &&
+                managedStatus.failureStage == null) {
                 Text(stringResource(R.string.managed_index_last_error,
                     current.lastErrorStage, current.lastErrorReason,
                     current.lastErrorHttpStatus),
                     style = MaterialTheme.typography.bodySmall)
             }
+        }
+        managedStatus.failureStage?.let { stage ->
+            Text(stringResource(R.string.managed_index_internal_failure,
+                stage, managedStatus.failureReason ?: "UNEXPECTED"),
+                style = MaterialTheme.typography.bodySmall)
         }
         val managedMessage = when (managedStatus.state) {
             ManagedScanState.PAUSED -> managedPaused

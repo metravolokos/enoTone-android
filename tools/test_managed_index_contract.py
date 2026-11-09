@@ -60,6 +60,26 @@ class ManagedIndexContractTest(unittest.TestCase):
                          (ROOT / "data/library/src/main/java/app/enotone/library/"
                           "ManagedTagIndexSession.kt").read_text(encoding="utf-8"))
 
+    def test_terminated_session_does_not_leave_running_text_or_hide_failure(self):
+        service = (ROOT / "app/src/main/java/app/enotone/android/"
+                   "IndexingForegroundService.kt").read_text(encoding="utf-8")
+        ui = (ROOT / "app/src/main/java/app/enotone/android/"
+              "MainActivity.kt").read_text(encoding="utf-8")
+        for needle in (
+            'stopCode = "FAILED_INTERNAL"',
+            'lastErrorStage = stage',
+            'ManagedScanRuntime.fail(stage, failure)',
+            'failureStage = if (state == last.state) last.failureStage else null',
+            'status.value = ManagedScanStatus(',
+            'catch (_: RuntimeException)',
+        ):
+            self.assertIn(needle, service)
+        for needle in (
+            "managedStatus.failureStage?.let { stage ->",
+            "R.string.managed_index_internal_failure",
+        ):
+            self.assertIn(needle, ui)
+
     def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
         main = (ROOT / "app/src/main/java/app/enotone/android/"
                 "MainActivity.kt").read_text(encoding="utf-8")
