@@ -105,13 +105,17 @@ internal object PilotBudget {
         return rows.asSequence()
             .filter { eligibleForSingleTagWrite(sourceKey, it) }
             .filter {
-                (it.tagScanCode?.startsWith("RETRY_") != false) &&
-                    it.title == null && it.artist == null &&
-                    it.album == null && it.albumArtist == null &&
+                (it.tagScanCode == "RETRY_REFRESH" ||
+                    (it.tagScanCode?.startsWith("RETRY_") != false &&
+                        it.title == null && it.artist == null &&
+                        it.album == null && it.albumArtist == null)) &&
                     (it.fileName.endsWith(".mp3", true) || it.fileName.endsWith(".flac", true))
             }
-            .sortedWith(compareBy<RemoteTrackEntity> { it.tagScanCode != null }
-                .thenBy { it.id })
+            // Explicit targeted refreshes are served first, before unseen
+            // or retryable files. The same 60-GET/4-MiB budget applies.
+            .sortedWith(compareBy<RemoteTrackEntity> {
+                it.tagScanCode != "RETRY_REFRESH"
+            }.thenBy { it.tagScanCode != null }.thenBy { it.id })
             .take(count).toList()
     }
 }
