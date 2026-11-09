@@ -149,6 +149,10 @@ class ManagedTagIndexSession(
             if (batches > 0) {
                 waitBetweenBatches(ManagedIndexLimits.BETWEEN_BATCH_DELAY_MS)
             }
+            if (timedOut()) {
+                stop = "SESSION_TIME_BUDGET"
+                break
+            }
             if (!networkAllowed()) {
                 stop = "NETWORK_POLICY"
                 break
