@@ -201,7 +201,7 @@ class IndexingForegroundService : Service() {
                         },
                     )
                     ManagedScanRuntime.update(
-                        if (final.stopCode in setOf("AUTH_REJECTED", "RETRY_BACKOFF"))
+                        if (final.stopCode in setOf("AUTH_REJECTED", "RETRY_BACKOFF", "NO_PROGRESS"))
                             ManagedScanState.ERROR else ManagedScanState.COMPLETE,
                         final,
                         terminating = true,
