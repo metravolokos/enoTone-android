@@ -9,6 +9,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicInteger
@@ -118,7 +119,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
             }
         }
 
-        repeat(ParallelTagPolicy.WORKERS) {
+        val workers = (0 until ParallelTagPolicy.WORKERS).map {
             launch(Dispatchers.IO) {
                 while (true) {
                     currentCoroutineContext().ensureActive()
@@ -207,6 +208,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
             }
         }
 
+        workers.joinAll()
         val remaining = dao.pendingFastScans(sourceKey).size
         val endCode = stop.get() ?: when {
             candidates.isEmpty() || remaining == 0 -> "COMPLETED"
