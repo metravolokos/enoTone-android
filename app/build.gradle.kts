@@ -65,8 +65,9 @@ android {
         }
     }
     // Fail closed even when a developer requests assembleStablePreview locally.
-    if (gradle.startParameter.taskNames.any {
-        it.contains("StablePreview", ignoreCase = true)
+    if (gradle.startParameter.taskNames.any { requested ->
+        listOf("assembleStablePreview", "packageStablePreview", "bundleStablePreview",
+            "installStablePreview").any { requested.endsWith(it, ignoreCase = true) }
     }) {
         require(!System.getenv("ENOTONE_PREVIEW_KEYSTORE_PATH").isNullOrBlank() &&
             !System.getenv("ENOTONE_PREVIEW_KEYSTORE_PASSWORD").isNullOrBlank()) {

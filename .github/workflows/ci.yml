@@ -100,6 +100,12 @@ jobs:
         run: python3 -m unittest discover -s tools -p 'test_*.py' -v
       - name: Build, JUnit and Lint
         run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :core:network:testDebugUnitTest :core:database:testDebugUnitTest :data:library:testDebugUnitTest :playback:testDebugUnitTest :app:lintDebug
+      # Validate this brand-new build variant even on PRs where signing
+      # secrets are deliberately unavailable. Compiles only, never packages an
+      # unsigned stable APK or uploads it as a distributable artifact.
+      - name: Compile stable Preview variant (no signing secrets)
+        run: gradle --no-daemon :app:compileStablePreviewKotlin
+
       - name: Verify Room v1 schema matches committed JSON
         shell: bash
         run: |
