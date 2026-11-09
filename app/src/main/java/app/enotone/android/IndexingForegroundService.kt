@@ -11,6 +11,7 @@ import android.content.pm.ServiceInfo
 import android.database.sqlite.SQLiteException
 import android.os.Build
 import android.os.IBinder
+import app.enotone.library.ManagedIndexMode
 import app.enotone.library.ManagedIndexProgress
 import app.enotone.library.ManagedTagIndexSession
 import app.enotone.library.TagBatchStageException
@@ -40,19 +41,28 @@ internal data class ManagedScanStatus(
  * Background execution survives Activity.onStop(), not process death.
  * Completed tag checkpoints are independently durable in Room.
  */
+internal data class PendingIndexRun(
+    val login: StoredWebDavLogin,
+    val mode: ManagedIndexMode,
+)
+
 internal object ManagedScanRuntime {
     val status = MutableStateFlow(ManagedScanStatus())
-    private var pending: StoredWebDavLogin? = null
+    // One-shot RAM handoff, never an Intent extra or persisted secret.
+    private var pending: PendingIndexRun? = null
 
-    @Synchronized fun prepare(email: String, password: String): Boolean {
+    @Synchronized fun prepare(
+        email: String, password: String,
+        mode: ManagedIndexMode = ManagedIndexMode.BOUNDED,
+    ): Boolean {
         require(email.isNotBlank() && password.isNotBlank())
         if (status.value.state == ManagedScanState.RUNNING || status.value.terminating) return false
-        pending = StoredWebDavLogin(email, password)
+        pending = PendingIndexRun(StoredWebDavLogin(email, password), mode)
         status.value = ManagedScanStatus(ManagedScanState.RUNNING)
         return true
     }
 
-    @Synchronized fun claim(): StoredWebDavLogin? =
+    @Synchronized fun claim(): PendingIndexRun? =
         pending.also { pending = null }
 
     @Synchronized fun update(
@@ -111,10 +121,12 @@ internal object ManagedScanRuntime {
 }
 
 /**
- * A user-triggered, bounded dataSync foreground service. No background FGS
- * launch, boot receiver, WorkManager job quota, Wi-Fi filter or automatic restart.
- * Each batch retains the existing 60 GET / 4 MiB limits, and Room commits each
- * completed file. UI may be stopped or screen locked while this service runs.
+ * A user-triggered dataSync foreground service. Explicit BOUNDED and
+ * CONTINUOUS modes share the same four concurrent readers and per-batch
+ * 60 GET / 4 MiB quota. Continuous mode has strict 80-batch / 4-hour caps;
+ * it never relaunches after process death, device reboot or system timeout.
+ * No WorkManager job quota, Wi-Fi check or hidden background auto-start.
+ * Completed file checkpoints remain in Room.
  */
 class IndexingForegroundService : Service() {
     companion object {
@@ -143,8 +155,8 @@ class IndexingForegroundService : Service() {
 
     private fun startFromUser() {
         if (indexJob != null) return
-        val login = ManagedScanRuntime.claim()
-        if (login == null) {
+        val request = ManagedScanRuntime.claim()
+        if (request == null) {
             ManagedScanRuntime.update(ManagedScanState.ERROR, terminating = true)
             stopSelf()
             return
@@ -165,11 +177,12 @@ class IndexingForegroundService : Service() {
                 try {
                     stage = "INDEX_BATCH"
                     val final = ManagedTagIndexSession(database).run(
-                        login.email,
-                        login.password,
+                        request.login.email,
+                        request.login.password,
                         // No Wi-Fi / metered network constraint. Network failures are
                         // handled by the existing bounded WebDAV Range reader.
                         networkAllowed = { true },
+                        mode = request.mode,
                         onProgress = { progress ->
                             ManagedScanRuntime.update(ManagedScanState.RUNNING, progress)
                             withContext(Dispatchers.Main) {
