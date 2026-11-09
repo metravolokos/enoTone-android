@@ -18,7 +18,7 @@ class ManagedIndexContractTest(unittest.TestCase):
             "const val MAX_TOTAL_GETS = MAX_BATCHES * PilotBudget.MAX_BATCH_GETS",
             "const val MAX_TOTAL_BYTES = MAX_BATCHES * PilotBudget.MAX_BATCH_BYTES",
             "PilotBudget.RESUME_LIMIT",
-            "stopOnRetryableFailure = true",
+            "ParallelTagIndexer(database).run(",
             "delay(ManagedIndexLimits.BETWEEN_BATCH_DELAY_MS)",
         ):
             self.assertIn(needle, runner)
@@ -31,6 +31,34 @@ class ManagedIndexContractTest(unittest.TestCase):
             self.assertIn(needle, indexer)
         for forbidden in ("WorkManager", "GlobalScope", "PROPFIND", "while (true)", "Log."):
             self.assertNotIn(forbidden, runner)
+
+    def test_parallel_batch_has_shared_budget_and_retries(self):
+        reader = (ROOT / "data/library/src/main/java/app/enotone/library/"
+                  "WebDavRangeReader.kt").read_text(encoding="utf-8")
+        parallel = (ROOT / "data/library/src/main/java/app/enotone/library/"
+                    "ParallelTagIndexer.kt").read_text(encoding="utf-8")
+        for needle in (
+            "const val WORKERS = 4",
+            "const val MAX_RETRIES = 2",
+            "SharedRangeBudget(",
+            "workers.joinAll()",
+            "launch(Dispatchers.IO)",
+            "delay(pause)",
+            "recordFastScanIfUnchanged(",
+            'stop.compareAndSet(null, "AUTH_REJECTED")',
+        ):
+            self.assertIn(needle, parallel)
+        for needle in (
+            "class SharedRangeBudget(",
+            "@Synchronized fun tryReserve(",
+            "sharedBudget.tryReserve(n)",
+        ):
+            self.assertIn(needle, reader)
+        for forbidden in ("GlobalScope", "while (true)", "PROPFIND", "Log."):
+            self.assertNotIn(forbidden, parallel)
+        self.assertNotIn("stopOnRetryableFailure = true",
+                         (ROOT / "data/library/src/main/java/app/enotone/library/"
+                          "ManagedTagIndexSession.kt").read_text(encoding="utf-8"))
 
     def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
         main = (ROOT / "app/src/main/java/app/enotone/android/"
