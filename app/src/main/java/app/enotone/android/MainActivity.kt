@@ -672,7 +672,9 @@ private fun DiagnosticScreen() {
             enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
                 email.isNotBlank() && password.isNotBlank(),
             onClick = { startManagedSession() }) {
-            Text(stringResource(if (managedStatus.state == ManagedScanState.PAUSED)
+            Text(stringResource(if (managedStatus.state in setOf(ManagedScanState.PAUSED,
+                    ManagedScanState.STOPPED, ManagedScanState.COMPLETE,
+                    ManagedScanState.ERROR))
                 R.string.managed_index_resume else R.string.managed_index_start))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
