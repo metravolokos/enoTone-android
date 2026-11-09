@@ -28,8 +28,26 @@ class OfflineLibraryGroupingTest {
         assertEquals(2, albums.size)
         assertEquals(setOf("a", "b"), albums.first { it.name == "First Album" }.trackIds)
         assertEquals(2, artists.size)
-        assertEquals(setOf("a", "c"), artists.first { it.name == "Singer" }.trackIds)
+        assertEquals(setOf("a", "b"),
+            artists.first { it.name == "Various Artists" }.trackIds)
+        assertEquals(setOf("c"), artists.first { it.name == "Singer" }.trackIds)
         assertEquals(3563, rows.size)
+    }
+
+    @Test fun albumArtistOverridesTrackArtistForArtistNavigation() {
+        val rows = listOf(
+            row("one", "Duets", "Guest One", "Album Collective"),
+            row("two", "Duets", "Guest Two", "Album Collective"),
+            row("three", "Solo", "Guest One"),
+        )
+        val artists = OfflineLibraryGrouping.artists(rows)
+        assertEquals(2, artists.size)
+        assertEquals(setOf("one", "two"),
+            artists.first { it.name == "Album Collective" }.trackIds)
+        assertEquals(setOf("three"),
+            artists.first { it.name == "Guest One" }.trackIds)
+        assertFalse(artists.any { it.name == "Guest Two" })
+        assertEquals(1, OfflineLibraryGrouping.albums(rows).count { it.name == "Duets" })
     }
 
     @Test fun sameAlbumNameDifferentArtistsNotAccidentallyMerged() {
@@ -50,6 +68,15 @@ class OfflineLibraryGroupingTest {
         assertEquals(setOf("a", "b"), album.single().trackIds)
         assertTrue(OfflineLibraryGrouping.matches(album.single(), " CAFÉ artist "))
         assertFalse(OfflineLibraryGrouping.matches(album.single(), "Unrelated"))
+    }
+
+    @Test fun albumArtistOnlyIsEnoughToCreateArtistGroup() {
+        val group = OfflineLibraryGrouping.artists(listOf(
+            row("album-artist-only", album = "Album", albumArtist = "The Orchestra"),
+        ))
+        assertEquals(1, group.size)
+        assertEquals("The Orchestra", group.single().name)
+        assertEquals(setOf("album-artist-only"), group.single().trackIds)
     }
 
     @Test fun knownAlbumWithoutArtistRemainsVisibleWithoutInventingArtist() {
