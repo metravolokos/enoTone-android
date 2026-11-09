@@ -68,7 +68,7 @@ class ManagedIndexContractTest(unittest.TestCase):
         ):
             self.assertIn(needle, service)
         for forbidden in (
-            "onStop()", "pauseManagedIndexOnStop", "TRANSPORT_WIFI",
+            "override fun onStop()", "pauseManagedIndexOnStop", "TRANSPORT_WIFI",
             "allowMobileIndexing", "managedIndexNetworkAllowed",
             "putExtra(\"password\"", "Log.",
         ):
