@@ -74,6 +74,19 @@ class ManagedTagIndexSessionTest {
         assertEquals("NETWORK_POLICY", result.stopCode)
     }
 
+    @Test fun noCompletedFilesWithSpentNetworkBudgetIsNotNoEligibleFiles() = runBlocking {
+        var calls = 0
+        val session = ManagedTagIndexSession { _, _, _, _ ->
+            calls++
+            batch(attempted = 0, gets = 60, bytes = 3932160,
+                remaining = 3506, stop = "NETWORK_BUDGET")
+        }
+        val result = session.run("synthetic@example.test", "synthetic-password", { true })
+        assertEquals(4, calls)
+        assertEquals("SESSION_LIMIT", result.stopCode)
+        assertEquals(240, result.getRequests)
+    }
+
     @Test fun noEligibleCandidatesDoNotSpinAcrossBatches() = runBlocking {
         var calls = 0
         val session = ManagedTagIndexSession { _, _, _, _ ->
