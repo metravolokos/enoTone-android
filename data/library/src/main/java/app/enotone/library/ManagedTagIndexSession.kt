@@ -202,7 +202,8 @@ class ManagedTagIndexSession(
                     "SESSION_TIME_BUDGET") -> result.stopCode
                 remaining == 0 || (result.attempted == 0 && result.getRequests == 0) ->
                     "NO_ELIGIBLE_FILES"
-                consecutiveEmptyBatches >= 3 -> "NO_PROGRESS"
+                mode == ManagedIndexMode.CONTINUOUS &&
+                    consecutiveEmptyBatches >= 3 -> "NO_PROGRESS"
                 result.stopCode == "RETRY_BACKOFF" -> when {
                     mode == ManagedIndexMode.BOUNDED ||
                         backoffCycles >= ManagedIndexLimits.MAX_BACKOFF_CYCLES -> "RETRY_BACKOFF"
