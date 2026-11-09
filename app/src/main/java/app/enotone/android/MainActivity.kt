@@ -176,8 +176,8 @@ private fun DiagnosticScreen() {
     var notificationPermissionDenied by remember { mutableStateOf(false) }
     val launchManagedForegroundService: () -> Unit = {
         if (!busy && managedStatus.state != ManagedScanState.RUNNING &&
-            email.isNotBlank() && password.isNotBlank()) {
-            ManagedScanRuntime.prepare(email, password)
+            !managedStatus.terminating && email.isNotBlank() && password.isNotBlank() &&
+            ManagedScanRuntime.prepare(email, password)) {
             try {
                 appContext.startForegroundService(
                     Intent(appContext, IndexingForegroundService::class.java)
@@ -696,6 +696,7 @@ private fun DiagnosticScreen() {
         }
         Button(modifier = Modifier.fillMaxWidth(),
             enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
+                !managedStatus.terminating &&
                 email.isNotBlank() && password.isNotBlank(),
             onClick = { startManagedSession() }) {
             Text(stringResource(if (managedStatus.state in setOf(ManagedScanState.PAUSED,
