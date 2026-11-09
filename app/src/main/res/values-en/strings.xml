@@ -102,4 +102,12 @@
     <string name="credential_vault_saved">Sign-in securely saved on this device.</string>
     <string name="credential_vault_deleted">Saved sign-in erased; music library unchanged.</string>
     <string name="credential_vault_failed">Could not read or update protected sign-in. You can still sign in manually.</string>
+    <string name="library_tab_tracks">Tracks</string>
+    <string name="library_tab_albums">Albums</string>
+    <string name="library_tab_artists">Artists</string>
+    <string name="library_group_back">Back to groups</string>
+    <string name="library_group_count">Groups: %1$d</string>
+    <string name="library_group_tags_only">Only albums and artists with saved tags are shown. Other files remain under Tracks.</string>
+    <string name="library_group_tracks">Tracks: %1$d</string>
+    <string name="library_groups_empty">No recognized groups yet. Tags can be indexed later in small batches.</string>
 </resources>

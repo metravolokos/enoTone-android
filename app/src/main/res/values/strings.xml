@@ -102,4 +102,12 @@
     <string name="credential_vault_saved">Вход защищён и сохранён на этом устройстве.</string>
     <string name="credential_vault_deleted">Сохранённые данные входа удалены. Медиатека не затронута.</string>
     <string name="credential_vault_failed">Не удалось прочитать или изменить защищённые данные входа. Можно продолжить вручную.</string>
+    <string name="library_tab_tracks">Треки</string>
+    <string name="library_tab_albums">Альбомы</string>
+    <string name="library_tab_artists">Исполнители</string>
+    <string name="library_group_back">К списку групп</string>
+    <string name="library_group_count">Найдено групп: %1$d</string>
+    <string name="library_group_tags_only">Показаны только альбомы и исполнители с уже сохранёнными тегами. Остальные файлы остаются в разделе «Треки».</string>
+    <string name="library_group_tracks">Треков: %1$d</string>
+    <string name="library_groups_empty">Нет распознанных групп. Теги можно обрабатывать отдельно небольшими партиями.</string>
 </resources>
