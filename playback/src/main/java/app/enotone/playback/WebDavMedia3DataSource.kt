@@ -3,10 +3,12 @@ package app.enotone.playback
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DataSourceException
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -46,18 +48,25 @@ internal class WebDavMedia3DataSource(
             it.length in 2..256 && it.first() == '"' && it.last() == '"' &&
                 it.all { char -> char.code in 32..126 }
         }
-        require(remoteSize > 0 && dataSpec.position in 0 until remoteSize &&
-            dataSpec.length != 0L) { "Invalid playback position" }
-
-        val end = if (dataSpec.length == C.LENGTH_UNSET.toLong()) {
-            remoteSize - 1
-        } else {
-            val bounded = minOf(dataSpec.length, remoteSize - dataSpec.position)
-            require(bounded > 0) { "Invalid playback length" }
-            dataSpec.position + bounded - 1
-        }
-        val count = end - dataSpec.position + 1
+        // Media3 DataSource contract: an open *at* EOF is valid and read()
+        // must return RESULT_END_OF_INPUT. The previous strict `until size`
+        // check threw an unspecified IO error near a track boundary.
+        val window = PlaybackReadWindow.resolve(
+            remoteSize, dataSpec.position, dataSpec.length,
+        ) ?: throw DataSourceException(
+            PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE,
+        )
         transferInitializing(dataSpec)
+        if (window.endInclusive == null) {
+            // No invalid bytes=size-... Range, no network, no ETag exposure.
+            uri = dataSpec.uri
+            bytesLeft = 0L
+            opened = true
+            transferStarted(dataSpec)
+            return window.openReturnLength
+        }
+        val end = window.endInclusive
+        val count = window.bytesAvailable
         var conn: HttpsURLConnection? = null
         try {
             conn = URL(safeUrl).openConnection() as HttpsURLConnection
@@ -94,7 +103,7 @@ internal class WebDavMedia3DataSource(
             uri = dataSpec.uri
             opened = true
             transferStarted(dataSpec)
-            return count
+            return window.openReturnLength
         } catch (_: Exception) {
             try { conn?.inputStream?.close() } catch (_: Exception) { }
             conn?.disconnect()
