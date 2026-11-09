@@ -108,11 +108,13 @@ class FastAudioTagReaderTest {
         val data = mp3(4,
             textFrame("TIT2", "Title", 4),
             textFrame("TPE1", "Artist", 4),
-            textFrame("TALB", "Album", 4))
+            textFrame("TALB", "Album", 4),
+            textFrame("TPE2", "Album Artist", 4))
         val r = FastAudioTagReader().read("s.mp3", data.size.toLong(), byteReader(data))
         assertEquals(FastTagCode.MP3_ID3V24, r.code)
         assertEquals("Title", r.tags?.title)
         assertEquals("Artist", r.tags?.artist)
+        assertEquals("Album Artist", r.tags?.albumArtist)
     }
 
     @Test fun mp3WithoutV2UsesId3v1FromTailOnly() {
@@ -144,6 +146,19 @@ class FastAudioTagReaderTest {
         assertEquals("Альбом", result.tags?.album)
         assertEquals("Сборник", result.tags?.albumArtist)
         assertEquals(2, visited.size)
+    }
+
+    @Test fun flacAlbumArtistAliasesAreStoredSeparatelyFromTrackArtist() {
+        for (alias in listOf("ALBUMARTIST", "ALBUM ARTIST", "ALBUM_ARTIST")) {
+            val data = flacWithHugeCover(vorbis(
+                "ARTIST=Track Guest", "ALBUM=Collaborations",
+                "$alias=Album Collective"))
+            val result = FastAudioTagReader().read(
+                "collab.flac", data.size.toLong(), byteReader(data))
+            assertEquals(FastTagCode.FLAC_VORBIS, result.code)
+            assertEquals("Track Guest", result.tags?.artist)
+            assertEquals("Album Collective", result.tags?.albumArtist)
+        }
     }
 
     @Test fun flacMalformedCommentsAndOversizedMetadataFailClosed() {

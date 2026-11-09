@@ -44,17 +44,20 @@ object OfflineLibraryGrouping {
             .thenBy { it.key })
     }
 
+    /** Album Artist is primary; track Artist is used only if it is missing. */
     fun artists(tracks: List<OfflineTrackRow>): List<OfflineLibraryGroup> {
         val map = linkedMapOf<String, MutableList<OfflineTrackRow>>()
         for (row in tracks) {
-            val artist = known(row.artist) ?: known(row.albumArtist) ?: continue
+            // The Artists tab represents the album artist when available.
+            // Track-level performers remain stored and searchable separately.
+            val artist = known(row.albumArtist) ?: known(row.artist) ?: continue
             val key = "artist:" + normalized(artist)
             map.getOrPut(key) { mutableListOf() }.add(row)
         }
         return map.map { (key, rows) ->
             OfflineLibraryGroup(
                 key = key,
-                name = known(rows.first().artist) ?: known(rows.first().albumArtist)!!,
+                name = known(rows.first().albumArtist) ?: known(rows.first().artist)!!,
                 subtitle = null,
                 trackIds = rows.mapTo(linkedSetOf()) { it.id },
             )

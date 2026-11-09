@@ -158,7 +158,14 @@ class FastAudioTagReader {
             pos += fieldLength
             val separator = field.indexOf('=')
             if (separator > 0) {
-                val key = field.substring(0, separator).uppercase(Locale.ROOT)
+                // FLAC Vorbis uses ALBUMARTIST most often, but real libraries
+                // also contain ALBUM ARTIST and ALBUM_ARTIST. Normalize the
+                // aliases before storing without ever substituting track ARTIST.
+                val rawKey = field.substring(0, separator).uppercase(Locale.ROOT)
+                val key = when (rawKey) {
+                    "ALBUM ARTIST", "ALBUM_ARTIST" -> "ALBUMARTIST"
+                    else -> rawKey
+                }
                 if (key in setOf("TITLE", "ARTIST", "ALBUM", "ALBUMARTIST") &&
                     !result.containsKey(key)) {
                     result[key] = field.substring(separator + 1)
