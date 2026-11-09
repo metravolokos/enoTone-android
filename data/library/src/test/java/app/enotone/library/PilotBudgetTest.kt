@@ -95,6 +95,22 @@ class PilotBudgetTest {
         assertTrue(next.none { it.tagScanCode != null })
     }
 
+    @Test fun queuedReindexCanSelectTaggedFilesWithoutTouchingOtherCompletedFiles() {
+        val queued = row(1, status = "RETRY_REFRESH", title = "Old saved title")
+        val failedRefresh = row(2, status = "RETRY_NETWORK", title = "Previous title")
+        val complete = row(3, status = "FLAC_VORBIS", title = "Another track")
+        val olderWithoutCheckpoint = row(4, title = "Old manual metadata")
+        val newFile = row(5)
+        val selected = PilotBudget.select(key,
+            listOf(queued, failedRefresh, complete, olderWithoutCheckpoint, newFile), 10)
+        assertEquals(3, selected.size)
+        assertEquals(newFile.id, selected.first().id)
+        assertTrue(selected.any { it.id == queued.id })
+        assertTrue(selected.any { it.id == failedRefresh.id })
+        assertFalse(selected.any { it.id == complete.id })
+        assertFalse(selected.any { it.id == olderWithoutCheckpoint.id })
+    }
+
     @Test fun doesNotTraverseNestedEntriesOrZeroSizedFiles() {
         val nested = row(1).copy(
             encodedPath = "/AllMusic/dir/sample_1.flac",
