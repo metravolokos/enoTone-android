@@ -161,6 +161,17 @@ interface RemoteTrackDao {
     """)
     suspend fun tracksWithoutAlbumArtist(sourceKey: String, limit: Int = 30): List<RemoteTrackEntity>
 
+    @Query("""
+        SELECT * FROM remote_tracks
+        WHERE sourceKey = :sourceKey AND missingScans = 0
+          AND (fileName LIKE :pattern OR title LIKE :pattern)
+        ORDER BY fileName COLLATE NOCASE, id
+        LIMIT :limit
+    """)
+    suspend fun findTracksForReindex(
+        sourceKey: String, pattern: String, limit: Int = 30,
+    ): List<RemoteTrackEntity>
+
     /**
      * Explicit local queue request. Does not erase tag values; a later
      * managed scan will re-fetch this single version with bounded HTTP Range.
