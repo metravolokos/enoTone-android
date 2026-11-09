@@ -39,7 +39,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.enotone.database.EnoToneDatabase
+import app.enotone.database.MissingAlbumDiagnostic
 import app.enotone.library.LibrarySnapshotStore
+import app.enotone.library.TagMaintenanceStore
 import app.enotone.library.LibraryTagStore
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.AndroidAudioTagReader
@@ -77,6 +79,11 @@ private fun DiagnosticScreen() {
     var testInfinity by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
+    var missingAlbumFiles by remember(email) {
+        mutableStateOf<List<MissingAlbumDiagnostic>?>(null)
+    }
+    var confirmFullTagRefresh by remember { mutableStateOf(false) }
+    var maintenanceReport by remember { mutableStateOf("") }
     var pilotJob by remember { mutableStateOf<Job?>(null) }
     val managedStatus by ManagedScanRuntime.status.collectAsState()
     var showingLibrary by remember { mutableStateOf(false) }
@@ -350,7 +357,9 @@ private fun DiagnosticScreen() {
         }) {
             Text(stringResource(R.string.count_audio_files))
         }
-        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
+        Button(enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
+            !managedStatus.terminating &&
+            email.isNotBlank() && password.isNotBlank(), onClick = {
             busy = true
             report = ""
             scope.launch {
@@ -380,7 +389,7 @@ private fun DiagnosticScreen() {
                 }
             }
         }) {
-            Text(stringResource(R.string.save_local_library))
+            Text(stringResource(R.string.library_sync_changes))
         }
         Button(enabled = !busy && email.isNotBlank(), onClick = {
             busy = true
@@ -437,6 +446,118 @@ private fun DiagnosticScreen() {
         }) {
             Text(stringResource(R.string.read_stored_tags_offline))
         }
+        // Local-only diagnosis of missing ALBUM. Never emit filenames to logs,
+        // notifications, public GitHub issues or sanitized diagnostic reports.
+        Button(
+            enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
+                !managedStatus.terminating && email.isNotBlank(),
+            onClick = {
+                busy = true
+                maintenanceReport = ""
+                scope.launch {
+                    try {
+                        missingAlbumFiles = withContext(Dispatchers.IO) {
+                            val db = openLibraryDatabase(appContext)
+                            try {
+                                TagMaintenanceStore(db).missingAlbumFiles(email)
+                            } finally { db.close() }
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        maintenanceReport = appContext.getString(R.string.local_store_failed)
+                    } finally { busy = false }
+                }
+            },
+        ) { Text(stringResource(R.string.library_find_missing_album)) }
+        missingAlbumFiles?.let { entries ->
+            Text(stringResource(R.string.library_missing_album_count, entries.size),
+                style = MaterialTheme.typography.bodySmall)
+            entries.forEach { item ->
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(item.title?.takeIf { it.isNotBlank() } ?: item.fileName)
+                    Text(stringResource(R.string.library_missing_album_filename, item.fileName),
+                        style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.library_missing_album_scan_code,
+                        item.tagScanCode ?: "NOT_SCANNED"),
+                        style = MaterialTheme.typography.bodySmall)
+                    Button(
+                        enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
+                            !managedStatus.terminating &&
+                            email.isNotBlank() && password.isNotBlank(),
+                        onClick = {
+                            busy = true
+                            scope.launch {
+                                try {
+                                    val queued = withContext(Dispatchers.IO) {
+                                        val db = openLibraryDatabase(appContext)
+                                        try {
+                                            TagMaintenanceStore(db).scheduleOne(email, item.id)
+                                        } finally { db.close() }
+                                    }
+                                    if (queued) {
+                                        maintenanceReport = appContext.getString(
+                                            R.string.library_refresh_queued)
+                                        startManagedSession(false)
+                                    } else {
+                                        maintenanceReport = appContext.getString(
+                                            R.string.local_store_failed)
+                                    }
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) {
+                                    maintenanceReport = appContext.getString(R.string.local_store_failed)
+                                } finally { busy = false }
+                            }
+                        },
+                    ) { Text(stringResource(R.string.library_refresh_one)) }
+                }
+            }
+        }
+        Button(
+            enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
+                !managedStatus.terminating &&
+                email.isNotBlank() && password.isNotBlank(),
+            onClick = {
+                if (!confirmFullTagRefresh) {
+                    confirmFullTagRefresh = true
+                } else {
+                    confirmFullTagRefresh = false
+                    busy = true
+                    scope.launch {
+                        try {
+                            val count = withContext(Dispatchers.IO) {
+                                val db = openLibraryDatabase(appContext)
+                                try {
+                                    TagMaintenanceStore(db).scheduleAll(email)
+                                } finally { db.close() }
+                            }
+                            maintenanceReport = appContext.getString(
+                                R.string.library_refresh_all_queued, count)
+                            if (count > 0) startManagedSession(true)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            maintenanceReport = appContext.getString(R.string.local_store_failed)
+                        } finally { busy = false }
+                    }
+                }
+            },
+        ) {
+            Text(stringResource(if (confirmFullTagRefresh)
+                R.string.library_refresh_all_confirm else R.string.library_refresh_all))
+        }
+        if (confirmFullTagRefresh) {
+            Text(stringResource(R.string.library_refresh_all_warning),
+                style = MaterialTheme.typography.bodySmall)
+            Button(enabled = !busy, onClick = { confirmFullTagRefresh = false }) {
+                Text(stringResource(R.string.library_refresh_cancel))
+            }
+        }
+        if (maintenanceReport.isNotBlank()) {
+            Text(maintenanceReport, style = MaterialTheme.typography.bodySmall)
+        }
+
         Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
             busy = true
             report = ""
