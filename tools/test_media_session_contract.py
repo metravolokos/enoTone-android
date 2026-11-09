@@ -235,5 +235,32 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("putExtra(", service)
 
 
+    def test_m6b_seek_uses_native_player_without_untrusted_remote_url(self):
+        base = ROOT / "playback/src/main/java/app/enotone/playback"
+        service = (base / "EnoTonePlaybackService.kt").read_text(encoding="utf-8")
+        policy = (base / "PlaybackSeekPolicy.kt").read_text(encoding="utf-8")
+        ui = (
+            ROOT / "app/src/main/java/app/enotone/android/"
+            "OfflineLibraryScreen.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM", service)
+        self.assertIn("fun seekToFraction(", service)
+        self.assertIn("PlaybackSeekPolicy.positionForFraction(", service)
+        self.assertIn("player.seekTo(target)", service)
+        self.assertIn("fun isKnownDuration(", policy)
+        self.assertIn("fraction.isFinite()", policy)
+        self.assertIn("coerceIn(0L, durationMs)", policy)
+        self.assertIn("fun formatTime(", policy)
+        self.assertIn("Slider(", ui)
+        self.assertIn("onValueChangeFinished", ui)
+        self.assertIn("seekToFraction(scrubFraction)", ui)
+        self.assertIn("canSeek = active?.canSeekCurrent == true", ui)
+        self.assertIn("contentDescription = seekDescription", ui)
+        self.assertIn("delay(500L)", ui)
+        self.assertNotIn("allForSource(sourceKey)", service)
+        self.assertNotIn("Log.", policy)
+        self.assertNotIn("putExtra(", service)
+
+
 if __name__ == "__main__":
     unittest.main()
