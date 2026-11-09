@@ -76,6 +76,25 @@ class PilotBudgetTest {
         assertEquals("RETRY_NETWORK", retriesOnly.single().tagScanCode)
     }
 
+    @Test fun picksHundredFrom3590WithoutRescanningCompletedCandidates() {
+        val library = (0 until 3590).map { index ->
+            row(index, extension = if (index % 2 == 0) "mp3" else "flac",
+                status = if (index < 10) "MP3_ID3" else null)
+        }
+        val first = PilotBudget.select(key, library, PilotBudget.RESUME_LIMIT)
+        assertEquals(100, first.size)
+        assertTrue(first.none { it.tagScanCode != null })
+        assertEquals(100, first.map { it.id }.distinct().size)
+        // Simulate a fully checkpointed session, then manual Resume.
+        val finished = first.map { it.id }.toSet()
+        val next = PilotBudget.select(key, library.map {
+            if (it.id in finished) it.copy(tagScanCode = "MP3_ID3") else it
+        }, PilotBudget.RESUME_LIMIT)
+        assertEquals(100, next.size)
+        assertTrue(next.none { it.id in finished })
+        assertTrue(next.none { it.tagScanCode != null })
+    }
+
     @Test fun doesNotTraverseNestedEntriesOrZeroSizedFiles() {
         val nested = row(1).copy(
             encodedPath = "/AllMusic/dir/sample_1.flac",
@@ -89,13 +108,23 @@ class PilotBudgetTest {
     @Test fun neverAllowsUnboundedPilotCountOrNetworkBudgets() {
         assertTrue(PilotBudget.validCount(10))
         assertTrue(PilotBudget.validCount(20))
+        assertTrue(PilotBudget.validCount(PilotBudget.RESUME_LIMIT))
         assertFalse(PilotBudget.validCount(3590))
         assertFalse(PilotBudget.validCount(21))
+        assertFalse(PilotBudget.validCount(99))
+        assertFalse(PilotBudget.validCount(101))
         assertEquals(30, PilotBudget.requestCap(10))
         assertEquals(60, PilotBudget.requestCap(20))
+        assertEquals(60, PilotBudget.requestCap(PilotBudget.RESUME_LIMIT))
+        assertEquals(PilotBudget.MAX_BATCH_GETS, PilotBudget.requestCap(PilotBudget.RESUME_LIMIT))
+        assertEquals(PilotBudget.MAX_BATCH_BYTES, PilotBudget.byteCap(PilotBudget.RESUME_LIMIT))
+        assertEquals(180L * 1_000_000_000L, PilotBudget.MAX_BATCH_NANOS)
         assertEquals(4L * 1024 * 1024, PilotBudget.byteCap(20))
         assertFalse(PilotBudget.mayStartFile(60, 0, 20))
         assertFalse(PilotBudget.mayStartFile(0, PilotBudget.byteCap(20) - 65535L, 20))
         assertTrue(PilotBudget.mayStartFile(59, 0, 20))
+        assertFalse(PilotBudget.mayStartFile(60, 0, PilotBudget.RESUME_LIMIT))
+        assertFalse(PilotBudget.mayStartFile(0, 4L * 1024 * 1024, PilotBudget.RESUME_LIMIT))
+        assertTrue(PilotBudget.mayStartFile(59, 0, PilotBudget.RESUME_LIMIT))
     }
 }

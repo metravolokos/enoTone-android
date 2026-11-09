@@ -127,3 +127,9 @@
 
 ## Accepted on Huawei — M0-K secure credentials (2026-11-09)
 - Owner confirmed both opt-in saved-login restore and explicit removal after restart in Stable Preview #172, with Room music list preserved and no new import. Safe sign-in lifecycle accepted; no runtime changes in this docs PR.
+
+## Huawei acceptance — M2-A and first stable 10-file tag pilot (2026-11-09)
+- On-device #177: user confirmed both group tabs populated after bounded 10/10 MP3/FLAC scans (12 HTTP GET, 786432 bytes, zero errors); tracks play/skip in grouped context. Full library indexing not performed.
+
+## Unreleased — M1 bounded manual resume (Draft)
+- New explicit Resume button for up to 100 next unprocessed candidates, still using existing per-run ceilings of 60 GET, 4 MiB, ~180 seconds, and unchanged per-file Room checkpoint. No background scan or bulk import, and existing 10/20 pilot behavior unchanged. Huawei smoke pending.
