@@ -487,6 +487,44 @@ private fun DiagnosticScreen() {
                             email.isNotBlank() && password.isNotBlank(),
                         onClick = {
                             busy = true
+                            maintenanceReport = ""
+                            scope.launch {
+                                try {
+                                    val probe = withContext(Dispatchers.IO) {
+                                        val db = openLibraryDatabase(appContext)
+                                        try {
+                                            TagMaintenanceStore(db).probeAlbum(
+                                                email, password, item.id,
+                                            )
+                                        } finally { db.close() }
+                                    }
+                                    val verdict = when {
+                                        !probe.complete -> appContext.getString(
+                                            R.string.library_album_probe_unknown)
+                                        probe.albumEmbedded -> appContext.getString(
+                                            R.string.library_album_probe_present)
+                                        else -> appContext.getString(
+                                            R.string.library_album_probe_absent)
+                                    }
+                                    maintenanceReport = appContext.getString(
+                                        R.string.library_album_probe_report,
+                                        verdict, probe.statusCode, probe.getRequests,
+                                    )
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) {
+                                    maintenanceReport = appContext.getString(
+                                        R.string.local_store_failed)
+                                } finally { busy = false }
+                            }
+                        },
+                    ) { Text(stringResource(R.string.library_probe_album_source)) }
+                    Button(
+                        enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
+                            !managedStatus.terminating &&
+                            email.isNotBlank() && password.isNotBlank(),
+                        onClick = {
+                            busy = true
                             scope.launch {
                                 try {
                                     val queued = withContext(Dispatchers.IO) {
