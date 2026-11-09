@@ -1,11 +1,16 @@
 package app.enotone.android
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
+import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
 import androidx.room.Room
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -166,9 +171,10 @@ private fun DiagnosticScreen() {
         }
     }
 
-    // Explicit user gesture creates the foreground service while the UI is visible.
-    // The password is transferred in process memory, never in an Intent.
-    val startManagedSession: () -> Unit = {
+    // Notification controls are part of the manual background-indexing UX.
+    // Android 13+ asks for that permission only after the user presses Start.
+    var notificationPermissionDenied by remember { mutableStateOf(false) }
+    val launchManagedForegroundService: () -> Unit = {
         if (!busy && managedStatus.state != ManagedScanState.RUNNING &&
             email.isNotBlank() && password.isNotBlank()) {
             ManagedScanRuntime.prepare(email, password)
@@ -180,6 +186,22 @@ private fun DiagnosticScreen() {
             } catch (_: RuntimeException) {
                 ManagedScanRuntime.update(ManagedScanState.ERROR)
             }
+        }
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        notificationPermissionDenied = !granted
+        if (granted) launchManagedForegroundService()
+    }
+    val startManagedSession: () -> Unit = {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            appContext.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            notificationPermissionDenied = false
+            launchManagedForegroundService()
         }
     }
 
@@ -668,6 +690,10 @@ private fun DiagnosticScreen() {
             style = MaterialTheme.typography.titleMedium)
         Text(stringResource(R.string.managed_index_explanation),
             style = MaterialTheme.typography.bodySmall)
+        if (notificationPermissionDenied) {
+            Text(stringResource(R.string.managed_notification_permission_denied),
+                style = MaterialTheme.typography.bodySmall)
+        }
         Button(modifier = Modifier.fillMaxWidth(),
             enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
                 email.isNotBlank() && password.isNotBlank(),
