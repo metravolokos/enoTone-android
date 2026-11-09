@@ -455,8 +455,9 @@ private fun DiagnosticScreen() {
             style = MaterialTheme.typography.titleMedium)
         Text(stringResource(R.string.tag_audit_explanation),
             style = MaterialTheme.typography.bodySmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !busy && email.isNotBlank(), onClick = {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(modifier = Modifier.fillMaxWidth(),
+                enabled = !busy && email.isNotBlank(), onClick = {
                 busy = true
                 tagAuditMessage = ""
                 scope.launch {
@@ -474,7 +475,8 @@ private fun DiagnosticScreen() {
                     } finally { busy = false }
                 }
             }) { Text(stringResource(R.string.tag_audit_missing_album)) }
-            Button(enabled = !busy && email.isNotBlank(), onClick = {
+            Button(modifier = Modifier.fillMaxWidth(),
+                enabled = !busy && email.isNotBlank(), onClick = {
                 busy = true
                 tagAuditMessage = ""
                 scope.launch {
