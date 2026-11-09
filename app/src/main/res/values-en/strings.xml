@@ -92,4 +92,6 @@
     <string name="handoff_failed">failed</string>
     <string name="handoff_yes">yes</string>
     <string name="handoff_no">no</string>
+    <string name="playback_seek_slider">Seek within current track</string>
+    <string name="playback_duration_unknown">--:--</string>
 </resources>
