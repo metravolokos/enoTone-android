@@ -94,4 +94,5 @@
     <string name="handoff_no">no</string>
     <string name="playback_seek_slider">Seek within current track</string>
     <string name="playback_duration_unknown">--:--</string>
+    <string name="playback_error_stage">Failure source: %1$s (safe code only)</string>
 </resources>
