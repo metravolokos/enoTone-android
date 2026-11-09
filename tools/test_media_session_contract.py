@@ -262,5 +262,30 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("putExtra(", service)
 
 
+    def test_m6b_manual_skip_and_guarded_end_continuation(self):
+        base = ROOT / "playback/src/main/java/app/enotone/playback"
+        service = (base / "EnoTonePlaybackService.kt").read_text(encoding="utf-8")
+        player = (base / "PreviewAudioPlayback.kt").read_text(encoding="utf-8")
+        policy = (base / "PlaybackContinuationPolicy.kt").read_text(encoding="utf-8")
+        tests = (ROOT / "playback/src/test/java/app/enotone/playback/"
+                 "PlaybackContinuationPolicyTest.kt").read_text(encoding="utf-8")
+        self.assertIn("player.seekToNextMediaItem()", service)
+        self.assertIn("player.seekToPreviousMediaItem()", service)
+        self.assertEqual(service.count("playback.resumeAfterManualSkip()"), 2)
+        self.assertIn("fun resumeAfterManualSkip()", player)
+        self.assertIn("player.play()", player)
+        self.assertIn("Player.STATE_ENDED", player)
+        self.assertIn("scheduleEndRecoveryIfNeeded()", player)
+        self.assertIn("cacheHandler.post {", player)
+        self.assertIn("lastEndRecoveryId == endedId", player)
+        self.assertIn("playWhenReady = player.playWhenReady", player)
+        self.assertIn("player.playbackSuppressionReason", player)
+        self.assertIn("hasNext = player.hasNextMediaItem()", player)
+        self.assertIn("!repeatOne && unsuppressed", policy)
+        self.assertIn("neverOverridesExplicitPauseFocusLossOrRepeatOne", tests)
+        self.assertNotIn("putExtra(", service)
+        self.assertNotIn("Log.", policy)
+
+
 if __name__ == "__main__":
     unittest.main()
