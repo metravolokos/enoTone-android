@@ -80,4 +80,16 @@
     <string name="playback_next_cache_complete">Next track fully preloaded</string>
     <string name="playback_next_cache_skipped">Next track preload skipped: size or free space</string>
     <string name="playback_next_cache_failed">Next track preload incomplete; streaming remains available</string>
+    <string name="playback_diagnostics_show">Show diagnostics</string>
+    <string name="playback_diagnostics_hide">Hide diagnostics</string>
+    <string name="handoff_summary">Transition %1$s · %2$s · READY %3$s ms · Media3 PLAYING %4$s ms · next pre-cached: %5$s</string>
+    <string name="handoff_next_button">next</string>
+    <string name="handoff_previous_button">previous</string>
+    <string name="handoff_auto">automatic</string>
+    <string name="handoff_media_session">notification / headset</string>
+    <string name="handoff_waiting">buffering</string>
+    <string name="handoff_ready">ready</string>
+    <string name="handoff_failed">failed</string>
+    <string name="handoff_yes">yes</string>
+    <string name="handoff_no">no</string>
 </resources>

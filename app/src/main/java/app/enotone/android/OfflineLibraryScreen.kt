@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -40,6 +42,9 @@ import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.CachePhase
+import app.enotone.playback.HandoffOrigin
+import app.enotone.playback.HandoffPhase
+import app.enotone.playback.HandoffSnapshot
 import app.enotone.playback.PlaybackSetupTimings
 import app.enotone.playback.TransientCacheStatus
 import app.enotone.playback.EnoTonePlaybackService
@@ -83,7 +88,10 @@ internal fun OfflineLibraryScreen(
     var errorCode by remember { mutableStateOf(0) }
     var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
     // Diagnostic mode belongs only to the next tap, not to a running stream.
-    var useCacheOnNextPlay by remember { mutableStateOf(false) }
+    // Accepted M5 mode is the normal default; raw WebDAV remains diagnostic.
+    var useCacheOnNextPlay by remember { mutableStateOf(true) }
+    var showDiagnostics by remember { mutableStateOf(false) }
+    var handoffInfo by remember { mutableStateOf<HandoffSnapshot?>(null) }
     var selectionStartedAt by remember { mutableStateOf(0L) }
     var roomDurationMs by remember { mutableStateOf<Long?>(null) }
     var media3DurationMs by remember { mutableStateOf<Long?>(null) }
@@ -231,7 +239,8 @@ internal fun OfflineLibraryScreen(
             nextCacheInfo = playback?.nextCacheSnapshot()
                 ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
             loadedQueueSources = playback?.loadedQueueSize ?: 0
-            delay(1_000L)
+            handoffInfo = playback?.handoffSnapshot()
+            delay(500L)
         }
     }
 
@@ -241,7 +250,7 @@ internal fun OfflineLibraryScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = onBack) { Text(stringResource(R.string.library_back)) }
+            OutlinedButton(onClick = onBack) { Text(stringResource(R.string.library_back)) }
             Text(
                 text = stringResource(R.string.library_title),
                 style = MaterialTheme.typography.titleLarge,
@@ -256,38 +265,45 @@ internal fun OfflineLibraryScreen(
             singleLine = true,
         )
         Text(stringResource(R.string.library_count, visible.size, tracks.size))
-        Button(
-            enabled = !selecting,
-            onClick = { useCacheOnNextPlay = !useCacheOnNextPlay },
-        ) {
+        OutlinedButton(onClick = { showDiagnostics = !showDiagnostics }) {
             Text(stringResource(
-                if (useCacheOnNextPlay) R.string.playback_mode_cache
-                else R.string.playback_mode_baseline))
+                if (showDiagnostics) R.string.playback_diagnostics_hide
+                else R.string.playback_diagnostics_show))
         }
-        if (selectionStartedAt > 0L) {
-            Text(
-                stringResource(
-                    R.string.playback_startup_timing,
-                    roomDurationMs?.toString() ?: "—",
-                    media3DurationMs?.toString() ?: "—",
-                    bufferingAfterTapMs?.toString() ?: "—",
-                    readyAfterTapMs?.toString() ?: "—",
-                    playingAfterTapMs?.toString() ?: "—",
-                ),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            setupTimings?.let { stages ->
+        if (showDiagnostics) {
+            Button(
+                enabled = !selecting,
+                onClick = { useCacheOnNextPlay = !useCacheOnNextPlay },
+            ) {
+                Text(stringResource(
+                    if (useCacheOnNextPlay) R.string.playback_mode_cache
+                    else R.string.playback_mode_baseline))
+            }
+            if (selectionStartedAt > 0L) {
                 Text(
                     stringResource(
-                        R.string.playback_setup_breakdown,
-                        stages.queueMs,
-                        stages.routesAndCacheMs,
-                        stages.seedSourcesMs,
-                        stages.setSourcesMs,
-                        stages.prepareAndPlayMs,
+                        R.string.playback_startup_timing,
+                        roomDurationMs?.toString() ?: "—",
+                        media3DurationMs?.toString() ?: "—",
+                        bufferingAfterTapMs?.toString() ?: "—",
+                        readyAfterTapMs?.toString() ?: "—",
+                        playingAfterTapMs?.toString() ?: "—",
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
+                setupTimings?.let { stages ->
+                    Text(
+                        stringResource(
+                            R.string.playback_setup_breakdown,
+                            stages.queueMs,
+                            stages.routesAndCacheMs,
+                            stages.seedSourcesMs,
+                            stages.setSourcesMs,
+                            stages.prepareAndPlayMs,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
         }
         if (selectedTitle != null) {
@@ -304,6 +320,30 @@ internal fun OfflineLibraryScreen(
                 else -> stringResource(R.string.playback_loading)
             }
             Text(status)
+            handoffInfo?.let { handoff ->
+                val kind = when (handoff.origin) {
+                    HandoffOrigin.NEXT_BUTTON -> stringResource(R.string.handoff_next_button)
+                    HandoffOrigin.PREVIOUS_BUTTON -> stringResource(R.string.handoff_previous_button)
+                    HandoffOrigin.AUTO -> stringResource(R.string.handoff_auto)
+                    HandoffOrigin.MEDIA_SESSION -> stringResource(R.string.handoff_media_session)
+                }
+                val state = when (handoff.phase) {
+                    HandoffPhase.BUFFERING -> stringResource(R.string.handoff_waiting)
+                    HandoffPhase.READY -> stringResource(R.string.handoff_ready)
+                    HandoffPhase.FAILED -> stringResource(R.string.handoff_failed)
+                }
+                Text(
+                    stringResource(
+                        R.string.handoff_summary,
+                        kind, state,
+                        handoff.readyMs?.toString() ?: "—",
+                        handoff.playingMs?.toString() ?: "—",
+                        if (handoff.preparedNext) stringResource(R.string.handoff_yes)
+                        else stringResource(R.string.handoff_no),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             if (cacheInfo.totalBytes > 0L) {
                 val cacheText = when (cacheInfo.phase) {
                     CachePhase.DOWNLOADING -> stringResource(
@@ -317,6 +357,13 @@ internal fun OfflineLibraryScreen(
                     CachePhase.IDLE -> ""
                 }
                 if (cacheText.isNotEmpty()) Text(cacheText)
+                if (cacheInfo.phase == CachePhase.DOWNLOADING) {
+                    LinearProgressIndicator(
+                        progress = { (cacheInfo.cachedBytes.toFloat() /
+                            cacheInfo.totalBytes).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
             if (nextCacheInfo.totalBytes > 0L) {
                 val nextText = when (nextCacheInfo.phase) {
@@ -331,11 +378,18 @@ internal fun OfflineLibraryScreen(
                     CachePhase.IDLE -> ""
                 }
                 if (nextText.isNotEmpty()) Text(nextText)
+                if (nextCacheInfo.phase == CachePhase.DOWNLOADING) {
+                    LinearProgressIndicator(
+                        progress = { (nextCacheInfo.cachedBytes.toFloat() /
+                            nextCacheInfo.totalBytes).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
             if (queueTotal > 0) {
                 Text(stringResource(R.string.playback_queue_position,
                     queuePosition, queueTotal))
-                if (loadedQueueSources in 1 until queueTotal) {
+                if (showDiagnostics && loadedQueueSources in 1 until queueTotal) {
                     Text(stringResource(R.string.playback_queue_staging,
                         loadedQueueSources, queueTotal),
                         style = MaterialTheme.typography.bodySmall)
