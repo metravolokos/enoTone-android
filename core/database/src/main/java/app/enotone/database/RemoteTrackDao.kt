@@ -203,6 +203,7 @@ interface RemoteTrackDao {
         SELECT COUNT(*) FROM remote_tracks
         WHERE sourceKey = :sourceKey AND missingScans = 0
           AND tagScanCode LIKE 'RETRY_%'
+          AND tagScanCode != 'RETRY_REFRESH'
     """)
     suspend fun retryableFastScanCount(sourceKey: String): Int
 
