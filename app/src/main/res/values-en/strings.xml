@@ -146,4 +146,7 @@
     <string name="tag_audit_queue_all">Queue full tag reindex</string>
     <string name="tag_audit_all_queued">Queued records for tag re-reading: %1$d. Existing tags were preserved. Start managed indexing to perform the work.</string>
     <string name="tag_audit_queue_instructions">After queuing a refresh, press “Index all remaining MP3/FLAC”. To add new files, first press “Refresh /AllMusic catalogue”: unchanged entries and tags are preserved and new files become eligible for indexing.</string>
+    <string name="tag_audit_search_hint">Filename or track title (offline)</string>
+    <string name="tag_audit_search_action">Find track to reindex</string>
+    <string name="tag_audit_no_search">No matches in the saved library.</string>
 </resources>
