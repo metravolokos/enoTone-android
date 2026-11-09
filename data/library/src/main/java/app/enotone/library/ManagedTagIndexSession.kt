@@ -78,7 +78,7 @@ class ManagedTagIndexSession(
     ) -> PilotIndexProgress,
 ) {
     constructor(database: EnoToneDatabase) : this(
-        { email, password, gate, progress ->
+        runBatch = { email, password, gate, progress ->
             ParallelTagIndexer(database).run(
                 email, password, PilotBudget.RESUME_LIMIT,
                 onProgress = progress,
