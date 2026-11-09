@@ -10,13 +10,28 @@ android {
         applicationId = "app.enotone.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        // Monotonic across GitHub Actions runs, including the stable Preview channel.
+        // Local builds retain a harmless initial versionCode.
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "0.0.1-m0"
     }
     buildFeatures { compose = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+    signingConfigs {
+        create("stablePreview") {
+            // Never use a CI runner's ephemeral debug certificate for in-place
+            // upgrades. The PKCS12 private key is supplied only from Actions
+            // secrets, never committed or included in the output APK.
+            val path = System.getenv("ENOTONE_PREVIEW_KEYSTORE_PATH")
+            if (!path.isNullOrBlank()) storeFile = file(path)
+            storePassword = System.getenv("ENOTONE_PREVIEW_KEYSTORE_PASSWORD")
+            keyAlias = "enotone-preview"
+            keyPassword = System.getenv("ENOTONE_PREVIEW_KEYSTORE_PASSWORD")
+            storeType = "PKCS12"
+        }
     }
     buildTypes {
         // AndroidX Activity ships an unused optional Google Play Photo Picker action.
@@ -38,6 +53,28 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        create("stablePreview") {
+            // Distinct from release and from legacy .preview.r<N> debug builds.
+            // Subsequent stablePreview builds have the SAME package and cert.
+            initWith(getByName("release"))
+            // The library modules only publish debug/release variants.
+            // Without an explicit fallback AGP cannot resolve :playback et al.
+            matchingFallbacks += listOf("release", "debug")
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-preview"
+            signingConfig = signingConfigs.getByName("stablePreview")
+            isDebuggable = false
+        }
+    }
+    // Fail closed even when a developer requests assembleStablePreview locally.
+    if (gradle.startParameter.taskNames.any { requested ->
+        listOf("assembleStablePreview", "packageStablePreview", "bundleStablePreview",
+            "installStablePreview").any { requested.endsWith(it, ignoreCase = true) }
+    }) {
+        require(!System.getenv("ENOTONE_PREVIEW_KEYSTORE_PATH").isNullOrBlank() &&
+            !System.getenv("ENOTONE_PREVIEW_KEYSTORE_PASSWORD").isNullOrBlank()) {
+            "Stable Preview signing secrets are required; unsigned builds are forbidden"
         }
     }
 }
