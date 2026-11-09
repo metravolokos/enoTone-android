@@ -41,13 +41,15 @@ internal object ManagedScanRuntime {
         require(email.isNotBlank() && password.isNotBlank())
         if (status.value.state == ManagedScanState.RUNNING) return
         pending = StoredWebDavLogin(email, password)
-        status.value = ManagedScanStatus(ManagedScanState.RUNNING, status.value.progress)
+        status.value = ManagedScanStatus(ManagedScanState.RUNNING)
     }
 
     @Synchronized fun claim(): StoredWebDavLogin? =
         pending.also { pending = null }
 
     @Synchronized fun update(state: ManagedScanState, progress: ManagedIndexProgress? = null) {
+        // A delayed progress callback must never undo a user's Pause/Stop.
+        if (state == ManagedScanState.RUNNING && status.value.state != ManagedScanState.RUNNING) return
         if (state != ManagedScanState.RUNNING) pending = null
         status.value = ManagedScanStatus(state, progress ?: status.value.progress)
     }
