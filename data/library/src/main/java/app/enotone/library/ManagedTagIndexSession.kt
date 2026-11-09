@@ -9,7 +9,7 @@ import kotlinx.coroutines.ensureActive
  * One explicit foreground indexing session. Four sequential existing capped
  * pilot passes, not one unlimited fetch loop. Each pass is independently
  * limited to <=60 GET / <=4 MiB, with checkpoints committed per file in Room.
- * No WorkManager, service, background task, automatic restart or auth storage.
+ * No scheduled workers, service, background task, automatic restart or auth storage.
  */
 object ManagedIndexLimits {
     const val MAX_BATCHES = 4
