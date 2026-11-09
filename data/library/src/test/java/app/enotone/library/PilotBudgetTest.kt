@@ -95,6 +95,22 @@ class PilotBudgetTest {
         assertTrue(next.none { it.tagScanCode != null })
     }
 
+    @Test fun explicitlyQueuedRefreshKeepsExistingTagsAndComesFirst() {
+        val refresh = row(40, status = "RETRY_REFRESH", title = "Preserved title")
+            .copy(artist = "Preserved performer", album = null)
+        val finished = row(41, status = "FLAC_VORBIS", title = "Already indexed")
+        val other = row(42, status = null)
+        val retry = row(43, status = "RETRY_HTTP")
+        val selection = PilotBudget.select(key,
+            listOf(other, finished, retry, refresh), 10)
+        assertEquals(3, selection.size)
+        assertEquals(refresh.id, selection.first().id)
+        assertEquals("Preserved title", selection.first().title)
+        assertEquals("Preserved performer", selection.first().artist)
+        assertFalse(selection.any { it.id == finished.id })
+        assertEquals(null, selection[1].tagScanCode)
+    }
+
     @Test fun doesNotTraverseNestedEntriesOrZeroSizedFiles() {
         val nested = row(1).copy(
             encodedPath = "/AllMusic/dir/sample_1.flac",
