@@ -146,4 +146,7 @@
     <string name="tag_audit_queue_all">Назначить полную повторную индексацию</string>
     <string name="tag_audit_all_queued">В очередь повторного чтения поставлено записей: %1$d. Текущие теги сохранены. Для выполнения запусти управляемую индексацию.</string>
     <string name="tag_audit_queue_instructions">После назначения повторного чтения нажми «Индексировать все оставшиеся MP3/FLAC». Для новых файлов сначала нажми «Обновить каталог /AllMusic»: неизменённые записи и теги сохраняются, новые попадают в очередь первичной индексации.</string>
+    <string name="tag_audit_search_hint">Имя файла или название трека (без сети)</string>
+    <string name="tag_audit_search_action">Найти трек для переиндексации</string>
+    <string name="tag_audit_no_search">Совпадений в локальной медиатеке не найдено.</string>
 </resources>
