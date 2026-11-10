@@ -335,7 +335,8 @@ internal fun OfflineLibraryScreen(
 
     // Artwork only for the current Media3 item: one bounded Range session
     // when the active track changes. Nothing is fetched by merely browsing tabs.
-    LaunchedEffect(currentTrackId, preparedById, appPassword, accountEmail) {
+    LaunchedEffect(currentTrackId, preparedById, appPassword, accountEmail,
+        libraryRefreshEpoch) {
         currentArtwork = null
         val id = currentTrackId ?: return@LaunchedEffect
         val target = preparedById[id] ?: return@LaunchedEffect
@@ -406,7 +407,8 @@ internal fun OfflineLibraryScreen(
     // Stable album representatives from the existing in-RAM Room snapshot.
     // No extra DB query. One candidate per actual album (never the mixed
     // Unknown Album group); only visible grid tiles start bounded image GETs.
-    val albumArtworkTargets = remember(groups, preparedById, section) {
+    val albumArtworkTargets = remember(groups, preparedById, section,
+        libraryRefreshEpoch) {
         if (section != LibraryPage.ALBUMS) emptyMap()
         else groups.mapNotNull { group ->
             if (group.key == "album:missing") return@mapNotNull null
@@ -418,6 +420,7 @@ internal fun OfflineLibraryScreen(
                 encodedPath = item.encodedPath,
                 remoteSize = item.remoteSize,
                 remoteEtag = item.remoteEtag,
+                refreshEpoch = libraryRefreshEpoch,
             )
         }.toMap()
     }
@@ -558,6 +561,20 @@ internal fun OfflineLibraryScreen(
                                         db.close()
                                     }
                                 }
+                                // An explicit album refresh also invalidates
+                                // artwork even when the server kept the same
+                                // ETag/size. Shared picture blobs remain.
+                                val refreshedPictures = result.checkedIds.mapNotNull { id ->
+                                    preparedById[id]?.let { item ->
+                                        PlayingArtworkTarget(
+                                            id = item.id,
+                                            encodedPath = item.encodedPath,
+                                            remoteSize = item.remoteSize,
+                                            remoteEtag = item.remoteEtag,
+                                        )
+                                    }
+                                } + listOfNotNull(albumArtworkTargets[key])
+                                artworkRepository.invalidate(accountEmail, refreshedPictures)
                                 albumCheckedByGroup = albumCheckedByGroup +
                                     (key to (albumCheckedByGroup[key].orEmpty() +
                                         result.checkedIds))
@@ -1029,6 +1046,7 @@ internal fun OfflineLibraryScreen(
                             encodedPath = item.encodedPath,
                             remoteSize = item.remoteSize,
                             remoteEtag = item.remoteEtag,
+                            refreshEpoch = libraryRefreshEpoch,
                         )
                     }
                     Column(modifier = Modifier.fillMaxWidth().clickable(enabled = !selecting && playback != null) {
