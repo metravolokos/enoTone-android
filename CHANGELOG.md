@@ -185,3 +185,8 @@
 - Добавлено диалоговое окно настроек видимости четырёх страниц медиатеки; переключатели независимы, выбранные значения сохраняются локально после перезапуска.
 - Последнюю видимую страницу нельзя скрыть; если текущая скрыта, навигация переключается на доступную без остановки музыки. Идентификаторы страниц стабильны и не зависят от локализации.
 - Используется стандартный Material 3; Room, 3590 тегов, WebDAV, GMS, Media3, авторизация и подпись не меняются. Доступно для CI и Huawei smoke после слияния.
+
+## Draft — M2 music-first UI cleanup (2026-11-10)
+- Library opens automatically after restoring an explicitly saved login, instead of starting on an oversized diagnostic page. First-time entry retains both fields throughout typing; save/forget remain opt-in.
+- Compact Home: playback/library shortcut, optional connection and technical tests, catalogue refresh, managed indexing with collapsed details. Network tests and Room probes are still available on demand.
+- Library: smaller header, scrollable track/album list remains the central element, compact mini player below it. Full transport, seek and extra options moved into a scrollable dialog; telemetry only inside Diagnostics toggle. Standard Material colors, stable package ID and signing retained; no migration, reindex or Media3 changes.
