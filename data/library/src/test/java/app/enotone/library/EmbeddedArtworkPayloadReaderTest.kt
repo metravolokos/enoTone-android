@@ -1,6 +1,11 @@
 package app.enotone.library
 
 import java.io.IOException
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
+import okio.Buffer
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -30,6 +35,51 @@ class EmbeddedArtworkPayloadReaderTest {
                 count
             }
         }
+
+    @Test fun mockWebDavArtworkUsesOnlyStrictRangeGets() {
+        val expected = ByteArray(180_000) { (it % 247).toByte() }
+        val fixture = mp3(expected)
+        val server = MockWebServer()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(req: RecordedRequest): MockResponse {
+                val range = req.getHeader("Range")
+                    ?: return MockResponse().setResponseCode(400)
+                val match = Regex("""bytes=(\\d+)-(\\d+)""").matchEntire(range)
+                    ?: return MockResponse().setResponseCode(400)
+                val start = match.groupValues[1].toInt()
+                val end = match.groupValues[2].toInt()
+                if (start < 0 || end >= fixture.size || end < start) {
+                    return MockResponse().setResponseCode(416)
+                }
+                return MockResponse().setResponseCode(206)
+                    .addHeader("Content-Range", "bytes=$start-$end/" + fixture.size)
+                    .addHeader("ETag", "\\"test-image-v1\\"")
+                    .setBody(Buffer().write(fixture, start, end - start + 1))
+            }
+        }
+        server.start()
+        try {
+            WebDavRangeReader(
+                libraryRoot = server.url("/AllMusic/").toString(),
+                encodedPath = "/AllMusic/cover.mp3",
+                fileSize = fixture.size.toLong(),
+                email = "fixture@example.test", appPassword = "mock-secret",
+                etag = "\\"test-image-v1\\"",
+                allowLoopbackHttpForTests = true,
+                maxRequests = 16,
+                maxDownloadedBytes = 512L * 1024,
+            ).use { source ->
+                val result = EmbeddedArtworkPayloadReader().read(
+                    "cover.mp3", source.fileSize, source::readAt)
+                assertArrayEquals(expected, result)
+                assertTrue(source.stats().requests in 1..4)
+                assertTrue(source.stats().downloadedBytes <= 4L * 65536)
+            }
+            assertTrue(server.requestCount in 1..4)
+        } finally {
+            server.shutdown()
+        }
+    }
 
     @Test fun returnsOnlyJpegBytesNotId3MetadataOrAudio() {
         val payload = ByteArray(200_001) { (it % 251).toByte() }
