@@ -183,4 +183,14 @@
     <string name="artwork_description">Current track cover</string>
     <string name="album_cover_description">Album cover</string>
     <string name="album_play_all">Play album</string>
+    <string name="album_refresh_tags">Refresh album tags (up to 10)</string>
+    <string name="album_refresh_busy">Refreshing tags…</string>
+    <string name="album_refresh_confirm_title">Refresh tags in this album?</string>
+    <string name="album_refresh_confirm_text">Only %1$d selected album tracks will be checked using bounded network requests. The rest of your library is untouched.</string>
+    <string name="album_refresh_confirm_action">Read tags</string>
+    <string name="album_refresh_cancel">Cancel</string>
+    <string name="album_refresh_done">Tracks checked: %1$d · tags read: %2$d</string>
+    <string name="album_refresh_failed">Could not refresh tags. Try again.</string>
+    <string name="album_refresh_no_more">All available album tracks were checked in this session.</string>
+    <string name="album_refresh_audio_active">Pause playback before refreshing tags.</string>
 </resources>
