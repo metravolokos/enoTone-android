@@ -89,7 +89,7 @@ private fun DiagnosticScreen() {
     var showingLibrary by remember { mutableStateOf(false) }
     // Daily listening is the default. Technical controls remain available
     // but are collapsed instead of occupying the full first screen.
-    var showConnection by remember { mutableStateOf(false) }
+    var showConnection by remember { mutableStateOf(true) }
     var showTechnicalTools by remember { mutableStateOf(false) }
     var showIndexDetails by remember { mutableStateOf(false) }
     var vaultState by remember { mutableStateOf(CredentialVaultState.NONE) }
@@ -108,6 +108,7 @@ private fun DiagnosticScreen() {
                 email = restored.email
                 password = restored.password
                 vaultState = CredentialVaultState.RESTORED
+                showConnection = false
                 // Open the real library after a saved login is restored.
                 // OnBack closes it without another auto-open during this Activity.
                 showingLibrary = true
