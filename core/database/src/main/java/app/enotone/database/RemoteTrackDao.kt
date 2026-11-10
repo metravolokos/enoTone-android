@@ -199,6 +199,20 @@ interface RemoteTrackDao {
     suspend fun queueTagRefreshById(sourceKey: String, id: String): Int
 
     /**
+     * Explicit, small selection of local IDs only. The source-key check
+     * prevents cross-account writes; invalid or absent IDs are ignored.
+     * A later targeted reader does the HTTP work. No tags are erased.
+     */
+    @Query("""
+        UPDATE remote_tracks
+        SET tagScanCode = 'RETRY_REFRESH'
+        WHERE sourceKey = :sourceKey AND id IN (:ids) AND missingScans = 0
+          AND remoteSize > 0
+          AND (LOWER(fileName) LIKE '%.mp3' OR LOWER(fileName) LIKE '%.flac')
+    """)
+    suspend fun queueTagRefreshByIds(sourceKey: String, ids: List<String>): Int
+
+    /**
      * Explicit all-files refresh queue for the current account. Does not
      * delete or null tags. One atomic UPDATE, no additional Room schema.
      * Actual HTTP requests still require user-started managed indexing.
