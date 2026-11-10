@@ -44,7 +44,7 @@ class EmbeddedArtworkPayloadReaderTest {
             override fun dispatch(req: RecordedRequest): MockResponse {
                 val range = req.getHeader("Range")
                     ?: return MockResponse().setResponseCode(400)
-                val match = Regex("""bytes=(\\d+)-(\\d+)""").matchEntire(range)
+                val match = Regex("""bytes=(\d+)-(\d+)""").matchEntire(range)
                     ?: return MockResponse().setResponseCode(400)
                 val start = match.groupValues[1].toInt()
                 val end = match.groupValues[2].toInt()
@@ -53,7 +53,7 @@ class EmbeddedArtworkPayloadReaderTest {
                 }
                 return MockResponse().setResponseCode(206)
                     .addHeader("Content-Range", "bytes=$start-$end/" + fixture.size)
-                    .addHeader("ETag", "\\"test-image-v1\\"")
+                    .addHeader("ETag", "\"test-image-v1\"")
                     .setBody(Buffer().write(fixture, start, end - start + 1))
             }
         }
@@ -64,7 +64,7 @@ class EmbeddedArtworkPayloadReaderTest {
                 encodedPath = "/AllMusic/cover.mp3",
                 fileSize = fixture.size.toLong(),
                 email = "fixture@example.test", appPassword = "mock-secret",
-                etag = "\\"test-image-v1\\"",
+                etag = "\"test-image-v1\"",
                 allowLoopbackHttpForTests = true,
                 maxRequests = 16,
                 maxDownloadedBytes = 512L * 1024,
