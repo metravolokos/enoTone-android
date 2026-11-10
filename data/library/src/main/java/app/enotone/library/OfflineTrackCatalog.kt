@@ -13,6 +13,8 @@ data class OfflineTrackRow(
     val artist: String?,
     val album: String?,
     val albumArtist: String? = null,
+    /** True only for a real stored tag, not a filename-derived title. */
+    val hasStoredTagData: Boolean = false,
 )
 
 object OfflineTrackCatalog {
@@ -28,6 +30,9 @@ object OfflineTrackCatalog {
                     artist = track.artist?.takeIf { it.isNotBlank() },
                     album = track.album?.takeIf { it.isNotBlank() },
                     albumArtist = track.albumArtist?.takeIf { it.isNotBlank() },
+                    hasStoredTagData = listOf(
+                        track.title, track.artist, track.album, track.albumArtist,
+                    ).any { !it.isNullOrBlank() },
                 )
             }
             .sortedWith(compareBy<OfflineTrackRow> { it.title.lowercase(Locale.ROOT) }
