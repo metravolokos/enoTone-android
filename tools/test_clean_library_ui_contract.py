@@ -10,24 +10,30 @@ class CleanLibraryUiContractTest(unittest.TestCase):
     def src(self, path):
         return (ROOT / path).read_text(encoding="utf-8")
 
-    def test_after_saved_login_open_library_and_keep_first_time_setup(self):
+    def test_saved_login_opens_home_and_first_time_setup_remains(self):
         main = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
         for text in (
             "vaultState = CredentialVaultState.RESTORED",
             "showConnection = false",
-            "showingLibrary = true",
+            "var showingSettings by remember { mutableStateOf(false) }",
             "if (showingLibrary)",
-            "OfflineLibraryScreen(accountEmail = email, appPassword = password,",
+            "OfflineLibraryScreen(",
+            "initialPage = initialLibraryPage",
+            "if (!showingSettings)",
+            "EnoToneHomeScreen(",
             "var showConnection by remember { mutableStateOf(true) }",
             "if (showConnection || email.isBlank() || password.isBlank())",
             "R.string.home_connection_settings",
         ):
             self.assertIn(text, main)
+        self.assertNotIn("showingLibrary = true", main[
+            main.index("LaunchedEffect(appContext)"):main.index("val importReport")])
+        self.assertIn("LibraryVisibilitySettings()", main)
         # Saving and forgetting credentials remain explicit, never silently done.
         self.assertIn("LocalCredentialVault.save(appContext, email, password)", main)
         self.assertIn("LocalCredentialVault.clear(appContext)", main)
 
-    def test_home_keeps_maintenance_and_diagnostics_but_collapses_pilots(self):
+    def test_settings_keeps_maintenance_and_diagnostics(self):
         main = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
         for text in (
             "var showTechnicalTools by remember { mutableStateOf(false) }",
@@ -63,7 +69,6 @@ class CleanLibraryUiContractTest(unittest.TestCase):
             ".verticalScroll(rememberScrollState())",
             "R.string.library_player_open",
             "R.string.library_player_close",
-            "R.string.library_pages_short",
             "if (showDiagnostics)",
             "PlaybackSeekPolicy.positionForFraction(",
             "playback?.cycleRepeatMode()",
@@ -84,8 +89,11 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertNotIn("R.string.library_group_tags_only", ui)
         self.assertNotIn("deleteDatabase(", ui)
 
-    def test_compact_accessible_icon_navigation(self):
+    def test_five_position_navigation_and_visibility_settings(self):
+        nav = self.src("app/src/main/java/app/enotone/android/CompactLibraryNavigation.kt")
         ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
+        home = self.src("app/src/main/java/app/enotone/android/EnoToneHomeScreen.kt")
+        settings = self.src("app/src/main/java/app/enotone/android/LibraryVisibilitySettings.kt")
         for token in (
             "Modifier.fillMaxWidth().height(52.dp).selectableGroup()",
             "Modifier.weight(1f).height(48.dp)",
@@ -93,16 +101,26 @@ class CleanLibraryUiContractTest(unittest.TestCase):
             "selected = active",
             "contentDescription = label",
             "painter = painterResource(icon)",
-            "if (section != page)",
-            "selectedGroupKey = null",
-            'search = ""',
+            "listOf<LibraryPage?>(null) + visiblePages",
+            "null -> R.drawable.ic_nav_home",
+            "null -> R.string.nav_home",
         ):
-            self.assertIn(token, ui)
+            self.assertIn(token, nav)
+        self.assertIn("CompactLibraryNavigation(", home)
+        self.assertIn("CompactLibraryNavigation(", ui)
+        self.assertIn("onHome = onBack", ui)
+        self.assertIn("if (page != section)", ui)
+        self.assertIn("selectedGroupKey = null", ui)
+        self.assertIn('search = ""', ui)
+        self.assertNotIn("showPageSettings", ui)
+        self.assertNotIn("R.drawable.ic_action_pages", ui)
+        self.assertIn("LibraryPageVisibility.withVisibility(", settings)
+        self.assertIn("preferences.saveHiddenPages(next)", settings)
+        self.assertIn("visible.size > 1", settings)
         self.assertNotIn("Row(modifier = Modifier.horizontalScroll(", ui)
         self.assertLess(ui.index("// Fixed-height mini player:"),
-                        ui.index("// M2: a compact bottom rail"))
-        import xml.etree.ElementTree as ET
-        for name in ("tracks", "albums", "artists", "album_artists"):
+                        ui.index("// Five-slot navigation"))
+        for name in ("home", "tracks", "albums", "artists", "album_artists"):
             path = ROOT / f"app/src/main/res/drawable/ic_nav_{name}.xml"
             xml = ET.parse(path).getroot()
             self.assertEqual(xml.tag, "vector")
@@ -113,7 +131,7 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
         self.assertIn("modifier = Modifier.fillMaxWidth().height(48.dp)", ui)
         self.assertIn("R.drawable.ic_action_back", ui)
-        self.assertIn("R.drawable.ic_action_pages", ui)
+        self.assertNotIn("R.drawable.ic_action_pages", ui)
         self.assertIn("if (searchExpanded) {", ui)
         self.assertIn("if (search.isNotBlank()) {", ui)
         self.assertIn("R.drawable.ic_action_search", ui)
@@ -123,7 +141,7 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertIn("selectedArtist = mediaMetadata.artist?.toString()", ui)
         self.assertIn("selectedArtist = track.artist", ui)
         mini = ui[ui.index("// Fixed-height mini player:"):
-                  ui.index("// M2: a compact bottom rail")]
+                  ui.index("// Five-slot navigation")]
         self.assertIn("Modifier.fillMaxWidth().height(56.dp)", mini)
         self.assertIn("Modifier.fillMaxWidth().height(2.dp)", mini)
         self.assertIn("R.drawable.ic_action_play", mini)
@@ -151,6 +169,8 @@ class CleanLibraryUiContractTest(unittest.TestCase):
             "library_player_title", "library_player_open",
             "library_player_close", "library_open_search",
             "library_close_search", "library_search_short",
+            "nav_home", "settings_title", "home_music_title",
+            "home_open_library", "home_connect_account",
         }
         for path in ("app/src/main/res/values/strings.xml",
                      "app/src/main/res/values-en/strings.xml"):
