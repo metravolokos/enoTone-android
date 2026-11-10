@@ -250,6 +250,7 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                 album = tags?.album, albumArtist = tags?.albumArtist,
                 year = tags?.year, trackNumber = tags?.trackNumber,
                 discNumber = tags?.discNumber,
+                genre = tags?.genre,
             ) == 1
             attempted++
             // Opaque local ID only. Allows an album refresh button to advance
