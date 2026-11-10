@@ -106,6 +106,21 @@ jobs:
       - name: Compile stable Preview variant (no signing secrets)
         run: gradle --no-daemon :app:compileStablePreviewKotlin
 
+      - name: Capture generated Room v3 schema (temporary)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("core/database/schemas/app.enotone.database.EnoToneDatabase/3.json")
+          if not p.is_file():
+              raise SystemExit("Room KSP did not export schema v3")
+          schema = json.loads(p.read_text(encoding="utf-8"))
+          assert schema["database"]["version"] == 3
+          print("ENOTONE_V3_SCHEMA_BEGIN")
+          print(json.dumps(schema, ensure_ascii=True, separators=(",",":")))
+          print("ENOTONE_V3_SCHEMA_END")
+          PY
       - name: Verify Room v1 schema matches committed JSON
         shell: bash
         run: |
