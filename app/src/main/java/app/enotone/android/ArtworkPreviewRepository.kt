@@ -130,7 +130,8 @@ internal class ArtworkPreviewRepository(context: Context) {
             // Bad, missing or evicted master: a source-local reference is not
             // enough to reconstruct content. Refetch this source lazily.
             reference.delete()
-            coroutineContext.ensureActive()
+            val requestContext = coroutineContext
+            requestContext.ensureActive()
             val raw = WebDavRangeReader(
                 encodedPath = target.encodedPath,
                 fileSize = target.remoteSize,
@@ -142,7 +143,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             ).use { reader ->
                 EmbeddedArtworkPayloadReader().read(name, target.remoteSize) {
                     position, buffer, offset, length ->
-                    coroutineContext.ensureActive()
+                    requestContext.ensureActive()
                     reader.readAt(position, buffer, offset, length)
                 }
             } ?: return null
