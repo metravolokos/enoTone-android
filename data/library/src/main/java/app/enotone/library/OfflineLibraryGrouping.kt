@@ -4,9 +4,9 @@ import java.text.Normalizer
 import java.util.Locale
 
 /**
- * Pure, local virtual views of saved audio tags. No folder-based inference:
- * /AllMusic is flat, and unscanned files stay in Tracks rather than forming a
- * misleading enormous "Unknown album". No network or Room access here.
+ * Pure, local virtual views of saved tags. The cloud directory is flat.
+ * A scanned file lacking ALBUM belongs to an Unknown Album group; an
+ * unindexed file does NOT fabricate a group before its tags are read.
  */
 data class OfflineLibraryGroup(
     val key: String,
@@ -21,43 +21,66 @@ object OfflineLibraryGrouping {
 
     private fun known(text: String?): String? = text?.trim()?.takeIf { it.isNotEmpty() }
 
-    /** Prefer the album-artist tag so compilations remain one virtual album. */
-    fun albums(tracks: List<OfflineTrackRow>): List<OfflineLibraryGroup> {
+    /** Prefer Album Artist for album identity, fallback to track Artist only here. */
+    fun albums(
+        tracks: List<OfflineTrackRow>,
+        unknownAlbumName: String = "Unknown Album",
+    ): List<OfflineLibraryGroup> {
         val map = linkedMapOf<String, MutableList<OfflineTrackRow>>()
         for (row in tracks) {
-            val album = known(row.album) ?: continue
+            val album = known(row.album)
+            // The row title may be a fallback filename; don't create a fake
+            // Unknown Album for thousands of files not scanned yet.
+            if (album == null && !row.hasStoredTagData &&
+                known(row.artist) == null && known(row.albumArtist) == null) continue
             val artist = known(row.albumArtist) ?: known(row.artist)
-            val key = "album:" + normalized(album) + "\u0000" +
-                (artist?.let(::normalized) ?: "")
+            // All genuinely missing album tags belong to ONE virtual album,
+            // regardless of performer. Keep it distinct from a literal album
+            // called "Unknown Album" and do not depend on translation.
+            val key = if (album == null) "album:missing"
+                else "album:" + normalized(album) + "\u0000" +
+                    (artist?.let(::normalized) ?: "")
             map.getOrPut(key) { mutableListOf() }.add(row)
         }
         return map.map { (key, rows) ->
             val first = rows.first()
             OfflineLibraryGroup(
                 key = key,
-                name = known(first.album)!!,
-                subtitle = known(first.albumArtist) ?: known(first.artist),
+                name = known(first.album) ?: unknownAlbumName,
+                subtitle = if (first.album == null) null
+                    else known(first.albumArtist) ?: known(first.artist),
                 trackIds = rows.mapTo(linkedSetOf()) { it.id },
             )
-        }.sortedWith(compareBy<OfflineLibraryGroup> { normalized(it.name) }
+        }.sortedWith(compareBy<OfflineLibraryGroup> {
+            it.key == "album:missing"
+        }.thenBy { normalized(it.name) }
             .thenBy { normalized(it.subtitle.orEmpty()) }
             .thenBy { it.key })
     }
 
-    /** Album Artist is primary; track Artist is used only if it is missing. */
-    fun artists(tracks: List<OfflineTrackRow>): List<OfflineLibraryGroup> {
+    /** Track-level Artist only, independent from the Album Artist tag. */
+    fun artists(tracks: List<OfflineTrackRow>): List<OfflineLibraryGroup> =
+        performerGroups(tracks, "artist:", { it.artist })
+
+    /** Album Artist only, never invent one from a track-level Artist. */
+    fun albumArtists(tracks: List<OfflineTrackRow>): List<OfflineLibraryGroup> =
+        performerGroups(tracks, "album-artist:", { it.albumArtist })
+
+    private fun performerGroups(
+        tracks: List<OfflineTrackRow>,
+        prefix: String,
+        select: (OfflineTrackRow) -> String?,
+    ): List<OfflineLibraryGroup> {
         val map = linkedMapOf<String, MutableList<OfflineTrackRow>>()
         for (row in tracks) {
-            // The Artists tab represents the album artist when available.
-            // Track-level performers remain stored and searchable separately.
-            val artist = known(row.albumArtist) ?: known(row.artist) ?: continue
-            val key = "artist:" + normalized(artist)
+            val name = known(select(row)) ?: continue
+            val key = prefix + normalized(name)
             map.getOrPut(key) { mutableListOf() }.add(row)
         }
         return map.map { (key, rows) ->
             OfflineLibraryGroup(
                 key = key,
-                name = known(rows.first().albumArtist) ?: known(rows.first().artist)!!,
+                name = known(select(rows.first()))!!,
                 subtitle = null,
                 trackIds = rows.mapTo(linkedSetOf()) { it.id },
             )

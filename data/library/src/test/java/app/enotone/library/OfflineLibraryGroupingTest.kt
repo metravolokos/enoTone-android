@@ -8,13 +8,15 @@ import org.junit.Test
 class OfflineLibraryGroupingTest {
     private fun row(
         id: String, album: String? = null, artist: String? = null,
-        albumArtist: String? = null,
-    ) = OfflineTrackRow(id, "Synthetic $id", artist, album, albumArtist)
+        albumArtist: String? = null, hasStoredTags: Boolean = false,
+    ) = OfflineTrackRow(id, "Synthetic $id", artist, album, albumArtist,
+        hasStoredTagData = hasStoredTags)
 
     @Test fun unscannedRowsNeverBecomeFakeUnknownAlbumOrArtist() {
         val rows = (0 until 3590).map { row("synthetic-$it") }
         assertTrue(OfflineLibraryGrouping.albums(rows).isEmpty())
         assertTrue(OfflineLibraryGrouping.artists(rows).isEmpty())
+        assertTrue(OfflineLibraryGrouping.albumArtists(rows).isEmpty())
     }
 
     @Test fun recognizedTagsFormStableGroupsWithoutChangingTracks() {
@@ -25,29 +27,69 @@ class OfflineLibraryGroupingTest {
         )
         val albums = OfflineLibraryGrouping.albums(rows)
         val artists = OfflineLibraryGrouping.artists(rows)
+        val albumArtists = OfflineLibraryGrouping.albumArtists(rows)
         assertEquals(2, albums.size)
         assertEquals(setOf("a", "b"), albums.first { it.name == "First Album" }.trackIds)
         assertEquals(2, artists.size)
-        assertEquals(setOf("a", "b"),
-            artists.first { it.name == "Various Artists" }.trackIds)
-        assertEquals(setOf("c"), artists.first { it.name == "Singer" }.trackIds)
+        assertEquals(setOf("a", "c"), artists.first { it.name == "Singer" }.trackIds)
+        assertEquals(setOf("b"), artists.first { it.name == "Guest" }.trackIds)
+        assertEquals(1, albumArtists.size)
+        assertEquals(setOf("a", "b"), albumArtists.single().trackIds)
         assertEquals(3563, rows.size)
     }
 
-    @Test fun albumArtistOverridesTrackArtistForArtistNavigation() {
+    @Test fun artistsAndAlbumArtistsRemainDistinctWhenTagsDiffer() {
         val rows = listOf(
             row("one", "Duets", "Guest One", "Album Collective"),
             row("two", "Duets", "Guest Two", "Album Collective"),
             row("three", "Solo", "Guest One"),
         )
         val artists = OfflineLibraryGrouping.artists(rows)
-        assertEquals(2, artists.size)
-        assertEquals(setOf("one", "two"),
-            artists.first { it.name == "Album Collective" }.trackIds)
-        assertEquals(setOf("three"),
+        val albumArtists = OfflineLibraryGrouping.albumArtists(rows)
+        assertEquals(setOf("one", "three"),
             artists.first { it.name == "Guest One" }.trackIds)
-        assertFalse(artists.any { it.name == "Guest Two" })
+        assertEquals(setOf("two"),
+            artists.first { it.name == "Guest Two" }.trackIds)
+        assertEquals(setOf("one", "two"),
+            albumArtists.single { it.name == "Album Collective" }.trackIds)
+        assertFalse(albumArtists.any { it.name == "Guest One" })
         assertEquals(1, OfflineLibraryGrouping.albums(rows).count { it.name == "Duets" })
+    }
+
+    @Test fun missingAlbumWithOtherSavedTagsAppearsInUnknownAlbum() {
+        val rows = listOf(
+            row("without-album", artist = "Singer", hasStoredTags = true),
+            row("another-without-album", artist = "Different Singer", hasStoredTags = true),
+            row("with-album", album = "Recognized", artist = "Singer"),
+            row("unscanned"),
+        )
+        val groups = OfflineLibraryGrouping.albums(rows, "Неизвестный альбом")
+        assertEquals(2, groups.size)
+        val unknown = groups.single { it.name == "Неизвестный альбом" }
+        assertEquals(null, unknown.subtitle)
+        assertEquals(setOf("without-album", "another-without-album"), unknown.trackIds)
+        assertEquals("album:missing", groups.last().key)
+        assertFalse(groups.any { "unscanned" in it.trackIds })
+    }
+
+    @Test fun literalUnknownAlbumAndMissingAlbumHaveDifferentKeys() {
+        val rows = listOf(
+            row("literal", album = "Неизвестный альбом", artist = "Singer"),
+            row("missing", album = null, artist = "Singer"),
+        )
+        val groups = OfflineLibraryGrouping.albums(rows, "Неизвестный альбом")
+        assertEquals(2, groups.size)
+        assertEquals(2, groups.map { it.key }.toSet().size)
+        assertTrue(groups.any { it.trackIds == setOf("literal") })
+        assertTrue(groups.any { it.trackIds == setOf("missing") })
+    }
+
+    @Test fun titleOnlyStoredMetadataStillCreatesUnknownAlbum() {
+        val one = row("title-only", hasStoredTags = true)
+        val groups = OfflineLibraryGrouping.albums(listOf(one), "Unknown Album")
+        assertEquals(1, groups.size)
+        assertEquals(setOf("title-only"), groups.single().trackIds)
+        assertEquals(null, groups.single().subtitle)
     }
 
     @Test fun sameAlbumNameDifferentArtistsNotAccidentallyMerged() {
@@ -70,13 +112,14 @@ class OfflineLibraryGroupingTest {
         assertFalse(OfflineLibraryGrouping.matches(album.single(), "Unrelated"))
     }
 
-    @Test fun albumArtistOnlyIsEnoughToCreateArtistGroup() {
-        val group = OfflineLibraryGrouping.artists(listOf(
-            row("album-artist-only", album = "Album", albumArtist = "The Orchestra"),
-        ))
-        assertEquals(1, group.size)
-        assertEquals("The Orchestra", group.single().name)
-        assertEquals(setOf("album-artist-only"), group.single().trackIds)
+    @Test fun albumArtistOnlyAppearsInAlbumArtistPageNotTrackArtistPage() {
+        val item = row("album-artist-only", album = "Album",
+            albumArtist = "The Orchestra")
+        assertTrue(OfflineLibraryGrouping.artists(listOf(item)).isEmpty())
+        val groups = OfflineLibraryGrouping.albumArtists(listOf(item))
+        assertEquals(1, groups.size)
+        assertEquals("The Orchestra", groups.single().name)
+        assertEquals(setOf("album-artist-only"), groups.single().trackIds)
     }
 
     @Test fun knownAlbumWithoutArtistRemainsVisibleWithoutInventingArtist() {
@@ -85,5 +128,6 @@ class OfflineLibraryGroupingTest {
         assertEquals(1, albums.size)
         assertEquals(null, albums.single().subtitle)
         assertTrue(OfflineLibraryGrouping.artists(listOf(one)).isEmpty())
+        assertTrue(OfflineLibraryGrouping.albumArtists(listOf(one)).isEmpty())
     }
 }
