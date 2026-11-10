@@ -649,11 +649,19 @@ internal fun OfflineLibraryScreen(
                     LibraryPage.ARTISTS -> R.string.library_tab_artists
                     LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
                 }
-                OutlinedButton(enabled = !selecting, onClick = {
-                    section = page
-                    selectedGroupKey = null
-                    search = ""
-                }) { Text(stringResource(title)) }
+                // The selected page must be recognizable without relying on color alone.
+                // Use the Material 3 filled/outlined button distinction; no custom palette.
+                if (section == page) {
+                    Button(enabled = !selecting, onClick = {
+                        // Already selected: preserve search and group context.
+                    }) { Text(stringResource(title)) }
+                } else {
+                    OutlinedButton(enabled = !selecting, onClick = {
+                        section = page
+                        selectedGroupKey = null
+                        search = ""
+                    }) { Text(stringResource(title)) }
+                }
             }
         }
         if (section != LibraryPage.TRACKS && selectedGroup != null) {
