@@ -528,8 +528,16 @@ private fun DiagnosticScreen() {
                                                 }
                                                 // Missing cache files are harmless; metadata
                                                 // checkpoints must remain durable.
-                                                ArtworkPreviewRepository(appContext)
-                                                    .invalidate(email, targets)
+                                                try {
+                                                    ArtworkPreviewRepository(appContext)
+                                                        .invalidate(email, targets)
+                                                } catch (cancelled: CancellationException) {
+                                                    throw cancelled
+                                                } catch (_: Exception) {
+                                                    // Tag queue is already committed. A
+                                                    // damaged optional image cache must
+                                                    // never prevent the indexer starting.
+                                                }
                                             }
                                             selected.queued
                                         } finally {
