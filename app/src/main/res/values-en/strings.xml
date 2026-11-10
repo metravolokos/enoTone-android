@@ -14,7 +14,7 @@
     <string name="file_count_failed">Could not read the file listing. Check the connection or try again later.</string>
     <string name="webdav_http_failed">Could not read the file listing: HTTP %1$d.</string>
     <string name="diagnostic_failed">Diagnostics failed. Credentials are never included in this report.</string>
-    <string name="save_local_library">Refresh /AllMusic catalogue (new and changed files)</string>
+    <string name="save_local_library">Import / update library</string>
     <string name="read_local_library">Check saved listing (offline)</string>
     <string name="local_import_report">Found in cloud: %1$d. Saved locally: %2$d. New: %3$d, changed: %4$d, unchanged: %5$d.</string>
     <string name="local_saved_report">Local library: %1$d audio files. No cloud request made.</string>
@@ -114,7 +114,7 @@
     <string name="library_groups_empty">No recognized groups yet. Tags can be indexed later in small batches.</string>
     <string name="pilot_resume_bounded">Resume indexing (up to 100 files)</string>
     <string name="pilot_resume_explanation">One manual session: up to 60 HTTP GETs and 4 MiB downloaded, a roughly 3-minute time stop checked between files. Completed results stay in Room. You can stop and resume; there is no automatic whole-folder scan. Mobile data charges may apply.</string>
-    <string name="managed_index_title">Managed indexing</string>
+    <string name="managed_index_title">Library processing progress</string>
     <string name="managed_notification_started">Indexing music tags in background</string>
     <string name="managed_notification_progress">Processed this session: %1$d, remaining: %2$d, requests: %3$d</string>
     <string name="managed_index_explanation">Proven bounded mode: up to 4 batches (240 GET / 16 MiB), four concurrent files. Continues while the app is backgrounded or the screen is locked. Every file is checkpointed in Room; no Wi-Fi restriction.</string>

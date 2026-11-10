@@ -58,7 +58,7 @@ class AlbumArtworkGridContractTest(unittest.TestCase):
         db = self.text(
             "core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         gradle = self.text("app/build.gradle.kts")
-        self.assertIn("version = 3", db)
+        self.assertIn("version = 4", db)
         self.assertIn('applicationIdSuffix = ".preview"', gradle)
         self.assertIn('getByName("stablePreview")', gradle)
 

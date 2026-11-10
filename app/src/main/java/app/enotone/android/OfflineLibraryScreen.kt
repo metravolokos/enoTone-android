@@ -447,6 +447,9 @@ internal fun OfflineLibraryScreen(
     val albumYear = remember(albumTracks) {
         OfflineTrackCatalog.commonAlbumYear(albumTracks)
     }
+    val albumGenre = remember(albumTracks) {
+        OfflineTrackCatalog.commonAlbumGenre(albumTracks)
+    }
     // Only explicit confirmed batches of <=10 files. Previously successful
     // records are skipped. After network/parse failures, try still-unread
     // album tracks before retrying an unsuccessful ID, without HTTP in Compose.
@@ -979,6 +982,7 @@ internal fun OfflineLibraryScreen(
                         AlbumDetailHeader(
                             group = selectedGroup,
                             year = albumYear,
+                            genre = albumGenre,
                             target = albumArtworkTargets[selectedGroup.key],
                             repository = artworkRepository,
                             accountEmail = accountEmail,

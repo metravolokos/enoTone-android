@@ -16,6 +16,7 @@ data class OfflineTrackRow(
     val year: Int? = null,
     val trackNumber: Int? = null,
     val discNumber: Int? = null,
+    val genre: String? = null,
     /** True only for a real stored tag, not a filename-derived title. */
     val hasStoredTagData: Boolean = false,
 )
@@ -36,11 +37,12 @@ object OfflineTrackCatalog {
                     year = track.year,
                     trackNumber = track.trackNumber,
                     discNumber = track.discNumber,
+                    genre = track.genre?.takeIf { it.isNotBlank() },
                     hasStoredTagData = listOf(
                         track.title, track.artist, track.album, track.albumArtist,
                     ).any { !it.isNullOrBlank() } ||
                         track.year != null || track.trackNumber != null ||
-                        track.discNumber != null,
+                        track.discNumber != null || track.genre != null,
                 )
             }
             .sortedWith(compareBy<OfflineTrackRow> { it.title.lowercase(Locale.ROOT) }
@@ -62,12 +64,18 @@ object OfflineTrackCatalog {
     fun commonAlbumYear(items: List<OfflineTrackRow>): Int? =
         items.mapNotNull { it.year }.distinct().singleOrNull()
 
+    /** Only return a single unambiguous genre for a whole album. */
+    fun commonAlbumGenre(items: List<OfflineTrackRow>): String? =
+        items.mapNotNull { it.genre?.takeIf(String::isNotBlank) }
+            .distinctBy { it.lowercase(Locale.ROOT) }.singleOrNull()
+
     fun search(items: List<OfflineTrackRow>, query: String): List<OfflineTrackRow> {
         val terms = query.trim().lowercase(Locale.ROOT)
             .split(Regex("\\s+")).filter { it.isNotBlank() }
         if (terms.isEmpty()) return items
         return items.filter { row ->
-            val haystack = listOfNotNull(row.title, row.artist, row.album, row.albumArtist)
+            val haystack = listOfNotNull(row.title, row.artist, row.album, row.albumArtist,
+                row.genre)
                 .joinToString(" ").lowercase(Locale.ROOT)
             terms.all { haystack.contains(it) }
         }

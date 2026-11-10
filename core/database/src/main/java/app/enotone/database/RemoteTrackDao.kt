@@ -55,7 +55,8 @@ interface RemoteTrackDao {
             albumArtist = :albumArtist,
             year = :year,
             trackNumber = :trackNumber,
-            discNumber = :discNumber
+            discNumber = :discNumber,
+            genre = :genre
         WHERE id = :id
           AND sourceKey = :sourceKey
           AND encodedPath = :encodedPath
@@ -78,6 +79,7 @@ interface RemoteTrackDao {
         year: Int? = null,
         trackNumber: Int? = null,
         discNumber: Int? = null,
+        genre: String? = null,
     ): Int
 
     /** One local SQLite query; no network, no tag values, no per-track data returned. */
@@ -123,7 +125,9 @@ interface RemoteTrackDao {
             trackNumber = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
                 'MP3_ID3V1', 'FLAC_VORBIS') THEN :trackNumber ELSE trackNumber END,
             discNumber = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
-                'MP3_ID3V1', 'FLAC_VORBIS') THEN :discNumber ELSE discNumber END
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :discNumber ELSE discNumber END,
+            genre = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :genre ELSE genre END
         WHERE id = :id AND sourceKey = :sourceKey AND encodedPath = :path
           AND remoteEtag IS :etag AND remoteSize IS :size
           AND remoteModified IS :modified AND missingScans = 0
@@ -138,6 +142,7 @@ interface RemoteTrackDao {
         code: String, title: String?, artist: String?,
         album: String?, albumArtist: String?,
         year: Int? = null, trackNumber: Int? = null, discNumber: Int? = null,
+        genre: String? = null,
     ): Int
 
     /** Only present files for this hashed account; deterministic ordering is app side. */

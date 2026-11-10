@@ -154,6 +154,56 @@ class FastAudioTagReaderTest {
         assertEquals(2, visited.size)
     }
 
+    @Test fun id3V23AndV24ReadGenreFromSameFastMetadataPass() {
+        for (version in listOf(3, 4)) {
+            val bytes = mp3(version,
+                frame("APIC", ByteArray(96_000), version),
+                textFrame("TIT2", "Track", version),
+                textFrame("TCON", if (version == 3) "(17)" else "Electronic", version),
+            )
+            val blocks = mutableSetOf<Long>()
+            val read = FastAudioTagReader().read(
+                "test.mp3", bytes.size.toLong(), byteReader(bytes, blocks))
+            assertEquals(if (version == 3) "Rock" else "Electronic", read.tags?.genre)
+            assertEquals("Track", read.tags?.title)
+            assertTrue(blocks.size <= 2)
+        }
+    }
+
+    @Test fun flacGenreIsReadPastLargeArtworkWithOtherTags() {
+        val bytes = flacWithHugeCover(vorbis(
+            "TITLE=Мелодия", "ALBUM=Альбом", "GENRE=Русский рок",
+            "YEAR=2021", "TRACKNUMBER=2"))
+        val blocks = mutableSetOf<Long>()
+        val read = FastAudioTagReader().read(
+            "song.flac", bytes.size.toLong(), byteReader(bytes, blocks))
+        assertEquals("Русский рок", read.tags?.genre)
+        assertEquals(2021, read.tags?.year)
+        assertEquals(2, read.tags?.trackNumber)
+        assertEquals(2, blocks.size)
+    }
+
+    @Test fun id3V1GenreByteIsReadWithTheSameTailRequest() {
+        val tag = ByteArray(128)
+        System.arraycopy("TAG".toByteArray(), 0, tag, 0, 3)
+        System.arraycopy("Song".toByteArray(), 0, tag, 3, 4)
+        tag[127] = 17 // Standard ID3v1 Rock, not a tag string.
+        val bytes = ByteArray(200_000) + tag
+        val blocks = mutableSetOf<Long>()
+        val read = FastAudioTagReader().read(
+            "old.mp3", bytes.size.toLong(), byteReader(bytes, blocks))
+        assertEquals("Rock", read.tags?.genre)
+        assertTrue(blocks.size <= 2)
+    }
+
+    @Test fun genreAloneCountsAsRealEmbeddedTag() {
+        val bytes = mp3(4, textFrame("TCON", "Ambient", 4))
+        val read = FastAudioTagReader().read("genre.mp3", bytes.size.toLong(), byteReader(bytes))
+        assertEquals(FastTagCode.MP3_ID3V24, read.code)
+        assertEquals("Ambient", read.tags?.genre)
+        assertFalse(read.embeddedTitle)
+    }
+
     @Test fun mp3WithoutV2UsesId3v1FromTailOnly() {
         val prefix = ByteArray(200_000) { 0x33.toByte() }
         val tag = ByteArray(128)

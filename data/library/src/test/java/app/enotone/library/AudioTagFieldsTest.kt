@@ -77,6 +77,19 @@ class AudioTagFieldsTest {
         }
     }
 
+    @Test fun id3GenreCodesAndFreeTextAreNormalizedWithoutFabrication() {
+        val base = AudioTagFields.fromRaw(null, null, null, null, "album.flac",
+            rawGenre = "(17)")
+        assertEquals("Rock", base.genre)
+        assertEquals("Rock", Id3Genres.normalize("17"))
+        assertEquals("Русский рок", Id3Genres.normalize(" Русский рок "))
+        assertNull(Id3Genres.normalize("(999)"))
+        assertNull(Id3Genres.normalize("255"))
+        assertEquals("Рок", Id3Genres.normalize("Рок"))
+        assertEquals(512, Id3Genres.normalize("x".repeat(2000))?.length)
+        assertNull(Id3Genres.normalize(" \u0000 "))
+    }
+
     @Test fun unknownTagsStayNullWithoutInventingMetadata() {
         val tags = AudioTagFields.fromRaw(
             title = null, artist = null, album = null, albumArtist = null,

@@ -15,6 +15,7 @@ data class AudioTagFields(
     val year: Int? = null,
     val trackNumber: Int? = null,
     val discNumber: Int? = null,
+    val genre: String? = null,
 ) {
     companion object {
         private const val MAX_FIELD_CHARS = 512
@@ -29,6 +30,7 @@ data class AudioTagFields(
             rawYear: String? = null,
             rawTrackNumber: String? = null,
             rawDiscNumber: String? = null,
+            rawGenre: String? = null,
         ): AudioTagFields = AudioTagFields(
             title = clean(title) ?: titleFromFileName(fallbackFileName),
             artist = clean(artist),
@@ -37,6 +39,7 @@ data class AudioTagFields(
             year = parseYear(rawYear),
             trackNumber = parseOrdinal(rawTrackNumber, 999),
             discNumber = parseOrdinal(rawDiscNumber, 99),
+            genre = Id3Genres.normalize(rawGenre)?.let(::clean),
         )
 
         /** Accept a release date YYYY or YYYY-MM[-DD] without fabricating a year. */

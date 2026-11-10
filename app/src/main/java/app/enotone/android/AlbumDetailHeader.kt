@@ -42,6 +42,7 @@ import app.enotone.library.OfflineLibraryGroup
 internal fun AlbumDetailHeader(
     group: OfflineLibraryGroup,
     year: Int?,
+    genre: String?,
     target: PlayingArtworkTarget?,
     repository: ArtworkPreviewRepository,
     accountEmail: String,
@@ -105,6 +106,13 @@ internal fun AlbumDetailHeader(
         if (year != null) {
             Text(
                 text = year.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (!genre.isNullOrBlank()) {
+            Text(
+                text = genre,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

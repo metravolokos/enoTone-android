@@ -40,6 +40,20 @@ class LibrarySnapshotPlannerTest {
         assertEquals(2L, second.upserts.single().lastSeenEpoch)
     }
 
+    @Test fun genreIsPreservedForUnchangedRemoteVersionAndClearedWhenChanged() {
+        val first = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("unchanged"))), emptyList(), 1)
+        val tagged = first.upserts.single().copy(
+            title = "Title", genre = "Jazz", tagScanCode = "FLAC_VORBIS")
+        val unchanged = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("unchanged"))), listOf(tagged), 2)
+        assertEquals("Jazz", unchanged.upserts.single().genre)
+        val changed = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("replaced"))), unchanged.upserts, 3)
+        assertNull(changed.upserts.single().genre)
+        assertNull(changed.upserts.single().tagScanCode)
+    }
+
     @Test fun incrementalRefreshAddsNewTrackWhilePreservingExistingTagsAndIds() {
         val original = LibrarySnapshotPlanner.plan(
             account, listing(listOf(audio("etag-old"))), emptyList(), 1)

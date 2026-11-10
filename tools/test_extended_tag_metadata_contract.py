@@ -13,8 +13,9 @@ class ExtendedTagMetadataContractTest(unittest.TestCase):
         db = self.src("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         entity = self.src("core/database/src/main/java/app/enotone/database/RemoteTrackEntity.kt")
         main = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
-        for token in ('version = 3', 'AutoMigration(from = 1, to = 2)',
-                      'AutoMigration(from = 2, to = 3)', 'exportSchema = true'):
+        for token in ('version = 4', 'AutoMigration(from = 1, to = 2)',
+                      'AutoMigration(from = 2, to = 3)',
+                      'AutoMigration(from = 3, to = 4)', 'exportSchema = true'):
             self.assertIn(token, db)
         for field in ('year', 'trackNumber', 'discNumber'):
             self.assertIn(f'val {field}: Int? = null', entity)

@@ -14,7 +14,7 @@
     <string name="file_count_failed">Не удалось прочитать список файлов. Проверьте подключение или попробуйте позднее.</string>
     <string name="webdav_http_failed">Не удалось прочитать список файлов: HTTP %1$d.</string>
     <string name="diagnostic_failed">Диагностика завершилась ошибкой. Учётные данные в отчёт не включены.</string>
-    <string name="save_local_library">Обновить каталог /AllMusic (новые и изменённые файлы)</string>
+    <string name="save_local_library">Импортировать / обновить медиатеку</string>
     <string name="read_local_library">Проверить сохранённый список (без сети)</string>
     <string name="local_import_report">Найдено в облаке: %1$d. Сохранено локально: %2$d. Новых: %3$d, изменённых: %4$d, без изменений: %5$d.</string>
     <string name="local_saved_report">В локальной медиатеке: %1$d аудиофайлов. Облако не запрашивалось.</string>
@@ -114,7 +114,7 @@
     <string name="library_groups_empty">Нет распознанных групп. Теги можно обрабатывать отдельно небольшими партиями.</string>
     <string name="pilot_resume_bounded">Продолжить индексацию (до 100 файлов)</string>
     <string name="pilot_resume_explanation">Один ручной запуск: максимум 60 HTTP GET и 4 МиБ загрузки, остановка по времени примерно через 3 минуты между файлами. Завершённые результаты остаются в Room. Можно остановить и продолжить; автоматической индексации всей папки нет. При мобильном интернете учитывай трафик.</string>
-    <string name="managed_index_title">Управляемая индексация</string>
+    <string name="managed_index_title">Ход обработки медиатеки</string>
     <string name="managed_notification_started">Индексация тегов выполняется в фоне</string>
     <string name="managed_notification_progress">Обработано в сессии: %1$d, осталось: %2$d, запросов: %3$d</string>
     <string name="managed_index_explanation">Проверенный ограниченный режим: до 4 порций (240 GET / 16 МиБ), 4 параллельных файла. Продолжает работу при свёрнутом приложении и блокировке экрана. Сохранение в Room после каждого файла; без ограничений Wi-Fi.</string>
