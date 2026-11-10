@@ -172,4 +172,7 @@
     <string name="library_player_title">Плеер</string>
     <string name="library_player_open">Плеер</string>
     <string name="library_player_close">Закрыть</string>
+    <string name="library_open_search">Открыть поиск</string>
+    <string name="library_close_search">Закрыть поиск и очистить запрос</string>
+    <string name="library_search_short">Поиск</string>
 </resources>
