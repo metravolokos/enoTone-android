@@ -175,4 +175,9 @@
     <string name="library_open_search">Открыть поиск</string>
     <string name="library_close_search">Закрыть поиск и очистить запрос</string>
     <string name="library_search_short">Поиск</string>
+    <string name="nav_home">Домой</string>
+    <string name="settings_title">Настройки</string>
+    <string name="home_music_title">Моя музыка</string>
+    <string name="home_open_library">Открыть медиатеку</string>
+    <string name="home_connect_account">Настроить подключение</string>
 </resources>

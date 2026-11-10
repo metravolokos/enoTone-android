@@ -175,4 +175,9 @@
     <string name="library_open_search">Open search</string>
     <string name="library_close_search">Close search and clear query</string>
     <string name="library_search_short">Search</string>
+    <string name="nav_home">Home</string>
+    <string name="settings_title">Settings</string>
+    <string name="home_music_title">My music</string>
+    <string name="home_open_library">Open library</string>
+    <string name="home_connect_account">Set up connection</string>
 </resources>
