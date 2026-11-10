@@ -244,3 +244,10 @@ Preview #147: `errorCode=2000` на 03:54/03:55, хотя current и next cache 
 3. Artists groups only by ARTIST and Album Artists only by ALBUM ARTIST; verify guest performers on various-artists albums remain accessible from Artists, while Album Artists does not invent 143 absent values. No groups disappear from Tracks.
 4. Group search and playback queue context still work (Play/Next/Back) and no Media3/WebDAV/cache changes. Window colors remain standard Material; no unauthorized design changes.
 5. Exact-HEAD CI: pure grouping JVM, page ID visibility tests, Android/JUnit/Lint, Room schema, GMS gate and signed stable Preview. Page-hide switches are **not** a required UI part of this task; future settings must allow independent visibility control with Tracks fallback.
+
+## Huawei smoke — page visibility Settings (ADR-0052, Draft)
+1. Signed Stable Preview from main on top of #225, **не удалять** приложение/3590 записей. Открыть медиатеку → «Настройки страниц медиатеки»; все четыре флажка изначально установлены.
+2. Скрыть «Исполнители», проверить, что «Исполнители альбомов» остались; затем скрыть их независимо. Вновь включить один или оба. Скрыть текущую вкладку: ожидается переход на доступную и сброс только старого выбранного альбома/поискового запроса.
+3. Свернуть/закрыть/открыть приложение и убедиться, что флажки сохранились. Попробовать скрыть последнюю видимую вкладку — её checkbox должен быть отключён, приложение должно оставаться доступным.
+4. Проверить воспроизведение из «Неизвестного альбома» и сохранённые теги; настройки не должны запускать WebDAV GET/PROPFIND, индексировать, менять пароль или базу Room. Возврат вкладки должен раскрыть прежние группы.
+5. Exact-HEAD tests: JUnit pure page ID toggles/restore, контракт UI/SharedPreferences/RU-EN и Android Build/JUnit/Lint/Room schema/GMS/signing. До аппаратного smoke изменение Draft.
