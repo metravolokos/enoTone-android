@@ -116,8 +116,9 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
             actual = {x.attrib["name"] for x in root.findall("string")}
             self.assertTrue(names.issubset(actual), names - actual)
         db = self.src("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
-        self.assertIn("version = 3", db)
+        self.assertIn("version = 4", db)
         self.assertIn("AutoMigration(from = 2, to = 3)", db)
+        self.assertIn("AutoMigration(from = 3, to = 4)", db)
         self.assertNotIn("fallbackToDestructiveMigration", db)
 
 
