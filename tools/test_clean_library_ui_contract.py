@@ -84,16 +84,30 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertNotIn("R.string.library_group_tags_only", ui)
         self.assertNotIn("deleteDatabase(", ui)
 
-    def test_selected_library_page_has_distinct_material_control(self):
+    def test_compact_accessible_icon_navigation(self):
         ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        self.assertIn("if (section == page) {", ui)
-        self.assertIn("Button(enabled = !selecting, onClick = {", ui)
-        self.assertIn("OutlinedButton(enabled = !selecting, onClick = {", ui)
-        self.assertIn("Already selected: preserve search and group context.", ui)
-        self.assertIn("section = page", ui)
-        # Moving to a different page resets the old group and its search.
-        self.assertIn("selectedGroupKey = null", ui)
-        self.assertIn('search = ""', ui)
+        for token in (
+            "Modifier.fillMaxWidth().height(52.dp).selectableGroup()",
+            "Modifier.weight(1f).height(48.dp)",
+            "role = Role.Tab",
+            "selected = active",
+            "contentDescription = label",
+            "painter = painterResource(icon)",
+            "if (section != page)",
+            "selectedGroupKey = null",
+            'search = ""',
+        ):
+            self.assertIn(token, ui)
+        self.assertNotIn("Row(modifier = Modifier.horizontalScroll(", ui)
+        self.assertLess(ui.index("// Fixed-height mini player:"),
+                        ui.index("// M2: a compact bottom rail"))
+        import xml.etree.ElementTree as ET
+        for name in ("tracks", "albums", "artists", "album_artists"):
+            path = ROOT / f"app/src/main/res/drawable/ic_nav_{name}.xml"
+            xml = ET.parse(path).getroot()
+            self.assertEqual(xml.tag, "vector")
+            self.assertEqual(xml.attrib.get(
+                "{http://schemas.android.com/apk/res/android}height"), "24dp")
 
     def test_new_ux_strings_in_both_languages(self):
         needed = {
