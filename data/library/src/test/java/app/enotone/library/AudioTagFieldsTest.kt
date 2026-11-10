@@ -48,6 +48,35 @@ class AudioTagFieldsTest {
         assertEquals("Embedded title", tags.title)
     }
 
+    @Test fun releaseDateAndOrdinalsAreParsedWithinSafeBounds() {
+        val tags = AudioTagFields.fromRaw(
+            title = "Title", artist = null, album = "Album", albumArtist = null,
+            fallbackFileName = "track.flac",
+            rawYear = "2024-06-12", rawTrackNumber = "03/15", rawDiscNumber = "2/3",
+        )
+        assertEquals(2024, tags.year)
+        assertEquals(3, tags.trackNumber)
+        assertEquals(2, tags.discNumber)
+    }
+
+    @Test fun unknownOrMalformedNumericTagsNeverFabricateMetadata() {
+        for ((year, track, disc) in listOf(
+            Triple("2024/2025", "0", "0"),
+            Triple("9999", "1000/1001", "-2"),
+            Triple("something", "abc/5", "1x"),
+            Triple("2020\u0000", "1/unsafe", "x".repeat(50)),
+        )) {
+            val tags = AudioTagFields.fromRaw(
+                title = null, artist = null, album = null, albumArtist = null,
+                fallbackFileName = "unknown.flac",
+                rawYear = year, rawTrackNumber = track, rawDiscNumber = disc,
+            )
+            assertNull(tags.year)
+            assertNull(tags.trackNumber)
+            assertNull(tags.discNumber)
+        }
+    }
+
     @Test fun unknownTagsStayNullWithoutInventingMetadata() {
         val tags = AudioTagFields.fromRaw(
             title = null, artist = null, album = null, albumArtist = null,

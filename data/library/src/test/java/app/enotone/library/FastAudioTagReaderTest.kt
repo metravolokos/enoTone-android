@@ -117,6 +117,43 @@ class FastAudioTagReaderTest {
         assertEquals("Album Artist", r.tags?.albumArtist)
     }
 
+    @Test fun mp3V23AndV24ReadYearTrackAndDiscEvenAfterArtwork() {
+        for (version in listOf(3, 4)) {
+            val data = mp3(version,
+                frame("APIC", ByteArray(96_000), version),
+                textFrame("TIT2", "Song", version),
+                textFrame("TALB", "Album", version),
+                textFrame(if (version == 3) "TYER" else "TDRC",
+                    if (version == 3) "1998" else "2021-12-31", version),
+                textFrame("TRCK", "07/13", version),
+                textFrame("TPOS", "2/2", version),
+            )
+            val visited = mutableSetOf<Long>()
+            val result = FastAudioTagReader().read(
+                "song.mp3", data.size.toLong(), byteReader(data, visited))
+            assertEquals(if (version == 3) FastTagCode.MP3_ID3V23
+                else FastTagCode.MP3_ID3V24, result.code)
+            assertEquals(if (version == 3) 1998 else 2021, result.tags?.year)
+            assertEquals(7, result.tags?.trackNumber)
+            assertEquals(2, result.tags?.discNumber)
+            assertTrue(visited.size <= 2)
+        }
+    }
+
+    @Test fun flacReadsDateAndPositionWithoutFetchingPicturePayload() {
+        val data = flacWithHugeCover(vorbis(
+            "TITLE=Song", "ALBUM=Disc set", "DATE=2019",
+            "TRACKNUMBER=9/11", "DISCNUMBER=2/2"))
+        val visited = mutableSetOf<Long>()
+        val result = FastAudioTagReader().read(
+            "album.flac", data.size.toLong(), byteReader(data, visited))
+        assertEquals(FastTagCode.FLAC_VORBIS, result.code)
+        assertEquals(2019, result.tags?.year)
+        assertEquals(9, result.tags?.trackNumber)
+        assertEquals(2, result.tags?.discNumber)
+        assertEquals(2, visited.size)
+    }
+
     @Test fun mp3WithoutV2UsesId3v1FromTailOnly() {
         val prefix = ByteArray(200_000) { 0x33.toByte() }
         val tag = ByteArray(128)

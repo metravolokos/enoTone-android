@@ -13,6 +13,9 @@ data class OfflineTrackRow(
     val artist: String?,
     val album: String?,
     val albumArtist: String? = null,
+    val year: Int? = null,
+    val trackNumber: Int? = null,
+    val discNumber: Int? = null,
     /** True only for a real stored tag, not a filename-derived title. */
     val hasStoredTagData: Boolean = false,
 )
@@ -30,14 +33,34 @@ object OfflineTrackCatalog {
                     artist = track.artist?.takeIf { it.isNotBlank() },
                     album = track.album?.takeIf { it.isNotBlank() },
                     albumArtist = track.albumArtist?.takeIf { it.isNotBlank() },
+                    year = track.year,
+                    trackNumber = track.trackNumber,
+                    discNumber = track.discNumber,
                     hasStoredTagData = listOf(
                         track.title, track.artist, track.album, track.albumArtist,
-                    ).any { !it.isNullOrBlank() },
+                    ).any { !it.isNullOrBlank() } ||
+                        track.year != null || track.trackNumber != null ||
+                        track.discNumber != null,
                 )
             }
             .sortedWith(compareBy<OfflineTrackRow> { it.title.lowercase(Locale.ROOT) }
                 .thenBy { it.id })
             .toList()
+
+    /**
+     * Album-specific order: disc then track number. Files without such tags
+     * remain readable at the end of each disc in stable title order.
+     * No network, no invented metadata and no mutation of the saved catalogue.
+     */
+    fun albumOrder(items: List<OfflineTrackRow>): List<OfflineTrackRow> =
+        items.sortedWith(compareBy<OfflineTrackRow> { it.discNumber ?: 1 }
+            .thenBy { it.trackNumber ?: Int.MAX_VALUE }
+            .thenBy { it.title.lowercase(Locale.ROOT) }
+            .thenBy { it.id })
+
+    /** A compilation with conflicting release years must not show a fake one. */
+    fun commonAlbumYear(items: List<OfflineTrackRow>): Int? =
+        items.mapNotNull { it.year }.distinct().singleOrNull()
 
     fun search(items: List<OfflineTrackRow>, query: String): List<OfflineTrackRow> {
         val terms = query.trim().lowercase(Locale.ROOT)

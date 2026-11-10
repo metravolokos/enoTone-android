@@ -78,7 +78,7 @@ class LibraryPageSettingsContractTest(unittest.TestCase):
                 self.assertIn(name, present)
         schema = self.read(
             "core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
-        self.assertIn("version = 2", schema)
+        self.assertIn("version = 3", schema)
 
 
 if __name__ == "__main__":

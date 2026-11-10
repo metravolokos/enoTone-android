@@ -40,6 +40,7 @@ import app.enotone.library.OfflineLibraryGroup
 @Composable
 internal fun AlbumDetailHeader(
     group: OfflineLibraryGroup,
+    year: Int?,
     target: PlayingArtworkTarget?,
     repository: ArtworkPreviewRepository,
     accountEmail: String,
@@ -94,6 +95,13 @@ internal fun AlbumDetailHeader(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
+            )
+        }
+        if (year != null) {
+            Text(
+                text = year.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         Text(

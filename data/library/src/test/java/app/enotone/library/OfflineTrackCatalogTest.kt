@@ -40,6 +40,24 @@ class OfflineTrackCatalogTest {
         assertTrue(OfflineTrackCatalog.search(presented, "no match").isEmpty())
     }
 
+    @Test fun albumOrderUsesDiscAndTrackWhenAvailableWithStableFallback() {
+        val rows = listOf(
+            OfflineTrackRow("d2t2", "Coda", "Artist", "Album", year = 2024,
+                trackNumber = 2, discNumber = 2),
+            OfflineTrackRow("d1t3", "Prelude", "Artist", "Album", year = 2024,
+                trackNumber = 3, discNumber = 1),
+            OfflineTrackRow("d1t1", "Overture", "Artist", "Album", year = 2024,
+                trackNumber = 1, discNumber = 1),
+            OfflineTrackRow("untagged", "Late", "Artist", "Album"),
+        )
+        val sorted = OfflineTrackCatalog.albumOrder(rows)
+        assertEquals(listOf("d1t1", "d1t3", "untagged", "d2t2"),
+            sorted.map { it.id })
+        assertEquals(2024, OfflineTrackCatalog.commonAlbumYear(rows))
+        assertEquals(null, OfflineTrackCatalog.commonAlbumYear(
+            rows + OfflineTrackRow("other", "Other", "Artist", "Album", year = 2022)))
+    }
+
     @Test fun buildsAndSearches3590TracksWithoutTagsOrNetwork() {
         val tracks = (0 until 3590).map { i ->
             track(i, "track_${i.toString().padStart(4, '0')}.mp3")

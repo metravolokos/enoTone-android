@@ -407,7 +407,10 @@ internal fun OfflineLibraryScreen(
         val candidates = when (section) {
             LibraryPage.TRACKS -> tracks
             else -> selectedGroup?.let { group ->
-                tracks.filter { it.id in group.trackIds }
+                val members = tracks.filter { it.id in group.trackIds }
+                if (section == LibraryPage.ALBUMS) {
+                    OfflineTrackCatalog.albumOrder(members)
+                } else members
             } ?: emptyList()
         }
         OfflineTrackCatalog.search(candidates, search)
@@ -417,8 +420,13 @@ internal fun OfflineLibraryScreen(
     // Both use the original Media3 playback path and no extra Room reads.
     val albumTracks = remember(tracks, section, selectedGroup) {
         if (section == LibraryPage.ALBUMS && selectedGroup != null) {
-            tracks.filter { it.id in selectedGroup.trackIds }
+            OfflineTrackCatalog.albumOrder(
+                tracks.filter { it.id in selectedGroup.trackIds },
+            )
         } else emptyList()
+    }
+    val albumYear = remember(albumTracks) {
+        OfflineTrackCatalog.commonAlbumYear(albumTracks)
     }
     val playTrack: (OfflineTrackRow, List<OfflineTrackRow>) -> Unit = playTrack@{ track, contextTracks ->
         if (selecting || playback == null) return@playTrack
@@ -850,6 +858,7 @@ internal fun OfflineLibraryScreen(
                     item(key = "album-detail-header") {
                         AlbumDetailHeader(
                             group = selectedGroup,
+                            year = albumYear,
                             target = albumArtworkTargets[selectedGroup.key],
                             repository = artworkRepository,
                             accountEmail = accountEmail,
@@ -868,8 +877,20 @@ internal fun OfflineLibraryScreen(
                     Column(modifier = Modifier.fillMaxWidth().clickable(enabled = !selecting && playback != null) {
                         playTrack(track, visible)
                     }.padding(vertical = 4.dp)) {
-                        Text(track.title, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyLarge)
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (section == LibraryPage.ALBUMS &&
+                                selectedGroup != null && track.trackNumber != null) {
+                                val disc = track.discNumber
+                                val label = if (disc != null && disc > 1) {
+                                    "$"+"{disc}."+"$"+"{track.trackNumber.toString().padStart(2, '0')}"
+                                } else track.trackNumber.toString()
+                                Text(label, style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(track.title, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyLarge)
+                        }
                         val subtitle = listOfNotNull(track.artist, track.album)
                             .joinToString(" · ")
                         if (subtitle.isNotEmpty()) {
