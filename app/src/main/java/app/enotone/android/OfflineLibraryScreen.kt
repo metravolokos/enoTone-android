@@ -50,6 +50,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,6 +72,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.MediaMetadata
 import app.enotone.library.LibrarySnapshotPlanner
+import app.enotone.library.AlbumTagRefresher
 import app.enotone.library.LibraryPage
 import app.enotone.library.LibraryPageVisibility
 import app.enotone.library.OfflineLibraryGrouping
@@ -126,6 +128,19 @@ internal fun OfflineLibraryScreen(
     val scope = rememberCoroutineScope()
     val artworkRepository = remember(context) { ArtworkPreviewRepository(context) }
     var tracks by remember(accountEmail) { mutableStateOf<List<OfflineTrackRow>>(emptyList()) }
+    var libraryRefreshEpoch by remember(accountEmail) { mutableStateOf(0) }
+    val managedIndexStatus by ManagedScanRuntime.status.collectAsState()
+    var albumRefreshBusy by remember(accountEmail) { mutableStateOf(false) }
+    var albumCheckedByGroup by remember(accountEmail) {
+        mutableStateOf<Map<String, Set<String>>>(emptyMap())
+    }
+    var confirmAlbumRefresh by remember(accountEmail) {
+        mutableStateOf<Pair<String, List<String>>?>(null)
+    }
+    var albumRefreshFeedback by remember(accountEmail) {
+        mutableStateOf<Pair<String, String>?>(null)
+    }
+
     // Store only local already-imported metadata in RAM for quick queue picks.
     // Do not reopen/requery all 3590 Room records on every track tap.
     var preparedById by remember(accountEmail) {
@@ -181,7 +196,7 @@ internal fun OfflineLibraryScreen(
         mutableStateOf(TransientCacheStatus(CachePhase.IDLE, 0L, 0L))
     }
 
-    LaunchedEffect(accountEmail) {
+    LaunchedEffect(accountEmail, libraryRefreshEpoch) {
         loading = true
         failed = false
         try {
@@ -428,6 +443,21 @@ internal fun OfflineLibraryScreen(
     val albumYear = remember(albumTracks) {
         OfflineTrackCatalog.commonAlbumYear(albumTracks)
     }
+    // One explicit tap selects at most 10 currently playable MP3/FLAC files
+    // from the open album. Already inspected IDs are excluded for this session.
+    // No HTTP, WebDAV listing or Room query occurs while composing this list.
+    val albumRefreshSampleIds = remember(albumTracks, preparedById,
+        albumCheckedByGroup, selectedGroup?.key) {
+        val checked = albumCheckedByGroup[selectedGroup?.key].orEmpty()
+        albumTracks.asSequence().filter { row ->
+            val path = preparedById[row.id]?.encodedPath ?: return@filter false
+            row.id !in checked &&
+                (path.endsWith(".flac", ignoreCase = true) ||
+                 path.endsWith(".mp3", ignoreCase = true))
+        }.take(AlbumTagRefresher.MAX_FILES_PER_TAP).map { it.id }.toList()
+    }
+    val albumRefreshDoneFormat = stringResource(R.string.album_refresh_done)
+    val albumRefreshFailedText = stringResource(R.string.album_refresh_failed)
     val playTrack: (OfflineTrackRow, List<OfflineTrackRow>) -> Unit = playTrack@{ track, contextTracks ->
         if (selecting || playback == null) return@playTrack
         selectedTitle = track.title
@@ -482,6 +512,69 @@ internal fun OfflineLibraryScreen(
                 selecting = false
             }
         }
+    }
+    // Explicit confirmation before ANY album tag HTTP. No silent reindex.
+    val albumRequest = confirmAlbumRefresh
+    if (albumRequest != null) {
+        AlertDialog(
+            onDismissRequest = { confirmAlbumRefresh = null },
+            title = { Text(stringResource(R.string.album_refresh_confirm_title)) },
+            text = { Text(stringResource(R.string.album_refresh_confirm_text,
+                albumRequest.second.size)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmAlbumRefresh = null
+                    val key = albumRequest.first
+                    val ids = albumRequest.second
+                    val canStart = selectedGroup?.key == key &&
+                        !albumRefreshBusy &&
+                        managedIndexStatus.state != ManagedScanState.RUNNING &&
+                        !managedIndexStatus.terminating &&
+                        playbackState !in setOf("PLAYING", "BUFFERING", "LOADING")
+                    if (canStart && ids.isNotEmpty()) {
+                        albumRefreshBusy = true
+                        albumRefreshFeedback = null
+                        scope.launch {
+                            try {
+                                val result = withContext(Dispatchers.IO) {
+                                    val db = openLibraryDatabase(context)
+                                    try {
+                                        AlbumTagRefresher(db).refresh(
+                                            accountEmail, appPassword, ids)
+                                    } finally {
+                                        db.close()
+                                    }
+                                }
+                                albumCheckedByGroup = albumCheckedByGroup +
+                                    (key to (albumCheckedByGroup[key].orEmpty() +
+                                        result.checkedIds))
+                                albumRefreshFeedback = key to String.format(
+                                    albumRefreshDoneFormat,
+                                    result.checkedIds.size,
+                                    result.progress.savedWithTags,
+                                )
+                                // Single local Room reload only after an explicit
+                                // batch. Existing Media3 queue is never restarted.
+                                libraryRefreshEpoch++
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                albumRefreshFeedback = key to albumRefreshFailedText
+                            } finally {
+                                albumRefreshBusy = false
+                            }
+                        }
+                    }
+                }) {
+                    Text(stringResource(R.string.album_refresh_confirm_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmAlbumRefresh = null }) {
+                    Text(stringResource(R.string.album_refresh_cancel))
+                }
+            },
+        )
     }
     if (showPlayerDetails && selectedTitle != null) {
         AlertDialog(
@@ -864,10 +957,33 @@ internal fun OfflineLibraryScreen(
                             accountEmail = accountEmail,
                             appPassword = appPassword,
                             canPlay = albumTracks.isNotEmpty() && !selecting &&
+                                !albumRefreshBusy &&
                                 playback != null && appPassword.isNotBlank(),
                             onPlayAll = {
                                 albumTracks.firstOrNull()?.let { first ->
                                     playTrack(first, albumTracks)
+                                }
+                            },
+                            refreshingTags = albumRefreshBusy,
+                            canRefreshTags = !albumRefreshBusy &&
+                                albumRefreshSampleIds.isNotEmpty() &&
+                                appPassword.isNotBlank() &&
+                                managedIndexStatus.state != ManagedScanState.RUNNING &&
+                                !managedIndexStatus.terminating &&
+                                playbackState !in setOf("PLAYING", "BUFFERING", "LOADING"),
+                            refreshMessage = when {
+                                albumRefreshFeedback?.first == selectedGroup.key ->
+                                    albumRefreshFeedback?.second.orEmpty()
+                                albumRefreshSampleIds.isEmpty() ->
+                                    stringResource(R.string.album_refresh_no_more)
+                                playbackState in setOf("PLAYING", "BUFFERING") ->
+                                    stringResource(R.string.album_refresh_audio_active)
+                                else -> ""
+                            },
+                            onRefreshTags = {
+                                if (!albumRefreshBusy && albumRefreshSampleIds.isNotEmpty()) {
+                                    confirmAlbumRefresh = selectedGroup.key to
+                                        albumRefreshSampleIds
                                 }
                             },
                         )
@@ -883,7 +999,7 @@ internal fun OfflineLibraryScreen(
                                 selectedGroup != null && track.trackNumber != null) {
                                 val disc = track.discNumber
                                 val label = if (disc != null && disc > 1) {
-                                    "$"+"{disc}."+"$"+"{track.trackNumber.toString().padStart(2, '0')}"
+                                    "${disc}.${track.trackNumber.toString().padStart(2, '0')}"
                                 } else track.trackNumber.toString()
                                 Text(label, style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
