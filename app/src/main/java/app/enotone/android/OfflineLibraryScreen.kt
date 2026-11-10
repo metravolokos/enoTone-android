@@ -483,6 +483,8 @@ internal fun OfflineLibraryScreen(
                 },
                 enabled = canSeek && !selecting,
             )
+            // Advanced telemetry is opt-in even when the full player is open.
+            if (showDiagnostics) {
             handoffInfo?.let { handoff ->
                 val kind = when (handoff.origin) {
                     HandoffOrigin.NEXT_BUTTON -> stringResource(R.string.handoff_next_button)
@@ -548,6 +550,7 @@ internal fun OfflineLibraryScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+            }
             }
             if (queueTotal > 0) {
                 Text(stringResource(R.string.playback_queue_position,
@@ -790,6 +793,8 @@ internal fun OfflineLibraryScreen(
                     "PAUSED" -> stringResource(R.string.playback_paused)
                     "ERROR" -> stringResource(R.string.playback_error, errorCode)
                     "MISSING_PASSWORD" -> stringResource(R.string.playback_missing_password)
+                    "MISSING_TRACK" -> stringResource(R.string.playback_missing_track)
+                    "ENDED" -> stringResource(R.string.playback_ended)
                     else -> stringResource(R.string.playback_loading)
                 }
                 Text(compactStatus, modifier = Modifier.weight(1f),
