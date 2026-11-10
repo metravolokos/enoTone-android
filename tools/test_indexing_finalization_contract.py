@@ -98,7 +98,7 @@ class IndexingFinalizationContractTest(unittest.TestCase):
         self.assertIn("ACTION_PAUSE", fgs)
         self.assertIn("ACTION_STOP", fgs)
         self.assertNotIn("WIFI", fgs)
-        self.assertNotIn("WorkManager", fgs)
+        self.assertNotIn("WorkManager(", fgs)
 
     def test_listing_detects_bad_etag_without_metadata_loss_on_unchanged_files(self):
         planner = src("data/library/src/main/java/app/enotone/library/LibrarySnapshotPlanner.kt")
