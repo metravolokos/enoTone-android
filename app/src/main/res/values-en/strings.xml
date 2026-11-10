@@ -189,8 +189,11 @@
     <string name="album_refresh_confirm_text">Only %1$d selected album tracks will be checked using bounded network requests. The rest of your library is untouched.</string>
     <string name="album_refresh_confirm_action">Read tags</string>
     <string name="album_refresh_cancel">Cancel</string>
-    <string name="album_refresh_done">Tracks checked: %1$d · tags read: %2$d</string>
+    <string name="album_refresh_done">This attempt: checked %1$d · tags read: %2$d</string>
     <string name="album_refresh_failed">Could not refresh tags. Try again.</string>
     <string name="album_refresh_no_more">All available album tracks were checked in this session.</string>
     <string name="album_refresh_audio_active">Pause playback before refreshing tags.</string>
+    <string name="album_refresh_retry_needed">Unfinished in this batch: %1$d — retry available</string>
+    <string name="album_refresh_backoff">Temporary failure; retry later</string>
+    <string name="album_refresh_budget">Request limit reached; continue when ready</string>
 </resources>
