@@ -41,7 +41,8 @@ data class AudioTagFields(
 
         /** Accept a release date YYYY or YYYY-MM[-DD] without fabricating a year. */
         private fun parseYear(raw: String?): Int? {
-            val input = raw?.trim()?.takeIf { it.length in 4..10 } ?: return null
+            val input = raw?.takeIf { text -> text.none { it.isISOControl() } }
+                ?.trim()?.takeIf { it.length in 4..10 } ?: return null
             if (!Regex("""[0-9]{4}(?:-[0-9]{2}(?:-[0-9]{2})?)?""")
                 .matches(input)) return null
             val year = input.substring(0, 4).toIntOrNull() ?: return null
@@ -50,7 +51,8 @@ data class AudioTagFields(
 
         /** ID3/FLAC ordinals can be "3" or "3/12". No invented 0th track. */
         private fun parseOrdinal(raw: String?, max: Int): Int? {
-            val input = raw?.trim()?.takeIf { it.length in 1..12 } ?: return null
+            val input = raw?.takeIf { text -> text.none { it.isISOControl() } }
+                ?.trim()?.takeIf { it.length in 1..12 } ?: return null
             if (!Regex("""[0-9]{1,4}(?:/[0-9]{1,4})?""")
                 .matches(input)) return null
             val ordinal = input.substringBefore('/').toIntOrNull() ?: return null
