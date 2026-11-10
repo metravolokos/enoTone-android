@@ -12,7 +12,7 @@ class UnifiedImportGenreContractTest(unittest.TestCase):
     def test_one_click_import_commits_room_before_resumable_scan(self):
         ui = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
         start = ui.index("// One explicit action: quick listing + background metadata completion.")
-        end = ui.index("if (showTechnicalTools) {", start)
+        end = ui.index("// Explicit full reindex is a DIFFERENT action", start)
         section = ui[start:end]
         for token in (
             "FlatLibraryWebDavClient().use { client ->",
