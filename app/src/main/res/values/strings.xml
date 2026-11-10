@@ -14,6 +14,13 @@
     <string name="file_count_failed">Не удалось прочитать список файлов. Проверьте подключение или попробуйте позднее.</string>
     <string name="webdav_http_failed">Не удалось прочитать список файлов: HTTP %1$d.</string>
     <string name="diagnostic_failed">Диагностика завершилась ошибкой. Учётные данные в отчёт не включены.</string>
+    <string name="library_reindex_action">Переиндексировать всю медиатеку</string>
+    <string name="library_reindex_confirm_title">Повторно прочитать теги всех треков?</string>
+    <string name="library_reindex_confirm_message">Принудительно перечитаем теги всех сохранённых MP3/FLAC и сбросим ссылки на кэшированные обложки, даже если версия файла не изменилась. Это потребует многих сетевых запросов; работа может идти в фоне. Старые теги сохраняются до успешного чтения. Для поиска новых или изменённых файлов используйте обычное обновление медиатеки.</string>
+    <string name="library_reindex_confirm_action">Переиндексировать</string>
+    <string name="library_reindex_queued">Поставлено в очередь треков: %1$d. Запрошена фоновая обработка; прогресс и управление паузой/остановкой доступны ниже.</string>
+    <string name="library_reindex_empty">Нет доступных MP3/FLAC для переиндексации.</string>
+    <string name="library_reindex_failed">Не удалось назначить переиндексацию. Сохранённые треки и теги не удалены.</string>
     <string name="save_local_library">Импортировать / обновить медиатеку</string>
     <string name="read_local_library">Проверить сохранённый список (без сети)</string>
     <string name="local_import_report">Найдено в облаке: %1$d. Сохранено локально: %2$d. Новых: %3$d, изменённых: %4$d, без изменений: %5$d.</string>
