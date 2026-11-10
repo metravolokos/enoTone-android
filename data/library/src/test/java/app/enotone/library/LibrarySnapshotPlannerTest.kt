@@ -95,6 +95,28 @@ class LibrarySnapshotPlannerTest {
         assertNull(updated.upserts.single().tagScanCode)
     }
 
+    @Test fun unchangedEtagWithChangedSizeOrMtimeQueuesFreshMetadata() {
+        val old = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("stable", 50L, "a"))), emptyList(), 1)
+            .upserts.single().copy(title = "Old", genre = "Rock",
+                tagScanCode = "FLAC_VORBIS")
+        val larger = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("stable", 100L, "a"))), listOf(old), 2)
+        assertEquals(1, larger.changed)
+        assertEquals(old.id, larger.upserts.single().id)
+        assertNull(larger.upserts.single().title)
+        assertNull(larger.upserts.single().genre)
+        assertNull(larger.upserts.single().tagScanCode)
+        val touched = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("stable", 50L, "b"))), listOf(old), 2)
+        assertEquals(1, touched.changed)
+        assertNull(touched.upserts.single().tagScanCode)
+        val same = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("stable", 50L, "a"))), listOf(old), 2)
+        assertEquals(1, same.unchanged)
+        assertEquals("Rock", same.upserts.single().genre)
+    }
+
     @Test fun missingEtagUsesSizeAndModifiedOrMarksChanged() {
         val first = LibrarySnapshotPlanner.plan(account,
             listing(listOf(audio(null, 50L, "Sun, 08 Nov 2026 00:00:00 GMT"))), emptyList(), 1)
