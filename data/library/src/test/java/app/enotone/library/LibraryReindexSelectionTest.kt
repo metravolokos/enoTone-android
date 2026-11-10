@@ -81,7 +81,7 @@ class LibraryReindexSelectionTest {
     }
 
     @Test fun largeArtistSelectionIsNotCappedAtTenOrSqlParameterLimit() {
-        val rows = (1..3590).map(::row)
+        val rows = (1..3590).map { row(it) }
         val key = OfflineLibraryGrouping.artists(OfflineTrackCatalog.build(source, rows))
             .single().key
         val selection = LibraryReindexSelection.select(
