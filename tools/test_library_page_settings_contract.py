@@ -33,26 +33,34 @@ class LibraryPageSettingsContractTest(unittest.TestCase):
 
     def test_navigation_reacts_to_preferences_and_has_recovery_ui(self):
         ui = self.read("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
+        nav = self.read("app/src/main/java/app/enotone/android/CompactLibraryNavigation.kt")
+        settings = self.read("app/src/main/java/app/enotone/android/LibraryVisibilitySettings.kt")
+        main = self.read("app/src/main/java/app/enotone/android/MainActivity.kt")
         for needle in (
             "val pagePreferences = remember(context) { LibraryPagePreferences(context) }",
-            "mutableStateOf(pagePreferences.hiddenPages())",
+            "val hiddenPages = remember(context) { pagePreferences.hiddenPages() }",
             "LibraryPageVisibility.visible(hiddenPages)",
             "LibraryPageVisibility.selectedOrFallback(section, visiblePages)",
             "selectedGroupKey = null",
-            "pagePreferences.saveHiddenPages(updated)",
-            "R.string.library_pages_short",
-            "R.string.library_pages_settings_title",
-            "visiblePages.forEach { page ->",
-            "AlertDialog(",
-            "Checkbox(",
-            "visiblePages.size > 1",
+            "CompactLibraryNavigation(",
         ):
             self.assertIn(needle, ui)
+        for needle in (
+            "LibraryPageVisibility.defaultOrder.forEach { page ->",
+            "LibraryPageVisibility.withVisibility(",
+            "preferences.saveHiddenPages(next)",
+            "Checkbox(",
+            "visible.size > 1",
+        ):
+            self.assertIn(needle, settings)
+        self.assertIn("LibraryVisibilitySettings()", main)
+        self.assertIn("listOf<LibraryPage?>(null) + visiblePages", nav)
+        self.assertIn("null -> R.drawable.ic_nav_home", nav)
         self.assertIn("LibraryPage.ARTISTS -> OfflineLibraryGrouping.artists(tracks)", ui)
         self.assertIn("LibraryPage.ALBUM_ARTISTS -> OfflineLibraryGrouping.albumArtists(tracks)", ui)
         self.assertIn("OfflineLibraryGrouping.albums(tracks, unknownAlbumName)", ui)
-        # No database reset, re-import, login persistence or playback changes.
         self.assertNotIn("deleteDatabase(", ui)
+        self.assertNotIn("showPageSettings", ui)
 
     def test_labels_are_translated_and_room_schema_untouched(self):
         names = (
