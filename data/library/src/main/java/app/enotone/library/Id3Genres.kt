@@ -48,7 +48,7 @@ internal object Id3Genres {
             ?.take(512)?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         if (cleaned == "(RX)") return "Remix"
         if (cleaned == "(CR)") return "Cover"
-        val inParens = Regex("""^\\(([0-9]{1,3})\\)(.*)$""").matchEntire(cleaned)
+        val inParens = Regex("""^\(([0-9]{1,3})\)(.*)$""").matchEntire(cleaned)
         if (inParens != null) {
             val trailing = inParens.groupValues[2].trim()
             if (trailing.isNotEmpty()) return trailing
