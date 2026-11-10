@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -28,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +52,8 @@ import app.enotone.library.LibraryPage
 import app.enotone.library.LibraryPageVisibility
 import app.enotone.library.LibraryTagStore
 import app.enotone.library.LibrarySnapshotPlanner
+import app.enotone.library.LibraryReindexCoordinator
+import app.enotone.library.LibraryReindexScope
 import app.enotone.library.AndroidAudioTagReader
 import app.enotone.library.FastAudioTagReader
 import app.enotone.library.ManagedIndexMode
@@ -93,6 +97,7 @@ private fun DiagnosticScreen() {
     var tagAuditSearch by remember { mutableStateOf("") }
     var tagAuditMessage by remember { mutableStateOf("") }
     var confirmRefreshAll by remember { mutableStateOf(false) }
+    var confirmLibraryReindex by remember { mutableStateOf(false) }
     var showingLibrary by remember { mutableStateOf(false) }
     var showingSettings by remember { mutableStateOf(false) }
     var initialLibraryPage by remember { mutableStateOf(LibraryPage.TRACKS) }
@@ -474,6 +479,94 @@ private fun DiagnosticScreen() {
             }
         }) {
             Text(stringResource(R.string.save_local_library))
+        }
+        // Explicit full reindex is a DIFFERENT action from normal incremental
+        // import/update. Queue tags once, invalidate their lazy artwork refs,
+        // then start the already-existing resumable foreground reader.
+        val reindexQueuedFormat = stringResource(R.string.library_reindex_queued)
+        val reindexEmpty = stringResource(R.string.library_reindex_empty)
+        val reindexFailed = stringResource(R.string.library_reindex_failed)
+        OutlinedButton(
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && email.isNotBlank() && password.isNotBlank() &&
+                managedStatus.state != ManagedScanState.RUNNING &&
+                !managedStatus.terminating,
+            onClick = { confirmLibraryReindex = true },
+        ) {
+            Text(stringResource(R.string.library_reindex_action))
+        }
+        if (confirmLibraryReindex) {
+            AlertDialog(
+                onDismissRequest = { confirmLibraryReindex = false },
+                title = { Text(stringResource(R.string.library_reindex_confirm_title)) },
+                text = { Text(stringResource(R.string.library_reindex_confirm_message)) },
+                confirmButton = {
+                    TextButton(
+                        enabled = !busy && email.isNotBlank() && password.isNotBlank() &&
+                            managedStatus.state != ManagedScanState.RUNNING &&
+                            !managedStatus.terminating,
+                        onClick = {
+                            confirmLibraryReindex = false
+                            busy = true
+                            report = ""
+                            scope.launch {
+                                var queued = 0
+                                try {
+                                    queued = withContext(Dispatchers.IO) {
+                                        val db = openLibraryDatabase(appContext)
+                                        try {
+                                            val selected = LibraryReindexCoordinator(db).queue(
+                                                email, LibraryReindexScope.EntireLibrary)
+                                            if (selected.queued > 0) {
+                                                val targets = selected.artworkSources.map { item ->
+                                                    PlayingArtworkTarget(
+                                                        id = item.id,
+                                                        encodedPath = item.encodedPath,
+                                                        remoteSize = item.remoteSize,
+                                                        remoteEtag = item.remoteEtag,
+                                                    )
+                                                }
+                                                // Missing cache files are harmless; metadata
+                                                // checkpoints must remain durable.
+                                                try {
+                                                    ArtworkPreviewRepository(appContext)
+                                                        .invalidate(email, targets)
+                                                } catch (cancelled: CancellationException) {
+                                                    throw cancelled
+                                                } catch (_: Exception) {
+                                                    // Tag queue is already committed. A
+                                                    // damaged optional image cache must
+                                                    // never prevent the indexer starting.
+                                                }
+                                            }
+                                            selected.queued
+                                        } finally {
+                                            db.close()
+                                        }
+                                    }
+                                    report = if (queued > 0) String.format(
+                                        Locale.getDefault(), reindexQueuedFormat, queued)
+                                    else reindexEmpty
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) {
+                                    report = reindexFailed
+                                } finally {
+                                    busy = false
+                                }
+                                // The existing service owns the bounded batches,
+                                // notifications, Pause, Stop and saved checkpoints.
+                                if (queued > 0) startManagedSession(true)
+                            }
+                        },
+                    ) { Text(stringResource(R.string.library_reindex_confirm_action)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmLibraryReindex = false }) {
+                        Text(stringResource(R.string.album_refresh_cancel))
+                    }
+                },
+            )
         }
         if (showTechnicalTools) {
         Button(enabled = !busy && email.isNotBlank(), onClick = {
