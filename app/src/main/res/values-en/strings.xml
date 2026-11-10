@@ -157,4 +157,19 @@
     <string name="library_pages_settings_explanation">Choose which tabs to show in your library. Music and tags are never removed; your choice is saved across app restarts.</string>
     <string name="library_pages_settings_last_visible">The last visible page cannot be hidden. Re-enable any page here.</string>
     <string name="library_pages_settings_done">Done</string>
+
+    <string name="home_title">enoTone</string>
+    <string name="home_hint">Your music library and playback are on the main screen. Test tools are tucked away separately.</string>
+    <string name="home_connection_settings">Connection and saved login</string>
+    <string name="home_show_technical">Technical tools and diagnostics</string>
+    <string name="home_hide_technical">Hide technical tools</string>
+    <string name="home_diagnostics_title">WebDAV and tag diagnostics</string>
+    <string name="home_library_maintenance">Library maintenance</string>
+    <string name="home_index_summary">Tags read: %1$d · remaining: %2$d</string>
+    <string name="home_show_index_details">Indexing details</string>
+    <string name="home_hide_index_details">Hide details</string>
+    <string name="library_pages_short">Pages</string>
+    <string name="library_player_title">Player</string>
+    <string name="library_player_open">Player</string>
+    <string name="library_player_close">Close</string>
 </resources>
