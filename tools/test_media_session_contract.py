@@ -89,7 +89,12 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertNotIn("Player.STATE_ENDED", service)
         self.assertNotIn("MediaSession.Callback", service)
         self.assertNotIn("credentials = Credentials(", service)
-        self.assertIn("visible.mapNotNull", ui)
+        # Individual taps preserve the visible (possibly filtered) queue.
+        # Play album uses its whole group. Both share the one Media3 start path.
+        self.assertIn("playTrack(track, visible)", ui)
+        self.assertIn("playTrack(first, albumTracks)", ui)
+        self.assertIn("val queue = contextTracks.mapNotNull", ui)
+        self.assertEqual(1, ui.count("service.playQueue(accountEmail, appPassword,"))
         self.assertIn("playQueue(accountEmail, appPassword", ui)
 
     def test_m4c_modes_use_native_media3_and_no_network_loop(self):
