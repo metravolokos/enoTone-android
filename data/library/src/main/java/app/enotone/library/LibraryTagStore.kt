@@ -63,6 +63,7 @@ class LibraryTagStore(private val database: EnoToneDatabase) {
             year = tags.year,
             trackNumber = tags.trackNumber,
             discNumber = tags.discNumber,
+            genre = tags.genre,
         ) == 1
     }
 }
