@@ -181,7 +181,7 @@ class CleanLibraryUiContractTest(unittest.TestCase):
     def test_no_changes_to_stable_room_or_signing_path(self):
         db = self.src("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         apk = self.src("app/build.gradle.kts")
-        self.assertIn("version = 2", db)
+        self.assertIn("version = 3", db)
         self.assertIn('applicationIdSuffix = ".preview"', apk)
         self.assertIn("getByName(\"stablePreview\")", apk)
 
