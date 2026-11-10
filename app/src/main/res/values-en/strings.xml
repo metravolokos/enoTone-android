@@ -181,4 +181,6 @@
     <string name="home_open_library">Open library</string>
     <string name="home_connect_account">Set up connection</string>
     <string name="artwork_description">Current track cover</string>
+    <string name="album_cover_description">Album cover</string>
+    <string name="album_play_all">Play album</string>
 </resources>
