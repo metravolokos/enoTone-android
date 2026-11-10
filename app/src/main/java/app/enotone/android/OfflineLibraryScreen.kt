@@ -4,8 +4,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.graphics.Bitmap
 import android.os.IBinder
 import android.os.SystemClock
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -21,7 +23,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,6 +53,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,6 +62,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.MediaMetadata
@@ -112,6 +119,7 @@ internal fun OfflineLibraryScreen(
 ) {
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
+    val artworkRepository = remember(context) { ArtworkPreviewRepository(context) }
     var tracks by remember(accountEmail) { mutableStateOf<List<OfflineTrackRow>>(emptyList()) }
     // Store only local already-imported metadata in RAM for quick queue picks.
     // Do not reopen/requery all 3590 Room records on every track tap.
@@ -129,6 +137,8 @@ internal fun OfflineLibraryScreen(
     var selecting by remember { mutableStateOf(false) }
     var selectedTitle by remember { mutableStateOf<String?>(null) }
     var selectedArtist by remember { mutableStateOf<String?>(null) }
+    var currentTrackId by remember { mutableStateOf<String?>(null) }
+    var currentArtwork by remember { mutableStateOf<Bitmap?>(null) }
     var searchExpanded by remember(accountEmail) { mutableStateOf(false) }
     var playbackState by remember { mutableStateOf("IDLE") }
     var positionMs by remember { mutableStateOf(0L) }
@@ -236,6 +246,7 @@ internal fun OfflineLibraryScreen(
         }
     }
 
+    val latestTracks by rememberUpdatedState(tracks)
     DisposableEffect(playback) {
         val active = playback
         val listener = object : Player.Listener {
@@ -258,9 +269,16 @@ internal fun OfflineLibraryScreen(
                 }
                 playbackState = media3PlaybackLabel(active?.player)
             }
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                currentTrackId = mediaItem?.mediaId
+                selectedArtist = latestTracks.firstOrNull {
+                    it.id == mediaItem?.mediaId
+                }?.artist
+            }
             override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
                 selectedTitle = mediaMetadata.title?.toString()
                 selectedArtist = mediaMetadata.artist?.toString()
+                    ?: latestTracks.firstOrNull { it.id == active?.player?.currentMediaItem?.mediaId }?.artist
                 queuePosition = (active?.queuePosition ?: 0) + 1
                 queueTotal = active?.queueSize ?: 0
             }
@@ -278,8 +296,10 @@ internal fun OfflineLibraryScreen(
         }
         active?.player?.addListener(listener)
         if (active != null) {
+            currentTrackId = active.player.currentMediaItem?.mediaId
             selectedTitle = active.player.currentMediaItem?.mediaMetadata?.title?.toString()
             selectedArtist = active.player.currentMediaItem?.mediaMetadata?.artist?.toString()
+                ?: latestTracks.firstOrNull { it.id == currentTrackId }?.artist
             queuePosition = active.queuePosition + 1
             queueTotal = active.queueSize
             repeatMode = active.repeatMode
@@ -287,6 +307,24 @@ internal fun OfflineLibraryScreen(
             playbackState = media3PlaybackLabel(active.player)
         }
         onDispose { active?.player?.removeListener(listener) }
+    }
+
+    // Artwork only for the current Media3 item: one bounded Range session
+    // when the active track changes. Nothing is fetched by merely browsing tabs.
+    LaunchedEffect(currentTrackId, preparedById, appPassword, accountEmail) {
+        currentArtwork = null
+        val id = currentTrackId ?: return@LaunchedEffect
+        val target = preparedById[id] ?: return@LaunchedEffect
+        if (appPassword.isBlank()) return@LaunchedEffect
+        currentArtwork = artworkRepository.cover(
+            accountEmail, appPassword,
+            PlayingArtworkTarget(
+                id = id,
+                encodedPath = target.encodedPath,
+                remoteSize = target.remoteSize,
+                remoteEtag = target.remoteEtag,
+            ),
+        )
     }
 
     LaunchedEffect(playback) {
@@ -356,6 +394,15 @@ internal fun OfflineLibraryScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+        currentArtwork?.let { artwork ->
+            Image(
+                bitmap = artwork.asImageBitmap(),
+                contentDescription = stringResource(R.string.artwork_description),
+                modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Fit,
+            )
+        }
         OutlinedButton(onClick = { showDiagnostics = !showDiagnostics }) {
             Text(stringResource(
                 if (showDiagnostics) R.string.playback_diagnostics_hide
@@ -717,6 +764,7 @@ internal fun OfflineLibraryScreen(
                                     val media3StartedAt = SystemClock.elapsedRealtime()
                                     service.playQueue(accountEmail, appPassword,
                                         queue, track.id, useCacheOnNextPlay)
+                                    currentTrackId = track.id
                                     media3DurationMs =
                                         SystemClock.elapsedRealtime() - media3StartedAt
                                     setupTimings = service.setupTimings()
@@ -763,13 +811,21 @@ internal fun OfflineLibraryScreen(
                     ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    // Placeholder until embedded artwork retrieval is implemented.
-                    Icon(
-                        painter = painterResource(R.drawable.ic_nav_tracks),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp),
-                    )
+                    if (currentArtwork != null) {
+                        Image(
+                            bitmap = currentArtwork!!.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_nav_tracks),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
                 val compactStatus = when (playbackState) {
                     "BUFFERING" -> stringResource(R.string.playback_buffering)
