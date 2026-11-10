@@ -34,14 +34,14 @@ class OnDemandArtworkContractTest(unittest.TestCase):
         payload = (LIB / "EmbeddedArtworkPayloadReader.kt").read_text()
         for token in (
             "context.applicationContext.cacheDir",
-            "enotone-artwork-v1",
+            "enotone-artwork-v2",
             "MessageDigest.getInstance(\"SHA-256\")",
             "WebDavRangeReader(",
             "EmbeddedArtworkPayloadReader().read(",
             "maxRequests = 128",
             "maxDownloadedBytes = 8L * 1024 * 1024",
-            "const val MAX_SIDE = 512",
-            "const val CACHE_LIMIT_BYTES = 32L * 1024 * 1024",
+            "const val MAX_SIDE = 1320",
+            "const val CACHE_LIMIT_BYTES = 64L * 1024 * 1024",
             "BitmapFactory.Options().apply { inJustDecodeBounds = true }",
             "coroutineContext",
         ):
