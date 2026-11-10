@@ -12,6 +12,9 @@ data class AudioTagFields(
     val artist: String?,
     val album: String?,
     val albumArtist: String?,
+    val year: Int? = null,
+    val trackNumber: Int? = null,
+    val discNumber: Int? = null,
 ) {
     companion object {
         private const val MAX_FIELD_CHARS = 512
@@ -23,12 +26,36 @@ data class AudioTagFields(
             album: String?,
             albumArtist: String?,
             fallbackFileName: String,
+            rawYear: String? = null,
+            rawTrackNumber: String? = null,
+            rawDiscNumber: String? = null,
         ): AudioTagFields = AudioTagFields(
             title = clean(title) ?: titleFromFileName(fallbackFileName),
             artist = clean(artist),
             album = clean(album),
             albumArtist = clean(albumArtist),
+            year = parseYear(rawYear),
+            trackNumber = parseOrdinal(rawTrackNumber, 999),
+            discNumber = parseOrdinal(rawDiscNumber, 99),
         )
+
+        /** Accept a release date YYYY or YYYY-MM[-DD] without fabricating a year. */
+        private fun parseYear(raw: String?): Int? {
+            val input = raw?.trim()?.takeIf { it.length in 4..10 } ?: return null
+            if (!Regex("""[0-9]{4}(?:-[0-9]{2}(?:-[0-9]{2})?)?""")
+                .matches(input)) return null
+            val year = input.substring(0, 4).toIntOrNull() ?: return null
+            return year.takeIf { it in 1000..2999 }
+        }
+
+        /** ID3/FLAC ordinals can be "3" or "3/12". No invented 0th track. */
+        private fun parseOrdinal(raw: String?, max: Int): Int? {
+            val input = raw?.trim()?.takeIf { it.length in 1..12 } ?: return null
+            if (!Regex("""[0-9]{1,4}(?:/[0-9]{1,4})?""")
+                .matches(input)) return null
+            val ordinal = input.substringBefore('/').toIntOrNull() ?: return null
+            return ordinal.takeIf { it in 1..max }
+        }
 
         private fun titleFromFileName(filename: String): String? {
             val candidate = filename.trim()
