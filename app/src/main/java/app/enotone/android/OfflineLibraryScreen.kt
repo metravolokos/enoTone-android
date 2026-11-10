@@ -54,6 +54,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -87,6 +88,7 @@ import app.enotone.playback.WebDavPlaybackTarget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -316,6 +318,11 @@ internal fun OfflineLibraryScreen(
         val id = currentTrackId ?: return@LaunchedEffect
         val target = preparedById[id] ?: return@LaunchedEffect
         if (appPassword.isBlank()) return@LaunchedEffect
+        // Prioritize the audio stream over artwork GETs during cold start.
+        // READY is represented by PLAYING or PAUSED in media3PlaybackLabel().
+        snapshotFlow { playbackState }.first { state ->
+            state == "PLAYING" || state == "PAUSED"
+        }
         currentArtwork = artworkRepository.cover(
             accountEmail, appPassword,
             PlayingArtworkTarget(
