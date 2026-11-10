@@ -145,6 +145,9 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
         // to explicit local track IDs, even if unrelated scans are pending.
         targetIds: Set<String>? = null,
         onFileCompleted: suspend (String) -> Unit = {},
+        // True means the same-version Room row was updated with a terminal
+        // result. Transient/failed/stale attempts must stay eligible to retry.
+        onFileOutcome: suspend (String, Boolean) -> Unit = { _, _ -> },
     ): PilotIndexProgress {
         require(PilotBudget.validCount(count))
         require(password.isNotBlank())
@@ -252,6 +255,11 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
             // Opaque local ID only. Allows an album refresh button to advance
             // past the exact files handled, not guess from aggregate counters.
             onFileCompleted(item.id)
+            onFileOutcome(
+                item.id,
+                saved && !recordCode.startsWith("RETRY_") &&
+                    !recordCode.startsWith("FAILED_"),
+            )
             when {
                 !saved -> staleWrites++
                 recordCode.startsWith("RETRY_") -> retryableErrors++

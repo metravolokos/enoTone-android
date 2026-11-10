@@ -73,6 +73,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.MediaMetadata
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.AlbumTagRefresher
+import app.enotone.library.AlbumTagRefreshSelection
 import app.enotone.library.LibraryPage
 import app.enotone.library.LibraryPageVisibility
 import app.enotone.library.OfflineLibraryGrouping
@@ -132,6 +133,9 @@ internal fun OfflineLibraryScreen(
     val managedIndexStatus by ManagedScanRuntime.status.collectAsState()
     var albumRefreshBusy by remember(accountEmail) { mutableStateOf(false) }
     var albumCheckedByGroup by remember(accountEmail) {
+        mutableStateOf<Map<String, Set<String>>>(emptyMap())
+    }
+    var albumAttemptedByGroup by remember(accountEmail) {
         mutableStateOf<Map<String, Set<String>>>(emptyMap())
     }
     var confirmAlbumRefresh by remember(accountEmail) {
@@ -443,20 +447,26 @@ internal fun OfflineLibraryScreen(
     val albumYear = remember(albumTracks) {
         OfflineTrackCatalog.commonAlbumYear(albumTracks)
     }
-    // One explicit tap selects at most 10 currently playable MP3/FLAC files
-    // from the open album. Already inspected IDs are excluded for this session.
-    // No HTTP, WebDAV listing or Room query occurs while composing this list.
+    // Only explicit confirmed batches of <=10 files. Previously successful
+    // records are skipped. After network/parse failures, try still-unread
+    // album tracks before retrying an unsuccessful ID, without HTTP in Compose.
     val albumRefreshSampleIds = remember(albumTracks, preparedById,
-        albumCheckedByGroup, selectedGroup?.key) {
-        val checked = albumCheckedByGroup[selectedGroup?.key].orEmpty()
-        albumTracks.asSequence().filter { row ->
-            val path = preparedById[row.id]?.encodedPath ?: return@filter false
-            row.id !in checked &&
-                (path.endsWith(".flac", ignoreCase = true) ||
-                 path.endsWith(".mp3", ignoreCase = true))
-        }.take(AlbumTagRefresher.MAX_FILES_PER_TAP).map { it.id }.toList()
+        albumCheckedByGroup, albumAttemptedByGroup, selectedGroup?.key) {
+        val eligibleIds = albumTracks.mapNotNull { row ->
+            val path = preparedById[row.id]?.encodedPath ?: return@mapNotNull null
+            if (path.endsWith(".flac", ignoreCase = true) ||
+                path.endsWith(".mp3", ignoreCase = true)) row.id else null
+        }
+        AlbumTagRefreshSelection.nextBatch(
+            eligibleIds,
+            albumCheckedByGroup[selectedGroup?.key].orEmpty(),
+            albumAttemptedByGroup[selectedGroup?.key].orEmpty(),
+        )
     }
     val albumRefreshDoneFormat = stringResource(R.string.album_refresh_done)
+    val albumRefreshRetryFormat = stringResource(R.string.album_refresh_retry_needed)
+    val albumRefreshBackoffText = stringResource(R.string.album_refresh_backoff)
+    val albumRefreshBudgetText = stringResource(R.string.album_refresh_budget)
     val albumRefreshFailedText = stringResource(R.string.album_refresh_failed)
     val playTrack: (OfflineTrackRow, List<OfflineTrackRow>) -> Unit = playTrack@{ track, contextTracks ->
         if (selecting || playback == null) return@playTrack
@@ -548,10 +558,27 @@ internal fun OfflineLibraryScreen(
                                 albumCheckedByGroup = albumCheckedByGroup +
                                     (key to (albumCheckedByGroup[key].orEmpty() +
                                         result.checkedIds))
-                                albumRefreshFeedback = key to String.format(
-                                    albumRefreshDoneFormat,
-                                    result.checkedIds.size,
-                                    result.progress.savedWithTags,
+                                albumAttemptedByGroup = albumAttemptedByGroup +
+                                    (key to (albumAttemptedByGroup[key].orEmpty() +
+                                        result.attemptedIds))
+                                val unfinished = ids.count { it !in result.checkedIds }
+                                val note = when (result.progress.stopCode) {
+                                    "RETRY_BACKOFF", "AUTH_REJECTED" ->
+                                        albumRefreshBackoffText
+                                    "TIME_BUDGET", "NETWORK_BUDGET" ->
+                                        albumRefreshBudgetText
+                                    else -> ""
+                                }
+                                val retryInfo = if (unfinished > 0) {
+                                    " · " + String.format(albumRefreshRetryFormat, unfinished)
+                                } else ""
+                                val stopInfo = if (note.isNotEmpty()) " · " + note else ""
+                                albumRefreshFeedback = key to (
+                                    String.format(
+                                        albumRefreshDoneFormat,
+                                        result.attemptedIds.size,
+                                        result.progress.savedWithTags,
+                                    ) + retryInfo + stopInfo
                                 )
                                 // Single local Room reload only after an explicit
                                 // batch. Existing Media3 queue is never restarted.

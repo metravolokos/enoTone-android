@@ -22,7 +22,11 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
             "count = 10",
             "targetIds = trackIds.toSet()",
             "stopOnRetryableFailure = true",
-            "onFileCompleted = { id -> completed.add(id) }",
+            "onFileCompleted = { id -> attempted.add(id) }",
+            "onFileOutcome = { id, finished ->",
+            "if (finished) completed.add(id)",
+            "return AlbumTagRefreshReport(",
+            "completed.toSet(), attempted.toSet(), progress",
         ):
             self.assertIn(token, album)
         for token in (
@@ -33,6 +37,10 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
             self.assertIn(token, dao)
         self.assertIn("if (targetIds == null) pending else pending.filter { it.id in targetIds }", pilot)
         self.assertIn("onFileCompleted(item.id)", pilot)
+        self.assertIn("onFileOutcome(", pilot)
+        self.assertIn('!recordCode.startsWith("RETRY_")', pilot)
+        self.assertIn('!recordCode.startsWith("FAILED_")', pilot)
+        self.assertIn("saved && !recordCode.startsWith", pilot)
         self.assertNotIn("queueAllTagRefresh", album)
         self.assertNotIn("ManagedTagIndexSession(", album)
         self.assertNotIn("deleteDatabase(", album)
@@ -54,8 +62,13 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
         header = self.src("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
         for token in (
             "val albumRefreshSampleIds = remember(",
-            ".take(AlbumTagRefresher.MAX_FILES_PER_TAP)",
-            "row.id !in checked",
+            "AlbumTagRefreshSelection.nextBatch(",
+            "albumAttemptedByGroup[selectedGroup?.key].orEmpty()",
+            "result.attemptedIds",
+            "result.checkedIds",
+            "unfinished = ids.count { it !in result.checkedIds }",
+            "R.string.album_refresh_retry_needed",
+            "eligibleIds,",
             "confirmAlbumRefresh = selectedGroup.key to",
             "AlertDialog(",
             "R.string.album_refresh_confirm_title",
@@ -78,6 +91,11 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
             "R.string.album_refresh_tags",
         ):
             self.assertIn(token, header)
+        policy = self.src(
+            "data/library/src/main/java/app/enotone/library/AlbumTagRefreshSelection.kt")
+        self.assertIn("waiting = albumIds.distinct().filterNot { it in completedIds }", policy)
+        self.assertIn("val fresh = waiting.filterNot { it in attemptedIds }", policy)
+        self.assertIn("val retried = waiting.filter { it in attemptedIds }", policy)
         self.assertNotIn("queueAllForRefresh(", ui)
         self.assertNotIn("WebDavRangeReader(", header)
         self.assertNotIn("deleteDatabase(", ui)
@@ -89,6 +107,8 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
             "album_refresh_confirm_action", "album_refresh_cancel",
             "album_refresh_done", "album_refresh_failed",
             "album_refresh_no_more", "album_refresh_audio_active",
+            "album_refresh_retry_needed", "album_refresh_backoff",
+            "album_refresh_budget",
         }
         for path in ("app/src/main/res/values/strings.xml",
                      "app/src/main/res/values-en/strings.xml"):
