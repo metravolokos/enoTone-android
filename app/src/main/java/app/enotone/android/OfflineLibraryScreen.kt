@@ -569,16 +569,16 @@ internal fun OfflineLibraryScreen(
                                         albumRefreshBudgetText
                                     else -> ""
                                 }
+                                val retryInfo = if (unfinished > 0) {
+                                    " · " + String.format(albumRefreshRetryFormat, unfinished)
+                                } else ""
+                                val stopInfo = if (note.isNotEmpty()) " · " + note else ""
                                 albumRefreshFeedback = key to (
                                     String.format(
                                         albumRefreshDoneFormat,
                                         result.attemptedIds.size,
                                         result.progress.savedWithTags,
-                                    ) +
-                                    if (unfinished > 0) " · " +
-                                        String.format(albumRefreshRetryFormat, unfinished)
-                                    else "" +
-                                    if (note.isNotEmpty()) " · " + note else ""
+                                    ) + retryInfo + stopInfo
                                 )
                                 // Single local Room reload only after an explicit
                                 // batch. Existing Media3 queue is never restarted.
