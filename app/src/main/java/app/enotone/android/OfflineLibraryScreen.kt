@@ -38,6 +38,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -130,6 +131,8 @@ internal fun OfflineLibraryScreen(
     var failed by remember(accountEmail) { mutableStateOf(false) }
     var selecting by remember { mutableStateOf(false) }
     var selectedTitle by remember { mutableStateOf<String?>(null) }
+    var selectedArtist by remember { mutableStateOf<String?>(null) }
+    var searchExpanded by remember(accountEmail) { mutableStateOf(false) }
     var playbackState by remember { mutableStateOf("IDLE") }
     var positionMs by remember { mutableStateOf(0L) }
     var durationMs by remember { mutableStateOf(0L) }
@@ -260,6 +263,7 @@ internal fun OfflineLibraryScreen(
             }
             override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
                 selectedTitle = mediaMetadata.title?.toString()
+                selectedArtist = mediaMetadata.artist?.toString()
                 queuePosition = (active?.queuePosition ?: 0) + 1
                 queueTotal = active?.queueSize ?: 0
             }
@@ -278,6 +282,7 @@ internal fun OfflineLibraryScreen(
         active?.player?.addListener(listener)
         if (active != null) {
             selectedTitle = active.player.currentMediaItem?.mediaMetadata?.title?.toString()
+            selectedArtist = active.player.currentMediaItem?.mediaMetadata?.artist?.toString()
             queuePosition = active.queuePosition + 1
             queueTotal = active.queueSize
             repeatMode = active.repeatMode
@@ -625,17 +630,31 @@ internal fun OfflineLibraryScreen(
         )
     }
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        // Primary actions occupy one Material-sized row. Search is opt-in, so
+        // the default screen spends its height on music, not a tall empty field.
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.library_back)) }
+            IconButton(onClick = {
+                if (selectedGroupKey != null) {
+                    selectedGroupKey = null
+                    search = ""
+                } else onBack()
+            }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_action_back),
+                    contentDescription = stringResource(
+                        if (selectedGroupKey != null) R.string.library_group_back
+                        else R.string.library_back),
+                )
+            }
             Text(
-                text = stringResource(when (section) {
+                text = selectedGroup?.name ?: stringResource(when (section) {
                     LibraryPage.TRACKS -> R.string.library_tab_tracks
                     LibraryPage.ALBUMS -> R.string.library_tab_albums
                     LibraryPage.ARTISTS -> R.string.library_tab_artists
@@ -646,29 +665,45 @@ internal fun OfflineLibraryScreen(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            TextButton(onClick = { showPageSettings = true }) {
-                Text(stringResource(R.string.library_pages_short))
+            IconButton(onClick = {
+                if (searchExpanded) {
+                    search = ""
+                    searchExpanded = false
+                } else searchExpanded = true
+            }) {
+                Icon(
+                    painter = painterResource(if (searchExpanded)
+                        R.drawable.ic_action_close else R.drawable.ic_action_search),
+                    contentDescription = stringResource(if (searchExpanded)
+                        R.string.library_close_search else R.string.library_open_search),
+                )
+            }
+            IconButton(onClick = { showPageSettings = true }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_action_pages),
+                    contentDescription = stringResource(R.string.library_pages_short),
+                )
             }
         }
-        if (section != LibraryPage.TRACKS && selectedGroup != null) {
-            OutlinedButton(onClick = { selectedGroupKey = null; search = "" }) {
-                Text(stringResource(R.string.library_group_back))
-            }
-            Text(selectedGroup.name, style = MaterialTheme.typography.titleMedium)
+        if (searchExpanded) {
+            OutlinedTextField(
+                value = search,
+                onValueChange = { search = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text(stringResource(R.string.library_search_short)) },
+                singleLine = true,
+            )
         }
-        OutlinedTextField(
-            value = search,
-            onValueChange = { search = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.library_search)) },
-            singleLine = true,
-        )
-        if (section != LibraryPage.TRACKS && selectedGroup == null) {
-            Text(stringResource(R.string.library_group_count, shownGroups.size))
-        } else {
-            Text(stringResource(R.string.library_count, visible.size,
-                if (section == LibraryPage.TRACKS) tracks.size
-                else selectedGroup?.trackIds?.size ?: 0))
+        if (search.isNotBlank()) {
+            val count = if (section != LibraryPage.TRACKS && selectedGroup == null) {
+                stringResource(R.string.library_group_count, shownGroups.size)
+            } else {
+                stringResource(R.string.library_count, visible.size,
+                    if (section == LibraryPage.TRACKS) tracks.size
+                    else selectedGroup?.trackIds?.size ?: 0)
+            }
+            Text(count, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         when {
             loading -> Text(stringResource(R.string.library_loading))
@@ -707,6 +742,7 @@ internal fun OfflineLibraryScreen(
                 items(visible, key = { it.id }) { track ->
                     Column(modifier = Modifier.fillMaxWidth().clickable(enabled = !selecting && playback != null) {
                         selectedTitle = track.title
+                        selectedArtist = track.artist
                         if (appPassword.isBlank()) {
                             playbackState = "MISSING_PASSWORD"
                             return@clickable
@@ -770,17 +806,30 @@ internal fun OfflineLibraryScreen(
                 }
             }
         }
-        // Fixed-height mini player: users can scroll albums/tracks without
-        // playback diagnostics, cache counters or seek controls pushing them off-screen.
+        // Fixed-height mini player: one 56dp row plus a 2dp progress line.
+        // Touch targets retain the Material 48dp minimum; title opens full player.
         if (selectedTitle != null) {
             HorizontalDivider()
-            Text(selectedTitle!!, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.titleSmall)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
             ) {
+                Box(
+                    modifier = Modifier.size(40.dp).background(
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(8.dp),
+                    ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    // Placeholder until embedded artwork retrieval is implemented.
+                    Icon(
+                        painter = painterResource(R.drawable.ic_nav_tracks),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
                 val compactStatus = when (playbackState) {
                     "BUFFERING" -> stringResource(R.string.playback_buffering)
                     "PLAYING" -> stringResource(R.string.playback_playing)
@@ -791,30 +840,58 @@ internal fun OfflineLibraryScreen(
                     "ENDED" -> stringResource(R.string.playback_ended)
                     else -> stringResource(R.string.playback_loading)
                 }
-                Text(compactStatus, modifier = Modifier.weight(1f),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall)
-                TextButton(
+                Column(
+                    modifier = Modifier.weight(1f).clickable {
+                        showPlayerDetails = true
+                    }.padding(start = 8.dp),
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(selectedTitle!!, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodyMedium)
+                    val subtitle = if (playbackState in listOf(
+                        "BUFFERING", "ERROR", "MISSING_PASSWORD", "MISSING_TRACK",
+                        "ENDED", "LOADING")) compactStatus else selectedArtist ?: compactStatus
+                    Text(subtitle, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                val paused = playbackState != "PLAYING" && playbackState != "BUFFERING"
+                IconButton(
                     enabled = playback != null && !selecting,
                     onClick = {
-                        if (playbackState == "PLAYING" || playbackState == "BUFFERING") {
-                            playback?.pause()
-                        } else {
-                            playback?.resume()
-                        }
+                        if (!paused) playback?.pause() else playback?.resume()
                     },
                 ) {
-                    Text(stringResource(if (playbackState == "PLAYING" ||
-                        playbackState == "BUFFERING") R.string.playback_pause
-                        else R.string.playback_resume))
+                    Icon(
+                        painter = painterResource(if (paused)
+                            R.drawable.ic_action_play else R.drawable.ic_action_pause),
+                        contentDescription = stringResource(if (paused)
+                            R.string.playback_resume else R.string.playback_pause),
+                    )
                 }
-                TextButton(enabled = playback?.hasNext == true && !selecting,
-                    onClick = { playback?.playNext() }) {
-                    Text(stringResource(R.string.playback_next))
+                IconButton(
+                    enabled = playback?.hasNext == true && !selecting,
+                    onClick = { playback?.playNext() },
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_action_next),
+                        contentDescription = stringResource(R.string.playback_next),
+                    )
                 }
-                TextButton(onClick = { showPlayerDetails = true }) {
-                    Text(stringResource(R.string.library_player_open))
+                IconButton(onClick = { showPlayerDetails = true }) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_action_expand),
+                        contentDescription = stringResource(R.string.library_player_open),
+                    )
                 }
+            }
+            if (PlaybackSeekPolicy.isKnownDuration(durationMs)) {
+                LinearProgressIndicator(
+                    progress = { PlaybackSeekPolicy.fraction(positionMs, durationMs) },
+                    modifier = Modifier.fillMaxWidth().height(2.dp),
+                )
             }
         }
         // M2: a compact bottom rail saves vertical space and keeps all four pages
