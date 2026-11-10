@@ -106,24 +106,6 @@ jobs:
       - name: Compile stable Preview variant (no signing secrets)
         run: gradle --no-daemon :app:compileStablePreviewKotlin
 
-      - name: Capture compiler-generated Room v4 schema for migration review
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          path = Path("core/database/schemas/app.enotone.database.EnoToneDatabase/4.json")
-          if not path.is_file():
-              raise SystemExit("KSP has not exported Room schema v4")
-          schema = json.loads(path.read_text(encoding="utf-8"))
-          assert schema["database"]["version"] == 4
-          fields = [f["columnName"] for entity in schema["database"]["entities"]
-                    if entity["tableName"] == "remote_tracks" for f in entity["fields"]]
-          assert "genre" in fields
-          print("ENOTONE_V4_SCHEMA_BEGIN")
-          print(json.dumps(schema, separators=(",", ":"), ensure_ascii=True))
-          print("ENOTONE_V4_SCHEMA_END")
-          PY
       - name: Verify Room v1 schema matches committed JSON
         shell: bash
         run: |
@@ -158,7 +140,18 @@ jobs:
           saved_v3 = json.loads(subprocess.check_output(
               ["git", "show", "HEAD:" + exported_v3.as_posix()], text=True))
           assert v3 == saved_v3, "Room v3 schema changed without explicit migration"
-          print("Room schemas v1, v2 and v3 match committed JSON; migration history retained")
+          exported_v4 = pathlib.Path("core/database/schemas/app.enotone.database.EnoToneDatabase/4.json")
+          assert exported_v4.exists(), "Room v4 schema must be exported and committed"
+          v4 = json.loads(exported_v4.read_text(encoding="utf-8"))
+          assert v4["database"]["version"] == 4
+          genre_fields = [f for e in v4["database"]["entities"]
+                          if e["tableName"] == "remote_tracks"
+                          for f in e["fields"] if f["columnName"] == "genre"]
+          assert len(genre_fields) == 1 and genre_fields[0]["affinity"] == "TEXT"
+          saved_v4 = json.loads(subprocess.check_output(
+              ["git", "show", "HEAD:" + exported_v4.as_posix()], text=True))
+          assert v4 == saved_v4, "Room v4 schema changed without explicit migration"
+          print("Room schemas v1, v2, v3 and v4 match committed JSON; migration history retained")
 
           PY
       - name: Resolved dependencies
