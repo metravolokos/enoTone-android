@@ -363,6 +363,8 @@ private fun DiagnosticScreen() {
                 R.string.home_hide_technical else R.string.home_show_technical))
         }
         if (showTechnicalTools) {
+        // Playback-specific numeric telemetry has moved out of Now Playing.
+        PlaybackDiagnosticsPanel()
         Text(stringResource(R.string.home_diagnostics_title),
             style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(

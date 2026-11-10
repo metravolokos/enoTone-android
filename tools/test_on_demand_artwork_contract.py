@@ -20,10 +20,14 @@ class OnDemandArtworkContractTest(unittest.TestCase):
             "val target = preparedById[id] ?: return@LaunchedEffect",
             "PlayingArtworkTarget(",
             "currentArtwork = artworkRepository.cover(",
-            "Image(", "R.string.artwork_description",
             "bitmap = currentArtwork!!.asImageBitmap()",
         ):
             self.assertIn(token, ui)
+        now_playing = (APP / "NowPlayingScreen.kt").read_text()
+        self.assertIn("Image(", now_playing)
+        self.assertIn("R.string.artwork_description", now_playing)
+        self.assertIn("fullArtwork = artworkRepository.cover(", ui)
+        self.assertIn("requestedSide = 1320", ui)
         # No trigger on scroll, opening an album, artist or tab switch.
         self.assertNotIn("LaunchedEffect(visible", ui)
         self.assertNotIn("LaunchedEffect(shownGroups", ui)
