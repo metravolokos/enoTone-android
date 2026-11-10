@@ -1,6 +1,7 @@
 package app.enotone.android
 
 import android.content.ComponentName
+import androidx.activity.compose.BackHandler
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
@@ -163,13 +164,15 @@ internal fun OfflineLibraryScreen(
     var selectedArtist by remember { mutableStateOf<String?>(null) }
     var currentTrackId by remember { mutableStateOf<String?>(null) }
     var currentArtwork by remember { mutableStateOf<Bitmap?>(null) }
+    // Only when Now Playing is open: decode up to 1320px from the same disk master.
+    var fullArtwork by remember(currentTrackId, accountEmail) {
+        mutableStateOf<Bitmap?>(null)
+    }
     var searchExpanded by remember(accountEmail) { mutableStateOf(false) }
     var playbackState by remember { mutableStateOf("IDLE") }
     var positionMs by remember { mutableStateOf(0L) }
     var durationMs by remember { mutableStateOf(0L) }
     var canSeek by remember { mutableStateOf(false) }
-    var isScrubbing by remember { mutableStateOf(false) }
-    var scrubFraction by remember { mutableStateOf(0f) }
     var queuePosition by remember { mutableStateOf(0) }
     var queueTotal by remember { mutableStateOf(0) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
@@ -180,10 +183,10 @@ internal fun OfflineLibraryScreen(
     // Diagnostic mode belongs only to the next tap, not to a running stream.
     // Accepted M5 mode is the normal default; raw WebDAV remains diagnostic.
     var useCacheOnNextPlay by remember { mutableStateOf(true) }
-    var showDiagnostics by remember { mutableStateOf(false) }
-    // A two-row mini player stays visible; full controls are in an optional
-    // scrollable dialog instead of occupying the whole track-list viewport.
+    // Full Now Playing replaces the library in this composable, but does not
+    // unbind MediaSessionService or restart any audio stream.
     var showPlayerDetails by remember { mutableStateOf(false) }
+    BackHandler(enabled = showPlayerDetails) { showPlayerDetails = false }
     var handoffInfo by remember { mutableStateOf<HandoffSnapshot?>(null) }
     var selectionStartedAt by remember { mutableStateOf(0L) }
     var roomDurationMs by remember { mutableStateOf<Long?>(null) }
@@ -354,6 +357,30 @@ internal fun OfflineLibraryScreen(
                 remoteSize = target.remoteSize,
                 remoteEtag = target.remoteEtag,
             ),
+        )
+    }
+
+    // Full-resolution artwork is only requested while the dedicated page is
+    // visible. A cached 512px bitmap can render immediately until this decode
+    // finishes; the 1320px version comes from the same v2 disk master.
+    LaunchedEffect(showPlayerDetails, currentTrackId, preparedById, appPassword,
+        accountEmail, libraryRefreshEpoch) {
+        fullArtwork = null
+        if (!showPlayerDetails || appPassword.isBlank()) return@LaunchedEffect
+        val id = currentTrackId ?: return@LaunchedEffect
+        val item = preparedById[id] ?: return@LaunchedEffect
+        snapshotFlow { playbackState }.first { state ->
+            state == "PLAYING" || state == "PAUSED"
+        }
+        fullArtwork = artworkRepository.cover(
+            accountEmail, appPassword,
+            PlayingArtworkTarget(
+                id = id,
+                encodedPath = item.encodedPath,
+                remoteSize = item.remoteSize,
+                remoteEtag = item.remoteEtag,
+            ),
+            requestedSide = 1320,
         )
     }
 
@@ -623,247 +650,44 @@ internal fun OfflineLibraryScreen(
             },
         )
     }
+    // A single in-place full-screen player; Back returns to the exact
+    // previous library tab/scroll without touching the bound Media3 service.
     if (showPlayerDetails && selectedTitle != null) {
-        AlertDialog(
-            onDismissRequest = { showPlayerDetails = false },
-            title = { Text(stringResource(R.string.library_player_title)) },
-            text = {
-                Column(
-                    modifier = Modifier.heightIn(max = 480.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-        currentArtwork?.let { artwork ->
-            Image(
-                bitmap = artwork.asImageBitmap(),
-                contentDescription = stringResource(R.string.artwork_description),
-                modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally)
-                    .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Fit,
-            )
-        }
-        OutlinedButton(onClick = { showDiagnostics = !showDiagnostics }) {
-            Text(stringResource(
-                if (showDiagnostics) R.string.playback_diagnostics_hide
-                else R.string.playback_diagnostics_show))
-        }
-        if (showDiagnostics) {
-            Button(
-                enabled = !selecting,
-                onClick = { useCacheOnNextPlay = !useCacheOnNextPlay },
-            ) {
-                Text(stringResource(
-                    if (useCacheOnNextPlay) R.string.playback_mode_cache
-                    else R.string.playback_mode_baseline))
-            }
-            if (selectionStartedAt > 0L) {
-                Text(
-                    stringResource(
-                        R.string.playback_startup_timing,
-                        roomDurationMs?.toString() ?: "—",
-                        media3DurationMs?.toString() ?: "—",
-                        bufferingAfterTapMs?.toString() ?: "—",
-                        readyAfterTapMs?.toString() ?: "—",
-                        playingAfterTapMs?.toString() ?: "—",
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                setupTimings?.let { stages ->
-                    Text(
-                        stringResource(
-                            R.string.playback_setup_breakdown,
-                            stages.queueMs,
-                            stages.routesAndCacheMs,
-                            stages.seedSourcesMs,
-                            stages.setSourcesMs,
-                            stages.prepareAndPlayMs,
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-            }
-        }
-        if (selectedTitle != null) {
-            Text(selectedTitle!!, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.titleMedium)
-            val status = when (playbackState) {
-                "BUFFERING" -> stringResource(R.string.playback_buffering)
-                "PLAYING" -> stringResource(R.string.playback_playing)
-                "PAUSED" -> stringResource(R.string.playback_paused)
-                "ENDED" -> stringResource(R.string.playback_ended)
-                "ERROR" -> stringResource(R.string.playback_error, errorCode)
-                "MISSING_PASSWORD" -> stringResource(R.string.playback_missing_password)
-                "MISSING_TRACK" -> stringResource(R.string.playback_missing_track)
-                else -> stringResource(R.string.playback_loading)
-            }
-            Text(status)
-            if (playbackState == "ERROR" && errorCode != 0) {
-                Text(stringResource(R.string.playback_error_stage, errorReadIssue.name),
-                    style = MaterialTheme.typography.bodySmall)
-            }
-            val shownFraction = if (isScrubbing) scrubFraction
-                else PlaybackSeekPolicy.fraction(positionMs, durationMs)
-            val shownPositionMs = if (isScrubbing) {
-                PlaybackSeekPolicy.positionForFraction(durationMs, scrubFraction) ?: 0L
-            } else positionMs
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(PlaybackSeekPolicy.formatTime(shownPositionMs))
-                Text(
-                    if (PlaybackSeekPolicy.isKnownDuration(durationMs)) {
-                        PlaybackSeekPolicy.formatTime(durationMs)
-                    } else stringResource(R.string.playback_duration_unknown),
-                )
-            }
-            val seekDescription = stringResource(R.string.playback_seek_slider)
-            Slider(
-                value = shownFraction,
-                onValueChange = { value ->
-                    isScrubbing = true
-                    scrubFraction = value
-                },
-                onValueChangeFinished = {
-                    playback?.seekToFraction(scrubFraction)
-                    isScrubbing = false
-                },
-                modifier = Modifier.fillMaxWidth().semantics {
-                    contentDescription = seekDescription
-                },
-                enabled = canSeek && !selecting,
-            )
-            // Advanced telemetry is opt-in even when the full player is open.
-            if (showDiagnostics) {
-            handoffInfo?.let { handoff ->
-                val kind = when (handoff.origin) {
-                    HandoffOrigin.NEXT_BUTTON -> stringResource(R.string.handoff_next_button)
-                    HandoffOrigin.PREVIOUS_BUTTON -> stringResource(R.string.handoff_previous_button)
-                    HandoffOrigin.AUTO -> stringResource(R.string.handoff_auto)
-                    HandoffOrigin.MEDIA_SESSION -> stringResource(R.string.handoff_media_session)
-                }
-                val state = when (handoff.phase) {
-                    HandoffPhase.BUFFERING -> stringResource(R.string.handoff_waiting)
-                    HandoffPhase.READY -> stringResource(R.string.handoff_ready)
-                    HandoffPhase.FAILED -> stringResource(R.string.handoff_failed)
-                }
-                Text(
-                    stringResource(
-                        R.string.handoff_summary,
-                        kind, state,
-                        handoff.readyMs?.toString() ?: "—",
-                        handoff.playingMs?.toString() ?: "—",
-                        if (handoff.preparedNext) stringResource(R.string.handoff_yes)
-                        else stringResource(R.string.handoff_no),
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            if (cacheInfo.totalBytes > 0L) {
-                val cacheText = when (cacheInfo.phase) {
-                    CachePhase.DOWNLOADING -> stringResource(
-                        R.string.playback_cache_downloading,
-                        cacheInfo.cachedBytes / 1024,
-                        cacheInfo.totalBytes / 1024,
-                    )
-                    CachePhase.COMPLETE -> stringResource(R.string.playback_cache_complete)
-                    CachePhase.SKIPPED -> stringResource(R.string.playback_cache_skipped)
-                    CachePhase.FAILED -> stringResource(R.string.playback_cache_failed)
-                    CachePhase.IDLE -> ""
-                }
-                if (cacheText.isNotEmpty()) Text(cacheText)
-                if (cacheInfo.phase == CachePhase.DOWNLOADING) {
-                    LinearProgressIndicator(
-                        progress = { (cacheInfo.cachedBytes.toFloat() /
-                            cacheInfo.totalBytes).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-            if (nextCacheInfo.totalBytes > 0L) {
-                val nextText = when (nextCacheInfo.phase) {
-                    CachePhase.DOWNLOADING -> stringResource(
-                        R.string.playback_next_cache_downloading,
-                        nextCacheInfo.cachedBytes / 1024,
-                        nextCacheInfo.totalBytes / 1024,
-                    )
-                    CachePhase.COMPLETE -> stringResource(R.string.playback_next_cache_complete)
-                    CachePhase.SKIPPED -> stringResource(R.string.playback_next_cache_skipped)
-                    CachePhase.FAILED -> stringResource(R.string.playback_next_cache_failed)
-                    CachePhase.IDLE -> ""
-                }
-                if (nextText.isNotEmpty()) Text(nextText)
-                if (nextCacheInfo.phase == CachePhase.DOWNLOADING) {
-                    LinearProgressIndicator(
-                        progress = { (nextCacheInfo.cachedBytes.toFloat() /
-                            nextCacheInfo.totalBytes).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-            }
-            if (queueTotal > 0) {
-                Text(stringResource(R.string.playback_queue_position,
-                    queuePosition, queueTotal))
-                if (showDiagnostics && loadedQueueSources in 1 until queueTotal) {
-                    Text(stringResource(R.string.playback_queue_staging,
-                        loadedQueueSources, queueTotal),
-                        style = MaterialTheme.typography.bodySmall)
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(enabled = playback?.hasPrevious == true && !selecting,
-                    onClick = { playback?.playPrevious() }) {
-                    Text(stringResource(R.string.playback_previous))
-                }
-                Button(enabled = playback?.hasNext == true && !selecting,
-                    onClick = { playback?.playNext() }) {
-                    Text(stringResource(R.string.playback_next))
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val repeatLabel = when (repeatMode) {
-                    Player.REPEAT_MODE_ONE -> stringResource(R.string.playback_repeat_one)
-                    Player.REPEAT_MODE_ALL -> stringResource(R.string.playback_repeat_all)
-                    else -> stringResource(R.string.playback_repeat_off)
-                }
-                Button(enabled = playback != null && !selecting && queueTotal > 0,
-                    onClick = { playback?.cycleRepeatMode() }) {
-                    Text(stringResource(R.string.playback_repeat_control, repeatLabel))
-                }
-                Button(enabled = playback != null && !selecting && queueTotal > 0,
-                    onClick = { playback?.toggleShuffle() }) {
-                    Text(if (shuffleEnabled) stringResource(R.string.playback_shuffle_on)
-                         else stringResource(R.string.playback_shuffle_off))
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(enabled = playback != null && !selecting,
-                    onClick = { playback?.pause() }) {
-                    Text(stringResource(R.string.playback_pause))
-                }
-                Button(enabled = playback != null && !selecting,
-                    onClick = { playback?.resume() }) {
-                    Text(stringResource(R.string.playback_resume))
-                }
-                Button(enabled = playback != null && !selecting,
-                    onClick = { playback?.stopPlayback(); playbackState = "ENDED" }) {
-                    Text(stringResource(R.string.playback_stop))
-                }
-            }
-        } else {
-            Text(stringResource(R.string.playback_hint))
-        }
-
+        NowPlayingScreen(
+            trackId = currentTrackId.orEmpty(),
+            title = selectedTitle.orEmpty(),
+            artist = selectedArtist,
+            album = remember(tracks, currentTrackId) {
+                tracks.firstOrNull { it.id == currentTrackId }?.album
+            },
+            artwork = fullArtwork ?: currentArtwork,
+            playbackState = playbackState,
+            errorCode = errorCode,
+            positionMs = positionMs,
+            durationMs = durationMs,
+            canSeek = canSeek,
+            controlsEnabled = playback != null && !selecting,
+            hasPrevious = playback?.hasPrevious == true,
+            hasNext = playback?.hasNext == true,
+            queuePosition = queuePosition,
+            queueTotal = queueTotal,
+            repeatMode = repeatMode,
+            shuffleEnabled = shuffleEnabled,
+            onClose = { showPlayerDetails = false },
+            onSeekFraction = { fraction -> playback?.seekToFraction(fraction) },
+            onPlayPause = {
+                if (playbackState == "PLAYING" || playbackState == "BUFFERING") {
+                    playback?.pause()
+                } else {
+                    playback?.resume()
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showPlayerDetails = false }) {
-                    Text(stringResource(R.string.library_player_close))
-                }
-            },
+            onPrevious = { playback?.playPrevious() },
+            onNext = { playback?.playNext() },
+            onCycleRepeat = { playback?.cycleRepeatMode() },
+            onToggleShuffle = { playback?.toggleShuffle() },
         )
-    }
+    } else {
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -1207,5 +1031,6 @@ internal fun OfflineLibraryScreen(
             },
             enabled = !selecting,
         )
+    }
     }
 }
