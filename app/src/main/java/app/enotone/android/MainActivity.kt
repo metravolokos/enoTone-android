@@ -9,6 +9,7 @@ import android.content.Intent
 import androidx.room.Room
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +42,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.enotone.database.EnoToneDatabase
 import app.enotone.library.LibrarySnapshotStore
+import app.enotone.library.LibraryPage
+import app.enotone.library.LibraryPageVisibility
 import app.enotone.library.LibraryTagStore
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.AndroidAudioTagReader
@@ -87,6 +90,8 @@ private fun DiagnosticScreen() {
     var tagAuditMessage by remember { mutableStateOf("") }
     var confirmRefreshAll by remember { mutableStateOf(false) }
     var showingLibrary by remember { mutableStateOf(false) }
+    var showingSettings by remember { mutableStateOf(false) }
+    var initialLibraryPage by remember { mutableStateOf(LibraryPage.TRACKS) }
     // Daily listening is the default. Technical controls remain available
     // but are collapsed instead of occupying the full first screen.
     var showConnection by remember { mutableStateOf(true) }
@@ -109,9 +114,8 @@ private fun DiagnosticScreen() {
                 password = restored.password
                 vaultState = CredentialVaultState.RESTORED
                 showConnection = false
-                // Open the real library after a saved login is restored.
-                // OnBack closes it without another auto-open during this Activity.
-                showingLibrary = true
+                // Credentials restore silently. Home is the launch destination;
+                // a restored account never bypasses the new Home screen.
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -230,24 +234,50 @@ private fun DiagnosticScreen() {
         }
     }
 
+    BackHandler(enabled = showingLibrary || showingSettings) {
+        if (showingLibrary) showingLibrary = false else showingSettings = false
+    }
     if (showingLibrary) {
-        OfflineLibraryScreen(accountEmail = email, appPassword = password,
-            onBack = { showingLibrary = false })
+        OfflineLibraryScreen(
+            accountEmail = email, appPassword = password,
+            initialPage = initialLibraryPage,
+            onBack = { showingLibrary = false },
+        )
+        return
+    }
+
+    // The previous initial diagnostic screen is now a separate Settings route.
+    // Read the existing preferences; no Room query or WebDAV request is needed.
+    if (!showingSettings) {
+        val pages = LibraryPageVisibility.visible(
+            LibraryPagePreferences(appContext).hiddenPages())
+        EnoToneHomeScreen(
+            visiblePages = pages,
+            connectedAccount = email.isNotBlank(),
+            onSettings = { showingSettings = true },
+            onOpenPage = { page ->
+                initialLibraryPage = page
+                showingLibrary = true
+            },
+        )
         return
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(stringResource(R.string.home_title),
-            style = MaterialTheme.typography.headlineMedium)
-        Text(stringResource(R.string.home_hint), style = MaterialTheme.typography.bodyMedium)
-        Button(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            enabled = !busy && email.isNotBlank(),
-            onClick = { showingLibrary = true },
-        ) { Text(stringResource(R.string.library_open)) }
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(onClick = { showingSettings = false }) {
+                Text(stringResource(R.string.library_back))
+            }
+            Text(stringResource(R.string.settings_title),
+                style = MaterialTheme.typography.headlineMedium)
+        }
+        LibraryVisibilitySettings()
         OutlinedButton(onClick = { showConnection = !showConnection }) {
             Text(stringResource(R.string.home_connection_settings))
         }
