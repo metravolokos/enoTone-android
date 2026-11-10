@@ -92,9 +92,18 @@ object LibrarySnapshotPlanner {
     }
 
     private fun sameRemoteVersion(old: RemoteTrackEntity, new: RemoteAudioFile): Boolean {
+        // A WebDAV ETag is useful, but not proof when the server accidentally
+        // keeps it after rewriting a file. Any comparable size/mtime change
+        // invalidates old metadata even when both ETags still match.
+        if (old.remoteSize != null && new.sizeBytes != null &&
+            old.remoteSize != new.sizeBytes) return false
+        if (old.remoteModified != null && new.lastModified != null &&
+            old.remoteModified != new.lastModified) return false
         if (old.remoteEtag != null && new.etag != null) {
             return old.remoteEtag == new.etag
         }
+        // With missing ETags we require BOTH stable size and modified time;
+        // weaker evidence would incorrectly preserve an old tag checkpoint.
         return old.remoteSize != null && new.sizeBytes != null &&
             old.remoteModified != null && new.lastModified != null &&
             old.remoteSize == new.sizeBytes && old.remoteModified == new.lastModified
