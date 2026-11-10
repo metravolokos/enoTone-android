@@ -15,6 +15,8 @@ class OnDemandArtworkContractTest(unittest.TestCase):
             "currentTrackId = mediaItem?.mediaId",
             "currentTrackId = active.player.currentMediaItem?.mediaId",
             "LaunchedEffect(currentTrackId, preparedById, appPassword, accountEmail)",
+            "snapshotFlow { playbackState }.first { state ->",
+            'state == "PLAYING" || state == "PAUSED"',
             "val target = preparedById[id] ?: return@LaunchedEffect",
             "PlayingArtworkTarget(",
             "currentArtwork = artworkRepository.cover(",
