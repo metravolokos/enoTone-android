@@ -113,6 +113,26 @@ class NowPlayingContractTest(unittest.TestCase):
                 "24dp",
             )
 
+    def test_settings_keeps_anonymous_playback_diagnostics(self):
+        main = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
+        screen = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
+        panel = self.src("app/src/main/java/app/enotone/android/PlaybackDiagnosticsPanel.kt")
+        self.assertIn("if (showTechnicalTools) {", main)
+        self.assertIn("PlaybackDiagnosticsPanel()", main)
+        self.assertIn("PlaybackDiagnosticsRuntime.publish(", screen)
+        self.assertIn("PlaybackDiagnosticSnapshot(", screen)
+        self.assertIn("PlaybackDiagnosticsRuntime.useCacheOnNextPlay", screen)
+        for token in ("playback_startup_timing", "playback_setup_breakdown",
+                      "handoff_summary", "playback_cache_downloading",
+                      "playback_next_cache_downloading", "playback_error_stage"):
+            self.assertIn(token, panel)
+        self.assertNotIn("WebDavRangeReader(", panel)
+        self.assertNotIn("allForSource(", panel)
+        self.assertNotIn("Log.", panel)
+        self.assertNotIn("encodedPath", screen[screen.index(
+            "PlaybackDiagnosticsRuntime.publish("):screen.index("delay(500L)",
+            screen.index("PlaybackDiagnosticsRuntime.publish("))])
+
     def test_room_and_signed_preview_are_unchanged(self):
         db = self.src("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         gradle = self.src("app/build.gradle.kts")
