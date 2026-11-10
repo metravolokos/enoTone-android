@@ -44,7 +44,8 @@ internal object Id3Genres {
     fun fromNumber(number: Int): String? = names.getOrNull(number)
 
     fun normalize(raw: String?): String? {
-        val cleaned = raw?.map { if (it.isISOControl()) ' ' else it }?.trim()
+        val cleaned = raw?.map { if (it.isISOControl()) ' ' else it }
+            ?.joinToString("")?.trim()
             ?.take(512)?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         if (cleaned == "(RX)") return "Remix"
         if (cleaned == "(CR)") return "Cover"
