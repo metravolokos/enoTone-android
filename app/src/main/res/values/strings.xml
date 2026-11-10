@@ -157,4 +157,19 @@
     <string name="library_pages_settings_explanation">Выбери вкладки, которые будут видны в медиатеке. Треки и теги не удаляются; выбор сохраняется после перезапуска.</string>
     <string name="library_pages_settings_last_visible">Последнюю видимую страницу скрыть нельзя. Вернуть любую страницу можно здесь же.</string>
     <string name="library_pages_settings_done">Готово</string>
+
+    <string name="home_title">enoTone</string>
+    <string name="home_hint">Медиатека и воспроизведение — на основном экране. Технические проверки спрятаны в отдельном разделе.</string>
+    <string name="home_connection_settings">Подключение и сохранённый вход</string>
+    <string name="home_show_technical">Технические инструменты и диагностика</string>
+    <string name="home_hide_technical">Скрыть технические инструменты</string>
+    <string name="home_diagnostics_title">Диагностика WebDAV и тегов</string>
+    <string name="home_library_maintenance">Обновление медиатеки</string>
+    <string name="home_index_summary">Прочитано тегов: %1$d · осталось: %2$d</string>
+    <string name="home_show_index_details">Подробности индексации</string>
+    <string name="home_hide_index_details">Скрыть подробности</string>
+    <string name="library_pages_short">Страницы</string>
+    <string name="library_player_title">Плеер</string>
+    <string name="library_player_open">Плеер</string>
+    <string name="library_player_close">Закрыть</string>
 </resources>
