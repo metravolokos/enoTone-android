@@ -172,4 +172,7 @@
     <string name="library_player_title">Player</string>
     <string name="library_player_open">Player</string>
     <string name="library_player_close">Close</string>
+    <string name="library_open_search">Open search</string>
+    <string name="library_close_search">Close search and clear query</string>
+    <string name="library_search_short">Search</string>
 </resources>
