@@ -237,3 +237,10 @@ Preview #147: `errorCode=2000` на 03:54/03:55, хотя current и next cache 
 3. Поиск имени файла/названия (локально) должен уметь выбрать произвольный уже индексированный трек. Отдельно проверить 143 Album Artist NULL; правило группировки `albumArtist ?: artist` не менять.
 4. Ручной «Обновить каталог /AllMusic» должен выполнять ровно один Depth:1 PROPFIND, сохранение неизменённых 3590 ID/ETag/тегов без пересканирования. Если пользователь позже добавит один FLAC, ожидается +1 new, 3590 unchanged; после managed scan только новый трек получает теги. Не заставлять владельца загружать тестовый файл: JUnit уже покрывает merge.
 5. Массовая переиндексация — только после явной установки флажка. Помечает все MP3/FLAC, не очищает их title/artist/album/albumArtist до успешного чтения. Может требовать тысячи GET; 4 воркера, фон и отсутствие Wi-Fi policy остаются.
+
+## M2 four-page navigation + Unknown Album (ADR-0051 Draft, 2026-11-10)
+1. On installed signed Stable Preview from main, keep original 3590 tags/Room and credentials. Open Tracks, Albums, Artists and Album Artists without any new PROPFIND or Range fetch; count tracks unchanged.
+2. Albums should include exactly one virtual **Неизвестный альбом** group for the single genuinely album-less tagged track; selecting it shows and plays that track. A real album literally named "Неизвестный альбом" must remain a separate group.
+3. Artists groups only by ARTIST and Album Artists only by ALBUM ARTIST; verify guest performers on various-artists albums remain accessible from Artists, while Album Artists does not invent 143 absent values. No groups disappear from Tracks.
+4. Group search and playback queue context still work (Play/Next/Back) and no Media3/WebDAV/cache changes. Window colors remain standard Material; no unauthorized design changes.
+5. Exact-HEAD CI: pure grouping JVM, page ID visibility tests, Android/JUnit/Lint, Room schema, GMS gate and signed stable Preview. Page-hide switches are **not** a required UI part of this task; future settings must allow independent visibility control with Tracks fallback.
