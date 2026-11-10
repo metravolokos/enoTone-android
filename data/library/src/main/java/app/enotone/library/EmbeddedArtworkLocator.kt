@@ -102,14 +102,14 @@ class EmbeddedArtworkLocator {
         val head = src.read(start, minOf(frameSize, MAX_APIC_PREFIX.toLong()).toInt())
         val encoding = u(head[0])
         if (encoding !in 0..3) throw Stop(ArtworkLookupCode.UNSUPPORTED_LAYOUT)
-        val mimeEnd = head.indexOf(0.toByte(), startIndex = 1)
+        val mimeEnd = zeroIndex(head, 1)
         if (mimeEnd !in 2..96 || mimeEnd + 2 >= head.size) return null
         val mime = normalizeMime(ascii(head, 1, mimeEnd - 1)) ?: return null
         val type = u(head[mimeEnd + 1])
         val descStart = mimeEnd + 2
         val contentStart = when (encoding) {
             0, 3 -> {
-                val end = head.indexOf(0.toByte(), startIndex = descStart)
+                val end = zeroIndex(head, descStart)
                 if (end < 0) return null else end + 1
             }
             else -> {
@@ -231,6 +231,11 @@ class EmbeddedArtworkLocator {
         (u(bytes[offset]).toLong() shl 24) or
         (u(bytes[offset + 1]).toLong() shl 16) or
         (u(bytes[offset + 2]).toLong() shl 8) or u(bytes[offset + 3]).toLong()
+
+    private fun zeroIndex(bytes: ByteArray, start: Int): Int {
+        for (i in start until bytes.size) if (bytes[i] == 0.toByte()) return i
+        return -1
+    }
 
     private fun ascii(bytes: ByteArray, start: Int, count: Int): String =
         String(bytes, start, count, Charsets.US_ASCII)
