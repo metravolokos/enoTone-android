@@ -4,7 +4,10 @@ import app.enotone.database.EnoToneDatabase
 
 /** A single explicit, foreground-only batch for ONE locally selected album. */
 data class AlbumTagRefreshReport(
+    /** Successfully checkpointed terminal results; safe to skip in this session. */
     val checkedIds: Set<String>,
+    /** Includes transient/stale failures and files where tags were absent. */
+    val attemptedIds: Set<String>,
     val progress: PilotIndexProgress,
 )
 
@@ -28,6 +31,7 @@ class AlbumTagRefresher(private val database: EnoToneDatabase) {
         require(email.isNotBlank() && password.isNotBlank())
         val sourceKey = LibrarySnapshotPlanner.accountKey(email)
         database.remoteTrackDao().queueTagRefreshByIds(sourceKey, trackIds)
+        val attempted = linkedSetOf<String>()
         val completed = linkedSetOf<String>()
         val progress = PilotTagIndexer(database).run(
             email = email,
@@ -35,9 +39,14 @@ class AlbumTagRefresher(private val database: EnoToneDatabase) {
             count = 10, // fixed existing 30 GET / 2.5MiB batch ceiling
             targetIds = trackIds.toSet(),
             stopOnRetryableFailure = true,
-            onFileCompleted = { id -> completed.add(id) },
+            onFileCompleted = { id -> attempted.add(id) },
+            onFileOutcome = { id, finished ->
+                if (finished) completed.add(id)
+            },
         )
-        return AlbumTagRefreshReport(completed.toSet(), progress)
+        return AlbumTagRefreshReport(
+            completed.toSet(), attempted.toSet(), progress,
+        )
     }
 
     companion object {
