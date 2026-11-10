@@ -34,11 +34,12 @@ object OfflineLibraryGrouping {
             if (album == null && !row.hasStoredTagData &&
                 known(row.artist) == null && known(row.albumArtist) == null) continue
             val artist = known(row.albumArtist) ?: known(row.artist)
-            // Missing-album keys are disjoint from literal titles such as
-            // "Unknown Album" and contain no locale-dependent display text.
-            val key = (album?.let { "album:" + normalized(it) }
-                ?: "album:missing") + "\u0000" +
-                (artist?.let(::normalized) ?: "")
+            // All genuinely missing album tags belong to ONE virtual album,
+            // regardless of performer. Keep it distinct from a literal album
+            // called "Unknown Album" and do not depend on translation.
+            val key = if (album == null) "album:missing"
+                else "album:" + normalized(album) + "\u0000" +
+                    (artist?.let(::normalized) ?: "")
             map.getOrPut(key) { mutableListOf() }.add(row)
         }
         return map.map { (key, rows) ->
@@ -46,11 +47,12 @@ object OfflineLibraryGrouping {
             OfflineLibraryGroup(
                 key = key,
                 name = known(first.album) ?: unknownAlbumName,
-                subtitle = known(first.albumArtist) ?: known(first.artist),
+                subtitle = if (first.album == null) null
+                    else known(first.albumArtist) ?: known(first.artist),
                 trackIds = rows.mapTo(linkedSetOf()) { it.id },
             )
         }.sortedWith(compareBy<OfflineLibraryGroup> {
-            it.key.startsWith("album:missing\u0000")
+            it.key == "album:missing"
         }.thenBy { normalized(it.name) }
             .thenBy { normalized(it.subtitle.orEmpty()) }
             .thenBy { it.key })
