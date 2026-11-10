@@ -189,8 +189,11 @@
     <string name="album_refresh_confirm_text">Будут прочитаны теги только %1$d выбранных треков альбома через ограниченные сетевые запросы. Остальная медиатека не затрагивается.</string>
     <string name="album_refresh_confirm_action">Прочитать теги</string>
     <string name="album_refresh_cancel">Отмена</string>
-    <string name="album_refresh_done">Проверено треков: %1$d · теги прочитаны: %2$d</string>
+    <string name="album_refresh_done">За попытку: проверено %1$d · теги прочитаны: %2$d</string>
     <string name="album_refresh_failed">Не удалось обновить теги. Повторите попытку.</string>
     <string name="album_refresh_no_more">Все доступные треки альбома проверены в этом сеансе.</string>
     <string name="album_refresh_audio_active">Чтобы обновить теги, сначала приостановите воспроизведение.</string>
+    <string name="album_refresh_retry_needed">Незавершённых в порции: %1$d — можно повторить</string>
+    <string name="album_refresh_backoff">Временный сбой; повторите позднее</string>
+    <string name="album_refresh_budget">Достигнут лимит запросов; можно продолжить</string>
 </resources>
