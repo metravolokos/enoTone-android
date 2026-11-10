@@ -28,7 +28,7 @@ object LibraryPageVisibility {
         shouldShow: Boolean,
     ): Set<LibraryPage> {
         val updated = if (shouldShow) hidden - page else hidden + page
-        return if (visible(updated).none { it !in updated }) hidden else updated
+        return if (defaultOrder.all { it in updated }) hidden else updated
     }
 
     /** Old/unknown identifiers from future or obsolete APKs are ignored. */
