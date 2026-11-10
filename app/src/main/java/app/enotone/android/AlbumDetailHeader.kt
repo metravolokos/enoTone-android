@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -47,6 +48,10 @@ internal fun AlbumDetailHeader(
     appPassword: String,
     canPlay: Boolean,
     onPlayAll: () -> Unit,
+    canRefreshTags: Boolean,
+    refreshingTags: Boolean,
+    refreshMessage: String,
+    onRefreshTags: () -> Unit,
 ) {
     var cover by remember(group.key, target) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(group.key, target, accountEmail, appPassword) {
@@ -124,6 +129,21 @@ internal fun AlbumDetailHeader(
                 )
                 Text(stringResource(R.string.album_play_all))
             }
+        }
+        OutlinedButton(
+            enabled = canRefreshTags && !refreshingTags,
+            onClick = onRefreshTags,
+        ) {
+            Text(stringResource(if (refreshingTags)
+                R.string.album_refresh_busy else R.string.album_refresh_tags))
+        }
+        if (refreshMessage.isNotEmpty()) {
+            Text(
+                text = refreshMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }

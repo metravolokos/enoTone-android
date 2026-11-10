@@ -47,8 +47,14 @@ class AlbumDetailContractTest(unittest.TestCase):
             self.assertIn(required, screen)
         # One Media3 start path, shared by individual tracks and Play album.
         self.assertEqual(1, screen.count("service.playQueue(accountEmail, appPassword,"))
-        self.assertNotIn("openLibraryDatabase(", screen[
-            screen.index("val albumTracks = remember"):
+        # Opening the album and starting playback must never query Room.
+        # The new user-confirmed metadata refresh has its own explicit IO
+        # coroutine and is the only allowed database access in this region.
+        playback = screen[screen.index("val playTrack: (OfflineTrackRow,"):
+                          screen.index("// Explicit confirmation before ANY album tag HTTP.")]
+        self.assertNotIn("openLibraryDatabase(", playback)
+        self.assertIn("openLibraryDatabase(context)", screen[
+            screen.index("// Explicit confirmation before ANY album tag HTTP."):
             screen.index("if (showPlayerDetails && selectedTitle != null)")])
 
     def test_album_header_reuses_cached_artwork_and_never_invents_year(self):

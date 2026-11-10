@@ -141,12 +141,21 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
         // retain their previously accepted behavior.
         beforeFile: suspend () -> String? = { null },
         stopOnRetryableFailure: Boolean = false,
+        // Null keeps the legacy pilot behavior. Non-null restricts ALL GETs
+        // to explicit local track IDs, even if unrelated scans are pending.
+        targetIds: Set<String>? = null,
+        onFileCompleted: suspend (String) -> Unit = {},
     ): PilotIndexProgress {
         require(PilotBudget.validCount(count))
         require(password.isNotBlank())
         val sourceKey = LibrarySnapshotPlanner.accountKey(email)
         val dao = database.remoteTrackDao()
-        val candidates = PilotBudget.select(sourceKey, dao.pendingFastScans(sourceKey), count)
+        val pending = dao.pendingFastScans(sourceKey)
+        val candidates = PilotBudget.select(
+            sourceKey,
+            if (targetIds == null) pending else pending.filter { it.id in targetIds },
+            count,
+        )
         val started = System.nanoTime()
         var attempted = 0
         var savedWithTags = 0
@@ -236,8 +245,13 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                 modified = item.remoteModified, code = recordCode,
                 title = tags?.title, artist = tags?.artist,
                 album = tags?.album, albumArtist = tags?.albumArtist,
+                year = tags?.year, trackNumber = tags?.trackNumber,
+                discNumber = tags?.discNumber,
             ) == 1
             attempted++
+            // Opaque local ID only. Allows an album refresh button to advance
+            // past the exact files handled, not guess from aggregate counters.
+            onFileCompleted(item.id)
             when {
                 !saved -> staleWrites++
                 recordCode.startsWith("RETRY_") -> retryableErrors++
