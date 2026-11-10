@@ -881,9 +881,9 @@ internal fun OfflineLibraryScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (section == LibraryPage.ALBUMS &&
                                 selectedGroup != null && track.trackNumber != null) {
-                                val label = if (track.discNumber != null &&
-                                    track.discNumber > 1) {
-                                    "${track.discNumber}.${track.trackNumber.toString().padStart(2, '0')}"
+                                val disc = track.discNumber
+                                val label = if (disc != null && disc > 1) {
+                                    "$"+"{disc}."+"$"+"{track.trackNumber.toString().padStart(2, '0')}"
                                 } else track.trackNumber.toString()
                                 Text(label, style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
