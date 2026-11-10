@@ -80,7 +80,7 @@ private fun media3PlaybackLabel(player: Player?): String {
     }
 }
 
-private enum class LibrarySection { TRACKS, ALBUMS, ARTISTS }
+private enum class LibrarySection { TRACKS, ALBUMS, ARTISTS, ALBUM_ARTISTS }
 
 /**
  * M2 offline catalogue + M3 one-track MediaSessionService playback.
@@ -284,10 +284,13 @@ internal fun OfflineLibraryScreen(
     }
 
     // Pure RAM grouping from the single Room snapshot; never scans cloud files.
-    val groups = remember(tracks, section) {
+    val unknownAlbumName = stringResource(R.string.library_unknown_album)
+    val groups = remember(tracks, section, unknownAlbumName) {
         when (section) {
-            LibrarySection.ALBUMS -> OfflineLibraryGrouping.albums(tracks)
+            LibrarySection.ALBUMS ->
+                OfflineLibraryGrouping.albums(tracks, unknownAlbumName)
             LibrarySection.ARTISTS -> OfflineLibraryGrouping.artists(tracks)
+            LibrarySection.ALBUM_ARTISTS -> OfflineLibraryGrouping.albumArtists(tracks)
             LibrarySection.TRACKS -> emptyList()
         }
     }
@@ -316,6 +319,7 @@ internal fun OfflineLibraryScreen(
                     LibrarySection.TRACKS -> R.string.library_tab_tracks
                     LibrarySection.ALBUMS -> R.string.library_tab_albums
                     LibrarySection.ARTISTS -> R.string.library_tab_artists
+                    LibrarySection.ALBUM_ARTISTS -> R.string.library_tab_album_artists
                 }),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(top = 10.dp),
@@ -338,6 +342,11 @@ internal fun OfflineLibraryScreen(
                 selectedGroupKey = null
                 search = ""
             }) { Text(stringResource(R.string.library_tab_artists)) }
+            OutlinedButton(enabled = !selecting, onClick = {
+                section = LibrarySection.ALBUM_ARTISTS
+                selectedGroupKey = null
+                search = ""
+            }) { Text(stringResource(R.string.library_tab_album_artists)) }
         }
         if (section != LibrarySection.TRACKS && selectedGroup != null) {
             OutlinedButton(onClick = { selectedGroupKey = null; search = "" }) {
