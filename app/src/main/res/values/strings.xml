@@ -183,4 +183,14 @@
     <string name="artwork_description">Обложка текущего трека</string>
     <string name="album_cover_description">Обложка альбома</string>
     <string name="album_play_all">Воспроизвести альбом</string>
+    <string name="album_refresh_tags">Обновить теги альбома (до 10)</string>
+    <string name="album_refresh_busy">Обновление тегов…</string>
+    <string name="album_refresh_confirm_title">Обновить теги этого альбома?</string>
+    <string name="album_refresh_confirm_text">Будут прочитаны теги только %1$d выбранных треков альбома через ограниченные сетевые запросы. Остальная медиатека не затрагивается.</string>
+    <string name="album_refresh_confirm_action">Прочитать теги</string>
+    <string name="album_refresh_cancel">Отмена</string>
+    <string name="album_refresh_done">Проверено треков: %1$d · теги прочитаны: %2$d</string>
+    <string name="album_refresh_failed">Не удалось обновить теги. Повторите попытку.</string>
+    <string name="album_refresh_no_more">Все доступные треки альбома проверены в этом сеансе.</string>
+    <string name="album_refresh_audio_active">Чтобы обновить теги, сначала приостановите воспроизведение.</string>
 </resources>
