@@ -106,21 +106,6 @@ jobs:
       - name: Compile stable Preview variant (no signing secrets)
         run: gradle --no-daemon :app:compileStablePreviewKotlin
 
-      # Exported Room schemas are checked in, never guessed. On the first
-      # metadata-migration CI run expose schema v3 (structure only) for review.
-      - name: Show generated Room v3 schema for first migration review
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          p = Path("core/database/schemas/app.enotone.database.EnoToneDatabase/3.json")
-          if not p.exists():
-              raise SystemExit("Room v3 schema was not exported by KSP")
-          print("ENOTONE_SCHEMA_V3_JSON=" + json.dumps(
-              json.loads(p.read_text(encoding="utf-8")),
-              ensure_ascii=False, separators=(",", ":")))
-          PY
       - name: Verify Room v1 schema matches committed JSON
         shell: bash
         run: |
