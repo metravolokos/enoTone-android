@@ -137,6 +137,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                         year = attempt.tags?.year,
                         trackNumber = attempt.tags?.trackNumber,
                         discNumber = attempt.tags?.discNumber,
+                        genre = attempt.tags?.genre,
                     ) == 1
                 }
                 getRequests += file.attempts.sumOf { it.stats.requests }
