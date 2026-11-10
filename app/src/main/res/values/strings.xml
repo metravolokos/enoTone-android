@@ -180,4 +180,5 @@
     <string name="home_music_title">Моя музыка</string>
     <string name="home_open_library">Открыть медиатеку</string>
     <string name="home_connect_account">Настроить подключение</string>
+    <string name="artwork_description">Обложка текущего трека</string>
 </resources>
