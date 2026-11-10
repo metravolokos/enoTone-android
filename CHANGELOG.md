@@ -175,3 +175,8 @@
 - Повторное чтение всех MP3/FLAC возможно после отдельного подтверждения. `RETRY_REFRESH` не удаляет старые теги, а сетевые/неподдерживаемые ошибки при повторе оставляют последнюю успешно сохранённую метаинформацию.
 - Операция обновления одноуровневой медиатеки теперь явно названа «Обновить каталог /AllMusic»: один Depth:1 PROPFIND, неизменённые файлы сохраняют идентичность/теги, новые/изменённые индексируются существующей фоновой службой. Не меняем Room schema, GMS, Wi-Fi, 4 воркера, Media3, сертификат или packageId.
 - Draft до exact-HEAD CI и теста на устройстве.
+
+## Draft — M2 separate Artists / Album Artists + Unknown Album (2026-11-10)
+- Split performer views: Artists uses only ARTIST, Album Artists uses only ALBUM ARTIST. Existing album identity retains Album Artist preference, with ARTIST fallback when missing.
+- Added localizable virtual Unknown Album for scanned tracks whose ALBUM is absent, with a stable key distinct from an embedded album literally named Unknown Album. Unscanned tracks remain under Tracks.
+- Four page IDs and a safe visibility policy prepare future Settings hide/show without changing Room schema, WebDAV background indexer, Media3, signed package identity or standard Material colors. New UI settings toggles deferred.
