@@ -22,6 +22,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -34,8 +36,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
@@ -270,12 +274,16 @@ private fun DiagnosticScreen() {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedButton(onClick = { showingSettings = false }) {
-                Text(stringResource(R.string.library_back))
+            IconButton(onClick = { showingSettings = false }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_action_back),
+                    contentDescription = stringResource(R.string.library_back),
+                )
             }
             Text(stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.headlineMedium)
+                style = MaterialTheme.typography.titleLarge)
         }
         LibraryVisibilitySettings()
         OutlinedButton(onClick = { showConnection = !showConnection }) {
