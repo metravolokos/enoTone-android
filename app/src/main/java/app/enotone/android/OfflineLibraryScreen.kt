@@ -182,7 +182,7 @@ internal fun OfflineLibraryScreen(
     var playback by remember { mutableStateOf<EnoTonePlaybackService?>(null) }
     // Diagnostic mode belongs only to the next tap, not to a running stream.
     // Accepted M5 mode is the normal default; raw WebDAV remains diagnostic.
-    var useCacheOnNextPlay by remember { mutableStateOf(true) }
+    val useCacheOnNextPlay = PlaybackDiagnosticsRuntime.useCacheOnNextPlay
     // Full Now Playing replaces the library in this composable, but does not
     // unbind MediaSessionService or restart any audio stream.
     var showPlayerDetails by remember { mutableStateOf(false) }
@@ -401,6 +401,27 @@ internal fun OfflineLibraryScreen(
                 availableDuration
             } else 0L
             canSeek = active?.canSeekCurrent == true
+            // Publish anonymous counters for Settings only. It is safe to
+            // leave the library: the last in-process snapshot remains
+            // available without reconnecting to the Media3 service.
+            PlaybackDiagnosticsRuntime.publish(
+                PlaybackDiagnosticSnapshot(
+                    hasSession = selectedTitle != null,
+                    roomMs = roomDurationMs,
+                    media3Ms = media3DurationMs,
+                    bufferingMs = bufferingAfterTapMs,
+                    readyMs = readyAfterTapMs,
+                    playingMs = playingAfterTapMs,
+                    setup = setupTimings,
+                    loadedQueueSources = loadedQueueSources,
+                    queueTotal = queueTotal,
+                    handoff = handoffInfo,
+                    cache = cacheInfo,
+                    nextCache = nextCacheInfo,
+                    errorCode = errorCode,
+                    errorIssue = errorReadIssue,
+                )
+            )
             delay(500L)
         }
     }
