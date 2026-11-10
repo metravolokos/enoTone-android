@@ -40,6 +40,18 @@ class OfflineTrackCatalogTest {
         assertTrue(OfflineTrackCatalog.search(presented, "no match").isEmpty())
     }
 
+    @Test fun genreIsAvailableToLocalSearchAndUnambiguousAlbumHeader() {
+        val rows = listOf(
+            OfflineTrackRow("id1", "First", "Performer", "Album", genre = "Rock"),
+            OfflineTrackRow("id2", "Second", "Performer", "Album", genre = "rock"),
+        )
+        assertEquals(2, OfflineTrackCatalog.search(rows, "rock").size)
+        assertEquals("Rock", OfflineTrackCatalog.commonAlbumGenre(rows))
+        assertEquals(null, OfflineTrackCatalog.commonAlbumGenre(
+            rows + OfflineTrackRow("id3", "Third", "Performer", "Album",
+                genre = "Jazz")))
+    }
+
     @Test fun albumOrderUsesDiscAndTrackWhenAvailableWithStableFallback() {
         val rows = listOf(
             OfflineTrackRow("d2t2", "Coda", "Artist", "Album", year = 2024,
