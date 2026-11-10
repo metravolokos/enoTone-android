@@ -114,7 +114,7 @@
     <string name="library_groups_empty">Нет распознанных групп. Теги можно обрабатывать отдельно небольшими партиями.</string>
     <string name="pilot_resume_bounded">Продолжить индексацию (до 100 файлов)</string>
     <string name="pilot_resume_explanation">Один ручной запуск: максимум 60 HTTP GET и 4 МиБ загрузки, остановка по времени примерно через 3 минуты между файлами. Завершённые результаты остаются в Room. Можно остановить и продолжить; автоматической индексации всей папки нет. При мобильном интернете учитывай трафик.</string>
-    <string name="managed_index_title">Управляемая индексация</string>
+    <string name="managed_index_title">Ход обработки медиатеки</string>
     <string name="managed_notification_started">Индексация тегов выполняется в фоне</string>
     <string name="managed_notification_progress">Обработано в сессии: %1$d, осталось: %2$d, запросов: %3$d</string>
     <string name="managed_index_explanation">Проверенный ограниченный режим: до 4 порций (240 GET / 16 МиБ), 4 параллельных файла. Продолжает работу при свёрнутом приложении и блокировке экрана. Сохранение в Room после каждого файла; без ограничений Wi-Fi.</string>
