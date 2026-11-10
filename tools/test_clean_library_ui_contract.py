@@ -84,10 +84,10 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertIn("R.string.library_player_close", player)
         self.assertNotIn("AlertDialog(", ui[
             ui.index("if (showPlayerDetails && selectedTitle != null)"):
-            ui.index("Column(\\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)")
+            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)")
         ])
         self.assertLess(ui.index("if (showPlayerDetails && selectedTitle != null)"),
-            ui.index("Column(\\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)"))
+            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)"))
         self.assertLess(ui.index("items(visible, key = { it.id })"),
             ui.index("// Fixed-height mini player:"))
         self.assertNotIn("R.string.library_group_tags_only", ui)
