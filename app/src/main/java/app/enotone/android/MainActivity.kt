@@ -428,7 +428,8 @@ private fun DiagnosticScreen() {
         }
         Text(stringResource(R.string.home_library_maintenance),
             style = MaterialTheme.typography.titleMedium)
-        // One shallow /AllMusic listing, no destructive re-import.
+        // One explicit action: quick listing + background metadata completion.
+        // Existing current-version checkpoints are skipped, not re-downloaded.
         Button(enabled = !busy &&
             managedStatus.state != ManagedScanState.RUNNING &&
             !managedStatus.terminating &&
@@ -436,6 +437,7 @@ private fun DiagnosticScreen() {
             busy = true
             report = ""
             scope.launch {
+                var startMetadata = false
                 try {
                     val result = withContext(Dispatchers.IO) {
                         FlatLibraryWebDavClient().use { client ->
@@ -444,8 +446,10 @@ private fun DiagnosticScreen() {
                             try {
                                 val store = LibrarySnapshotStore(database)
                                 val plan = store.save(email, listing)
+                                val pending = database.remoteTrackDao().pendingFastScans(
+                                    LibrarySnapshotPlanner.accountKey(email)).size
                                 intArrayOf(listing.tracks.size, store.presentCount(email),
-                                    plan.inserted, plan.changed, plan.unchanged)
+                                    plan.inserted, plan.changed, plan.unchanged, pending)
                             } finally {
                                 database.close()
                             }
@@ -453,6 +457,7 @@ private fun DiagnosticScreen() {
                     }
                     report = String.format(Locale.getDefault(), importReport,
                         result[0], result[1], result[2], result[3], result[4])
+                    startMetadata = result[5] > 0
                 } catch (e: FlatWebDavHttpError) {
                     report = String.format(Locale.getDefault(), httpFailure, e.statusCode)
                 } catch (_: Exception) {
@@ -460,6 +465,10 @@ private fun DiagnosticScreen() {
                 } finally {
                     busy = false
                 }
+                // Start only after the Room listing is committed and the
+                // Activity's busy gate has been released. The foreground
+                // service owns resume, limits, cancellation and notifications.
+                if (startMetadata) startManagedSession(true)
             }
         }) {
             Text(stringResource(R.string.save_local_library))
@@ -948,14 +957,14 @@ private fun DiagnosticScreen() {
                 R.string.managed_index_resume else R.string.managed_index_start))
         }
         }
-        Button(modifier = Modifier.fillMaxWidth(),
-            enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
-                !managedStatus.terminating &&
-                email.isNotBlank() && password.isNotBlank(),
-            onClick = { startManagedSession(true) }) {
-            Text(stringResource(R.string.managed_index_all))
-        }
         if (showTechnicalTools) {
+            Button(modifier = Modifier.fillMaxWidth(),
+                enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
+                    !managedStatus.terminating &&
+                    email.isNotBlank() && password.isNotBlank(),
+                onClick = { startManagedSession(true) }) {
+                Text(stringResource(R.string.managed_index_all))
+            }
             Text(stringResource(R.string.managed_index_all_explanation),
                 style = MaterialTheme.typography.bodySmall)
         }
