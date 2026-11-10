@@ -83,7 +83,7 @@ class AlbumDetailContractTest(unittest.TestCase):
             self.assertIn("album_cover_description", keys)
         database = self.src(
             "core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
-        self.assertIn("version = 2", database)
+        self.assertIn("version = 3", database)
 
 
 if __name__ == "__main__":
