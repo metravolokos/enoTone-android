@@ -14,6 +14,13 @@
     <string name="file_count_failed">Could not read the file listing. Check the connection or try again later.</string>
     <string name="webdav_http_failed">Could not read the file listing: HTTP %1$d.</string>
     <string name="diagnostic_failed">Diagnostics failed. Credentials are never included in this report.</string>
+    <string name="library_reindex_action">Reindex entire library</string>
+    <string name="library_reindex_confirm_title">Re-read metadata for all tracks?</string>
+    <string name="library_reindex_confirm_message">This forces a new metadata read for all saved MP3/FLAC files and clears their cached artwork references, even when the file version is unchanged. It may require many network requests and can run in the background. Existing tags remain available until successfully replaced. To find new or changed files, use Import / update library instead.</string>
+    <string name="library_reindex_confirm_action">Reindex</string>
+    <string name="library_reindex_queued">Scheduled %1$d tracks for reindexing. Background processing requested; progress and Pause / Stop controls appear below.</string>
+    <string name="library_reindex_empty">No eligible MP3/FLAC tracks to reindex.</string>
+    <string name="library_reindex_failed">Unable to schedule reindexing. Saved tracks and tags were not deleted.</string>
     <string name="save_local_library">Import / update library</string>
     <string name="read_local_library">Check saved listing (offline)</string>
     <string name="local_import_report">Found in cloud: %1$d. Saved locally: %2$d. New: %3$d, changed: %4$d, unchanged: %5$d.</string>
