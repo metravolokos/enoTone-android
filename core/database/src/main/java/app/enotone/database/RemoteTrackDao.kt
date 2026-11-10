@@ -52,7 +52,10 @@ interface RemoteTrackDao {
         SET title = :title,
             artist = :artist,
             album = :album,
-            albumArtist = :albumArtist
+            albumArtist = :albumArtist,
+            year = :year,
+            trackNumber = :trackNumber,
+            discNumber = :discNumber
         WHERE id = :id
           AND sourceKey = :sourceKey
           AND encodedPath = :encodedPath
@@ -72,6 +75,9 @@ interface RemoteTrackDao {
         artist: String?,
         album: String?,
         albumArtist: String?,
+        year: Int? = null,
+        trackNumber: Int? = null,
+        discNumber: Int? = null,
     ): Int
 
     /** One local SQLite query; no network, no tag values, no per-track data returned. */
@@ -111,7 +117,13 @@ interface RemoteTrackDao {
             album = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
                 'MP3_ID3V1', 'FLAC_VORBIS') THEN :album ELSE album END,
             albumArtist = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
-                'MP3_ID3V1', 'FLAC_VORBIS') THEN :albumArtist ELSE albumArtist END
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :albumArtist ELSE albumArtist END,
+            year = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :year ELSE year END,
+            trackNumber = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :trackNumber ELSE trackNumber END,
+            discNumber = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
+                'MP3_ID3V1', 'FLAC_VORBIS') THEN :discNumber ELSE discNumber END
         WHERE id = :id AND sourceKey = :sourceKey AND encodedPath = :path
           AND remoteEtag IS :etag AND remoteSize IS :size
           AND remoteModified IS :modified AND missingScans = 0
@@ -125,6 +137,7 @@ interface RemoteTrackDao {
         etag: String?, size: Long?, modified: String?,
         code: String, title: String?, artist: String?,
         album: String?, albumArtist: String?,
+        year: Int? = null, trackNumber: Int? = null, discNumber: Int? = null,
     ): Int
 
     /** Only present files for this hashed account; deterministic ordering is app side. */
