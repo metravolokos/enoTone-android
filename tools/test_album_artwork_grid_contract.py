@@ -22,7 +22,7 @@ class AlbumArtworkGridContractTest(unittest.TestCase):
             "onOpen = {",
             "selectedGroupKey = group.key",
             'search = ""',
-            "val albumArtworkTargets = remember(groups, preparedById, section)",
+            "val albumArtworkTargets = remember(groups, preparedById, section,",
             'if (group.key == "album:missing") return@mapNotNull null',
             "preparedById[it]",
         ):
@@ -43,11 +43,11 @@ class AlbumArtworkGridContractTest(unittest.TestCase):
         for needle in (
             "private val imageSlots = Semaphore(2)",
             "imageSlots.withPermit {",
-            "enotone-artwork-v1",
+            "enotone-artwork-v2",
             "maxRequests = 128",
             "maxDownloadedBytes = 8L * 1024 * 1024",
             "MAX_DISK_FILE_BYTES",
-            "CACHE_LIMIT_BYTES = 32L * 1024 * 1024",
+            "CACHE_LIMIT_BYTES = 64L * 1024 * 1024",
             "WebDavRangeReader(",
             "EmbeddedArtworkPayloadReader().read(",
         ):
