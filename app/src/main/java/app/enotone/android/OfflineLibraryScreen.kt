@@ -7,7 +7,12 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.SystemClock
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +20,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -28,6 +37,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -640,30 +650,6 @@ internal fun OfflineLibraryScreen(
                 Text(stringResource(R.string.library_pages_short))
             }
         }
-        Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            visiblePages.forEach { page ->
-                val title = when (page) {
-                    LibraryPage.TRACKS -> R.string.library_tab_tracks
-                    LibraryPage.ALBUMS -> R.string.library_tab_albums
-                    LibraryPage.ARTISTS -> R.string.library_tab_artists
-                    LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
-                }
-                // The selected page must be recognizable without relying on color alone.
-                // Use the Material 3 filled/outlined button distinction; no custom palette.
-                if (section == page) {
-                    Button(enabled = !selecting, onClick = {
-                        // Already selected: preserve search and group context.
-                    }) { Text(stringResource(title)) }
-                } else {
-                    OutlinedButton(enabled = !selecting, onClick = {
-                        section = page
-                        selectedGroupKey = null
-                        search = ""
-                    }) { Text(stringResource(title)) }
-                }
-            }
-        }
         if (section != LibraryPage.TRACKS && selectedGroup != null) {
             OutlinedButton(onClick = { selectedGroupKey = null; search = "" }) {
                 Text(stringResource(R.string.library_group_back))
@@ -828,6 +814,59 @@ internal fun OfflineLibraryScreen(
                 }
                 TextButton(onClick = { showPlayerDetails = true }) {
                     Text(stringResource(R.string.library_player_open))
+                }
+            }
+        }
+        // M2: a compact bottom rail saves vertical space and keeps all four pages
+        // accessible without scrolling or long text buttons. Current title is in header.
+        HorizontalDivider()
+        Row(
+            modifier = Modifier.fillMaxWidth().height(52.dp).selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            visiblePages.forEach { page ->
+                val label = stringResource(when (page) {
+                    LibraryPage.TRACKS -> R.string.library_tab_tracks
+                    LibraryPage.ALBUMS -> R.string.library_tab_albums
+                    LibraryPage.ARTISTS -> R.string.library_tab_artists
+                    LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
+                })
+                val icon = when (page) {
+                    LibraryPage.TRACKS -> R.drawable.ic_nav_tracks
+                    LibraryPage.ALBUMS -> R.drawable.ic_nav_albums
+                    LibraryPage.ARTISTS -> R.drawable.ic_nav_artists
+                    LibraryPage.ALBUM_ARTISTS -> R.drawable.ic_nav_album_artists
+                }
+                val active = section == page
+                Box(
+                    modifier = Modifier.weight(1f).height(48.dp)
+                        .background(
+                            if (active) MaterialTheme.colorScheme.secondaryContainer
+                            else Color.Transparent,
+                            RoundedCornerShape(16.dp),
+                        )
+                        .selectable(
+                            selected = active,
+                            enabled = !selecting,
+                            role = Role.Tab,
+                            onClick = {
+                                if (section != page) {
+                                    section = page
+                                    selectedGroupKey = null
+                                    search = ""
+                                }
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(icon),
+                        contentDescription = label,
+                        tint = if (active) MaterialTheme.colorScheme.onSecondaryContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
                 }
             }
         }
