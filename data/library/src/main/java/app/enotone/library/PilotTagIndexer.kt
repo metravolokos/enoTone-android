@@ -144,6 +144,7 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
         // Null keeps the legacy pilot behavior. Non-null restricts ALL GETs
         // to explicit local track IDs, even if unrelated scans are pending.
         targetIds: Set<String>? = null,
+        onFileCompleted: suspend (String) -> Unit = {},
     ): PilotIndexProgress {
         require(PilotBudget.validCount(count))
         require(password.isNotBlank())
@@ -248,6 +249,9 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                 discNumber = tags?.discNumber,
             ) == 1
             attempted++
+            // Opaque local ID only. Allows an album refresh button to advance
+            // past the exact files handled, not guess from aggregate counters.
+            onFileCompleted(item.id)
             when {
                 !saved -> staleWrites++
                 recordCode.startsWith("RETRY_") -> retryableErrors++
