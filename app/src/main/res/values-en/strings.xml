@@ -151,4 +151,10 @@
     <string name="tag_audit_search_hint">Filename or track title (offline)</string>
     <string name="tag_audit_search_action">Find track to reindex</string>
     <string name="tag_audit_no_search">No matches in the saved library.</string>
+
+    <string name="library_pages_settings_button">Library page settings</string>
+    <string name="library_pages_settings_title">Visible library pages</string>
+    <string name="library_pages_settings_explanation">Choose which tabs to show in your library. Music and tags are never removed; your choice is saved across app restarts.</string>
+    <string name="library_pages_settings_last_visible">The last visible page cannot be hidden. Re-enable any page here.</string>
+    <string name="library_pages_settings_done">Done</string>
 </resources>

@@ -12,12 +12,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.LinearProgressIndicator
@@ -103,8 +107,12 @@ internal fun OfflineLibraryScreen(
     }
     var search by remember(accountEmail) { mutableStateOf("") }
     var section by remember(accountEmail) { mutableStateOf(LibraryPage.TRACKS) }
-    // Later Settings will supply hidden page IDs without changing grouping code.
-    val visiblePages = remember { LibraryPageVisibility.visible(emptySet()) }
+    val pagePreferences = remember(context) { LibraryPagePreferences(context) }
+    var hiddenPages by remember(context) {
+        mutableStateOf(pagePreferences.hiddenPages())
+    }
+    val visiblePages = remember(hiddenPages) { LibraryPageVisibility.visible(hiddenPages) }
+    var showPageSettings by remember { mutableStateOf(false) }
     var selectedGroupKey by remember(accountEmail) { mutableStateOf<String?>(null) }
     var loading by remember(accountEmail) { mutableStateOf(true) }
     var failed by remember(accountEmail) { mutableStateOf(false) }
@@ -285,6 +293,17 @@ internal fun OfflineLibraryScreen(
         }
     }
 
+    // A page hidden in Settings must never leave a stale group or selection
+    // visible. This affects only UI state, not playback, Room or downloaded tags.
+    LaunchedEffect(section, visiblePages) {
+        val fallback = LibraryPageVisibility.selectedOrFallback(section, visiblePages)
+        if (fallback != section) {
+            section = fallback
+            selectedGroupKey = null
+            search = ""
+        }
+    }
+
     // Pure RAM grouping from the single Room snapshot; never scans cloud files.
     val unknownAlbumName = stringResource(R.string.library_unknown_album)
     val groups = remember(tracks, section, unknownAlbumName) {
@@ -310,6 +329,54 @@ internal fun OfflineLibraryScreen(
         }
         OfflineTrackCatalog.search(candidates, search)
     }
+    if (showPageSettings) {
+        AlertDialog(
+            onDismissRequest = { showPageSettings = false },
+            title = { Text(stringResource(R.string.library_pages_settings_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.library_pages_settings_explanation),
+                        style = MaterialTheme.typography.bodySmall)
+                    LibraryPageVisibility.defaultOrder.forEach { page ->
+                        val title = when (page) {
+                            LibraryPage.TRACKS -> R.string.library_tab_tracks
+                            LibraryPage.ALBUMS -> R.string.library_tab_albums
+                            LibraryPage.ARTISTS -> R.string.library_tab_artists
+                            LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
+                        }
+                        val isVisible = page in visiblePages
+                        val canToggle = !isVisible || visiblePages.size > 1
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Checkbox(
+                                checked = isVisible,
+                                enabled = canToggle,
+                                onCheckedChange = { shouldShow ->
+                                    val updated = LibraryPageVisibility.withVisibility(
+                                        hiddenPages, page, shouldShow,
+                                    )
+                                    if (updated != hiddenPages) {
+                                        hiddenPages = updated
+                                        pagePreferences.saveHiddenPages(updated)
+                                    }
+                                },
+                            )
+                            Text(stringResource(title))
+                        }
+                    }
+                    Text(stringResource(R.string.library_pages_settings_last_visible),
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPageSettings = false }) {
+                    Text(stringResource(R.string.library_pages_settings_done))
+                }
+            },
+        )
+    }
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -326,6 +393,9 @@ internal fun OfflineLibraryScreen(
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(top = 10.dp),
             )
+        }
+        OutlinedButton(onClick = { showPageSettings = true }) {
+            Text(stringResource(R.string.library_pages_settings_button))
         }
         Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(4.dp)) {

@@ -151,4 +151,10 @@
     <string name="tag_audit_search_hint">Имя файла или название трека (без сети)</string>
     <string name="tag_audit_search_action">Найти трек для переиндексации</string>
     <string name="tag_audit_no_search">Совпадений в локальной медиатеке не найдено.</string>
+
+    <string name="library_pages_settings_button">Настройки страниц медиатеки</string>
+    <string name="library_pages_settings_title">Отображаемые страницы</string>
+    <string name="library_pages_settings_explanation">Выбери вкладки, которые будут видны в медиатеке. Треки и теги не удаляются; выбор сохраняется после перезапуска.</string>
+    <string name="library_pages_settings_last_visible">Последнюю видимую страницу скрыть нельзя. Вернуть любую страницу можно здесь же.</string>
+    <string name="library_pages_settings_done">Готово</string>
 </resources>

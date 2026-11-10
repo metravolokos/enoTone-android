@@ -180,3 +180,8 @@
 - Split performer views: Artists uses only ARTIST, Album Artists uses only ALBUM ARTIST. Existing album identity retains Album Artist preference, with ARTIST fallback when missing.
 - Added localizable virtual Unknown Album for scanned tracks whose ALBUM is absent, with a stable key distinct from an embedded album literally named Unknown Album. Unscanned tracks remain under Tracks.
 - Four page IDs and a safe visibility policy prepare future Settings hide/show without changing Room schema, WebDAV background indexer, Media3, signed package identity or standard Material colors. New UI settings toggles deferred.
+
+## Draft — M2 library page visibility settings (2026-11-10)
+- Добавлено диалоговое окно настроек видимости четырёх страниц медиатеки; переключатели независимы, выбранные значения сохраняются локально после перезапуска.
+- Последнюю видимую страницу нельзя скрыть; если текущая скрыта, навигация переключается на доступную без остановки музыки. Идентификаторы страниц стабильны и не зависят от локализации.
+- Используется стандартный Material 3; Room, 3590 тегов, WebDAV, GMS, Media3, авторизация и подпись не меняются. Доступно для CI и Huawei smoke после слияния.
