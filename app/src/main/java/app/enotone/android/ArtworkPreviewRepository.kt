@@ -61,7 +61,8 @@ internal class ArtworkPreviewRepository(context: Context) {
                 }
                 file.delete()
             }
-            coroutineContext.ensureActive()
+            val requestContext = coroutineContext
+            requestContext.ensureActive()
             val image = WebDavRangeReader(
                 encodedPath = path,
                 fileSize = target.remoteSize,
@@ -73,7 +74,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             ).use { reader ->
                 EmbeddedArtworkPayloadReader().read(name, target.remoteSize) {
                     position, buffer, offset, length ->
-                    coroutineContext.ensureActive()
+                    requestContext.ensureActive()
                     reader.readAt(position, buffer, offset, length)
                 }
             } ?: return@withContext null
