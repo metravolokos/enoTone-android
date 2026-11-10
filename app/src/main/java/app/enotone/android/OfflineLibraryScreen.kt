@@ -34,9 +34,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -485,6 +487,10 @@ internal fun OfflineLibraryScreen(
         }
         OfflineTrackCatalog.search(candidates, search)
     }
+    // Keep scroll positions while Now Playing temporarily replaces the
+    // library subtree. Switching a category or search deliberately resets it.
+    val libraryListState = remember(section, selectedGroupKey, search) { LazyListState() }
+    val albumGridState = remember(section, search) { LazyGridState() }
     // Album header can play the whole group; tapping an individual track
     // retains its existing (possibly search-filtered) queue context.
     // Both use the original Media3 playback path and no extra Room reads.
@@ -789,6 +795,7 @@ internal fun OfflineLibraryScreen(
                 } else {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 148.dp),
+                        state = albumGridState,
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -814,6 +821,7 @@ internal fun OfflineLibraryScreen(
                     Text(stringResource(R.string.library_groups_empty))
                 } else {
                     LazyColumn(
+                        state = libraryListState,
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -836,6 +844,7 @@ internal fun OfflineLibraryScreen(
                 }
             }
             else -> LazyColumn(
+                state = libraryListState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
