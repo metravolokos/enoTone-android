@@ -87,7 +87,7 @@ class UnifiedImportGenreContractTest(unittest.TestCase):
         ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
         self.assertIn("Semaphore(2)", art)
         self.assertIn("MAX_SIDE = 512", art)
-        self.assertIn("MAX_CACHE_BYTES = ", art)
+        self.assertIn("CACHE_LIMIT_BYTES = ", art)
         self.assertIn("AlbumArtworkTile(", ui)
         self.assertIn("AlbumDetailHeader(", ui)
 
