@@ -8,10 +8,12 @@ import android.os.IBinder
 import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -135,6 +137,9 @@ internal fun OfflineLibraryScreen(
     // Accepted M5 mode is the normal default; raw WebDAV remains diagnostic.
     var useCacheOnNextPlay by remember { mutableStateOf(true) }
     var showDiagnostics by remember { mutableStateOf(false) }
+    // A two-row mini player stays visible; full controls are in an optional
+    // scrollable dialog instead of occupying the whole track-list viewport.
+    var showPlayerDetails by remember { mutableStateOf(false) }
     var handoffInfo by remember { mutableStateOf<HandoffSnapshot?>(null) }
     var selectionStartedAt by remember { mutableStateOf(0L) }
     var roomDurationMs by remember { mutableStateOf<Long?>(null) }
@@ -377,64 +382,16 @@ internal fun OfflineLibraryScreen(
             },
         )
     }
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = onBack) { Text(stringResource(R.string.library_back)) }
-            Text(
-                text = stringResource(when (section) {
-                    LibraryPage.TRACKS -> R.string.library_tab_tracks
-                    LibraryPage.ALBUMS -> R.string.library_tab_albums
-                    LibraryPage.ARTISTS -> R.string.library_tab_artists
-                    LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
-                }),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(top = 10.dp),
-            )
-        }
-        OutlinedButton(onClick = { showPageSettings = true }) {
-            Text(stringResource(R.string.library_pages_settings_button))
-        }
-        Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            visiblePages.forEach { page ->
-                val title = when (page) {
-                    LibraryPage.TRACKS -> R.string.library_tab_tracks
-                    LibraryPage.ALBUMS -> R.string.library_tab_albums
-                    LibraryPage.ARTISTS -> R.string.library_tab_artists
-                    LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
-                }
-                OutlinedButton(enabled = !selecting, onClick = {
-                    section = page
-                    selectedGroupKey = null
-                    search = ""
-                }) { Text(stringResource(title)) }
-            }
-        }
-        if (section != LibraryPage.TRACKS && selectedGroup != null) {
-            OutlinedButton(onClick = { selectedGroupKey = null; search = "" }) {
-                Text(stringResource(R.string.library_group_back))
-            }
-            Text(selectedGroup.name, style = MaterialTheme.typography.titleMedium)
-        }
-        OutlinedTextField(
-            value = search,
-            onValueChange = { search = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.library_search)) },
-            singleLine = true,
-        )
-        if (section != LibraryPage.TRACKS && selectedGroup == null) {
-            Text(stringResource(R.string.library_group_count, shownGroups.size))
-            Text(stringResource(R.string.library_group_tags_only),
-                style = MaterialTheme.typography.bodySmall)
-        } else {
-            Text(stringResource(R.string.library_count, visible.size,
-                if (section == LibraryPage.TRACKS) tracks.size
-                else selectedGroup?.trackIds?.size ?: 0))
-        }
+    if (showPlayerDetails && selectedTitle != null) {
+        AlertDialog(
+            onDismissRequest = { showPlayerDetails = false },
+            title = { Text(stringResource(R.string.library_player_title)) },
+            text = {
+                Column(
+                    modifier = Modifier.heightIn(max = 480.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
         OutlinedButton(onClick = { showDiagnostics = !showDiagnostics }) {
             Text(stringResource(
                 if (showDiagnostics) R.string.playback_diagnostics_hide
@@ -526,6 +483,8 @@ internal fun OfflineLibraryScreen(
                 },
                 enabled = canSeek && !selecting,
             )
+            // Advanced telemetry is opt-in even when the full player is open.
+            if (showDiagnostics) {
             handoffInfo?.let { handoff ->
                 val kind = when (handoff.origin) {
                     HandoffOrigin.NEXT_BUTTON -> stringResource(R.string.handoff_next_button)
@@ -592,6 +551,7 @@ internal fun OfflineLibraryScreen(
                     )
                 }
             }
+            }
             if (queueTotal > 0) {
                 Text(stringResource(R.string.playback_queue_position,
                     queuePosition, queueTotal))
@@ -643,6 +603,78 @@ internal fun OfflineLibraryScreen(
             }
         } else {
             Text(stringResource(R.string.playback_hint))
+        }
+
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPlayerDetails = false }) {
+                    Text(stringResource(R.string.library_player_close))
+                }
+            },
+        )
+    }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onBack) { Text(stringResource(R.string.library_back)) }
+            Text(
+                text = stringResource(when (section) {
+                    LibraryPage.TRACKS -> R.string.library_tab_tracks
+                    LibraryPage.ALBUMS -> R.string.library_tab_albums
+                    LibraryPage.ARTISTS -> R.string.library_tab_artists
+                    LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
+                }),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            TextButton(onClick = { showPageSettings = true }) {
+                Text(stringResource(R.string.library_pages_short))
+            }
+        }
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            visiblePages.forEach { page ->
+                val title = when (page) {
+                    LibraryPage.TRACKS -> R.string.library_tab_tracks
+                    LibraryPage.ALBUMS -> R.string.library_tab_albums
+                    LibraryPage.ARTISTS -> R.string.library_tab_artists
+                    LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
+                }
+                OutlinedButton(enabled = !selecting, onClick = {
+                    section = page
+                    selectedGroupKey = null
+                    search = ""
+                }) { Text(stringResource(title)) }
+            }
+        }
+        if (section != LibraryPage.TRACKS && selectedGroup != null) {
+            OutlinedButton(onClick = { selectedGroupKey = null; search = "" }) {
+                Text(stringResource(R.string.library_group_back))
+            }
+            Text(selectedGroup.name, style = MaterialTheme.typography.titleMedium)
+        }
+        OutlinedTextField(
+            value = search,
+            onValueChange = { search = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.library_search)) },
+            singleLine = true,
+        )
+        if (section != LibraryPage.TRACKS && selectedGroup == null) {
+            Text(stringResource(R.string.library_group_count, shownGroups.size))
+        } else {
+            Text(stringResource(R.string.library_count, visible.size,
+                if (section == LibraryPage.TRACKS) tracks.size
+                else selectedGroup?.trackIds?.size ?: 0))
         }
         when {
             loading -> Text(stringResource(R.string.library_loading))
@@ -741,6 +773,53 @@ internal fun OfflineLibraryScreen(
                         }
                     }
                     HorizontalDivider()
+                }
+            }
+        }
+        // Fixed-height mini player: users can scroll albums/tracks without
+        // playback diagnostics, cache counters or seek controls pushing them off-screen.
+        if (selectedTitle != null) {
+            HorizontalDivider()
+            Text(selectedTitle!!, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleSmall)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                val compactStatus = when (playbackState) {
+                    "BUFFERING" -> stringResource(R.string.playback_buffering)
+                    "PLAYING" -> stringResource(R.string.playback_playing)
+                    "PAUSED" -> stringResource(R.string.playback_paused)
+                    "ERROR" -> stringResource(R.string.playback_error, errorCode)
+                    "MISSING_PASSWORD" -> stringResource(R.string.playback_missing_password)
+                    "MISSING_TRACK" -> stringResource(R.string.playback_missing_track)
+                    "ENDED" -> stringResource(R.string.playback_ended)
+                    else -> stringResource(R.string.playback_loading)
+                }
+                Text(compactStatus, modifier = Modifier.weight(1f),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.bodySmall)
+                TextButton(
+                    enabled = playback != null && !selecting,
+                    onClick = {
+                        if (playbackState == "PLAYING" || playbackState == "BUFFERING") {
+                            playback?.pause()
+                        } else {
+                            playback?.resume()
+                        }
+                    },
+                ) {
+                    Text(stringResource(if (playbackState == "PLAYING" ||
+                        playbackState == "BUFFERING") R.string.playback_pause
+                        else R.string.playback_resume))
+                }
+                TextButton(enabled = playback?.hasNext == true && !selecting,
+                    onClick = { playback?.playNext() }) {
+                    Text(stringResource(R.string.playback_next))
+                }
+                TextButton(onClick = { showPlayerDetails = true }) {
+                    Text(stringResource(R.string.library_player_open))
                 }
             }
         }

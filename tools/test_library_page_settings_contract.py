@@ -40,7 +40,7 @@ class LibraryPageSettingsContractTest(unittest.TestCase):
             "LibraryPageVisibility.selectedOrFallback(section, visiblePages)",
             "selectedGroupKey = null",
             "pagePreferences.saveHiddenPages(updated)",
-            "R.string.library_pages_settings_button",
+            "R.string.library_pages_short",
             "R.string.library_pages_settings_title",
             "visiblePages.forEach { page ->",
             "AlertDialog(",

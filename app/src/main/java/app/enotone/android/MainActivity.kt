@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,6 +87,11 @@ private fun DiagnosticScreen() {
     var tagAuditMessage by remember { mutableStateOf("") }
     var confirmRefreshAll by remember { mutableStateOf(false) }
     var showingLibrary by remember { mutableStateOf(false) }
+    // Daily listening is the default. Technical controls remain available
+    // but are collapsed instead of occupying the full first screen.
+    var showConnection by remember { mutableStateOf(true) }
+    var showTechnicalTools by remember { mutableStateOf(false) }
+    var showIndexDetails by remember { mutableStateOf(false) }
     var vaultState by remember { mutableStateOf(CredentialVaultState.NONE) }
     var vaultBusy by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
@@ -102,6 +108,10 @@ private fun DiagnosticScreen() {
                 email = restored.email
                 password = restored.password
                 vaultState = CredentialVaultState.RESTORED
+                showConnection = false
+                // Open the real library after a saved login is restored.
+                // OnBack closes it without another auto-open during this Activity.
+                showingLibrary = true
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -230,11 +240,18 @@ private fun DiagnosticScreen() {
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(stringResource(R.string.diagnostic_title), style = MaterialTheme.typography.headlineMedium)
-        Text(stringResource(R.string.diagnostic_explanation))
-        Button(enabled = !busy && email.isNotBlank(), onClick = {
-            showingLibrary = true
-        }) { Text(stringResource(R.string.library_open)) }
+        Text(stringResource(R.string.home_title),
+            style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.home_hint), style = MaterialTheme.typography.bodyMedium)
+        Button(
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && email.isNotBlank(),
+            onClick = { showingLibrary = true },
+        ) { Text(stringResource(R.string.library_open)) }
+        OutlinedButton(onClick = { showConnection = !showConnection }) {
+            Text(stringResource(R.string.home_connection_settings))
+        }
+        if (showConnection || email.isBlank() || password.isBlank()) {
         OutlinedTextField(
             value = email, onValueChange = { email = it }, label = { Text(stringResource(R.string.email)) },
             modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -302,6 +319,14 @@ private fun DiagnosticScreen() {
                 Text(stringResource(R.string.credential_vault_failed))
             CredentialVaultState.NONE -> Unit
         }
+        }
+        OutlinedButton(onClick = { showTechnicalTools = !showTechnicalTools }) {
+            Text(stringResource(if (showTechnicalTools)
+                R.string.home_hide_technical else R.string.home_show_technical))
+        }
+        if (showTechnicalTools) {
+        Text(stringResource(R.string.home_diagnostics_title),
+            style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
             value = testFile, onValueChange = { testFile = it },
             label = { Text(stringResource(R.string.test_file)) },
@@ -362,6 +387,9 @@ private fun DiagnosticScreen() {
         }) {
             Text(stringResource(R.string.count_audio_files))
         }
+        }
+        Text(stringResource(R.string.home_library_maintenance),
+            style = MaterialTheme.typography.titleMedium)
         // One shallow /AllMusic listing, no destructive re-import.
         Button(enabled = !busy &&
             managedStatus.state != ManagedScanState.RUNNING &&
@@ -398,6 +426,7 @@ private fun DiagnosticScreen() {
         }) {
             Text(stringResource(R.string.save_local_library))
         }
+        if (showTechnicalTools) {
         Button(enabled = !busy && email.isNotBlank(), onClick = {
             busy = true
             report = ""
@@ -858,14 +887,18 @@ private fun DiagnosticScreen() {
             Text(stringResource(R.string.pilot_cancel))
         }
 
+        }
         Text(stringResource(R.string.managed_index_title),
             style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.managed_index_explanation),
-            style = MaterialTheme.typography.bodySmall)
+        if (showTechnicalTools) {
+            Text(stringResource(R.string.managed_index_explanation),
+                style = MaterialTheme.typography.bodySmall)
+        }
         if (notificationPermissionDenied) {
             Text(stringResource(R.string.managed_notification_permission_denied),
                 style = MaterialTheme.typography.bodySmall)
         }
+        if (showTechnicalTools) {
         Button(modifier = Modifier.fillMaxWidth(),
             enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
                 !managedStatus.terminating &&
@@ -876,6 +909,7 @@ private fun DiagnosticScreen() {
                     ManagedScanState.ERROR))
                 R.string.managed_index_resume else R.string.managed_index_start))
         }
+        }
         Button(modifier = Modifier.fillMaxWidth(),
             enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
                 !managedStatus.terminating &&
@@ -883,8 +917,11 @@ private fun DiagnosticScreen() {
             onClick = { startManagedSession(true) }) {
             Text(stringResource(R.string.managed_index_all))
         }
-        Text(stringResource(R.string.managed_index_all_explanation),
-            style = MaterialTheme.typography.bodySmall)
+        if (showTechnicalTools) {
+            Text(stringResource(R.string.managed_index_all_explanation),
+                style = MaterialTheme.typography.bodySmall)
+        }
+        if (managedStatus.state == ManagedScanState.RUNNING) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(enabled = managedStatus.state == ManagedScanState.RUNNING,
                 onClick = {
@@ -901,7 +938,15 @@ private fun DiagnosticScreen() {
                     )
                 }) { Text(stringResource(R.string.managed_index_stop)) }
         }
+        }
         managedStatus.progress?.let { current ->
+            Text(stringResource(R.string.home_index_summary,
+                current.savedWithTags, current.remaining))
+            OutlinedButton(onClick = { showIndexDetails = !showIndexDetails }) {
+                Text(stringResource(if (showIndexDetails)
+                    R.string.home_hide_index_details else R.string.home_show_index_details))
+            }
+            if (showIndexDetails || showTechnicalTools) {
             Text(stringResource(R.string.managed_index_report,
                 current.completedBatches, current.attempted, current.savedWithTags,
                 current.retryableErrors, current.permanentErrors, current.getRequests,
@@ -914,11 +959,14 @@ private fun DiagnosticScreen() {
                     current.lastErrorHttpStatus),
                     style = MaterialTheme.typography.bodySmall)
             }
+            }
         }
+        if (showIndexDetails || showTechnicalTools) {
         managedStatus.failureStage?.let { stage ->
             Text(stringResource(R.string.managed_index_internal_failure,
                 stage, managedStatus.failureReason ?: "UNEXPECTED"),
                 style = MaterialTheme.typography.bodySmall)
+        }
         }
         val managedMessage = when (managedStatus.state) {
             ManagedScanState.PAUSED -> managedPaused
