@@ -59,16 +59,16 @@ class OfflineLibraryGroupingTest {
     @Test fun missingAlbumWithOtherSavedTagsAppearsInUnknownAlbum() {
         val rows = listOf(
             row("without-album", artist = "Singer", hasStoredTags = true),
-            row("another-without-album", artist = "Singer", hasStoredTags = true),
+            row("another-without-album", artist = "Different Singer", hasStoredTags = true),
             row("with-album", album = "Recognized", artist = "Singer"),
             row("unscanned"),
         )
         val groups = OfflineLibraryGrouping.albums(rows, "Неизвестный альбом")
         assertEquals(2, groups.size)
         val unknown = groups.single { it.name == "Неизвестный альбом" }
-        assertEquals("Singer", unknown.subtitle)
+        assertEquals(null, unknown.subtitle)
         assertEquals(setOf("without-album", "another-without-album"), unknown.trackIds)
-        assertTrue(groups.last().key.startsWith("album:missing"))
+        assertEquals("album:missing", groups.last().key)
         assertFalse(groups.any { "unscanned" in it.trackIds })
     }
 
