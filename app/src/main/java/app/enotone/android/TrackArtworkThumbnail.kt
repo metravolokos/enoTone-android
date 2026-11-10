@@ -44,7 +44,7 @@ internal fun TrackArtworkThumbnail(
         // Do not compete with a connecting/buffering audio stream. A later
         // READY state may request the cover; a previously loaded image remains.
         if (allowNetwork && target != null && appPassword.isNotBlank()) {
-            cover = repository.cover(accountEmail, appPassword, target)
+            cover = repository.cover(accountEmail, appPassword, target, requestedSide = 192)
         }
     }
 
