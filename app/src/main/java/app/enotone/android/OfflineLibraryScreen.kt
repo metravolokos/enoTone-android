@@ -422,59 +422,58 @@ internal fun OfflineLibraryScreen(
     }
     val playTrack: (OfflineTrackRow, List<OfflineTrackRow>) -> Unit = playTrack@{ track, contextTracks ->
         if (selecting || playback == null) return@playTrack
-
-                        selectedTitle = track.title
-                        selectedArtist = track.artist
-                        if (appPassword.isBlank()) {
-                            playbackState = "MISSING_PASSWORD"
-                            return@playTrack
-                        }
-                        selecting = true
-                        playbackState = "LOADING"
-                        selectionStartedAt = SystemClock.elapsedRealtime()
-                        errorReadIssue = PlaybackDataIssue.UNKNOWN
-                        roomDurationMs = null
-                        media3DurationMs = null
-                        setupTimings = null
-                        bufferingAfterTapMs = null
-                        readyAfterTapMs = null
-                        playingAfterTapMs = null
-                        scope.launch {
-                            try {
-                                val roomStartedAt = SystemClock.elapsedRealtime()
-                                // The only Room read occurred on library opening.
-                                // Preserve the user's visible search order in RAM.
-                                // No network request or new DB query during queue selection.
-                                val queue = contextTracks.mapNotNull { shown ->
-                                    preparedById[shown.id]
-                                }
-                                roomDurationMs =
-                                    SystemClock.elapsedRealtime() - roomStartedAt
-                                if (queue.none { it.id == track.id }) {
-                                    playbackState = "MISSING_TRACK"
-                                } else {
-                                    val service = playback
-                                        ?: throw IllegalStateException("Playback service disconnected")
-                                    val media3StartedAt = SystemClock.elapsedRealtime()
-                                    service.playQueue(accountEmail, appPassword,
-                                        queue, track.id, useCacheOnNextPlay)
-                                    currentTrackId = track.id
-                                    media3DurationMs =
-                                        SystemClock.elapsedRealtime() - media3StartedAt
-                                    setupTimings = service.setupTimings()
-                                    loadedQueueSources = service.loadedQueueSize
-                                    queueTotal = queue.size
-                                    queuePosition = queue.indexOfFirst { it.id == track.id } + 1
-                                }
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (_: Exception) {
-                                playbackState = "ERROR"
-                                errorCode = 0
-                            } finally {
-                                selecting = false
-                            }
-                        }
+        selectedTitle = track.title
+        selectedArtist = track.artist
+        if (appPassword.isBlank()) {
+            playbackState = "MISSING_PASSWORD"
+            return@playTrack
+        }
+        selecting = true
+        playbackState = "LOADING"
+        selectionStartedAt = SystemClock.elapsedRealtime()
+        errorReadIssue = PlaybackDataIssue.UNKNOWN
+        roomDurationMs = null
+        media3DurationMs = null
+        setupTimings = null
+        bufferingAfterTapMs = null
+        readyAfterTapMs = null
+        playingAfterTapMs = null
+        scope.launch {
+            try {
+                val roomStartedAt = SystemClock.elapsedRealtime()
+                // The only Room read occurred on library opening.
+                // Preserve the user's visible search order in RAM.
+                // No network request or new DB query during queue selection.
+                val queue = contextTracks.mapNotNull { shown ->
+                    preparedById[shown.id]
+                }
+                roomDurationMs =
+                    SystemClock.elapsedRealtime() - roomStartedAt
+                if (queue.none { it.id == track.id }) {
+                    playbackState = "MISSING_TRACK"
+                } else {
+                    val service = playback
+                        ?: throw IllegalStateException("Playback service disconnected")
+                    val media3StartedAt = SystemClock.elapsedRealtime()
+                    service.playQueue(accountEmail, appPassword,
+                        queue, track.id, useCacheOnNextPlay)
+                    currentTrackId = track.id
+                    media3DurationMs =
+                        SystemClock.elapsedRealtime() - media3StartedAt
+                    setupTimings = service.setupTimings()
+                    loadedQueueSources = service.loadedQueueSize
+                    queueTotal = queue.size
+                    queuePosition = queue.indexOfFirst { it.id == track.id } + 1
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                playbackState = "ERROR"
+                errorCode = 0
+            } finally {
+                selecting = false
+            }
+        }
     }
     if (showPlayerDetails && selectedTitle != null) {
         AlertDialog(
