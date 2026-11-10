@@ -9,6 +9,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.File
 import java.net.URLDecoder
 import java.security.MessageDigest
@@ -33,12 +35,15 @@ internal data class PlayingArtworkTarget(
  */
 internal class ArtworkPreviewRepository(context: Context) {
     private val directory = File(context.applicationContext.cacheDir, "enotone-artwork-v1")
+    // Bounded across mini-player and visible album thumbnails. No 832-way burst.
+    private val imageSlots = Semaphore(2)
 
     suspend fun cover(
         email: String,
         password: String,
         target: PlayingArtworkTarget,
-    ): Bitmap? = withContext(Dispatchers.IO) {
+    ): Bitmap? = imageSlots.withPermit {
+        withContext(Dispatchers.IO) {
         if (email.isBlank() || password.isBlank() || target.remoteSize <= 0L) {
             return@withContext null
         }
@@ -92,6 +97,7 @@ internal class ArtworkPreviewRepository(context: Context) {
         } catch (_: Exception) {
             // A missing/malformed image must never stop playback.
             null
+        }
         }
     }
 
