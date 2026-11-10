@@ -1021,28 +1021,56 @@ internal fun OfflineLibraryScreen(
                     }
                 }
                 items(visible, key = { it.id }) { track ->
+                    // Resolve a single already prepared row; no additional Room
+                    // lookup or off-screen artwork fetch for the 3590-track list.
+                    val artworkTarget = preparedById[track.id]?.let { item ->
+                        PlayingArtworkTarget(
+                            id = item.id,
+                            encodedPath = item.encodedPath,
+                            remoteSize = item.remoteSize,
+                            remoteEtag = item.remoteEtag,
+                        )
+                    }
                     Column(modifier = Modifier.fillMaxWidth().clickable(enabled = !selecting && playback != null) {
                         playTrack(track, visible)
                     }.padding(vertical = 4.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (section == LibraryPage.ALBUMS &&
-                                selectedGroup != null && track.trackNumber != null) {
-                                val disc = track.discNumber
-                                val label = if (disc != null && disc > 1) {
-                                    "${disc}.${track.trackNumber.toString().padStart(2, '0')}"
-                                } else track.trackNumber.toString()
-                                Text(label, style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            TrackArtworkThumbnail(
+                                trackId = track.id,
+                                target = artworkTarget,
+                                repository = artworkRepository,
+                                accountEmail = accountEmail,
+                                appPassword = appPassword,
+                                allowNetwork = playbackState != "LOADING" &&
+                                    playbackState != "BUFFERING",
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (section == LibraryPage.ALBUMS &&
+                                        selectedGroup != null && track.trackNumber != null) {
+                                        val disc = track.discNumber
+                                        val label = if (disc != null && disc > 1) {
+                                            "${disc}.${track.trackNumber.toString().padStart(2, '0')}"
+                                        } else track.trackNumber.toString()
+                                        Text(label, style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Text(track.title, maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodyLarge)
+                                }
+                                val subtitle = listOfNotNull(track.artist, track.album)
+                                    .joinToString(" · ")
+                                if (subtitle.isNotEmpty()) {
+                                    Text(subtitle, maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
                             }
-                            Text(track.title, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodyLarge)
-                        }
-                        val subtitle = listOfNotNull(track.artist, track.album)
-                            .joinToString(" · ")
-                        if (subtitle.isNotEmpty()) {
-                            Text(subtitle, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodySmall)
                         }
                     }
                     HorizontalDivider()
