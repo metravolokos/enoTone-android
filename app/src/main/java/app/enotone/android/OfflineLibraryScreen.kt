@@ -412,6 +412,69 @@ internal fun OfflineLibraryScreen(
         }
         OfflineTrackCatalog.search(candidates, search)
     }
+    // Album header can play the whole group; tapping an individual track
+    // retains its existing (possibly search-filtered) queue context.
+    // Both use the original Media3 playback path and no extra Room reads.
+    val albumTracks = remember(tracks, section, selectedGroup) {
+        if (section == LibraryPage.ALBUMS && selectedGroup != null) {
+            tracks.filter { it.id in selectedGroup.trackIds }
+        } else emptyList()
+    }
+    val playTrack: (OfflineTrackRow, List<OfflineTrackRow>) -> Unit = playTrack@{ track, contextTracks ->
+        if (selecting || playback == null) return@playTrack
+        selectedTitle = track.title
+        selectedArtist = track.artist
+        if (appPassword.isBlank()) {
+            playbackState = "MISSING_PASSWORD"
+            return@playTrack
+        }
+        selecting = true
+        playbackState = "LOADING"
+        selectionStartedAt = SystemClock.elapsedRealtime()
+        errorReadIssue = PlaybackDataIssue.UNKNOWN
+        roomDurationMs = null
+        media3DurationMs = null
+        setupTimings = null
+        bufferingAfterTapMs = null
+        readyAfterTapMs = null
+        playingAfterTapMs = null
+        scope.launch {
+            try {
+                val roomStartedAt = SystemClock.elapsedRealtime()
+                // The only Room read occurred on library opening.
+                // Preserve the user's visible search order in RAM.
+                // No network request or new DB query during queue selection.
+                val queue = contextTracks.mapNotNull { shown ->
+                    preparedById[shown.id]
+                }
+                roomDurationMs =
+                    SystemClock.elapsedRealtime() - roomStartedAt
+                if (queue.none { it.id == track.id }) {
+                    playbackState = "MISSING_TRACK"
+                } else {
+                    val service = playback
+                        ?: throw IllegalStateException("Playback service disconnected")
+                    val media3StartedAt = SystemClock.elapsedRealtime()
+                    service.playQueue(accountEmail, appPassword,
+                        queue, track.id, useCacheOnNextPlay)
+                    currentTrackId = track.id
+                    media3DurationMs =
+                        SystemClock.elapsedRealtime() - media3StartedAt
+                    setupTimings = service.setupTimings()
+                    loadedQueueSources = service.loadedQueueSize
+                    queueTotal = queue.size
+                    queuePosition = queue.indexOfFirst { it.id == track.id } + 1
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                playbackState = "ERROR"
+                errorCode = 0
+            } finally {
+                selecting = false
+            }
+        }
+    }
     if (showPlayerDetails && selectedTitle != null) {
         AlertDialog(
             onDismissRequest = { showPlayerDetails = false },
@@ -783,60 +846,27 @@ internal fun OfflineLibraryScreen(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                if (section == LibraryPage.ALBUMS && selectedGroup != null) {
+                    item(key = "album-detail-header") {
+                        AlbumDetailHeader(
+                            group = selectedGroup,
+                            target = albumArtworkTargets[selectedGroup.key],
+                            repository = artworkRepository,
+                            accountEmail = accountEmail,
+                            appPassword = appPassword,
+                            canPlay = albumTracks.isNotEmpty() && !selecting &&
+                                playback != null && appPassword.isNotBlank(),
+                            onPlayAll = {
+                                albumTracks.firstOrNull()?.let { first ->
+                                    playTrack(first, albumTracks)
+                                }
+                            },
+                        )
+                    }
+                }
                 items(visible, key = { it.id }) { track ->
                     Column(modifier = Modifier.fillMaxWidth().clickable(enabled = !selecting && playback != null) {
-                        selectedTitle = track.title
-                        selectedArtist = track.artist
-                        if (appPassword.isBlank()) {
-                            playbackState = "MISSING_PASSWORD"
-                            return@clickable
-                        }
-                        selecting = true
-                        playbackState = "LOADING"
-                        selectionStartedAt = SystemClock.elapsedRealtime()
-                        errorReadIssue = PlaybackDataIssue.UNKNOWN
-                        roomDurationMs = null
-                        media3DurationMs = null
-                        setupTimings = null
-                        bufferingAfterTapMs = null
-                        readyAfterTapMs = null
-                        playingAfterTapMs = null
-                        scope.launch {
-                            try {
-                                val roomStartedAt = SystemClock.elapsedRealtime()
-                                // The only Room read occurred on library opening.
-                                // Preserve the user's visible search order in RAM.
-                                // No network request or new DB query during queue selection.
-                                val queue = visible.mapNotNull { shown ->
-                                    preparedById[shown.id]
-                                }
-                                roomDurationMs =
-                                    SystemClock.elapsedRealtime() - roomStartedAt
-                                if (queue.none { it.id == track.id }) {
-                                    playbackState = "MISSING_TRACK"
-                                } else {
-                                    val service = playback
-                                        ?: throw IllegalStateException("Playback service disconnected")
-                                    val media3StartedAt = SystemClock.elapsedRealtime()
-                                    service.playQueue(accountEmail, appPassword,
-                                        queue, track.id, useCacheOnNextPlay)
-                                    currentTrackId = track.id
-                                    media3DurationMs =
-                                        SystemClock.elapsedRealtime() - media3StartedAt
-                                    setupTimings = service.setupTimings()
-                                    loadedQueueSources = service.loadedQueueSize
-                                    queueTotal = queue.size
-                                    queuePosition = queue.indexOfFirst { it.id == track.id } + 1
-                                }
-                            } catch (cancelled: CancellationException) {
-                                throw cancelled
-                            } catch (_: Exception) {
-                                playbackState = "ERROR"
-                                errorCode = 0
-                            } finally {
-                                selecting = false
-                            }
-                        }
+                        playTrack(track, visible)
                     }.padding(vertical = 4.dp)) {
                         Text(track.title, maxLines = 2, overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodyLarge)

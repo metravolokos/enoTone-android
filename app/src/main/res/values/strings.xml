@@ -181,4 +181,6 @@
     <string name="home_open_library">Открыть медиатеку</string>
     <string name="home_connect_account">Настроить подключение</string>
     <string name="artwork_description">Обложка текущего трека</string>
+    <string name="album_cover_description">Обложка альбома</string>
+    <string name="album_play_all">Воспроизвести альбом</string>
 </resources>
