@@ -148,6 +148,7 @@ class MediaSessionContractTest(unittest.TestCase):
             ROOT / "app/src/main/java/app/enotone/android/"
             "OfflineLibraryScreen.kt"
         ).read_text(encoding="utf-8")
+        panel = (ROOT / "app/src/main/java/app/enotone/android/PlaybackDiagnosticsPanel.kt").read_text(encoding="utf-8")
         player = (
             ROOT / "playback/src/main/java/app/enotone/playback/"
             "PreviewAudioPlayback.kt"
@@ -167,7 +168,8 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertIn("player.addMediaSources(sources)", player)
         self.assertIn("cancelPlaylistFill()", player)
         self.assertIn("PlaybackSetupTimings(", player)
-        self.assertIn("playback_setup_breakdown", ui)
+        self.assertIn("PlaybackDiagnosticsRuntime.publish(", ui)
+        self.assertIn("playback_setup_breakdown", panel)
         self.assertIn("loadedQueueSources", ui)
         self.assertIn("else factory", player)
         self.assertIn("private var temporaryCache: TransientMediaCache? = null", player)
@@ -215,6 +217,8 @@ class MediaSessionContractTest(unittest.TestCase):
             ROOT / "app/src/main/java/app/enotone/android/"
             "OfflineLibraryScreen.kt"
         ).read_text(encoding="utf-8")
+        panel = (ROOT / "app/src/main/java/app/enotone/android/PlaybackDiagnosticsPanel.kt").read_text(encoding="utf-8")
+        main = (ROOT / "app/src/main/java/app/enotone/android/MainActivity.kt").read_text(encoding="utf-8")
         self.assertIn("fun onItemChanged(", handoff)
         self.assertIn("fun onBuffering(", handoff)
         self.assertIn("fun onReady(", handoff)
@@ -230,12 +234,13 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertIn("fun handoffSnapshot()", service)
         self.assertIn("playback.noteNextButton()", service)
         self.assertIn("playback.notePreviousButton()", service)
-        self.assertIn("var showDiagnostics", ui)
-        self.assertIn("if (showDiagnostics)", ui)
-        self.assertIn("useCacheOnNextPlay by remember { mutableStateOf(true) }", ui)
+        self.assertIn("PlaybackDiagnosticsRuntime.publish(", ui)
+        self.assertIn("val useCacheOnNextPlay = PlaybackDiagnosticsRuntime.useCacheOnNextPlay", ui)
         self.assertIn("handoffInfo = playback?.handoffSnapshot()", ui)
-        self.assertIn("playback_diagnostics_show", ui)
-        self.assertIn("handoff_summary", ui)
+        self.assertIn("PlaybackDiagnosticsPanel()", main)
+        self.assertIn("if (showTechnicalTools) {", main)
+        self.assertIn("playback_settings_diagnostics", panel)
+        self.assertIn("handoff_summary", panel)
         self.assertNotIn("Log.", ui)
         self.assertNotIn("putExtra(", service)
 
@@ -248,6 +253,7 @@ class MediaSessionContractTest(unittest.TestCase):
             ROOT / "app/src/main/java/app/enotone/android/"
             "OfflineLibraryScreen.kt"
         ).read_text(encoding="utf-8")
+        now_playing = (ROOT / "app/src/main/java/app/enotone/android/NowPlayingScreen.kt").read_text(encoding="utf-8")
         self.assertIn("Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM", service)
         self.assertIn("fun seekToFraction(", service)
         self.assertIn("PlaybackSeekPolicy.positionForFraction(", service)
@@ -256,11 +262,12 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertIn("fraction.isFinite()", policy)
         self.assertIn("coerceIn(0L, durationMs)", policy)
         self.assertIn("fun formatTime(", policy)
-        self.assertIn("Slider(", ui)
-        self.assertIn("onValueChangeFinished", ui)
-        self.assertIn("seekToFraction(scrubFraction)", ui)
+        self.assertIn("Slider(", now_playing)
+        self.assertIn("onValueChangeFinished", now_playing)
+        self.assertIn("onSeekFraction(scrubFraction)", now_playing)
+        self.assertIn("playback?.seekToFraction(fraction)", ui)
         self.assertIn("canSeek = active?.canSeekCurrent == true", ui)
-        self.assertIn("contentDescription = seekDescription", ui)
+        self.assertIn("contentDescription = seekLabel", now_playing)
         self.assertIn("delay(500L)", ui)
         self.assertNotIn("allForSource(sourceKey)", service)
         self.assertNotIn("Log.", policy)
@@ -324,11 +331,13 @@ class MediaSessionContractTest(unittest.TestCase):
         issue = (base / "PlaybackDataIssue.kt").read_text(encoding="utf-8")
         ui = (ROOT / "app/src/main/java/app/enotone/android/"
               "OfflineLibraryScreen.kt").read_text(encoding="utf-8")
+        panel = (ROOT / "app/src/main/java/app/enotone/android/PlaybackDiagnosticsPanel.kt").read_text(encoding="utf-8")
         self.assertIn("PlaybackDataIssue.OPEN_RANGE", source)
         self.assertIn("PlaybackDataIssue.READ_TRUNCATED", source)
         self.assertIn("PlaybackDataIssue.OPEN_NETWORK", source)
         self.assertIn("PlaybackDataIssueClassifier.classify(error)", ui)
-        self.assertIn("errorReadIssue.name", ui)
+        self.assertIn("status.errorIssue.name", panel)
+        self.assertIn("errorIssue = errorReadIssue", ui)
         self.assertIn("enum class PlaybackDataIssue", issue)
         self.assertNotIn("error.message", ui)
         self.assertNotIn("error.cause.toString()", ui)
