@@ -81,7 +81,8 @@ class FastAudioTagReader {
             val length = if (major == 4) synchsafe(hdr, 4) else big32(hdr, 4)
             val next = pos + 10L + length
             if (length <= 0L || next > end) return FastTagRead(FastTagCode.INVALID_METADATA)
-            if (id in setOf("TIT2", "TPE1", "TALB", "TPE2") && !tags.containsKey(id)) {
+            if (id in setOf("TIT2", "TPE1", "TALB", "TPE2",
+                "TDRC", "TYER", "TRCK", "TPOS") && !tags.containsKey(id)) {
                 // Ignore tag layouts requiring decrypt/decompress/unsynchronisation.
                 if (u(hdr[8]) != 0 || u(hdr[9]) != 0) {
                     return FastTagRead(FastTagCode.UNSUPPORTED_LAYOUT)
@@ -96,7 +97,10 @@ class FastAudioTagReader {
             pos = next
         }
         return result(if (major == 3) FastTagCode.MP3_ID3V23 else FastTagCode.MP3_ID3V24,
-            name, tags["TIT2"], tags["TPE1"], tags["TALB"], tags["TPE2"])
+            name, tags["TIT2"], tags["TPE1"], tags["TALB"], tags["TPE2"],
+            rawYear = tags["TDRC"] ?: tags["TYER"],
+            rawTrackNumber = tags["TRCK"],
+            rawDiscNumber = tags["TPOS"])
     }
 
     private fun readFlac(source: BoundedBytes, name: String): FastTagRead {
@@ -123,7 +127,10 @@ class FastAudioTagReader {
                 val data = source.bytes(contentStart, size)
                 val values = parseVorbis(data)
                 return result(FastTagCode.FLAC_VORBIS, name,
-                    values["TITLE"], values["ARTIST"], values["ALBUM"], values["ALBUMARTIST"])
+                    values["TITLE"], values["ARTIST"], values["ALBUM"], values["ALBUMARTIST"],
+                    rawYear = values["DATE"] ?: values["YEAR"],
+                    rawTrackNumber = values["TRACKNUMBER"],
+                    rawDiscNumber = values["DISCNUMBER"])
             }
             // PICTURE, padding, seek table: skip by encoded size, no bulk reads.
             pos = contentStart + size
@@ -166,7 +173,8 @@ class FastAudioTagReader {
                     "ALBUM ARTIST", "ALBUM_ARTIST" -> "ALBUMARTIST"
                     else -> rawKey
                 }
-                if (key in setOf("TITLE", "ARTIST", "ALBUM", "ALBUMARTIST") &&
+                if (key in setOf("TITLE", "ARTIST", "ALBUM", "ALBUMARTIST",
+                    "DATE", "YEAR", "TRACKNUMBER", "DISCNUMBER") &&
                     !result.containsKey(key)) {
                     result[key] = field.substring(separator + 1)
                 }
@@ -182,13 +190,21 @@ class FastAudioTagReader {
         artist: String?,
         album: String?,
         albumArtist: String?,
+        rawYear: String? = null,
+        rawTrackNumber: String? = null,
+        rawDiscNumber: String? = null,
     ): FastTagRead {
-        if (listOf(title, artist, album, albumArtist).none { !it.isNullOrBlank() }) {
+        if (listOf(title, artist, album, albumArtist, rawYear, rawTrackNumber,
+                rawDiscNumber).none { !it.isNullOrBlank() }) {
             return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS)
         }
         return FastTagRead(
             code = code,
-            tags = AudioTagFields.fromRaw(title, artist, album, albumArtist, fileName),
+            tags = AudioTagFields.fromRaw(
+                title, artist, album, albumArtist, fileName,
+                rawYear = rawYear, rawTrackNumber = rawTrackNumber,
+                rawDiscNumber = rawDiscNumber,
+            ),
             embeddedTitle = !title.isNullOrBlank(),
             embeddedArtist = !artist.isNullOrBlank(),
             embeddedAlbum = !album.isNullOrBlank(),

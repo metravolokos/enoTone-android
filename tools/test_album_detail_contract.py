@@ -70,9 +70,11 @@ class AlbumDetailContractTest(unittest.TestCase):
         self.assertNotIn("WebDavRangeReader(", header)
         self.assertNotIn("openLibraryDatabase(", header)
         self.assertNotIn("year = ", header)
-        # No stored YEAR tag in Room yet: do not show a misleading release year.
+        # Release year and disc/track numbers are nullable, never fabricated.
         entity = self.src("core/database/src/main/java/app/enotone/database/RemoteTrackEntity.kt")
-        self.assertNotIn("val year:", entity)
+        self.assertIn("val year: Int? = null", entity)
+        self.assertIn("val trackNumber: Int? = null", entity)
+        self.assertIn("val discNumber: Int? = null", entity)
 
     def test_localization_and_stable_data(self):
         for path in ("app/src/main/res/values/strings.xml",
@@ -83,7 +85,7 @@ class AlbumDetailContractTest(unittest.TestCase):
             self.assertIn("album_cover_description", keys)
         database = self.src(
             "core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
-        self.assertIn("version = 2", database)
+        self.assertIn("version = 3", database)
 
 
 if __name__ == "__main__":
