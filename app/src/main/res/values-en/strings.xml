@@ -169,6 +169,9 @@
     <string name="home_show_index_details">Indexing details</string>
     <string name="home_hide_index_details">Hide details</string>
     <string name="library_pages_short">Pages</string>
+    <string name="now_playing_title">Now Playing</string>
+    <string name="now_playing_no_artwork">No track artwork</string>
+    <string name="now_playing_queue_short">%1$d / %2$d</string>
     <string name="library_player_title">Player</string>
     <string name="library_player_open">Player</string>
     <string name="library_player_close">Close</string>
