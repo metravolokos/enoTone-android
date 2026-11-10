@@ -28,6 +28,7 @@ data class RemoteTrackEntity(
     val year: Int? = null,
     val trackNumber: Int? = null,
     val discNumber: Int? = null,
+    val genre: String? = null,
     val lastSeenEpoch: Long,
     val missingScans: Int = 0,
     /** Nullable checkpoint for the fast-parser outcome; preserved only for unchanged versions. */
