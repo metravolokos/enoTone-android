@@ -59,18 +59,17 @@ class CleanLibraryUiContractTest(unittest.TestCase):
             main.index("R.string.managed_index_all"))
         self.assertNotIn("deleteDatabase(", main)
 
-    def test_track_list_is_primary_and_player_does_not_take_full_height(self):
+    def test_track_list_is_primary_and_full_player_has_own_screen(self):
         ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        for text in (
+        player = self.src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
+        for token in (
             "var showPlayerDetails by remember { mutableStateOf(false) }",
             "if (showPlayerDetails && selectedTitle != null)",
-            "AlertDialog(",
-            "modifier = Modifier.heightIn(max = 480.dp)",
-            ".verticalScroll(rememberScrollState())",
+            "NowPlayingScreen(",
+            "BackHandler(enabled = showPlayerDetails)",
             "R.string.library_player_open",
-            "R.string.library_player_close",
-            "if (showDiagnostics)",
-            "PlaybackSeekPolicy.positionForFraction(",
+            "onClose = { showPlayerDetails = false }",
+            "playback?.seekToFraction(fraction)",
             "playback?.cycleRepeatMode()",
             "playback?.toggleShuffle()",
             "playback?.pause()",
@@ -79,11 +78,16 @@ class CleanLibraryUiContractTest(unittest.TestCase):
             "LibraryPage.ALBUM_ARTISTS -> OfflineLibraryGrouping.albumArtists(tracks)",
             "OfflineLibraryGrouping.albums(tracks, unknownAlbumName)",
         ):
-            self.assertIn(text, ui)
-        # The track/albums LazyColumn is laid out BEFORE the compact footer.
-        # The huge playback controls must only render inside the dialog.
+            self.assertIn(token, ui)
+        self.assertIn("PlaybackSeekPolicy.positionForFraction(", player)
+        self.assertIn(".verticalScroll(rememberScrollState())", player)
+        self.assertIn("R.string.library_player_close", player)
+        self.assertNotIn("AlertDialog(", ui[
+            ui.index("if (showPlayerDetails && selectedTitle != null)"):
+            ui.index("Column(\\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)")
+        ])
         self.assertLess(ui.index("if (showPlayerDetails && selectedTitle != null)"),
-            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)"))
+            ui.index("Column(\\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)"))
         self.assertLess(ui.index("items(visible, key = { it.id })"),
             ui.index("// Fixed-height mini player:"))
         self.assertNotIn("R.string.library_group_tags_only", ui)
