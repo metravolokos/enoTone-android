@@ -106,21 +106,6 @@ jobs:
       - name: Compile stable Preview variant (no signing secrets)
         run: gradle --no-daemon :app:compileStablePreviewKotlin
 
-      - name: Capture generated Room v3 schema (temporary)
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          p = Path("core/database/schemas/app.enotone.database.EnoToneDatabase/3.json")
-          if not p.is_file():
-              raise SystemExit("Room KSP did not export schema v3")
-          schema = json.loads(p.read_text(encoding="utf-8"))
-          assert schema["database"]["version"] == 3
-          print("ENOTONE_V3_SCHEMA_BEGIN")
-          print(json.dumps(schema, ensure_ascii=True, separators=(",",":")))
-          print("ENOTONE_V3_SCHEMA_END")
-          PY
       - name: Verify Room v1 schema matches committed JSON
         shell: bash
         run: |
@@ -145,7 +130,18 @@ jobs:
           saved_v2 = json.loads(subprocess.check_output(
               ["git", "show", "HEAD:" + upgraded.as_posix()], text=True))
           assert v2 == saved_v2, "Room v2 schema changed without explicit migration"
-          print("Room schemas v1 and v2 match committed JSON; migration history retained")
+          exported_v3 = pathlib.Path("core/database/schemas/app.enotone.database.EnoToneDatabase/3.json")
+          assert exported_v3.exists(), "Room v3 schema must be exported and committed"
+          v3 = json.loads(exported_v3.read_text(encoding="utf-8"))
+          assert v3["database"]["version"] == 3
+          columns = [f["columnName"] for e in v3["database"]["entities"]
+                     if e["tableName"] == "remote_tracks" for f in e["fields"]]
+          assert all(name in columns for name in ("year", "trackNumber", "discNumber"))
+          saved_v3 = json.loads(subprocess.check_output(
+              ["git", "show", "HEAD:" + exported_v3.as_posix()], text=True))
+          assert v3 == saved_v3, "Room v3 schema changed without explicit migration"
+          print("Room schemas v1, v2 and v3 match committed JSON; migration history retained")
+
           PY
       - name: Resolved dependencies
         run: gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath > dependencies.txt
