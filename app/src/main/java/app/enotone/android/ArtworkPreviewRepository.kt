@@ -54,7 +54,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             "|" + target.remoteSize + "|" + target.remoteEtag.orEmpty())
         val file = File(directory, key + ".webp")
         try {
-            if (file.isFile && file.length() in 1L..MAX_DISK_FILE_BYTES) {
+            if (file.isFile && file.length() in 1L..MAX_DISK_FILE_BYTES.toLong()) {
                 decode(file.readBytes())?.let { cached ->
                     file.setLastModified(System.currentTimeMillis())
                     return@withContext cached
@@ -130,7 +130,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             val saved = temp.outputStream().use { out ->
                 bitmap.compress(Bitmap.CompressFormat.WEBP, 85, out)
             }
-            if (!saved || temp.length() !in 1L..MAX_DISK_FILE_BYTES) return
+            if (!saved || temp.length() !in 1L..MAX_DISK_FILE_BYTES.toLong()) return
             if (!temp.renameTo(file)) return
             trimCache()
         } catch (_: Exception) {
