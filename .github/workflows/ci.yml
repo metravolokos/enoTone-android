@@ -106,6 +106,24 @@ jobs:
       - name: Compile stable Preview variant (no signing secrets)
         run: gradle --no-daemon :app:compileStablePreviewKotlin
 
+      - name: Capture compiler-generated Room v4 schema for migration review
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("core/database/schemas/app.enotone.database.EnoToneDatabase/4.json")
+          if not path.is_file():
+              raise SystemExit("KSP has not exported Room schema v4")
+          schema = json.loads(path.read_text(encoding="utf-8"))
+          assert schema["database"]["version"] == 4
+          fields = [f["columnName"] for entity in schema["database"]["entities"]
+                    if entity["tableName"] == "remote_tracks" for f in entity["fields"]]
+          assert "genre" in fields
+          print("ENOTONE_V4_SCHEMA_BEGIN")
+          print(json.dumps(schema, separators=(",", ":"), ensure_ascii=True))
+          print("ENOTONE_V4_SCHEMA_END")
+          PY
       - name: Verify Room v1 schema matches committed JSON
         shell: bash
         run: |
