@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -108,6 +107,7 @@ private fun media3PlaybackLabel(player: Player?): String {
 internal fun OfflineLibraryScreen(
     accountEmail: String,
     appPassword: String,
+    initialPage: LibraryPage = LibraryPage.TRACKS,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
@@ -119,13 +119,10 @@ internal fun OfflineLibraryScreen(
         mutableStateOf<Map<String, QueueTrack>>(emptyMap())
     }
     var search by remember(accountEmail) { mutableStateOf("") }
-    var section by remember(accountEmail) { mutableStateOf(LibraryPage.TRACKS) }
+    var section by remember(accountEmail, initialPage) { mutableStateOf(initialPage) }
     val pagePreferences = remember(context) { LibraryPagePreferences(context) }
-    var hiddenPages by remember(context) {
-        mutableStateOf(pagePreferences.hiddenPages())
-    }
+    val hiddenPages = remember(context) { pagePreferences.hiddenPages() }
     val visiblePages = remember(hiddenPages) { LibraryPageVisibility.visible(hiddenPages) }
-    var showPageSettings by remember { mutableStateOf(false) }
     var selectedGroupKey by remember(accountEmail) { mutableStateOf<String?>(null) }
     var loading by remember(accountEmail) { mutableStateOf(true) }
     var failed by remember(accountEmail) { mutableStateOf(false) }
@@ -348,54 +345,6 @@ internal fun OfflineLibraryScreen(
             } ?: emptyList()
         }
         OfflineTrackCatalog.search(candidates, search)
-    }
-    if (showPageSettings) {
-        AlertDialog(
-            onDismissRequest = { showPageSettings = false },
-            title = { Text(stringResource(R.string.library_pages_settings_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.library_pages_settings_explanation),
-                        style = MaterialTheme.typography.bodySmall)
-                    LibraryPageVisibility.defaultOrder.forEach { page ->
-                        val title = when (page) {
-                            LibraryPage.TRACKS -> R.string.library_tab_tracks
-                            LibraryPage.ALBUMS -> R.string.library_tab_albums
-                            LibraryPage.ARTISTS -> R.string.library_tab_artists
-                            LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
-                        }
-                        val isVisible = page in visiblePages
-                        val canToggle = !isVisible || visiblePages.size > 1
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Checkbox(
-                                checked = isVisible,
-                                enabled = canToggle,
-                                onCheckedChange = { shouldShow ->
-                                    val updated = LibraryPageVisibility.withVisibility(
-                                        hiddenPages, page, shouldShow,
-                                    )
-                                    if (updated != hiddenPages) {
-                                        hiddenPages = updated
-                                        pagePreferences.saveHiddenPages(updated)
-                                    }
-                                },
-                            )
-                            Text(stringResource(title))
-                        }
-                    }
-                    Text(stringResource(R.string.library_pages_settings_last_visible),
-                        style = MaterialTheme.typography.bodySmall)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPageSettings = false }) {
-                    Text(stringResource(R.string.library_pages_settings_done))
-                }
-            },
-        )
     }
     if (showPlayerDetails && selectedTitle != null) {
         AlertDialog(
@@ -640,18 +589,16 @@ internal fun OfflineLibraryScreen(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = {
-                if (selectedGroupKey != null) {
+            if (selectedGroupKey != null) {
+                IconButton(onClick = {
                     selectedGroupKey = null
                     search = ""
-                } else onBack()
-            }) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_action_back),
-                    contentDescription = stringResource(
-                        if (selectedGroupKey != null) R.string.library_group_back
-                        else R.string.library_back),
-                )
+                }) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_action_back),
+                        contentDescription = stringResource(R.string.library_group_back),
+                    )
+                }
             }
             Text(
                 text = selectedGroup?.name ?: stringResource(when (section) {
@@ -676,12 +623,6 @@ internal fun OfflineLibraryScreen(
                         R.drawable.ic_action_close else R.drawable.ic_action_search),
                     contentDescription = stringResource(if (searchExpanded)
                         R.string.library_close_search else R.string.library_open_search),
-                )
-            }
-            IconButton(onClick = { showPageSettings = true }) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_action_pages),
-                    contentDescription = stringResource(R.string.library_pages_short),
                 )
             }
         }
@@ -894,58 +835,21 @@ internal fun OfflineLibraryScreen(
                 )
             }
         }
-        // M2: a compact bottom rail saves vertical space and keeps all four pages
-        // accessible without scrolling or long text buttons. Current title is in header.
-        HorizontalDivider()
-        Row(
-            modifier = Modifier.fillMaxWidth().height(52.dp).selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            visiblePages.forEach { page ->
-                val label = stringResource(when (page) {
-                    LibraryPage.TRACKS -> R.string.library_tab_tracks
-                    LibraryPage.ALBUMS -> R.string.library_tab_albums
-                    LibraryPage.ARTISTS -> R.string.library_tab_artists
-                    LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
-                })
-                val icon = when (page) {
-                    LibraryPage.TRACKS -> R.drawable.ic_nav_tracks
-                    LibraryPage.ALBUMS -> R.drawable.ic_nav_albums
-                    LibraryPage.ARTISTS -> R.drawable.ic_nav_artists
-                    LibraryPage.ALBUM_ARTISTS -> R.drawable.ic_nav_album_artists
+        // Five-slot navigation (Home + four music pages) shared with Home.
+        // Category visibility is managed only in Settings.
+        CompactLibraryNavigation(
+            selectedPage = section,
+            visiblePages = visiblePages,
+            onHome = onBack,
+            onPageSelected = { page ->
+                if (page != section) {
+                    section = page
+                    selectedGroupKey = null
+                    search = ""
+                    searchExpanded = false
                 }
-                val active = section == page
-                Box(
-                    modifier = Modifier.weight(1f).height(48.dp)
-                        .background(
-                            if (active) MaterialTheme.colorScheme.secondaryContainer
-                            else Color.Transparent,
-                            RoundedCornerShape(16.dp),
-                        )
-                        .selectable(
-                            selected = active,
-                            enabled = !selecting,
-                            role = Role.Tab,
-                            onClick = {
-                                if (section != page) {
-                                    section = page
-                                    selectedGroupKey = null
-                                    search = ""
-                                }
-                            },
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(icon),
-                        contentDescription = label,
-                        tint = if (active) MaterialTheme.colorScheme.onSecondaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-            }
-        }
+            },
+            enabled = !selecting,
+        )
     }
 }
