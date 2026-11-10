@@ -34,6 +34,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
@@ -381,6 +384,24 @@ internal fun OfflineLibraryScreen(
     val shownGroups = remember(groups, search) {
         groups.filter { OfflineLibraryGrouping.matches(it, search) }
     }
+    // Stable album representatives from the existing in-RAM Room snapshot.
+    // No extra DB query. One candidate per actual album (never the mixed
+    // Unknown Album group); only visible grid tiles start bounded image GETs.
+    val albumArtworkTargets = remember(groups, preparedById, section) {
+        if (section != LibraryPage.ALBUMS) emptyMap()
+        else groups.mapNotNull { group ->
+            if (group.key == "album:missing") return@mapNotNull null
+            val item = group.trackIds.asSequence()
+                .mapNotNull { preparedById[it] }.firstOrNull()
+                ?: return@mapNotNull null
+            group.key to PlayingArtworkTarget(
+                id = item.id,
+                encodedPath = item.encodedPath,
+                remoteSize = item.remoteSize,
+                remoteEtag = item.remoteEtag,
+            )
+        }.toMap()
+    }
     // The visible set is also the playback queue context; no Media3 changes.
     val visible = remember(tracks, section, selectedGroup, search) {
         val candidates = when (section) {
@@ -704,6 +725,34 @@ internal fun OfflineLibraryScreen(
             loading -> Text(stringResource(R.string.library_loading))
             failed -> Text(stringResource(R.string.library_failed))
             tracks.isEmpty() -> Text(stringResource(R.string.library_empty))
+            // Only the album page uses a cover grid; performers remain
+            // readable lists until their detailed views are implemented.
+            section == LibraryPage.ALBUMS && selectedGroup == null -> {
+                if (shownGroups.isEmpty()) {
+                    Text(stringResource(R.string.library_groups_empty))
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 148.dp),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        gridItems(shownGroups, key = { it.key }) { group ->
+                            AlbumArtworkTile(
+                                group = group,
+                                target = albumArtworkTargets[group.key],
+                                repository = artworkRepository,
+                                accountEmail = accountEmail,
+                                appPassword = appPassword,
+                                onOpen = {
+                                    selectedGroupKey = group.key
+                                    search = ""
+                                },
+                            )
+                        }
+                    }
+                }
+            }
             section != LibraryPage.TRACKS && selectedGroup == null -> {
                 if (shownGroups.isEmpty()) {
                     Text(stringResource(R.string.library_groups_empty))
