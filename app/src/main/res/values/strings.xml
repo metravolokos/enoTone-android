@@ -105,9 +105,11 @@
     <string name="library_tab_tracks">Треки</string>
     <string name="library_tab_albums">Альбомы</string>
     <string name="library_tab_artists">Исполнители</string>
+    <string name="library_tab_album_artists">Исполнители альбомов</string>
+    <string name="library_unknown_album">Неизвестный альбом</string>
     <string name="library_group_back">К списку групп</string>
     <string name="library_group_count">Найдено групп: %1$d</string>
-    <string name="library_group_tags_only">Показаны только альбомы и исполнители с уже сохранёнными тегами. Остальные файлы остаются в разделе «Треки».</string>
+    <string name="library_group_tags_only">Группировка по сохранённым тегам: «Исполнители» — исполнители треков, «Исполнители альбомов» — отдельный тег. Треки с известными метаданными, но без альбома, находятся в «Неизвестный альбом».</string>
     <string name="library_group_tracks">Треков: %1$d</string>
     <string name="library_groups_empty">Нет распознанных групп. Теги можно обрабатывать отдельно небольшими партиями.</string>
     <string name="pilot_resume_bounded">Продолжить индексацию (до 100 файлов)</string>
