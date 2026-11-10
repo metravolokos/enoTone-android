@@ -78,7 +78,7 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         # The track/albums LazyColumn is laid out BEFORE the compact footer.
         # The huge playback controls must only render inside the dialog.
         self.assertLess(ui.index("if (showPlayerDetails && selectedTitle != null)"),
-            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(16.dp)"))
+            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)"))
         self.assertLess(ui.index("items(visible, key = { it.id })"),
             ui.index("// Fixed-height mini player:"))
         self.assertNotIn("R.string.library_group_tags_only", ui)
@@ -109,6 +109,38 @@ class CleanLibraryUiContractTest(unittest.TestCase):
             self.assertEqual(xml.attrib.get(
                 "{http://schemas.android.com/apk/res/android}height"), "24dp")
 
+    def test_compact_app_bar_search_and_mini_player(self):
+        ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
+        self.assertIn("modifier = Modifier.fillMaxWidth().height(48.dp)", ui)
+        self.assertIn("R.drawable.ic_action_back", ui)
+        self.assertIn("R.drawable.ic_action_pages", ui)
+        self.assertIn("if (searchExpanded) {", ui)
+        self.assertIn("if (search.isNotBlank()) {", ui)
+        self.assertIn("R.drawable.ic_action_search", ui)
+        self.assertIn("R.string.library_close_search", ui)
+        self.assertIn("R.string.library_open_search", ui)
+        self.assertIn("selectedGroupKey = null", ui)
+        self.assertIn("selectedArtist = mediaMetadata.artist?.toString()", ui)
+        self.assertIn("selectedArtist = track.artist", ui)
+        mini = ui[ui.index("// Fixed-height mini player:"):
+                  ui.index("// M2: a compact bottom rail")]
+        self.assertIn("Modifier.fillMaxWidth().height(56.dp)", mini)
+        self.assertIn("Modifier.fillMaxWidth().height(2.dp)", mini)
+        self.assertIn("R.drawable.ic_action_play", mini)
+        self.assertIn("R.drawable.ic_action_pause", mini)
+        self.assertIn("R.drawable.ic_action_next", mini)
+        self.assertIn("R.drawable.ic_action_expand", mini)
+        self.assertIn("contentDescription = stringResource", mini)
+        self.assertNotIn("TextButton(", mini)
+        # The app bar and footer use platform text descriptions with 48dp targets.
+        for name in ("back", "search", "close", "pages", "play", "pause",
+                     "next", "expand"):
+            path = ROOT / f"app/src/main/res/drawable/ic_action_{name}.xml"
+            xml = ET.parse(path).getroot()
+            self.assertEqual(xml.tag, "vector")
+            self.assertEqual(xml.attrib.get(
+                "{http://schemas.android.com/apk/res/android}height"), "24dp")
+
     def test_new_ux_strings_in_both_languages(self):
         needed = {
             "home_title", "home_hint", "home_connection_settings",
@@ -117,7 +149,8 @@ class CleanLibraryUiContractTest(unittest.TestCase):
             "home_index_summary", "home_show_index_details",
             "home_hide_index_details", "library_pages_short",
             "library_player_title", "library_player_open",
-            "library_player_close",
+            "library_player_close", "library_open_search",
+            "library_close_search", "library_search_short",
         }
         for path in ("app/src/main/res/values/strings.xml",
                      "app/src/main/res/values-en/strings.xml"):
