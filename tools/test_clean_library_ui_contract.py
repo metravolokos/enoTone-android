@@ -84,6 +84,17 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertNotIn("R.string.library_group_tags_only", ui)
         self.assertNotIn("deleteDatabase(", ui)
 
+    def test_selected_library_page_has_distinct_material_control(self):
+        ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
+        self.assertIn("if (section == page) {", ui)
+        self.assertIn("Button(enabled = !selecting, onClick = {", ui)
+        self.assertIn("OutlinedButton(enabled = !selecting, onClick = {", ui)
+        self.assertIn("Already selected: preserve search and group context.", ui)
+        self.assertIn("section = page", ui)
+        # Moving to a different page resets the old group and its search.
+        self.assertIn("selectedGroupKey = null", ui)
+        self.assertIn('search = ""', ui)
+
     def test_new_ux_strings_in_both_languages(self):
         needed = {
             "home_title", "home_hint", "home_connection_settings",
