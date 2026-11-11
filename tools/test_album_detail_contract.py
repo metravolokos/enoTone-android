@@ -65,11 +65,11 @@ class AlbumDetailContractTest(unittest.TestCase):
             "group.subtitle?.takeIf",
             "R.drawable.ic_nav_albums",
             "R.string.album_cover_description",
-            "R.string.album_play_all",
+            "R.string.ui_play",
             "Button(",
             "enabled = canPlay",
             "onClick = onPlayAll",
-            "modifier = Modifier.size(240.dp)",
+            "modifier = Modifier.size(242.dp)",
         ):
             self.assertIn(required, header)
         self.assertNotIn("WebDavRangeReader(", header)

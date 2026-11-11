@@ -1,13 +1,18 @@
 package app.enotone.android
 
-import android.content.Context
 import android.graphics.Bitmap
+import android.content.Context
 import android.media.AudioManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.Slider
+import androidx.compose.foundation.layout.width
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,15 +28,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -53,13 +56,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,9 +70,9 @@ import androidx.media3.common.Player
 import app.enotone.playback.PlaybackSeekPolicy
 
 /**
- * Full-screen dark-on-artwork sheet in both app themes. All colors are
- * calculated from the existing in-memory album bitmap; NO WebDAV/Room/GET.
- * The existing Media3 service and queue remain the sole playback authority.
+ * Screenshot-reference music sheet: real cover from the existing image cache,
+ * saturated soft artwork background, stable controls and placeholder actions.
+ * Never touches the Media3 queue, WebDAV or Room directly.
  */
 @Composable
 internal fun NowPlayingScreen(
@@ -98,66 +101,45 @@ internal fun NowPlayingScreen(
     onCycleRepeat: () -> Unit,
     onToggleShuffle: () -> Unit,
 ) {
-    // White system icons above the full-bleed artwork sheet; restore on close.
     DisposableEffect(Unit) {
         UiAppearance.showNowPlaying(true)
         onDispose { UiAppearance.showNowPlaying(false) }
     }
+    val seekLabel = stringResource(R.string.playback_seek_slider)
+    val closeLabel = stringResource(R.string.library_player_close)
+    val hasDuration = PlaybackSeekPolicy.isKnownDuration(durationMs)
     var isScrubbing by remember(trackId) { mutableStateOf(false) }
     var scrubFraction by remember(trackId) { mutableFloatStateOf(0f) }
-    val hasDuration = PlaybackSeekPolicy.isKnownDuration(durationMs)
-    val shownFraction = if (isScrubbing) scrubFraction
+    val fraction = if (isScrubbing) scrubFraction
         else PlaybackSeekPolicy.fraction(positionMs, durationMs)
-    val shownPosition = if (isScrubbing) {
+    val position = if (isScrubbing)
         PlaybackSeekPolicy.positionForFraction(durationMs, scrubFraction) ?: 0L
-    } else positionMs
-    val pauseIsAvailable = playbackState == "PLAYING" || playbackState == "BUFFERING"
-    val stateText = when (playbackState) {
-        "BUFFERING" -> stringResource(R.string.playback_buffering)
+        else positionMs
+    val isPlaying = playbackState == "PLAYING" || playbackState == "BUFFERING"
+    val status = when (playbackState) {
         "PAUSED" -> stringResource(R.string.playback_paused)
-        "ENDED" -> stringResource(R.string.playback_ended)
+        "BUFFERING" -> stringResource(R.string.playback_buffering)
         "ERROR" -> stringResource(R.string.playback_error, errorCode)
         "MISSING_PASSWORD" -> stringResource(R.string.playback_missing_password)
         "MISSING_TRACK" -> stringResource(R.string.playback_missing_track)
-        "LOADING" -> stringResource(R.string.playback_loading)
         else -> ""
     }
-    val repeatText = when (repeatMode) {
-        Player.REPEAT_MODE_ONE -> stringResource(R.string.playback_repeat_one)
-        Player.REPEAT_MODE_ALL -> stringResource(R.string.playback_repeat_all)
-        else -> stringResource(R.string.playback_repeat_off)
-    }
-    val repeatActive = repeatMode != Player.REPEAT_MODE_OFF
-    val seekLabel = stringResource(R.string.playback_seek_slider)
-
     val sampled = remember(artwork) { artworkColors(artwork) }
-    val spot1 by animateColorAsState(sampled.first, tween(600), label = "artworkSpot1")
-    val spot2 by animateColorAsState(sampled.second, tween(600), label = "artworkSpot2")
-    val middleColor by animateColorAsState(
-        lerp(sampled.first, sampled.second, 0.54f), tween(600), label = "artworkSpot3",
-    )
+    val primary by animateColorAsState(sampled.first, tween(700), label = "primaryArtworkColor")
+    val secondary by animateColorAsState(sampled.second, tween(700), label = "secondaryArtworkColor")
+    val base = lerp(primary, Color.Black, 0.40f)
     val coverScale by animateFloatAsState(
-        targetValue = if (playbackState == "PAUSED") 0.84f else 1f,
-        animationSpec = tween(280),
-        label = "pausedArtworkScale",
+        if (playbackState == "PAUSED") 0.84f else 1f,
+        tween(270), label = "pausedAlbumScale",
     )
-
-    // Controls and text remain white regardless of the app's light/dark mode.
-    val ink = Color.White
-    val secondaryInk = Color.White.copy(alpha = 0.65f)
-    val quietInk = Color.White.copy(alpha = 0.45f)
-    val sliderPalette = SliderDefaults.colors(
-        thumbColor = Color.White,
-        activeTrackColor = Color.White.copy(alpha = 0.88f),
-        inactiveTrackColor = Color.White.copy(alpha = 0.30f),
-        disabledThumbColor = quietInk,
-        disabledActiveTrackColor = quietInk,
-        disabledInactiveTrackColor = quietInk,
-    )
-    // The system media volume is real state. No inactive/fake volume control.
-    val context = LocalContext.current
-    val audio = remember(context) {
-        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    val white = Color.White
+    val muted = Color.White.copy(alpha = 0.67f)
+    val rail = Color.White.copy(alpha = 0.34f)
+    val hasError = playbackState in setOf("ERROR", "MISSING_PASSWORD", "MISSING_TRACK")
+    var menuOpen by remember { mutableStateOf(false) }
+    val appContext = LocalContext.current
+    val audio = remember(appContext) {
+        appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
     val maxVolume = remember(audio) {
         audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
@@ -167,107 +149,84 @@ internal fun NowPlayingScreen(
             audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume,
         )
     }
+    val repeatText = when (repeatMode) {
+        Player.REPEAT_MODE_ONE -> stringResource(R.string.playback_repeat_one)
+        Player.REPEAT_MODE_ALL -> stringResource(R.string.playback_repeat_all)
+        else -> stringResource(R.string.playback_repeat_off)
+    }
 
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
-            .background(Color(0xFF19191D))
+        modifier = Modifier.fillMaxSize().background(base)
             .drawBehind {
-                // Three broad radial spots make a softened artwork palette.
-                // Never use a full-resolution image blur on every frame.
-                val radius = maxOf(size.width, size.height) * 0.93f
-                drawRect(
-                    Brush.radialGradient(
-                        colors = listOf(spot1.copy(alpha = 0.95f), Color.Transparent),
-                        center = Offset(size.width * 0.12f, size.height * 0.17f),
-                        radius = radius,
-                    ),
-                )
-                drawRect(
-                    Brush.radialGradient(
-                        colors = listOf(spot2.copy(alpha = 0.82f), Color.Transparent),
-                        center = Offset(size.width * 0.88f, size.height * 0.66f),
-                        radius = radius,
-                    ),
-                )
-                drawRect(
-                    Brush.radialGradient(
-                        colors = listOf(middleColor.copy(alpha = 0.52f), Color.Transparent),
-                        center = Offset(size.width * 0.12f, size.height * 0.92f),
-                        radius = radius * 0.73f,
-                    ),
-                )
-                // The sheet ALWAYS uses white controls, even in Light mode.
-                drawRect(Color.Black.copy(alpha = 0.28f))
+                val wide = maxOf(size.width, size.height)
+                drawRect(Brush.radialGradient(
+                    listOf(primary.copy(alpha = .78f), Color.Transparent),
+                    center = Offset(size.width * .17f, size.height * .12f),
+                    radius = wide * .86f,
+                ))
+                drawRect(Brush.radialGradient(
+                    listOf(secondary.copy(alpha = .61f), Color.Transparent),
+                    center = Offset(size.width * .93f, size.height * .62f),
+                    radius = wide * .72f,
+                ))
+                drawRect(Brush.radialGradient(
+                    listOf(lerp(primary, secondary, .5f).copy(alpha = .42f), Color.Transparent),
+                    center = Offset(size.width * .12f, size.height * .96f),
+                    radius = wide * .72f,
+                ))
+                drawRect(Color.Black.copy(alpha = .20f))
             },
     ) {
-        // Android dp is density-independent, not identical to CSS px.
-        // 334dp is an upper bound; keep all controls reachable on Huawei.
-        val coverSide = minOf(
-            (maxWidth - 56.dp).coerceAtLeast(160.dp),
-            (maxHeight * 0.40f).coerceAtLeast(170.dp),
-            334.dp,
-        )
+        // Dimensions follow the Android screenshot reference, not an iOS
+        // point-to-pixel conversion. The gallery shrinks at low available height.
+        val coverSide = minOf(maxWidth - 54.dp, maxHeight * .37f, 304.dp)
+        val compact = maxHeight < 720.dp
+        val artGap = if (compact) 14.dp else 30.dp
+        val lowerGap = if (compact) 10.dp else 22.dp
+        var dragDistance by remember { mutableFloatStateOf(0f) }
         Column(
             modifier = Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 28.dp, vertical = 8.dp),
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragStart = { dragDistance = 0f },
+                        onVerticalDrag = { change, distance ->
+                            dragDistance += distance
+                            change.consume()
+                        },
+                        onDragEnd = { if (dragDistance > 130f) onClose() },
+                    )
+                }
+                .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            var dragAmount by remember { mutableFloatStateOf(0f) }
-            Row(
-                modifier = Modifier.fillMaxWidth().height(44.dp)
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onDragStart = { dragAmount = 0f },
-                            onVerticalDrag = { change, distance ->
-                                dragAmount += distance
-                                change.consume()
-                            },
-                            onDragEnd = { if (dragAmount > 55f) onClose() },
-                        )
-                    },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onClose, modifier = Modifier.size(44.dp)) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_back),
-                        contentDescription = stringResource(R.string.library_player_close),
-                        tint = ink,
-                    )
-                }
-                Box(
-                    modifier = Modifier.weight(1f).height(44.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier.size(width = 36.dp, height = 5.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.38f)),
-                    )
-                }
-                Spacer(modifier = Modifier.size(44.dp))
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            // The halo and 32dp drop-shadow are outside the clipped artwork.
-            // The allocated layout height never changes during PAUSED.
+            // Narrow sheet grabber. Tapping it also closes the sheet.
             Box(
-                modifier = Modifier.size(coverSide + 20.dp)
-                    .graphicsLayer { scaleX = coverScale; scaleY = coverScale },
+                modifier = Modifier.fillMaxWidth().height(44.dp)
+                    .clickable(onClick = onClose)
+                    .semantics { contentDescription = closeLabel },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.size(width = 36.dp, height = 5.dp)
+                    .clip(CircleShape).background(Color.White.copy(alpha = .40f)))
+            }
+            Spacer(Modifier.weight(if (compact) .12f else .20f))
+            Box(
+                modifier = Modifier.size(coverSide + 16.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
                     modifier = Modifier.size(coverSide)
+                        .graphicsLayer { scaleX = coverScale; scaleY = coverScale }
                         .shadow(
-                            elevation = 32.dp,
+                            elevation = 28.dp,
                             shape = RoundedCornerShape(8.dp),
                             clip = false,
-                            ambientColor = Color.Black.copy(alpha = 0.92f),
-                            spotColor = Color.Black.copy(alpha = 0.90f),
+                            ambientColor = Color.Black.copy(alpha = .86f),
+                            spotColor = Color.Black.copy(alpha = .90f),
                         )
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF303034)),
+                        .background(Color.White.copy(alpha = .13f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (artwork != null) {
@@ -281,221 +240,187 @@ internal fun NowPlayingScreen(
                         Icon(
                             painter = painterResource(R.drawable.ic_nav_albums),
                             contentDescription = stringResource(R.string.now_playing_no_artwork),
-                            tint = secondaryInk,
-                            modifier = Modifier.size(64.dp),
+                            tint = muted,
+                            modifier = Modifier.size(66.dp),
                         )
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(20.dp))
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+            Spacer(Modifier.height(artGap))
+            Row(
+                modifier = Modifier.fillMaxWidth().height(62.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = title,
-                    fontSize = 20.sp,
-                    lineHeight = 25.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ink,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                val subtitle = artist?.takeIf { it.isNotBlank() }
-                    ?: album?.takeIf { it.isNotBlank() }
-                Text(
-                    text = subtitle.orEmpty(),
-                    fontSize = 20.sp,
-                    lineHeight = 25.sp,
-                    color = secondaryInk,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                // The error occupies this existing area, not an extra row.
-                if (playbackState in setOf("ERROR", "MISSING_PASSWORD", "MISSING_TRACK")) {
+                Column(modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
-                        stateText,
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelSmall,
-                        maxLines = 1,
+                        title, color = white, fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp, lineHeight = 25.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        artist?.takeIf { it.isNotBlank() }
+                            ?: album.orEmpty(),
+                        color = muted, fontSize = 20.sp, lineHeight = 25.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
-            }
-            Spacer(modifier = Modifier.height(18.dp))
-            Slider(
-                value = shownFraction,
-                onValueChange = { value ->
-                    isScrubbing = true
-                    scrubFraction = value
-                },
-                onValueChangeFinished = {
-                    if (canSeek && controlsEnabled && hasDuration) {
-                        onSeekFraction(scrubFraction)
+                // Favorites are not indexed yet: keep the correct silhouette.
+                IconButton(enabled = false, onClick = {}, modifier = Modifier
+                    .size(36.dp).background(Color.White.copy(alpha = .18f), CircleShape)) {
+                    Icon(painterResource(R.drawable.ic_music_star),
+                        contentDescription = null, tint = white,
+                        modifier = Modifier.size(21.dp))
+                }
+                Spacer(Modifier.size(10.dp))
+                Box {
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier
+                        .size(36.dp).background(Color.White.copy(alpha = .18f), CircleShape)) {
+                        Icon(painterResource(R.drawable.ic_action_more),
+                            contentDescription = stringResource(R.string.album_actions),
+                            tint = white)
                     }
-                    isScrubbing = false
-                },
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            leadingIcon = { Icon(painterResource(R.drawable.ic_action_shuffle),
+                                contentDescription = null) },
+                            text = { Text(stringResource(if (shuffleEnabled)
+                                R.string.playback_shuffle_on else R.string.playback_shuffle_off)) },
+                            onClick = { menuOpen = false; onToggleShuffle() },
+                            enabled = controlsEnabled,
+                        )
+                        DropdownMenuItem(
+                            leadingIcon = { Icon(painterResource(R.drawable.ic_action_repeat),
+                                contentDescription = null) },
+                            text = { Text(repeatText) },
+                            onClick = { menuOpen = false; onCycleRepeat() },
+                            enabled = controlsEnabled,
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(stringResource(R.string.now_playing_queue_short,
+                                    queuePosition, queueTotal))
+                            },
+                            onClick = { menuOpen = false },
+                            enabled = false,
+                        )
+                        // Retains the real system STREAM_MUSIC volume from
+                        // Preview #322 without adding an extra row to the
+                        // screenshot-matched Now Playing surface.
+                        Column(Modifier.width(220.dp).padding(horizontal = 16.dp)) {
+                            Text(stringResource(R.string.ui_volume), fontSize = 13.sp)
+                            Slider(
+                                value = volume,
+                                onValueChange = { next ->
+                                    volume = next
+                                    audio.setStreamVolume(
+                                        AudioManager.STREAM_MUSIC,
+                                        (next * maxVolume).toInt().coerceIn(0, maxVolume), 0,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            if (hasError) {
+                Text(status, color = white, style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth())
+            }
+            Spacer(Modifier.height(lowerGap))
+            MusicThinSlider(
+                value = fraction,
                 enabled = canSeek && controlsEnabled && hasDuration,
-                colors = sliderPalette,
                 modifier = Modifier.fillMaxWidth().semantics {
                     contentDescription = seekLabel
+                },
+                onValueChange = { scrubFraction = it; isScrubbing = true },
+                onFinished = {
+                    if (canSeek && controlsEnabled && hasDuration) onSeekFraction(scrubFraction)
+                    isScrubbing = false
                 },
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                Text(PlaybackSeekPolicy.formatTime(position), color = muted,
+                    fontSize = 12.sp)
+                // The quality capsule is a visual placeholder until codecs are
+                // passed from Media3; it does not claim a measured audio format.
+                Box(Modifier.background(Color.White.copy(alpha = .10f),
+                    RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 5.dp)) {
+                    Text("Lossless", color = muted, fontSize = 11.sp)
+                }
+                val remaining = (durationMs - position).coerceAtLeast(0L)
                 Text(
-                    text = PlaybackSeekPolicy.formatTime(shownPosition),
-                    color = secondaryInk,
-                    fontSize = 12.sp,
-                )
-                val remaining = (durationMs - shownPosition).coerceAtLeast(0L)
-                Text(
-                    text = if (hasDuration) "-" + PlaybackSeekPolicy.formatTime(remaining)
+                    if (hasDuration) "-"+ PlaybackSeekPolicy.formatTime(remaining)
                         else stringResource(R.string.playback_duration_unknown),
-                    color = secondaryInk,
-                    fontSize = 12.sp,
+                    color = muted, fontSize = 12.sp,
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.weight(if (compact) .14f else .36f))
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(42.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(
-                    enabled = controlsEnabled && hasPrevious,
-                    onClick = onPrevious,
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_previous),
-                        contentDescription = stringResource(R.string.playback_previous),
-                        tint = ink,
-                        modifier = Modifier.size(42.dp),
-                    )
-                }
-                IconButton(
-                    enabled = controlsEnabled,
-                    onClick = onPlayPause,
-                    modifier = Modifier.size(64.dp).semantics {
-                        stateDescription = stateText
-                    },
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (pauseIsAvailable) R.drawable.ic_action_pause
-                            else R.drawable.ic_action_play,
-                        ),
-                        contentDescription = stringResource(
-                            if (pauseIsAvailable) R.string.playback_pause
-                            else R.string.playback_resume,
-                        ),
-                        tint = ink,
-                        modifier = Modifier.size(56.dp),
-                    )
-                }
-                IconButton(
-                    enabled = controlsEnabled && hasNext,
-                    onClick = onNext,
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_next),
-                        contentDescription = stringResource(R.string.playback_next),
-                        tint = ink,
-                        modifier = Modifier.size(42.dp),
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(22.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_volume_low),
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = secondaryInk,
-                )
-                Slider(
-                    value = volume,
-                    onValueChange = { newValue ->
-                        volume = newValue
-                        audio.setStreamVolume(
-                            AudioManager.STREAM_MUSIC,
-                            (newValue * maxVolume).toInt().coerceIn(0, maxVolume),
-                            0,
-                        )
-                    },
-                    colors = sliderPalette,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    painter = painterResource(R.drawable.ic_volume_high),
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = secondaryInk,
-                )
-            }
-            Spacer(modifier = Modifier.height(14.dp))
-            // Only REAL controls. Lyrics, casting and queue-sheet buttons must
-            // not appear until those features have a working implementation.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(76.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
-                    enabled = controlsEnabled && queueTotal > 0,
-                    onClick = onToggleShuffle,
-                    modifier = Modifier
-                        .background(
-                            if (shuffleEnabled) Color.White.copy(alpha = 0.20f)
-                            else Color.Transparent,
-                            RoundedCornerShape(8.dp),
-                        ),
+                    onClick = onPrevious, enabled = controlsEnabled && hasPrevious,
+                    modifier = Modifier.size(52.dp),
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_shuffle),
-                        contentDescription = stringResource(
-                            if (shuffleEnabled) R.string.playback_shuffle_on
-                            else R.string.playback_shuffle_off,
-                        ),
-                        tint = ink,
-                    )
-                }
-                if (queueTotal > 0) {
-                    Text(
-                        text = stringResource(R.string.now_playing_queue_short,
-                            queuePosition, queueTotal),
-                        color = quietInk,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
+                    Icon(painterResource(R.drawable.ic_action_previous),
+                        contentDescription = stringResource(R.string.playback_previous),
+                        tint = white, modifier = Modifier.size(42.dp))
                 }
                 IconButton(
-                    enabled = controlsEnabled && queueTotal > 0,
-                    onClick = onCycleRepeat,
-                    modifier = Modifier.background(
-                        if (repeatActive) Color.White.copy(alpha = 0.20f)
-                        else Color.Transparent,
-                        RoundedCornerShape(8.dp),
-                    ),
+                    onClick = onPlayPause, enabled = controlsEnabled,
+                    modifier = Modifier.size(72.dp).semantics { stateDescription = status },
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_action_repeat),
-                        contentDescription = stringResource(
-                            R.string.playback_repeat_control, repeatText,
-                        ),
-                        tint = ink,
-                    )
+                        painterResource(if (isPlaying)
+                            R.drawable.ic_action_pause else R.drawable.ic_action_play),
+                        contentDescription = stringResource(if (isPlaying)
+                            R.string.playback_pause else R.string.playback_resume),
+                        tint = white, modifier = Modifier.size(60.dp))
+                }
+                IconButton(
+                    onClick = onNext, enabled = controlsEnabled && hasNext,
+                    modifier = Modifier.size(52.dp),
+                ) {
+                    Icon(painterResource(R.drawable.ic_action_next),
+                        contentDescription = stringResource(R.string.playback_next),
+                        tint = white, modifier = Modifier.size(42.dp))
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.weight(if (compact) .22f else .44f))
+            Row(
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Placeholder surfaces mirror Apple Music: functionality is not
+                // misrepresented by a fake lyrics/cast/queue sheet.
+                IconButton(onClick = {}, enabled = false, modifier = Modifier.size(52.dp)) {
+                    Icon(painterResource(R.drawable.ic_music_lyrics),
+                        contentDescription = null, tint = white.copy(alpha = .78f),
+                        modifier = Modifier.size(25.dp))
+                }
+                IconButton(onClick = {}, enabled = false, modifier = Modifier.size(52.dp)) {
+                    Icon(painterResource(R.drawable.ic_music_cast),
+                        contentDescription = null, tint = white.copy(alpha = .78f),
+                        modifier = Modifier.size(25.dp))
+                }
+                IconButton(onClick = { menuOpen = true }, enabled = controlsEnabled,
+                    modifier = Modifier.size(52.dp)) {
+                    Icon(painterResource(R.drawable.ic_music_queue),
+                        contentDescription = stringResource(R.string.playback_repeat_control, repeatText),
+                        tint = white.copy(alpha = .8f), modifier = Modifier.size(25.dp))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }

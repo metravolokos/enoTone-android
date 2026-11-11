@@ -18,6 +18,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -57,6 +60,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -461,6 +466,21 @@ internal fun OfflineLibraryScreen(
         }
     }
     val selectedGroup = groups.firstOrNull { it.key == selectedGroupKey }
+    // Derive the album page background from cached artwork; the header
+    // updates it once its image finishes loading, without new network GETs.
+    var albumBackdropArt by remember(accountEmail, selectedGroupKey) {
+        mutableStateOf<Bitmap?>(selectedGroup?.let { group ->
+            artworkCatalog.byGroupKey[group.key]?.let { art ->
+                artworkRepository.peekAlbum(accountEmail, art, requestedSide = 384)
+            }
+        })
+    }
+    val albumPalette = remember(albumBackdropArt) { artworkColors(albumBackdropArt) }
+    val showColoredAlbum = section == LibraryPage.ALBUMS && selectedGroup != null
+    DisposableEffect(showColoredAlbum) {
+        UiAppearance.showColoredAlbum(showColoredAlbum)
+        onDispose { UiAppearance.showColoredAlbum(false) }
+    }
     val shownGroups = remember(groups, search) {
         groups.filter { OfflineLibraryGrouping.matches(it, search) }
     }
@@ -705,63 +725,116 @@ internal fun OfflineLibraryScreen(
             onToggleShuffle = { playback?.toggleShuffle() },
         )
     } else {
-    Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+    val isAlbumDetail = section == LibraryPage.ALBUMS && selectedGroup != null
+    val albumTop = lerp(albumPalette.first, Color.Black, 0.36f)
+    val albumBottom = lerp(albumPalette.second, Color.Black, 0.68f)
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            if (isAlbumDetail) Brush.verticalGradient(
+                0f to albumTop,
+                .53f to lerp(albumTop, albumBottom, .48f),
+                1f to albumBottom,
+            ) else Brush.verticalGradient(
+                listOf(MaterialTheme.colorScheme.background,
+                    MaterialTheme.colorScheme.background),
+            ),
+        ),
+    ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxSize().systemBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // Primary actions occupy one Material-sized row. Search is opt-in, so
-        // the default screen spends its height on music, not a tall empty field.
         Row(
-            modifier = Modifier.fillMaxWidth().height(if (selectedGroupKey == null) 78.dp else 52.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            if (selectedGroupKey != null) {
-                IconButton(onClick = {
-                    selectedGroupKey = null
-                    search = ""
-                }) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_back),
-                        contentDescription = stringResource(R.string.library_group_back),
-                    )
+            IconButton(
+                onClick = {
+                    if (selectedGroupKey != null) {
+                        selectedGroupKey = null
+                        search = ""
+                    } else onBack()
+                },
+                modifier = Modifier.size(48.dp)
+                    .background(
+                        if (isAlbumDetail) Color.White.copy(alpha = .14f)
+                        else MaterialTheme.colorScheme.surface,
+                        androidx.compose.foundation.shape.CircleShape,
+                    ),
+            ) {
+                Icon(painterResource(R.drawable.ic_action_back),
+                    contentDescription = stringResource(R.string.library_group_back),
+                    tint = if (isAlbumDetail) Color.White
+                        else MaterialTheme.colorScheme.onSurface)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(
+                    onClick = {}, enabled = false, modifier = Modifier.size(48.dp)
+                        .background(if (isAlbumDetail) Color.White.copy(alpha = .13f)
+                            else MaterialTheme.colorScheme.surface,
+                            androidx.compose.foundation.shape.CircleShape),
+                ) {
+                    Icon(painterResource(R.drawable.ic_music_filter),
+                        contentDescription = null,
+                        tint = if (isAlbumDetail) Color.White
+                            else MaterialTheme.colorScheme.onSurface)
+                }
+                IconButton(
+                    onClick = {}, enabled = false, modifier = Modifier.size(48.dp)
+                        .background(if (isAlbumDetail) Color.White.copy(alpha = .13f)
+                            else MaterialTheme.colorScheme.surface,
+                            androidx.compose.foundation.shape.CircleShape),
+                ) {
+                    Icon(painterResource(R.drawable.ic_action_more),
+                        contentDescription = null,
+                        tint = if (isAlbumDetail) Color.White
+                            else MaterialTheme.colorScheme.onSurface)
                 }
             }
+        }
+        if (selectedGroupKey == null) {
             Text(
-                text = selectedGroup?.name ?: stringResource(when (section) {
-                    LibraryPage.TRACKS -> R.string.library_tab_tracks
+                text = stringResource(when (section) {
+                    LibraryPage.TRACKS -> R.string.ui_songs_title
                     LibraryPage.ALBUMS -> R.string.library_tab_albums
                     LibraryPage.ARTISTS -> R.string.library_tab_artists
                     LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
                 }),
-                style = if (selectedGroupKey == null) MaterialTheme.typography.headlineLarge
-                    else MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.headlineLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp),
             )
-            IconButton(onClick = {
-                if (searchExpanded) {
-                    search = ""
-                    searchExpanded = false
-                } else searchExpanded = true
-            }) {
-                Icon(
-                    painter = painterResource(if (searchExpanded)
-                        R.drawable.ic_action_close else R.drawable.ic_action_search),
-                    contentDescription = stringResource(if (searchExpanded)
-                        R.string.library_close_search else R.string.library_open_search),
-                )
-            }
-        }
-        if (searchExpanded) {
-            OutlinedTextField(
+            BasicTextField(
                 value = search,
                 onValueChange = { search = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(stringResource(R.string.library_search_short)) },
                 singleLine = true,
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 17.sp),
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+                    .background(MaterialTheme.colorScheme.surface,
+                        RoundedCornerShape(12.dp))
+                    .padding(horizontal = 16.dp),
+                decorationBox = { innerField ->
+                    Box(modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.CenterStart) {
+                        if (search.isEmpty()) {
+                            Text(
+                                text = stringResource(when (section) {
+                                    LibraryPage.TRACKS -> R.string.ui_search_songs
+                                    LibraryPage.ALBUMS -> R.string.ui_search_albums
+                                    LibraryPage.ARTISTS -> R.string.ui_search_artists
+                                    LibraryPage.ALBUM_ARTISTS -> R.string.ui_search_artists
+                                }),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 17.sp,
+                            )
+                        }
+                        innerField()
+                    }
+                },
             )
         }
         if (search.isNotBlank()) {
@@ -775,41 +848,31 @@ internal fun OfflineLibraryScreen(
             Text(count, style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (section == LibraryPage.TRACKS && selectedGroup == null &&
-            tracks.isNotEmpty() && search.isBlank()) {
+        if ((section == LibraryPage.TRACKS || section == LibraryPage.ALBUMS) &&
+            selectedGroup == null && tracks.isNotEmpty() && search.isBlank()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Button(
-                    enabled = playback != null && !selecting && appPassword.isNotBlank(),
-                    onClick = { visible.firstOrNull()?.let { playTrack(it, visible) } },
-                    modifier = Modifier.weight(1f).height(44.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                ) {
-                    Icon(painterResource(R.drawable.ic_action_play), contentDescription = null)
-                    Text(stringResource(R.string.album_play_all))
-                }
-                Button(
-                    enabled = playback != null && !selecting && appPassword.isNotBlank(),
+                val enabled = playback != null && !selecting && appPassword.isNotBlank()
+                val all = if (section == LibraryPage.TRACKS) visible else tracks
+                MusicListAction(
+                    text = stringResource(R.string.ui_play),
+                    icon = R.drawable.ic_action_play,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                    onClick = { all.firstOrNull()?.let { playTrack(it, all) } },
+                )
+                MusicListAction(
+                    text = stringResource(R.string.library_shuffle_all),
+                    icon = R.drawable.ic_action_shuffle,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
                     onClick = {
-                        val shuffled = visible.shuffled()
+                        val shuffled = all.shuffled()
                         shuffled.firstOrNull()?.let { playTrack(it, shuffled) }
                     },
-                    modifier = Modifier.weight(1f).height(44.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                ) {
-                    Icon(painterResource(R.drawable.ic_action_shuffle), contentDescription = null)
-                    Text(stringResource(R.string.library_shuffle_all))
-                }
+                )
             }
         }
         when {
@@ -950,6 +1013,7 @@ internal fun OfflineLibraryScreen(
                                         albumRefreshSampleIds
                                 }
                             },
+                            onArtworkLoaded = { albumBackdropArt = it },
                         )
                     }
                 }
@@ -967,7 +1031,8 @@ internal fun OfflineLibraryScreen(
                             Text(
                                 text = track.trackNumber?.toString().orEmpty(),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (isAlbumDetail) Color.White.copy(alpha = .70f)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(width = 32.dp, height = 24.dp),
                             )
                         } else {
@@ -986,6 +1051,8 @@ internal fun OfflineLibraryScreen(
                                 text = track.title,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                color = if (isAlbumDetail) Color.White
+                                    else MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                             val subtitle = if (section == LibraryPage.ALBUMS &&
@@ -998,15 +1065,27 @@ internal fun OfflineLibraryScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (isAlbumDetail) Color.White.copy(alpha = .66f)
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                        }
+                        IconButton(
+                            onClick = {}, enabled = false, modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_action_more),
+                                contentDescription = null,
+                                tint = if (isAlbumDetail) Color.White.copy(alpha = .75f)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                     HorizontalDivider(
                         modifier = Modifier.padding(start = if (section == LibraryPage.ALBUMS &&
                             selectedGroup != null) 44.dp else 56.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant,
+                        color = if (isAlbumDetail) Color.White.copy(alpha = .22f)
+                            else MaterialTheme.colorScheme.outlineVariant,
                         thickness = 0.5.dp,
                     )
                 }
@@ -1015,13 +1094,14 @@ internal fun OfflineLibraryScreen(
     }
     Column(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            .navigationBarsPadding()
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // Floating mini player: two transport actions, no progress bar.
         // Touch targets retain the Material 48dp minimum; title opens full player.
         if (selectedTitle != null) {
-            FloatingControlsIsland {
+            FloatingControlsIsland(compact = true) {
             Row(
                 modifier = Modifier.fillMaxWidth().height(56.dp)
                     .pointerInput(Unit) {

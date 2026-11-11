@@ -19,7 +19,7 @@ class NowPlayingContractTest(unittest.TestCase):
             "NowPlayingScreen(",
             "BackHandler(enabled = showPlayerDetails) { showPlayerDetails = false }",
             "onClose = { showPlayerDetails = false }",
-            "} else {\n    Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {",
+            "} else {\n    val isAlbumDetail = section == LibraryPage.ALBUMS && selectedGroup != null",
             "showPlayerDetails = true",
             "playback?.seekToFraction(fraction)",
             "playback?.pause()",
@@ -31,7 +31,7 @@ class NowPlayingContractTest(unittest.TestCase):
         ):
             self.assertIn(token, screen)
         self.assertIn("BoxWithConstraints(", player)
-        self.assertIn(".verticalScroll(rememberScrollState())", player)
+        self.assertIn(".windowInsetsPadding(WindowInsets.systemBars)", player)
         self.assertIn("Modifier.size(coverSide)", player)
         self.assertIn("onClose: () -> Unit", player)
         self.assertNotIn("AlertDialog(", player)

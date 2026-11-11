@@ -32,7 +32,7 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
         for token in ("artworkColors(artwork)", "Brush.radialGradient(",
                       "Color.Black", "Color.White", "animateColorAsState(",
                       "animateFloatAsState(", 'playbackState == "PAUSED"',
-                      "elevation = 32.dp", "coverScale"):
+                      "elevation = 28.dp", "coverScale"):
             self.assertIn(token, player)
         self.assertIn("Bitmap.createScaledBitmap(", backdrop)
         self.assertNotIn("WebDav", backdrop)
@@ -42,8 +42,8 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
         for token in (
             "ButtonDefaults.buttonColors(",
             "MaterialTheme.colorScheme.surfaceVariant",
-            "MaterialTheme.colorScheme.primary",
-            "R.string.album_play_all",
+            "androidx.compose.ui.graphics.Color.White",
+            "R.string.ui_play",
             "R.drawable.ic_action_more",
             "DropdownMenu(", "DropdownMenuItem(", "onRefreshTags()",
             "R.string.album_refresh_tags",
@@ -52,7 +52,7 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
         ):
             self.assertIn(token, header)
         self.assertNotIn("OutlinedButton(", header)
-        self.assertLess(header.index("R.string.album_play_all"),
+        self.assertLess(header.index("R.string.ui_play"),
                         header.index("R.drawable.ic_action_more"))
         for f in ("app/src/main/res/values/strings.xml",
                   "app/src/main/res/values-en/strings.xml"):

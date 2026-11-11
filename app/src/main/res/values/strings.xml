@@ -236,4 +236,10 @@
     <string name="appearance_purple">Фиолетовый</string>
     <string name="library_shuffle_all">Перемешать</string>
     <string name="home_library_sections">Разделы медиатеки</string>
+    <string name="ui_play">Воспроизвести</string>
+    <string name="ui_songs_title">Песни</string>
+    <string name="ui_search_songs">Поиск в песнях</string>
+    <string name="ui_search_albums">Поиск в альбомах</string>
+    <string name="ui_search_artists">Поиск в исполнителях</string>
+    <string name="ui_volume">Громкость</string>
 </resources>
