@@ -93,6 +93,12 @@ internal fun PlaybackDiagnosticsPanel() {
             ),
             style = MaterialTheme.typography.bodySmall,
         )
+        status.setup?.restoreSeedMs?.let { millis ->
+            Text(
+                text = stringResource(R.string.playback_restore_seed_ms, millis),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
         status.setup?.let { stages ->
             Text(
                 text = stringResource(
