@@ -19,7 +19,7 @@ class NowPlayingContractTest(unittest.TestCase):
             "NowPlayingScreen(",
             "BackHandler(enabled = showPlayerDetails) { showPlayerDetails = false }",
             "onClose = { showPlayerDetails = false }",
-            "} else {\n    val isAlbumDetail = section == LibraryPage.ALBUMS && selectedGroup != null",
+            "} else {\n    Box(",
             "showPlayerDetails = true",
             "playback?.seekToFraction(fraction)",
             "playback?.pause()",
