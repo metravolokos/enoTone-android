@@ -1,6 +1,8 @@
 package app.enotone.android
 
+import android.app.Activity
 import android.content.Context
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -10,6 +12,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -97,6 +100,20 @@ internal fun EnoToneTheme(content: @Composable () -> Unit) {
         UiMode.SYSTEM -> isSystemInDarkTheme()
         UiMode.DARK -> true
         UiMode.LIGHT -> false
+    }
+    // The app background must extend through both transparent system bars.
+    // The icons reflect the *user-selected* theme rather than the OS default.
+    val activity = context as? Activity
+    SideEffect {
+        activity?.window?.let { window ->
+            @Suppress("DEPRECATION")
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            @Suppress("DEPRECATION")
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            controller.isAppearanceLightStatusBars = !dark
+            controller.isAppearanceLightNavigationBars = !dark
+        }
     }
     val accent = UiAppearance.accent.swatch
     val neutral = if (dark) neutralDark else neutralLight
