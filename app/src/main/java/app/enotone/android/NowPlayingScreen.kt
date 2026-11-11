@@ -193,7 +193,7 @@ internal fun NowPlayingScreen(
                 Box(Modifier.size(width = 36.dp, height = 5.dp)
                     .clip(CircleShape).background(Color.White.copy(alpha = .40f)))
             }
-            Spacer(Modifier.weight(if (compact) .20f else .46f))
+            Spacer(Modifier.weight(if (compact) .12f else .20f))
             Box(
                 modifier = Modifier.size(coverSide + 16.dp),
                 contentAlignment = Alignment.Center,

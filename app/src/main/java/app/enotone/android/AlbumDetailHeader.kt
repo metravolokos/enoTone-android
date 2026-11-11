@@ -85,7 +85,7 @@ internal fun AlbumDetailHeader(
 
     LaunchedEffect(cover) { onArtworkLoaded(cover) }
     Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 22.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -116,7 +116,7 @@ internal fun AlbumDetailHeader(
                 )
             }
         }
-        androidx.compose.foundation.layout.Spacer(Modifier.size(16.dp))
+        androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
         Text(
             group.name,
             style = MaterialTheme.typography.headlineMedium,

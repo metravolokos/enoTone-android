@@ -805,7 +805,7 @@ internal fun OfflineLibraryScreen(
                 style = MaterialTheme.typography.headlineLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp),
             )
             BasicTextField(
                 value = search,
@@ -851,7 +851,7 @@ internal fun OfflineLibraryScreen(
         if ((section == LibraryPage.TRACKS || section == LibraryPage.ALBUMS) &&
             selectedGroup == null && tracks.isNotEmpty() && search.isBlank()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 val enabled = playback != null && !selecting && appPassword.isNotBlank()
