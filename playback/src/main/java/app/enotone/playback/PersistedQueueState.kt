@@ -151,12 +151,22 @@ object QueueStateCodec {
         null
     }
 
+    private fun hasForeignPositionVersion(raw: String): Boolean = try {
+        val version = JsonParser.parseString(raw).asJsonObject.get("version")
+        version != null && version.asInt != VERSION
+    } catch (_: RuntimeException) {
+        false
+    }
+
     /**
      * A missing/damaged position is recoverable from the first track at 0.
      * A valid position from a different revision is NOT: it proves torn writes.
      */
     fun assemble(layoutRaw: String, positionRaw: String?): PersistedQueueState? {
         val layout = decodeLayout(layoutRaw) ?: return null
+        // A syntactically valid newer position format must not be mistaken for
+        // corruption: unknown versions remain unsupported (no state).
+        if (positionRaw != null && hasForeignPositionVersion(positionRaw)) return null
         val position = positionRaw?.let(::decodePosition)
         if (position != null &&
             (position.queueRevision != layout.queueRevision ||
