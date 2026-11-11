@@ -13,9 +13,13 @@ class EmbeddedArtworkPayloadReader {
     fun read(
         fileName: String,
         fileSize: Long,
+        onLookup: (ArtworkLookupCode) -> Unit = {},
         readAt: (Long, ByteArray, Int, Int) -> Int,
     ): ByteArray? {
         val located = EmbeddedArtworkLocator().locate(fileName, fileSize, readAt)
+        // Only a definitive NOT_FOUND can become a durable negative artwork
+        // checkpoint. IO, auth or broken metadata must always remain retryable.
+        onLookup(located.code)
         val image = located.artwork ?: return null
         if (located.code != ArtworkLookupCode.FOUND ||
             image.length !in 1..MAX_PAYLOAD_BYTES ||

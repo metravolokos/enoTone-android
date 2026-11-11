@@ -43,7 +43,7 @@ internal fun AlbumDetailHeader(
     group: OfflineLibraryGroup,
     year: Int?,
     genre: String?,
-    target: PlayingArtworkTarget?,
+    artworkGroup: AlbumArtworkGroup?,
     repository: ArtworkPreviewRepository,
     accountEmail: String,
     appPassword: String,
@@ -54,11 +54,23 @@ internal fun AlbumDetailHeader(
     refreshMessage: String,
     onRefreshTags: () -> Unit,
 ) {
-    var cover by remember(group.key, target) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(group.key, target, accountEmail, appPassword) {
-        cover = null
-        if (target != null && appPassword.isNotBlank()) {
-            cover = repository.cover(accountEmail, appPassword, target)
+    // Lazy grid/list items are disposed during navigation. If we already
+    // drew this source on another page, paint the RAM image immediately
+    // instead of briefly resetting it to a placeholder.
+    var cover by remember(group.key, artworkGroup, accountEmail) {
+        mutableStateOf<Bitmap?>(artworkGroup?.let {
+            repository.peekAlbum(accountEmail, it, requestedSide = 512)
+        })
+    }
+    LaunchedEffect(group.key, artworkGroup, accountEmail, appPassword) {
+        if (artworkGroup != null) {
+            repository.cachedAlbumCover(accountEmail, artworkGroup, 512)?.let {
+                cover = it
+            }
+            if (appPassword.isNotBlank()) {
+                cover = repository.albumCover(accountEmail, appPassword,
+                    artworkGroup, requestedSide = 512) ?: cover
+            }
         }
     }
 

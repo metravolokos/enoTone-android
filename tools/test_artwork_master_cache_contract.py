@@ -1,4 +1,4 @@
-"""Master artwork cache: one content-addressed 1320px disk object, local view sizes."""
+"""Master artwork cache: one content-addressed 1200px disk object, local view sizes."""
 from pathlib import Path
 import unittest
 
@@ -14,8 +14,8 @@ class ArtworkMasterCacheContractTest(unittest.TestCase):
         art = self.code("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
         for token in (
             "enotone-artwork-v2",
-            "const val MAX_SIDE = 1320",
-            "const val CACHE_LIMIT_BYTES = 64L * 1024 * 1024",
+            "const val MAX_SIDE = 1200",
+            "context.applicationContext.filesDir", "private val NO_ART_DIGEST", "fun clearAll()", 
             'File(directory, "ref-$sourceHash.txt")',
             'File(directory, "art-$contentHash.webp")',
             "val digest = sha256(encoded)",
@@ -24,7 +24,7 @@ class ArtworkMasterCacheContractTest(unittest.TestCase):
             "BitmapFactory.decodeFile(file.absolutePath, options)",
             "val side = requestedSide.coerceIn(1, MAX_SIDE)",
             "private fun scaleToSide(bitmap: Bitmap, requestedSide: Int)",
-            "LruCache<String, Bitmap>(12 * 1024)",
+            "LruCache<String, Bitmap>(24 * 1024)",
             "refreshEpoch only triggers UI recomposition",
         ):
             self.assertIn(token, art)
@@ -70,7 +70,7 @@ class ArtworkMasterCacheContractTest(unittest.TestCase):
         self.assertIn("memoryCache.evictAll()", art)
         self.assertIn("artworkRepository.invalidate(accountEmail, refreshedPictures)", screen)
         self.assertIn("result.checkedIds.mapNotNull { id ->", screen)
-        self.assertIn("listOfNotNull(albumArtworkTargets[key])", screen)
+        self.assertIn("artworkCatalog.byGroupKey[key]?.targets.orEmpty()", screen)
         self.assertLess(screen.index("artworkRepository.invalidate(accountEmail, refreshedPictures)"),
                         screen.index("libraryRefreshEpoch++"))
         self.assertIn("refreshEpoch = libraryRefreshEpoch", screen)

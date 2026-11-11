@@ -153,6 +153,21 @@ internal fun OfflineLibraryScreen(
     var preparedById by remember(accountEmail) {
         mutableStateOf<Map<String, QueueTrack>>(emptyMap())
     }
+    // One deterministic album image identity across Tracks, Albums, Artists,
+    // Album Artists, mini player and Now Playing. Unknown Album is per-track.
+    val artworkCatalog = remember(tracks, preparedById, libraryRefreshEpoch) {
+        AlbumArtworkCatalog.build(tracks) { id ->
+            preparedById[id]?.let { item ->
+                PlayingArtworkTarget(
+                    id = item.id,
+                    encodedPath = item.encodedPath,
+                    remoteSize = item.remoteSize,
+                    remoteEtag = item.remoteEtag,
+                    refreshEpoch = libraryRefreshEpoch,
+                )
+            }
+        }
+    }
     var search by remember(accountEmail) { mutableStateOf("") }
     var section by remember(accountEmail, initialPage) { mutableStateOf(initialPage) }
     val pagePreferences = remember(context) { LibraryPagePreferences(context) }
@@ -338,52 +353,41 @@ internal fun OfflineLibraryScreen(
         onDispose { active?.player?.removeListener(listener) }
     }
 
-    // Artwork only for the current Media3 item: one bounded Range session
-    // when the active track changes. Nothing is fetched by merely browsing tabs.
-    LaunchedEffect(currentTrackId, preparedById, appPassword, accountEmail,
+    // One persistent album image, shared with every other library page.
+    // Show resident pixels immediately; defer any WebDAV to audio READY.
+    LaunchedEffect(currentTrackId, artworkCatalog, appPassword, accountEmail,
         libraryRefreshEpoch) {
         currentArtwork = null
         val id = currentTrackId ?: return@LaunchedEffect
-        val target = preparedById[id] ?: return@LaunchedEffect
+        val group = artworkCatalog.byTrackId[id] ?: return@LaunchedEffect
+        currentArtwork = artworkRepository.peekAlbum(accountEmail, group, 512)
+        artworkRepository.cachedAlbumCover(accountEmail, group, 512)?.let {
+            currentArtwork = it
+        }
         if (appPassword.isBlank()) return@LaunchedEffect
-        // Prioritize the audio stream over artwork GETs during cold start.
-        // READY is represented by PLAYING or PAUSED in media3PlaybackLabel().
         snapshotFlow { playbackState }.first { state ->
             state == "PLAYING" || state == "PAUSED"
         }
-        currentArtwork = artworkRepository.cover(
-            accountEmail, appPassword,
-            PlayingArtworkTarget(
-                id = id,
-                encodedPath = target.encodedPath,
-                remoteSize = target.remoteSize,
-                remoteEtag = target.remoteEtag,
-            ),
-        )
+        currentArtwork = artworkRepository.albumCover(accountEmail, appPassword,
+            group, requestedSide = 512) ?: currentArtwork
     }
 
-    // Full-resolution artwork is only requested while the dedicated page is
-    // visible. A cached 512px bitmap can render immediately until this decode
-    // finishes; the 1320px version comes from the same v2 disk master.
-    LaunchedEffect(showPlayerDetails, currentTrackId, preparedById, appPassword,
-        accountEmail, libraryRefreshEpoch) {
+    LaunchedEffect(showPlayerDetails, currentTrackId, artworkCatalog,
+        appPassword, accountEmail, libraryRefreshEpoch) {
         fullArtwork = null
-        if (!showPlayerDetails || appPassword.isBlank()) return@LaunchedEffect
+        if (!showPlayerDetails) return@LaunchedEffect
         val id = currentTrackId ?: return@LaunchedEffect
-        val item = preparedById[id] ?: return@LaunchedEffect
+        val group = artworkCatalog.byTrackId[id] ?: return@LaunchedEffect
+        fullArtwork = artworkRepository.peekAlbum(accountEmail, group, 1200)
+        artworkRepository.cachedAlbumCover(accountEmail, group, 1200)?.let {
+            fullArtwork = it
+        }
+        if (appPassword.isBlank()) return@LaunchedEffect
         snapshotFlow { playbackState }.first { state ->
             state == "PLAYING" || state == "PAUSED"
         }
-        fullArtwork = artworkRepository.cover(
-            accountEmail, appPassword,
-            PlayingArtworkTarget(
-                id = id,
-                encodedPath = item.encodedPath,
-                remoteSize = item.remoteSize,
-                remoteEtag = item.remoteEtag,
-            ),
-            requestedSide = 1320,
-        )
+        fullArtwork = artworkRepository.albumCover(accountEmail, appPassword,
+            group, requestedSide = 1200) ?: fullArtwork
     }
 
     LaunchedEffect(playback) {
@@ -453,26 +457,6 @@ internal fun OfflineLibraryScreen(
     val selectedGroup = groups.firstOrNull { it.key == selectedGroupKey }
     val shownGroups = remember(groups, search) {
         groups.filter { OfflineLibraryGrouping.matches(it, search) }
-    }
-    // Stable album representatives from the existing in-RAM Room snapshot.
-    // No extra DB query. One candidate per actual album (never the mixed
-    // Unknown Album group); only visible grid tiles start bounded image GETs.
-    val albumArtworkTargets = remember(groups, preparedById, section,
-        libraryRefreshEpoch) {
-        if (section != LibraryPage.ALBUMS) emptyMap()
-        else groups.mapNotNull { group ->
-            if (group.key == "album:missing") return@mapNotNull null
-            val item = group.trackIds.asSequence()
-                .mapNotNull { preparedById[it] }.firstOrNull()
-                ?: return@mapNotNull null
-            group.key to PlayingArtworkTarget(
-                id = item.id,
-                encodedPath = item.encodedPath,
-                remoteSize = item.remoteSize,
-                remoteEtag = item.remoteEtag,
-                refreshEpoch = libraryRefreshEpoch,
-            )
-        }.toMap()
     }
     // The visible set is also the playback queue context; no Media3 changes.
     val visible = remember(tracks, section, selectedGroup, search) {
@@ -627,7 +611,7 @@ internal fun OfflineLibraryScreen(
                                             remoteEtag = item.remoteEtag,
                                         )
                                     }
-                                } + listOfNotNull(albumArtworkTargets[key])
+                                } + artworkCatalog.byGroupKey[key]?.targets.orEmpty()
                                 artworkRepository.invalidate(accountEmail, refreshedPictures)
                                 albumCheckedByGroup = albumCheckedByGroup +
                                     (key to (albumCheckedByGroup[key].orEmpty() +
@@ -803,7 +787,7 @@ internal fun OfflineLibraryScreen(
                         gridItems(shownGroups, key = { it.key }) { group ->
                             AlbumArtworkTile(
                                 group = group,
-                                target = albumArtworkTargets[group.key],
+                                artworkGroup = artworkCatalog.byGroupKey[group.key],
                                 repository = artworkRepository,
                                 accountEmail = accountEmail,
                                 appPassword = appPassword,
@@ -854,7 +838,7 @@ internal fun OfflineLibraryScreen(
                             group = selectedGroup,
                             year = albumYear,
                             genre = albumGenre,
-                            target = albumArtworkTargets[selectedGroup.key],
+                            artworkGroup = artworkCatalog.byGroupKey[selectedGroup.key],
                             repository = artworkRepository,
                             accountEmail = accountEmail,
                             appPassword = appPassword,
@@ -892,17 +876,7 @@ internal fun OfflineLibraryScreen(
                     }
                 }
                 items(visible, key = { it.id }) { track ->
-                    // Resolve a single already prepared row; no additional Room
-                    // lookup or off-screen artwork fetch for the 3590-track list.
-                    val artworkTarget = preparedById[track.id]?.let { item ->
-                        PlayingArtworkTarget(
-                            id = item.id,
-                            encodedPath = item.encodedPath,
-                            remoteSize = item.remoteSize,
-                            remoteEtag = item.remoteEtag,
-                            refreshEpoch = libraryRefreshEpoch,
-                        )
-                    }
+                    // Group references are built from the existing local Room snapshot.
                     Column(modifier = Modifier.fillMaxWidth().clickable(enabled = !selecting && playback != null) {
                         playTrack(track, visible)
                     }.padding(vertical = 4.dp)) {
@@ -912,7 +886,7 @@ internal fun OfflineLibraryScreen(
                         ) {
                             TrackArtworkThumbnail(
                                 trackId = track.id,
-                                target = artworkTarget,
+                                artworkGroup = artworkCatalog.byTrackId[track.id],
                                 repository = artworkRepository,
                                 accountEmail = accountEmail,
                                 appPassword = appPassword,

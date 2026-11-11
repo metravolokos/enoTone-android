@@ -23,28 +23,36 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 
 /**
- * A decorative thumbnail for one composed (visible) row in a LazyColumn.
- * Never starts an index, queries Room, or preloads off-screen tracks. The
- * shared repository bounds WebDAV image GETs and reuses its private cache.
+ * Album art is shared by EVERY member of the same actual album.
+ * Virtual "Unknown Album" tracks receive independent single-track groups.
+ * No Room lookup, index or network request occurs outside visible rows.
  */
 @Composable
 internal fun TrackArtworkThumbnail(
     trackId: String,
-    target: PlayingArtworkTarget?,
+    artworkGroup: AlbumArtworkGroup?,
     repository: ArtworkPreviewRepository,
     accountEmail: String,
     appPassword: String,
     allowNetwork: Boolean,
 ) {
-    var cover by remember(trackId, target, accountEmail) {
-        mutableStateOf<Bitmap?>(null)
+    var cover by remember(trackId, artworkGroup, accountEmail) {
+        mutableStateOf<Bitmap?>(artworkGroup?.let {
+            repository.peekAlbum(accountEmail, it, requestedSide = 192)
+        })
     }
 
-    LaunchedEffect(trackId, target, accountEmail, appPassword, allowNetwork) {
-        // Do not compete with a connecting/buffering audio stream. A later
-        // READY state may request the cover; a previously loaded image remains.
-        if (allowNetwork && target != null && appPassword.isNotBlank()) {
-            cover = repository.cover(accountEmail, appPassword, target, requestedSide = 192)
+    LaunchedEffect(trackId, artworkGroup, accountEmail, appPassword, allowNetwork) {
+        if (artworkGroup != null) {
+            // Disk-only check is allowed while audio is buffering.
+            repository.cachedAlbumCover(accountEmail, artworkGroup, 192)?.let {
+                cover = it
+            }
+            // Only user-visible entries can perform a new bounded WebDAV GET.
+            if (allowNetwork && appPassword.isNotBlank()) {
+                cover = repository.albumCover(accountEmail, appPassword,
+                    artworkGroup, requestedSide = 192) ?: cover
+            }
         }
     }
 
@@ -58,7 +66,7 @@ internal fun TrackArtworkThumbnail(
         if (image != null) {
             Image(
                 bitmap = image.asImageBitmap(),
-                contentDescription = null, // Title and artist label the parent row.
+                contentDescription = null,
                 modifier = Modifier.size(44.dp),
                 contentScale = ContentScale.Crop,
             )

@@ -110,6 +110,12 @@ private fun DiagnosticScreen() {
     var vaultBusy by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val appContext = LocalContext.current.applicationContext
+    val artworkPreferences = remember(appContext) { ArtworkPreferences(appContext) }
+    var artworkMode by remember { mutableStateOf(artworkPreferences.mode()) }
+    val artworkStatus by ArtworkScanRuntime.status.collectAsState()
+    var artworkStorageBytes by remember { mutableStateOf<Long?>(null) }
+    var artworkClearBusy by remember { mutableStateOf(false) }
+    var artworkClearFeedback by remember { mutableStateOf("") }
 
     // Read only once per Activity creation. A missing entry does not create
     // any key; changes typed by the user during this read are not overwritten.
@@ -134,6 +140,55 @@ private fun DiagnosticScreen() {
             vaultBusy = false
         }
     }
+    // User opt-in to automatic artwork preparation. On EACH foreground app
+    // launch after credentials restore, resume only if all tag checkpoints for
+    // the current snapshot are complete. Never autostart after device reboot.
+    LaunchedEffect(artworkMode, vaultBusy, email, password, managedStatus.state, busy) {
+        if (artworkMode != ArtworkLoadMode.AUTO_AFTER_IMPORT ||
+            vaultBusy || busy || email.isBlank() || password.isBlank() ||
+            managedStatus.state == ManagedScanState.RUNNING ||
+            managedStatus.terminating ||
+            ArtworkScanRuntime.status.value.state == ArtworkScanState.RUNNING ||
+            ArtworkScanRuntime.status.value.terminating) return@LaunchedEffect
+        try {
+            val pendingTags = withContext(Dispatchers.IO) {
+                val db = openLibraryDatabase(appContext)
+                try {
+                    db.remoteTrackDao().pendingFastScans(
+                        LibrarySnapshotPlanner.accountKey(email)).isNotEmpty()
+                } finally {
+                    db.close()
+                }
+            }
+            if (pendingTags) return@LaunchedEffect
+            if (!ArtworkIndexPlanner.needsPreparation(appContext, email)) return@LaunchedEffect
+            if (ArtworkScanRuntime.prepare(email, password)) {
+                try {
+                    appContext.startForegroundService(
+                        Intent(appContext, ArtworkIndexingForegroundService::class.java)
+                            .setAction(ArtworkIndexingForegroundService.ACTION_START)
+                    )
+                } catch (_: RuntimeException) {
+                    ArtworkScanRuntime.update(ArtworkScanState.ERROR, 0, 0)
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // A damaged Room/Keystore connection never blocks regular listening.
+        }
+    }
+
+    LaunchedEffect(showingSettings, artworkStatus.state) {
+        if (showingSettings) {
+            artworkStorageBytes = withContext(Dispatchers.IO) {
+                ArtworkPreviewRepository(appContext).storedBytes()
+            }
+        }
+    }
+
+    val artworkClearedMessage = stringResource(R.string.artwork_cache_cleared)
+    val artworkClearFailedMessage = stringResource(R.string.artwork_cache_clear_failed)
     val importReport = stringResource(R.string.local_import_report)
     val storedReport = stringResource(R.string.local_saved_report)
     val storedTagsReport = stringResource(R.string.local_tag_coverage_report)
@@ -291,6 +346,61 @@ private fun DiagnosticScreen() {
                 style = MaterialTheme.typography.titleLarge)
         }
         LibraryVisibilitySettings()
+        ArtworkSettingsPanel(
+            mode = artworkMode,
+            onModeChange = { selected ->
+                if (selected != artworkMode) {
+                    try {
+                        artworkPreferences.setMode(selected)
+                        artworkMode = selected
+                        if (selected == ArtworkLoadMode.ON_DEMAND &&
+                            ArtworkScanRuntime.status.value.state == ArtworkScanState.RUNNING) {
+                            appContext.startService(
+                                Intent(appContext, ArtworkIndexingForegroundService::class.java)
+                                    .setAction(ArtworkIndexingForegroundService.ACTION_STOP)
+                            )
+                        }
+                    } catch (_: Exception) {
+                        artworkClearFeedback = localFailed
+                    }
+                }
+            },
+            status = artworkStatus,
+            storedBytes = artworkStorageBytes,
+            clearBusy = artworkClearBusy,
+            clearFeedback = artworkClearFeedback,
+            onClear = {
+                artworkClearBusy = true
+                artworkClearFeedback = ""
+                scope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            ArtworkPreviewRepository(appContext).clearAll()
+                        }
+                        artworkStorageBytes = 0L
+                        artworkClearFeedback = artworkClearedMessage
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        artworkClearFeedback = artworkClearFailedMessage
+                    } finally {
+                        artworkClearBusy = false
+                    }
+                }
+            },
+            onPause = {
+                appContext.startService(
+                    Intent(appContext, ArtworkIndexingForegroundService::class.java)
+                        .setAction(ArtworkIndexingForegroundService.ACTION_PAUSE)
+                )
+            },
+            onStop = {
+                appContext.startService(
+                    Intent(appContext, ArtworkIndexingForegroundService::class.java)
+                        .setAction(ArtworkIndexingForegroundService.ACTION_STOP)
+                )
+            },
+        )
         OutlinedButton(onClick = { showConnection = !showConnection }) {
             Text(stringResource(R.string.home_connection_settings))
         }

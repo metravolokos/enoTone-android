@@ -17,7 +17,7 @@ class AlbumDetailContractTest(unittest.TestCase):
             "section == LibraryPage.ALBUMS && selectedGroup != null",
             'item(key = "album-detail-header")',
             "AlbumDetailHeader(",
-            "target = albumArtworkTargets[selectedGroup.key]",
+            "artworkGroup = artworkCatalog.byGroupKey[selectedGroup.key]",
             "items(visible, key = { it.id })",
             "LazyVerticalGrid(",
             "GridCells.Adaptive(minSize = 148.dp)",
@@ -60,8 +60,8 @@ class AlbumDetailContractTest(unittest.TestCase):
     def test_album_header_reuses_cached_artwork_and_never_invents_year(self):
         header = self.src("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
         for required in (
-            "LaunchedEffect(group.key, target, accountEmail, appPassword)",
-            "repository.cover(accountEmail, appPassword, target)",
+            "LaunchedEffect(group.key, artworkGroup, accountEmail, appPassword)",
+            "repository.albumCover(accountEmail, appPassword,",
             "group.subtitle?.takeIf",
             "group.trackIds.size",
             "R.drawable.ic_nav_albums",

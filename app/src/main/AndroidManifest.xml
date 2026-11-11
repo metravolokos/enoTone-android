@@ -26,6 +26,10 @@
             android:name=".IndexingForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <service
+            android:name=".ArtworkIndexingForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
         <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

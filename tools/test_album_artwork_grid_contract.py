@@ -22,13 +22,13 @@ class AlbumArtworkGridContractTest(unittest.TestCase):
             "onOpen = {",
             "selectedGroupKey = group.key",
             'search = ""',
-            "val albumArtworkTargets = remember(groups, preparedById, section,",
-            'if (group.key == "album:missing") return@mapNotNull null',
-            "preparedById[it]",
+            "val artworkCatalog = remember(tracks, preparedById, libraryRefreshEpoch)",
+            "AlbumArtworkCatalog.build(tracks)",
+            "preparedById[id]?.let { item ->",
         ):
             self.assertIn(needle, ui)
-        self.assertIn("LaunchedEffect(group.key, target, accountEmail, appPassword)", tile)
-        self.assertIn("repository.cover(accountEmail, appPassword, target)", tile)
+        self.assertIn("LaunchedEffect(group.key, artworkGroup, accountEmail, appPassword)", tile)
+        self.assertIn("repository.albumCover(accountEmail, appPassword,", tile)
         self.assertIn("modifier = Modifier.fillMaxWidth().aspectRatio(1f)", tile)
         self.assertIn("onClick = onOpen", tile)
         self.assertNotIn("WebDavRangeReader(", tile)
@@ -47,7 +47,7 @@ class AlbumArtworkGridContractTest(unittest.TestCase):
             "maxRequests = 128",
             "maxDownloadedBytes = 8L * 1024 * 1024",
             "MAX_DISK_FILE_BYTES",
-            "CACHE_LIMIT_BYTES = 64L * 1024 * 1024",
+            "context.applicationContext.filesDir",
             "WebDavRangeReader(",
             "EmbeddedArtworkPayloadReader().read(",
         ):
