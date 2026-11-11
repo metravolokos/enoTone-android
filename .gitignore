@@ -10,3 +10,5 @@ local.properties
 .env
 *.secrets
 .DS_Store
+__pycache__/
+*.pyc

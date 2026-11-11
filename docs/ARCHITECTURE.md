@@ -4,6 +4,22 @@
 
 Нативный Kotlin + Compose. **Media3 ExoPlayer и MediaSessionService уже работают** в `:playback` (M3–M5); источник WebDAV через строго проверяемый HTTPS/Range DataSource, локальная Room — источник истины перечня/тегов. Фактические транспорт и ограничения фиксируются в ADR и `docs/STATUS.md`; прежний список зависимостей был только архитектурным предложением. Бизнес-логику держим вне Composable, UI строится реактивно.
 
+## Фактическое состояние модулей (аудит 2026-11-11)
+
+Целевая схема ниже реализована **не полностью**. Код есть только в пяти модулях:
+
+| Модуль | Содержимое |
+|---|---|
+| `:app` | весь UI (Compose), навигация, настройки (`SharedPreferences`), сервисы индексации и обложек, `ArtworkPreviewRepository`, хранилище входа |
+| `:core:network` | плоский PROPFIND и диагностика (Ktor CIO), парсер multistatus |
+| `:core:database` | Room v4: одна таблица `remote_tracks` |
+| `:data:library` | Range-reader (HttpURLConnection), парсер тегов MP3/FLAC, индексаторы, группировка медиатеки |
+| `:playback` | MediaSessionService, ExoPlayer, WebDAV DataSource (HttpsURLConnection), временный кэш |
+
+Пустые (только `build.gradle.kts`): `:core:common`, `:core:model`, `:core:datastore`, `:data:source`, `:data:cache`, `:data:playlist`, `:feature:library`, `:feature:player`, `:feature:settings`, `:feature:ai`. Нет ViewModel и DI; Composable обращаются к Room и сети напрямую. Приведение к целевой схеме — этап M6-0 ([ADR-0074](DECISIONS/ADR-0074-m6-0-tech-debt-plan.md)).
+
+## Целевая схема
+
 Плановые модули: `:app`, `:core:common`, `:core:model`, `:core:database`, `:core:network`, `:core:datastore`, `:data:library`, `:data:source`, `:data:cache`, `:data:playlist`, `:playback`, `:feature:library`, `:feature:player`, `:feature:settings`, `:feature:ai`.
 
 ```mermaid
