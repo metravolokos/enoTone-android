@@ -18,8 +18,10 @@ class QueueStateFileStore(context: Context) {
     fun read(): PersistedQueueState? = try {
         if (!queueFile.isFile || queueFile.length() > 2_000_000L) null
         else {
-            val position = if (!positionFile.isFile || positionFile.length() > 8_192L) null
+            val position = runCatching {
+                if (!positionFile.isFile || positionFile.length() > 8_192L) null
                 else positionFile.readText(Charsets.UTF_8)
+            }.getOrNull()
             QueueStateCodec.assemble(queueFile.readText(Charsets.UTF_8), position)
         }
     } catch (_: Exception) {
