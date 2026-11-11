@@ -4,7 +4,29 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 
-/** Only SHA-256 Room IDs and non-secret playback state may cross the disk boundary. */
+/** Immutable queue layout; written only when the order or shuffle mode changes. */
+data class PersistedQueueLayout(
+    val trackIds: List<String>,
+    val shuffledIndices: IntArray?,
+    val shuffleEnabled: Boolean,
+    val sourceKey: String,
+    val queueRevision: String,
+    val savedAtEpochMs: Long,
+    val version: Int = QueueStateCodec.VERSION,
+)
+
+/** Small checkpoint updated every 12 seconds and on track/repeat/pause changes. */
+data class PersistedPositionState(
+    val selectedTrackId: String,
+    val positionMs: Long,
+    val repeatMode: Int,
+    val shuffleEnabled: Boolean,
+    val savedAtEpochMs: Long,
+    val queueRevision: String,
+    val version: Int = QueueStateCodec.VERSION,
+)
+
+/** Restored in-memory state; only hashes and numeric playback state cross the disk boundary. */
 data class PersistedQueueState(
     val trackIds: List<String>,
     val selectedTrackId: String,
@@ -14,78 +36,147 @@ data class PersistedQueueState(
     val shuffledIndices: IntArray?,
     val sourceKey: String,
     val savedAtEpochMs: Long,
+    val queueRevision: String,
     val version: Int = QueueStateCodec.VERSION,
-)
+) {
+    fun layout() = PersistedQueueLayout(
+        trackIds, shuffledIndices, shuffleEnabled, sourceKey, queueRevision, savedAtEpochMs, version,
+    )
+    fun position() = PersistedPositionState(
+        selectedTrackId, positionMs, repeatMode, shuffleEnabled,
+        savedAtEpochMs, queueRevision, version,
+    )
+}
 
-/** Pure JVM codec: a strict allowlist prevents accidental persistence of metadata. */
+/** Allowlisted JSON trees, with no reflection and no Android runtime dependency. */
 object QueueStateCodec {
     const val VERSION = 1
     private val hash = Regex("[a-f0-9]{64}")
-    private val commonFields = setOf(
-        "version", "trackIds", "selectedTrackId", "positionMs", "repeatMode",
-        "shuffleEnabled", "sourceKey", "savedAtEpochMs",
+    private val revision = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+    private val layoutFields = setOf(
+        "version", "trackIds", "shuffleEnabled", "sourceKey", "queueRevision", "savedAtEpochMs",
+    )
+    private val positionFields = setOf(
+        "version", "selectedTrackId", "positionMs", "repeatMode",
+        "shuffleEnabled", "savedAtEpochMs", "queueRevision",
     )
 
-    fun encode(state: PersistedQueueState): String {
-        require(isValid(state)) { "Invalid queue snapshot" }
+    fun isValidLayout(layout: PersistedQueueLayout): Boolean {
+        val ids = layout.trackIds
+        if (layout.version != VERSION || ids.isEmpty() || ids.size > PlaybackQueue.MAX_TRACKS ||
+            ids.any { !hash.matches(it) } || ids.toSet().size != ids.size ||
+            !hash.matches(layout.sourceKey) || !revision.matches(layout.queueRevision) ||
+            layout.savedAtEpochMs < 0L) return false
+        val indices = layout.shuffledIndices
+        return if (layout.shuffleEnabled) {
+            indices != null && indices.size == ids.size &&
+                indices.all { it in ids.indices } && indices.toSet().size == ids.size
+        } else indices == null
+    }
+
+    fun isValidPosition(position: PersistedPositionState): Boolean =
+        position.version == VERSION && hash.matches(position.selectedTrackId) &&
+            position.positionMs >= 0L && position.repeatMode in 0..2 &&
+            position.savedAtEpochMs >= 0L && revision.matches(position.queueRevision)
+
+    fun isValid(state: PersistedQueueState): Boolean =
+        isValidLayout(state.layout()) && isValidPosition(state.position()) &&
+            state.selectedTrackId in state.trackIds
+
+    fun encodeLayout(layout: PersistedQueueLayout): String {
+        require(isValidLayout(layout))
         val json = JsonObject()
-        json.addProperty("version", state.version)
-        json.add("trackIds", JsonArray().apply { state.trackIds.forEach(::add) })
-        json.addProperty("selectedTrackId", state.selectedTrackId)
-        json.addProperty("positionMs", state.positionMs)
-        json.addProperty("repeatMode", state.repeatMode)
-        json.addProperty("shuffleEnabled", state.shuffleEnabled)
-        if (state.shuffleEnabled) {
+        json.addProperty("version", layout.version)
+        json.add("trackIds", JsonArray().apply { layout.trackIds.forEach(::add) })
+        json.addProperty("shuffleEnabled", layout.shuffleEnabled)
+        if (layout.shuffleEnabled) {
             json.add("shuffledIndices", JsonArray().apply {
-                state.shuffledIndices!!.forEach(::add)
+                layout.shuffledIndices!!.forEach(::add)
             })
         }
-        json.addProperty("sourceKey", state.sourceKey)
-        json.addProperty("savedAtEpochMs", state.savedAtEpochMs)
+        json.addProperty("sourceKey", layout.sourceKey)
+        json.addProperty("queueRevision", layout.queueRevision)
+        json.addProperty("savedAtEpochMs", layout.savedAtEpochMs)
         return json.toString()
     }
 
-    /** Missing, damaged or unknown-version snapshots never propagate an exception. */
-    fun decode(contents: String): PersistedQueueState? = try {
-        if (contents.isBlank() || contents.length > 2_000_000) null else {
-            val json = JsonParser.parseString(contents).asJsonObject
-            val version = json.get("version").asInt
-            val shuffle = json.get("shuffleEnabled").asBoolean
-            val fields = commonFields + if (shuffle) setOf("shuffledIndices") else emptySet()
-            if (version != VERSION || json.keySet() != fields) null else {
-                val ids = json.getAsJsonArray("trackIds").map { it.asString }
-                val indices = if (shuffle) json.getAsJsonArray("shuffledIndices")
-                    .map { it.asInt }.toIntArray() else null
-                val state = PersistedQueueState(
-                    trackIds = ids,
-                    selectedTrackId = json.get("selectedTrackId").asString,
-                    positionMs = json.get("positionMs").asLong,
-                    repeatMode = json.get("repeatMode").asInt,
-                    shuffleEnabled = shuffle,
-                    shuffledIndices = indices,
-                    sourceKey = json.get("sourceKey").asString,
-                    savedAtEpochMs = json.get("savedAtEpochMs").asLong,
-                    version = version,
-                )
-                state.takeIf(::isValid)
-            }
+    fun decodeLayout(raw: String): PersistedQueueLayout? = try {
+        if (raw.isBlank() || raw.length > 2_000_000) null else {
+            val json = JsonParser.parseString(raw).asJsonObject
+            val enabled = json.get("shuffleEnabled").asBoolean
+            if (json.keySet() != layoutFields +
+                    if (enabled) setOf("shuffledIndices") else emptySet()) null
+            else PersistedQueueLayout(
+                trackIds = json.getAsJsonArray("trackIds").map { it.asString },
+                shuffledIndices = if (enabled) json.getAsJsonArray("shuffledIndices")
+                    .map { it.asInt }.toIntArray() else null,
+                shuffleEnabled = enabled,
+                sourceKey = json.get("sourceKey").asString,
+                queueRevision = json.get("queueRevision").asString,
+                savedAtEpochMs = json.get("savedAtEpochMs").asLong,
+                version = json.get("version").asInt,
+            ).takeIf(::isValidLayout)
         }
     } catch (_: RuntimeException) {
         null
     }
 
-    fun isValid(state: PersistedQueueState): Boolean {
-        val ids = state.trackIds
-        if (state.version != VERSION || ids.isEmpty() || ids.size > PlaybackQueue.MAX_TRACKS ||
-            ids.any { !hash.matches(it) } || ids.toSet().size != ids.size ||
-            state.selectedTrackId !in ids || !hash.matches(state.sourceKey) ||
-            state.positionMs < 0L || state.savedAtEpochMs < 0L ||
-            state.repeatMode !in 0..2) return false
-        val order = state.shuffledIndices
-        return if (state.shuffleEnabled) {
-            order != null && order.size == ids.size &&
-                order.all { it in ids.indices } && order.toSet().size == ids.size
-        } else order == null
+    fun encodePosition(position: PersistedPositionState): String {
+        require(isValidPosition(position))
+        val json = JsonObject()
+        json.addProperty("version", position.version)
+        json.addProperty("selectedTrackId", position.selectedTrackId)
+        json.addProperty("positionMs", position.positionMs)
+        json.addProperty("repeatMode", position.repeatMode)
+        json.addProperty("shuffleEnabled", position.shuffleEnabled)
+        json.addProperty("savedAtEpochMs", position.savedAtEpochMs)
+        json.addProperty("queueRevision", position.queueRevision)
+        return json.toString()
+    }
+
+    fun decodePosition(raw: String): PersistedPositionState? = try {
+        if (raw.isBlank() || raw.length > 8_192) null else {
+            val json = JsonParser.parseString(raw).asJsonObject
+            if (json.keySet() != positionFields) null else PersistedPositionState(
+                selectedTrackId = json.get("selectedTrackId").asString,
+                positionMs = json.get("positionMs").asLong,
+                repeatMode = json.get("repeatMode").asInt,
+                shuffleEnabled = json.get("shuffleEnabled").asBoolean,
+                savedAtEpochMs = json.get("savedAtEpochMs").asLong,
+                queueRevision = json.get("queueRevision").asString,
+                version = json.get("version").asInt,
+            ).takeIf(::isValidPosition)
+        }
+    } catch (_: RuntimeException) {
+        null
+    }
+
+    /**
+     * A missing/damaged position is recoverable from the first track at 0.
+     * A valid position from a different revision is NOT: it proves torn writes.
+     */
+    fun assemble(layoutRaw: String, positionRaw: String?): PersistedQueueState? {
+        val layout = decodeLayout(layoutRaw) ?: return null
+        val position = positionRaw?.let(::decodePosition)
+        if (position != null &&
+            (position.queueRevision != layout.queueRevision ||
+                position.shuffleEnabled != layout.shuffleEnabled)) return null
+        val safePosition = position?.takeIf { it.selectedTrackId in layout.trackIds }
+            ?: PersistedPositionState(
+                layout.trackIds.first(), 0L, 0, layout.shuffleEnabled,
+                layout.savedAtEpochMs, layout.queueRevision,
+            )
+        return PersistedQueueState(
+            trackIds = layout.trackIds,
+            selectedTrackId = safePosition.selectedTrackId,
+            positionMs = safePosition.positionMs,
+            repeatMode = safePosition.repeatMode,
+            shuffleEnabled = layout.shuffleEnabled,
+            shuffledIndices = layout.shuffledIndices,
+            sourceKey = layout.sourceKey,
+            savedAtEpochMs = safePosition.savedAtEpochMs,
+            queueRevision = layout.queueRevision,
+        )
     }
 }
 
@@ -116,9 +207,7 @@ object QueueStateRestorer {
 }
 
 /** Injection point for deterministic, Android-free write-rate tests. */
-fun interface QueueMonotonicClock {
-    fun nowMs(): Long
-}
+fun interface QueueMonotonicClock { fun nowMs(): Long }
 
 class QueueWriteThrottle(
     private val clock: QueueMonotonicClock,
@@ -132,7 +221,5 @@ class QueueWriteThrottle(
         return (minIntervalMs - (clock.nowMs() - last)).coerceAtLeast(0L)
     }
 
-    fun markWritten() {
-        lastWriteMs = clock.nowMs()
-    }
+    fun markWritten() { lastWriteMs = clock.nowMs() }
 }
