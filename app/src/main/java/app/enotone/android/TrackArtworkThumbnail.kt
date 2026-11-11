@@ -23,48 +23,36 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 
 /**
- * A decorative thumbnail for one composed (visible) row in a LazyColumn.
- * Never starts an index, queries Room, or preloads off-screen tracks. The
- * shared repository bounds WebDAV image GETs and reuses its private cache.
+ * Album art is shared by EVERY member of the same actual album.
+ * Virtual "Unknown Album" tracks receive independent single-track groups.
+ * No Room lookup, index or network request occurs outside visible rows.
  */
 @Composable
 internal fun TrackArtworkThumbnail(
     trackId: String,
-    target: PlayingArtworkTarget?,
-    albumPreviewTarget: PlayingArtworkTarget?,
+    artworkGroup: AlbumArtworkGroup?,
     repository: ArtworkPreviewRepository,
     accountEmail: String,
     appPassword: String,
     allowNetwork: Boolean,
 ) {
-    // Reuse the exact source if cached. An already visible album cover may
-    // serve ONLY as a temporary visual preview: never alias its hash to this
-    // track's ref, because two tracks in one album can have different art.
-    var cover by remember(trackId, target, albumPreviewTarget, accountEmail) {
-        mutableStateOf<Bitmap?>(
-            target?.let { repository.peek(accountEmail, it, requestedSide = 192) }
-                ?: albumPreviewTarget?.let {
-                    repository.peek(accountEmail, it, requestedSide = 192)
-                },
-        )
+    var cover by remember(trackId, artworkGroup, accountEmail) {
+        mutableStateOf<Bitmap?>(artworkGroup?.let {
+            repository.peekAlbum(accountEmail, it, requestedSide = 192)
+        })
     }
 
-    LaunchedEffect(trackId, target, albumPreviewTarget, accountEmail,
-        appPassword, allowNetwork) {
-        // Network checks only for visible tracks, never during import. While
-        // waiting, the already cached album preview remains visible.
-        if (allowNetwork && target != null && appPassword.isNotBlank()) {
-            if (cover == null && albumPreviewTarget != null &&
-                albumPreviewTarget.id != target.id) {
-                // If RAM was evicted on a page switch, first read the verified
-                // album master locally; DO NOT request its source via HTTP.
-                repository.cachedCover(accountEmail, albumPreviewTarget, 192)?.let {
-                    cover = it
-                }
+    LaunchedEffect(trackId, artworkGroup, accountEmail, appPassword, allowNetwork) {
+        if (artworkGroup != null) {
+            // Disk-only check is allowed while audio is buffering.
+            repository.cachedAlbumCover(accountEmail, artworkGroup, 192)?.let {
+                cover = it
             }
-            cover = repository.cover(accountEmail, appPassword, target, requestedSide = 192)
-            // A confirmed individual cover overrides the album preview.
-            // A genuinely absent one becomes the regular placeholder.
+            // Only user-visible entries can perform a new bounded WebDAV GET.
+            if (allowNetwork && appPassword.isNotBlank()) {
+                cover = repository.albumCover(accountEmail, appPassword,
+                    artworkGroup, requestedSide = 192) ?: cover
+            }
         }
     }
 
@@ -78,7 +66,7 @@ internal fun TrackArtworkThumbnail(
         if (image != null) {
             Image(
                 bitmap = image.asImageBitmap(),
-                contentDescription = null, // Title and artist label the parent row.
+                contentDescription = null,
                 modifier = Modifier.size(44.dp),
                 contentScale = ContentScale.Crop,
             )
