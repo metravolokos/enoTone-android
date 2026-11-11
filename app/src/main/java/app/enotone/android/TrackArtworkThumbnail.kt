@@ -31,20 +31,31 @@ import androidx.compose.ui.unit.dp
 internal fun TrackArtworkThumbnail(
     trackId: String,
     target: PlayingArtworkTarget?,
+    albumPreviewTarget: PlayingArtworkTarget?,
     repository: ArtworkPreviewRepository,
     accountEmail: String,
     appPassword: String,
     allowNetwork: Boolean,
 ) {
-    var cover by remember(trackId, target, accountEmail) {
-        mutableStateOf<Bitmap?>(null)
+    // Reuse the exact source if cached. An already visible album cover may
+    // serve ONLY as a temporary visual preview: never alias its hash to this
+    // track's ref, because two tracks in one album can have different art.
+    var cover by remember(trackId, target, albumPreviewTarget, accountEmail) {
+        mutableStateOf<Bitmap?>(
+            target?.let { repository.peek(accountEmail, it, requestedSide = 192) }
+                ?: albumPreviewTarget?.let {
+                    repository.peek(accountEmail, it, requestedSide = 192)
+                },
+        )
     }
 
     LaunchedEffect(trackId, target, accountEmail, appPassword, allowNetwork) {
-        // Do not compete with a connecting/buffering audio stream. A later
-        // READY state may request the cover; a previously loaded image remains.
+        // Network checks only for visible tracks, never during import. While
+        // waiting, the already cached album preview remains visible.
         if (allowNetwork && target != null && appPassword.isNotBlank()) {
             cover = repository.cover(accountEmail, appPassword, target, requestedSide = 192)
+            // A confirmed individual cover overrides the album preview.
+            // A genuinely absent one becomes the regular placeholder.
         }
     }
 
