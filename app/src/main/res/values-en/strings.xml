@@ -241,4 +241,5 @@
     <string name="ui_search_songs">Search in songs</string>
     <string name="ui_search_albums">Search in albums</string>
     <string name="ui_search_artists">Search in artists</string>
+    <string name="ui_volume">Volume</string>
 </resources>

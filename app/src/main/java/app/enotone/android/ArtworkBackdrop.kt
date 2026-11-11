@@ -14,7 +14,7 @@ import kotlin.math.max
  * the caller supplies a darkening overlay for white foreground contrast.
  */
 internal fun artworkColors(artwork: Bitmap?): Pair<Color, Color> {
-    val fallback = Color(0xFF47617C) to Color(0xFF31364D)
+    val fallback = Color(0xFF535358) to Color(0xFF36363B)
     if (artwork == null || artwork.isRecycled) return fallback
     return runCatching {
         val tiny = Bitmap.createScaledBitmap(artwork, 32, 32, true)

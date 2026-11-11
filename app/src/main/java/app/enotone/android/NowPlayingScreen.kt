@@ -1,6 +1,11 @@
 package app.enotone.android
 
 import android.graphics.Bitmap
+import android.content.Context
+import android.media.AudioManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.Slider
+import androidx.compose.foundation.layout.width
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -132,6 +137,18 @@ internal fun NowPlayingScreen(
     val rail = Color.White.copy(alpha = 0.34f)
     val hasError = playbackState in setOf("ERROR", "MISSING_PASSWORD", "MISSING_TRACK")
     var menuOpen by remember { mutableStateOf(false) }
+    val appContext = LocalContext.current
+    val audio = remember(appContext) {
+        appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+    val maxVolume = remember(audio) {
+        audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+    }
+    var volume by remember(audio) {
+        mutableFloatStateOf(
+            audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume,
+        )
+    }
     val repeatText = when (repeatMode) {
         Player.REPEAT_MODE_ONE -> stringResource(R.string.playback_repeat_one)
         Player.REPEAT_MODE_ALL -> stringResource(R.string.playback_repeat_all)
@@ -287,6 +304,22 @@ internal fun NowPlayingScreen(
                             onClick = { menuOpen = false },
                             enabled = false,
                         )
+                        // Retains the real system STREAM_MUSIC volume from
+                        // Preview #322 without adding an extra row to the
+                        // screenshot-matched Now Playing surface.
+                        Column(Modifier.width(220.dp).padding(horizontal = 16.dp)) {
+                            Text(stringResource(R.string.ui_volume), fontSize = 13.sp)
+                            Slider(
+                                value = volume,
+                                onValueChange = { next ->
+                                    volume = next
+                                    audio.setStreamVolume(
+                                        AudioManager.STREAM_MUSIC,
+                                        (next * maxVolume).toInt().coerceIn(0, maxVolume), 0,
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
             }
