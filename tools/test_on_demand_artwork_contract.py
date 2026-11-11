@@ -45,7 +45,7 @@ class OnDemandArtworkContractTest(unittest.TestCase):
             "maxRequests = 128",
             "maxDownloadedBytes = 8L * 1024 * 1024",
             "const val MAX_SIDE = 1320",
-            "const val CACHE_LIMIT_BYTES = 64L * 1024 * 1024",
+            "const val CACHE_LIMIT_BYTES = 192L * 1024 * 1024",
             "BitmapFactory.Options().apply { inJustDecodeBounds = true }",
             "coroutineContext",
         ):
