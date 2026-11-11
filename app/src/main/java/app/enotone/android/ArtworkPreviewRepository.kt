@@ -296,14 +296,22 @@ internal class ArtworkPreviewRepository(context: Context) {
 
     /** Clear BOTH stores so the legacy temporary v2 cannot repopulate it. */
     suspend fun clearAll() {
-        imageSlots.withPermit {
+        // Serialize concurrent clear requests before acquiring both permits.
+        // Without this guard two callers could each acquire one permit and
+        // deadlock while waiting for the other's second permit.
+        clearLock.lock()
+        try {
             imageSlots.withPermit {
-                withContext(Dispatchers.IO) {
-                    directory.deleteRecursively()
-                    legacyDirectory.deleteRecursively()
-                    memoryCache.evictAll()
+                imageSlots.withPermit {
+                    withContext(Dispatchers.IO) {
+                        directory.deleteRecursively()
+                        legacyDirectory.deleteRecursively()
+                        memoryCache.evictAll()
+                    }
                 }
             }
+        } finally {
+            clearLock.unlock()
         }
     }
 
@@ -550,9 +558,10 @@ internal class ArtworkPreviewRepository(context: Context) {
         const val MAX_DISK_FILE_BYTES = 4 * 1024 * 1024
         // No total disk ceiling; available physical storage remains finite.
         private val NO_ART_DIGEST = "0".repeat(64)
-        private val VIEW_SIDES = intArrayOf(192, 384, 512, 1320)
+        private val VIEW_SIDES = intArrayOf(192, 384, 512, 1200)
         private val HEX = Regex("[0-9a-f]{64}")
         private val imageSlots = Semaphore(2)
+        private val clearLock = Mutex()
         private val sourceLocks = Array(32) { Mutex() }
         private val albumLocks = Array(32) { Mutex() }
         // RAM only, different requested sizes; evictions never write variants.
