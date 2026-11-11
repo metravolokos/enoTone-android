@@ -23,6 +23,9 @@ class AppContainer(
     internal val artworkPreviewRepository: ArtworkPreviewRepository by lazy {
         ArtworkPreviewRepository(appContext)
     }
+    internal val credentialsProvider: CredentialsProvider by lazy {
+        VaultCredentialsProvider(appContext)
+    }
     internal val playbackConnection: PlaybackConnection by lazy {
         AndroidPlaybackConnection(appContext, main)
     }
