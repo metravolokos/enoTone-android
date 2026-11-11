@@ -2,59 +2,43 @@ package app.enotone.android
 
 import android.app.Activity
 import android.content.Context
-import androidx.core.view.WindowCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Typography
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowCompat
 
-/** Neutral user interface with exactly one configurable chromatic accent. */
+/** Graphite Material 3: Android theme behavior, without wallpaper dynamic color. */
 internal enum class UiMode { SYSTEM, DARK, LIGHT }
-internal enum class UiAccent(val swatch: Color) {
-    RED(Color(0xFFFA233B)),
-    BLUE(Color(0xFF286FAE)),
-    GREEN(Color(0xFF27764E)),
-    ORANGE(Color(0xFFAB5926)),
-    PURPLE(Color(0xFF7250A6)),
-}
 
-/** Only display options: no Room or credentials and no media-library requests. */
+/** Preserve the existing mode preference; intentionally ignore legacy accents. */
 internal object UiAppearance {
     private const val PREFS = "enotone_ui_appearance_v1"
     private var initialized = false
     var mode by mutableStateOf(UiMode.SYSTEM)
         private set
-    var accent by mutableStateOf(UiAccent.RED)
-        private set
     var playerVisible by mutableStateOf(false)
         private set
+
     fun showNowPlaying(visible: Boolean) { playerVisible = visible }
-    var albumPageVisible by mutableStateOf(false)
-        private set
-    fun showColoredAlbum(visible: Boolean) { albumPageVisible = visible }
 
     fun initialize(context: Context) {
         if (initialized) return
-        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        mode = UiMode.values().firstOrNull { it.name == prefs.getString("mode", null) }
+        val prefs = context.applicationContext
+            .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        mode = UiMode.entries.firstOrNull { it.name == prefs.getString("mode", null) }
             ?: UiMode.SYSTEM
-        accent = UiAccent.values().firstOrNull { it.name == prefs.getString("accent", null) }
-            ?: UiAccent.RED
         initialized = true
     }
 
@@ -63,58 +47,64 @@ internal object UiAppearance {
             .edit().putString("mode", value.name).apply()
         mode = value
     }
-
-    fun chooseAccent(context: Context, value: UiAccent) {
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putString("accent", value.name).apply()
-        accent = value
-    }
 }
 
-/** Design-space equivalents of the supplied iOS point tokens, expressed as dp/sp. */
-private val musicType = Typography(
-    headlineLarge = TextStyle(fontSize = 34.sp, lineHeight = 41.sp, fontWeight = FontWeight.Bold),
-    headlineMedium = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
-    headlineSmall = TextStyle(fontSize = 20.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold),
-    titleLarge = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
-    titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
-    bodyLarge = TextStyle(fontSize = 17.sp, lineHeight = 22.sp),
-    bodyMedium = TextStyle(fontSize = 15.sp, lineHeight = 20.sp),
-    bodySmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp),
-    labelLarge = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium),
-    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium),
-)
-
-private val neutralDark = darkColorScheme(
-    background = Color.Black,
-    onBackground = Color.White,
-    surface = Color(0xFF1C1C1E),
-    onSurface = Color.White,
-    surfaceVariant = Color(0xFF303034),
-    onSurfaceVariant = Color(0xFF98989F),
-    outline = Color(0xFF77777B),
-    outlineVariant = Color(0xFF545458),
-    secondary = Color(0xFFA9A9AE),
-    onSecondary = Color.Black,
-    secondaryContainer = Color(0xFF363639),
-    onSecondaryContainer = Color.White,
+private val graphiteDark = darkColorScheme(
+    primary = Color(0xFFE4E4E7),
+    onPrimary = Color(0xFF202124),
+    primaryContainer = Color(0xFF3A3B40),
+    onPrimaryContainer = Color(0xFFF3F3F5),
+    secondary = Color(0xFFC5C5CB),
+    onSecondary = Color(0xFF242529),
+    secondaryContainer = Color(0xFF333438),
+    onSecondaryContainer = Color(0xFFE4E4E7),
+    tertiary = Color(0xFFC5C5CB),
+    onTertiary = Color(0xFF242529),
+    background = Color(0xFF101113),
+    onBackground = Color(0xFFF4F4F5),
+    surface = Color(0xFF202124),
+    onSurface = Color(0xFFF4F4F5),
+    surfaceVariant = Color(0xFF303136),
+    onSurfaceVariant = Color(0xFFBABAC1),
+    surfaceContainerLowest = Color(0xFF101113),
+    surfaceContainerLow = Color(0xFF1A1B1E),
+    surfaceContainer = Color(0xFF202124),
+    surfaceContainerHigh = Color(0xFF303136),
+    surfaceContainerHighest = Color(0xFF3A3B40),
+    outline = Color(0xFF898A91),
+    outlineVariant = Color(0xFF414249),
+    inverseSurface = Color(0xFFF2F2F4),
+    inverseOnSurface = Color(0xFF202124),
+    inversePrimary = Color(0xFF38393D),
     surfaceTint = Color.Transparent,
 )
-
-private val neutralLight = lightColorScheme(
-    background = Color.White,
-    onBackground = Color(0xFF161618),
-    surface = Color(0xFFF2F2F7),
-    onSurface = Color(0xFF161618),
-    surfaceVariant = Color(0xFFE5E5EA),
-    onSurfaceVariant = Color(0xFF88888C),
-    outline = Color(0xFF8C8C93),
-    outlineVariant = Color(0xFFD4D4D8),
-    secondary = Color(0xFF66666B),
+private val graphiteLight = lightColorScheme(
+    primary = Color(0xFF393A3E),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFE1E2E6),
+    onPrimaryContainer = Color(0xFF28292D),
+    secondary = Color(0xFF5F6066),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE8E8EA),
-    onSecondaryContainer = Color(0xFF161618),
+    secondaryContainer = Color(0xFFE7E7EA),
+    onSecondaryContainer = Color(0xFF38393D),
+    tertiary = Color(0xFF5F6066),
+    onTertiary = Color.White,
+    background = Color(0xFFF7F7F8),
+    onBackground = Color(0xFF202124),
+    surface = Color.White,
+    onSurface = Color(0xFF202124),
+    surfaceVariant = Color(0xFFE7E7EA),
+    onSurfaceVariant = Color(0xFF606168),
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color(0xFFF7F7F8),
+    surfaceContainer = Color(0xFFF0F0F2),
+    surfaceContainerHigh = Color(0xFFE7E7EA),
+    surfaceContainerHighest = Color(0xFFDADBE0),
+    outline = Color(0xFF77787D),
+    outlineVariant = Color(0xFFD4D5D9),
+    inverseSurface = Color(0xFF303136),
+    inverseOnSurface = Color(0xFFF4F4F5),
+    inversePrimary = Color(0xFFDCDDE1),
     surfaceTint = Color.Transparent,
 )
 
@@ -127,8 +117,6 @@ internal fun EnoToneTheme(content: @Composable () -> Unit) {
         UiMode.DARK -> true
         UiMode.LIGHT -> false
     }
-    // The app background must extend through both transparent system bars.
-    // The icons reflect the *user-selected* theme rather than the OS default.
     val activity = context as? Activity
     SideEffect {
         activity?.window?.let { window ->
@@ -137,24 +125,14 @@ internal fun EnoToneTheme(content: @Composable () -> Unit) {
             @Suppress("DEPRECATION")
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
             val controller = WindowCompat.getInsetsController(window, window.decorView)
-            controller.isAppearanceLightStatusBars = !dark &&
-                !UiAppearance.playerVisible && !UiAppearance.albumPageVisible
-            controller.isAppearanceLightNavigationBars = !dark &&
-                !UiAppearance.playerVisible && !UiAppearance.albumPageVisible
+            controller.isAppearanceLightStatusBars = !dark && !UiAppearance.playerVisible
+            controller.isAppearanceLightNavigationBars = !dark && !UiAppearance.playerVisible
         }
     }
-    val accent = if (dark) {
-        if (UiAppearance.accent == UiAccent.RED) Color(0xFFFA586A)
-        else lerp(UiAppearance.accent.swatch, Color.White, 0.18f)
-    } else UiAppearance.accent.swatch
-    val neutral = if (dark) neutralDark else neutralLight
-    val colors = neutral.copy(
-        primary = accent,
-        onPrimary = Color.White,
-        primaryContainer = accent,
-        onPrimaryContainer = Color.White,
-    )
-    MaterialTheme(colorScheme = colors, typography = musicType) {
+    MaterialTheme(
+        colorScheme = if (dark) graphiteDark else graphiteLight,
+        typography = Typography(),
+    ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
