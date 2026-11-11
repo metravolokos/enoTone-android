@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -99,6 +100,8 @@ internal fun NowPlayingScreen(
         UiAppearance.showNowPlaying(true)
         onDispose { UiAppearance.showNowPlaying(false) }
     }
+    val seekLabel = stringResource(R.string.playback_seek_slider)
+    val closeLabel = stringResource(R.string.library_player_close)
     val hasDuration = PlaybackSeekPolicy.isKnownDuration(durationMs)
     var isScrubbing by remember(trackId) { mutableStateOf(false) }
     var scrubFraction by remember(trackId) { mutableFloatStateOf(0f) }
@@ -182,7 +185,9 @@ internal fun NowPlayingScreen(
         ) {
             // Narrow sheet grabber. Tapping it also closes the sheet.
             Box(
-                modifier = Modifier.fillMaxWidth().height(44.dp).clickable(onClick = onClose),
+                modifier = Modifier.fillMaxWidth().height(44.dp)
+                    .clickable(onClick = onClose)
+                    .semantics { contentDescription = closeLabel },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(Modifier.size(width = 36.dp, height = 5.dp)
@@ -260,15 +265,27 @@ internal fun NowPlayingScreen(
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
+                            leadingIcon = { Icon(painterResource(R.drawable.ic_action_shuffle),
+                                contentDescription = null) },
                             text = { Text(stringResource(if (shuffleEnabled)
                                 R.string.playback_shuffle_on else R.string.playback_shuffle_off)) },
                             onClick = { menuOpen = false; onToggleShuffle() },
                             enabled = controlsEnabled,
                         )
                         DropdownMenuItem(
+                            leadingIcon = { Icon(painterResource(R.drawable.ic_action_repeat),
+                                contentDescription = null) },
                             text = { Text(repeatText) },
                             onClick = { menuOpen = false; onCycleRepeat() },
                             enabled = controlsEnabled,
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(stringResource(R.string.now_playing_queue_short,
+                                    queuePosition, queueTotal))
+                            },
+                            onClick = { menuOpen = false },
+                            enabled = false,
                         )
                     }
                 }
@@ -282,7 +299,9 @@ internal fun NowPlayingScreen(
             MusicThinSlider(
                 value = fraction,
                 enabled = canSeek && controlsEnabled && hasDuration,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().semantics {
+                    contentDescription = seekLabel
+                },
                 onValueChange = { scrubFraction = it; isScrubbing = true },
                 onFinished = {
                     if (canSeek && controlsEnabled && hasDuration) onSeekFraction(scrubFraction)
