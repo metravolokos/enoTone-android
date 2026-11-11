@@ -950,20 +950,21 @@ internal fun OfflineLibraryScreen(
                         ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (currentArtwork) != null) {
-                        Image(
-                            bitmap = currentArtwork!!.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop,
-                        )
+                        if (currentArtwork != null) {
+                            Image(
+                                bitmap = currentArtwork!!.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop,
+                            )
                         } else {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_nav_tracks),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp),
-                        )
+                            Icon(
+                                painter = painterResource(R.drawable.ic_nav_tracks),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp),
+                            )
                         }
                     }
                 }
