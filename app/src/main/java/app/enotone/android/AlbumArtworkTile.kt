@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -70,7 +71,8 @@ internal fun AlbumArtworkTile(
     ) {
         Box(
             modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
+                .shadow(2.dp, RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
@@ -93,7 +95,7 @@ internal fun AlbumArtworkTile(
         Text(
             text = group.name,
             style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         val secondary = listOfNotNull(group.subtitle).joinToString(" · ")
@@ -106,11 +108,5 @@ internal fun AlbumArtworkTile(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Text(
-            text = androidx.compose.ui.res.stringResource(
-                R.string.library_group_tracks, group.trackIds.size),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
