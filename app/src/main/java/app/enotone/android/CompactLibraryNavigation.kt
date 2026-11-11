@@ -82,7 +82,7 @@ internal fun CompactLibraryNavigation(
                 Icon(
                     painter = painterResource(icon),
                     contentDescription = label,
-                    tint = if (active) MaterialTheme.colorScheme.onSecondaryContainer
+                    tint = if (active) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp),
                 )
