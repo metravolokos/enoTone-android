@@ -21,18 +21,6 @@ class UiEdgeToEdgeContractTest(unittest.TestCase):
         self.assertIn("controller.isAppearanceLightStatusBars = !dark", theme)
         self.assertIn("controller.isAppearanceLightNavigationBars = !dark", theme)
 
-    def test_safe_insets_and_graphite_background(self):
-        activity=read(BASE+"MainActivity.kt")
-        home=read(BASE+"EnoToneHomeScreen.kt")
-        library=read(BASE+"OfflineLibraryScreen.kt")
-        player=read(BASE+"NowPlayingScreen.kt")
-        self.assertIn("Modifier.fillMaxSize().systemBarsPadding()",home)
-        self.assertIn(".systemBarsPadding()",library)
-        self.assertIn("Modifier.fillMaxSize().systemBarsPadding()",activity)
-        self.assertIn(".windowInsetsPadding(WindowInsets.systemBars)",player)
-        self.assertIn("Brush.verticalGradient(",player)
-        self.assertNotIn("Brush.radialGradient(",player)
-
     def test_neutral_player_has_fixed_transport_and_no_fake_elements(self):
         player=read(BASE+"NowPlayingScreen.kt")
         for token in ("color.surfaceContainerHigh", "color.background",

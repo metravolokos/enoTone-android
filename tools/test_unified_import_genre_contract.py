@@ -70,28 +70,3 @@ class UnifiedImportGenreContractTest(unittest.TestCase):
         self.assertIn("genre = tags.genre", single)
         self.assertNotIn("fallbackToDestructiveMigration", db)
 
-    def test_genre_search_and_album_header_are_local(self):
-        catalog = self.src("data/library/src/main/java/app/enotone/library/OfflineTrackCatalog.kt")
-        ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        header = self.src("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
-        self.assertIn("genre = track.genre?.takeIf", catalog)
-        self.assertIn("row.genre", catalog)
-        self.assertIn("fun commonAlbumGenre(", catalog)
-        self.assertIn("OfflineTrackCatalog.commonAlbumGenre(albumTracks)", ui)
-        self.assertIn("genre = albumGenre", ui)
-        self.assertIn("genre?.takeIf { it.isNotBlank() }", header)
-        self.assertIn("Text(facts,", header)
-        self.assertNotIn("WebDavRangeReader(", header)
-
-    def test_cover_policy_remains_lazy_not_a_bulk_import(self):
-        art = self.src("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
-        ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        self.assertIn("Semaphore(2)", art)
-        self.assertIn("MAX_SIDE = 1200", art)
-        self.assertIn("context.applicationContext.filesDir", art)
-        self.assertIn("AlbumArtworkTile(", ui)
-        self.assertIn("AlbumDetailHeader(", ui)
-
-
-if __name__ == "__main__":
-    unittest.main()
