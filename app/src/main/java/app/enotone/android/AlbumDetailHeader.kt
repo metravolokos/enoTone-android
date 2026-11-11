@@ -54,11 +54,20 @@ internal fun AlbumDetailHeader(
     refreshMessage: String,
     onRefreshTags: () -> Unit,
 ) {
-    var cover by remember(group.key, target) { mutableStateOf<Bitmap?>(null) }
+    // Lazy grid/list items are disposed during navigation. If we already
+    // drew this source on another page, paint the RAM image immediately
+    // instead of briefly resetting it to a placeholder.
+    var cover by remember(group.key, target, accountEmail) {
+        mutableStateOf<Bitmap?>(target?.let {
+            repository.peek(accountEmail, it, requestedSide = 512)
+        })
+    }
     LaunchedEffect(group.key, target, accountEmail, appPassword) {
-        cover = null
         if (target != null && appPassword.isNotBlank()) {
-            cover = repository.cover(accountEmail, appPassword, target)
+            // The same v2 master supplies all sizes; never start a new GET
+            // when a source reference exists on disk.
+            cover = repository.cover(accountEmail, appPassword, target,
+                requestedSide = 512) ?: cover
         }
     }
 
