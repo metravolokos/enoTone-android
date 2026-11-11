@@ -131,10 +131,8 @@ internal fun EnoToneHomeScreen(
                 }
             }
         }
-        FloatingControlsIsland(
-            modifier = Modifier.align(Alignment.BottomCenter)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-        ) {
+        Column(modifier = Modifier.align(Alignment.BottomCenter)
+            .fillMaxWidth()) {
             CompactLibraryNavigation(
                 selectedPage = null,
                 visiblePages = visiblePages,

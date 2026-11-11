@@ -60,7 +60,6 @@ internal fun AlbumDetailHeader(
     refreshingTags: Boolean,
     refreshMessage: String,
     onRefreshTags: () -> Unit,
-    onArtworkLoaded: (Bitmap?) -> Unit = {},
 ) {
     var actionsExpanded by remember(group.key) { mutableStateOf(false) }
     // Lazy grid/list items are disposed during navigation. If we already
@@ -83,20 +82,15 @@ internal fun AlbumDetailHeader(
         }
     }
 
-    LaunchedEffect(cover) { onArtworkLoaded(cover) }
     Column(
-        modifier = Modifier.fillMaxWidth().padding(top = 28.dp, bottom = 22.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
-            modifier = Modifier.size(242.dp)
-                .shadow(
-                    elevation = 18.dp, shape = RoundedCornerShape(8.dp),
-                    clip = false,
-                    ambientColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = .70f),
-                    spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = .60f),
-                )
-                .clip(RoundedCornerShape(8.dp))
+            modifier = Modifier.size(232.dp)
+                .shadow(8.dp, RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
@@ -105,132 +99,81 @@ internal fun AlbumDetailHeader(
                     bitmap = cover!!.asImageBitmap(),
                     contentDescription = stringResource(R.string.album_cover_description),
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(242.dp),
+                    modifier = Modifier.size(232.dp),
                 )
             } else {
                 Icon(
-                    painter = painterResource(R.drawable.ic_nav_albums),
+                    painterResource(R.drawable.ic_nav_albums),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(48.dp),
                 )
             }
         }
-        androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
-        Text(
-            group.name,
-            style = MaterialTheme.typography.headlineMedium,
-            color = androidx.compose.ui.graphics.Color.White,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-        )
+        Text(group.name, style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground, maxLines = 2,
+            overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         group.subtitle?.takeIf { it.isNotBlank() }?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.headlineSmall,
-                color = androidx.compose.ui.graphics.Color.White.copy(alpha = .83f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-            )
+            Text(it, style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center)
         }
-        val facts = listOfNotNull(
-            genre?.takeIf { it.isNotBlank() },
-            year?.toString(),
-        ).joinToString(" · ")
+        val facts = listOfNotNull(genre?.takeIf { it.isNotBlank() }, year?.toString())
+            .joinToString(" · ")
         if (facts.isNotBlank()) {
-            androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp))
-            Text(
-                text = facts,
-                color = androidx.compose.ui.graphics.Color.White.copy(alpha = .68f),
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Text(facts, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelMedium)
         }
-        androidx.compose.foundation.layout.Spacer(Modifier.size(20.dp))
-        // Screenshot structure: small shuffle circle, big white play capsule,
-        // small add circle (a disabled placeholder until playlists arrive).
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier.size(52.dp)
-                    .background(
-                        androidx.compose.ui.graphics.Color.White.copy(alpha = .13f),
-                        RoundedCornerShape(26.dp),
-                    ),
-                contentAlignment = Alignment.Center,
+            androidx.compose.material3.FilledTonalButton(
+                onClick = onShuffleAll, enabled = canPlay,
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(16.dp),
             ) {
-                IconButton(onClick = onShuffleAll, enabled = canPlay) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_shuffle),
-                        contentDescription = stringResource(R.string.library_shuffle_all),
-                        tint = androidx.compose.ui.graphics.Color.White,
+                Icon(painterResource(R.drawable.ic_action_shuffle),
+                    contentDescription = null)
+                Text(stringResource(R.string.library_shuffle_all),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Button(
+                onClick = onPlayAll, enabled = canPlay,
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Icon(painterResource(R.drawable.ic_action_play),
+                    contentDescription = null)
+                Text(stringResource(R.string.ui_play),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Box {
+                IconButton(onClick = { actionsExpanded = true }) {
+                    Icon(painterResource(R.drawable.ic_action_more),
+                        contentDescription = stringResource(R.string.album_actions))
+                }
+                DropdownMenu(
+                    expanded = actionsExpanded,
+                    onDismissRequest = { actionsExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(if (refreshingTags)
+                            R.string.album_refresh_busy else R.string.album_refresh_tags)) },
+                        enabled = canRefreshTags && !refreshingTags,
+                        onClick = {
+                            actionsExpanded = false
+                            onRefreshTags()
+                        },
                     )
                 }
             }
-            Button(
-                onClick = onPlayAll,
-                enabled = canPlay,
-                modifier = Modifier.weight(1f).height(52.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = androidx.compose.ui.graphics.Color.White,
-                    contentColor = androidx.compose.ui.graphics.Color(0xFF202024),
-                    disabledContainerColor = androidx.compose.ui.graphics.Color.White.copy(alpha=.62f),
-                    disabledContentColor = androidx.compose.ui.graphics.Color.DarkGray,
-                ),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
-            ) {
-                Icon(painterResource(R.drawable.ic_action_play), contentDescription = null,
-                    modifier = Modifier.size(20.dp))
-                Text(
-                    stringResource(R.string.ui_play),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                )
-            }
-            Box(
-                modifier = Modifier.size(52.dp).background(
-                    androidx.compose.ui.graphics.Color.White.copy(alpha=.13f),
-                    RoundedCornerShape(26.dp),
-                ),
-                contentAlignment = Alignment.Center,
-            ) {
-                IconButton(enabled = false, onClick = {}) {
-                    Icon(painterResource(R.drawable.ic_music_add), contentDescription = null,
-                        tint = androidx.compose.ui.graphics.Color.White)
-                }
-            }
-        }
-        // Reindexing stays in overflow, with the same real callback.
-        Box(modifier = Modifier.align(Alignment.End)) {
-            IconButton(onClick = { actionsExpanded = true }) {
-                Icon(painterResource(R.drawable.ic_action_more),
-                    contentDescription = stringResource(R.string.album_actions),
-                    tint = androidx.compose.ui.graphics.Color.White)
-            }
-            DropdownMenu(expanded = actionsExpanded,
-                onDismissRequest = { actionsExpanded = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(if (refreshingTags)
-                        R.string.album_refresh_busy else R.string.album_refresh_tags)) },
-                    enabled = canRefreshTags && !refreshingTags,
-                    onClick = {
-                        actionsExpanded = false
-                        onRefreshTags()
-                    },
-                )
-            }
         }
         if (refreshMessage.isNotBlank()) {
-            Text(refreshMessage,
-                style = MaterialTheme.typography.bodySmall,
-                color = androidx.compose.ui.graphics.Color.White.copy(alpha=.7f),
+            Text(refreshMessage, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center)
         }
     }
