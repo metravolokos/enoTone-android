@@ -263,7 +263,7 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertIn("coerceIn(0L, durationMs)", policy)
         self.assertIn("fun formatTime(", policy)
         self.assertIn("Slider(", now_playing)
-        self.assertIn("onValueChangeFinished", now_playing)
+        self.assertIn("onFinished = {", now_playing)
         self.assertIn("onSeekFraction(scrubFraction)", now_playing)
         self.assertIn("playback?.seekToFraction(fraction)", ui)
         self.assertIn("canSeek = active?.canSeekCurrent == true", ui)

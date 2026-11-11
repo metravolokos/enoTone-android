@@ -80,14 +80,14 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         ):
             self.assertIn(token, ui)
         self.assertIn("PlaybackSeekPolicy.positionForFraction(", player)
-        self.assertIn(".verticalScroll(rememberScrollState())", player)
+        self.assertIn(".windowInsetsPadding(WindowInsets.systemBars)", player)
         self.assertIn("R.string.library_player_close", player)
         self.assertNotIn("AlertDialog(", ui[
             ui.index("if (showPlayerDetails && selectedTitle != null)"):
-            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)")
+            ui.index("Column(\n        modifier = Modifier.fillMaxSize().systemBarsPadding()")
         ])
         self.assertLess(ui.index("if (showPlayerDetails && selectedTitle != null)"),
-            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)"))
+            ui.index("Column(\n        modifier = Modifier.fillMaxSize().systemBarsPadding()"))
         self.assertLess(ui.index("items(visible, key = { it.id })"),
             ui.index("// Floating mini player:"))
         self.assertNotIn("R.string.library_group_tags_only", ui)
@@ -133,14 +133,14 @@ class CleanLibraryUiContractTest(unittest.TestCase):
 
     def test_compact_app_bar_search_and_mini_player(self):
         ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        self.assertIn("modifier = Modifier.fillMaxWidth().height(if (selectedGroupKey == null) 78.dp else 52.dp)", ui)
+        self.assertIn("modifier = Modifier.fillMaxWidth().height(52.dp)", ui)
         self.assertIn("R.drawable.ic_action_back", ui)
         self.assertNotIn("R.drawable.ic_action_pages", ui)
-        self.assertIn("if (searchExpanded) {", ui)
+        self.assertIn("BasicTextField(", ui)
         self.assertIn("if (search.isNotBlank()) {", ui)
-        self.assertIn("R.drawable.ic_action_search", ui)
-        self.assertIn("R.string.library_close_search", ui)
-        self.assertIn("R.string.library_open_search", ui)
+        self.assertIn("R.string.ui_search_songs", ui)
+        self.assertIn("R.string.ui_search_albums", ui)
+        self.assertIn("R.string.ui_search_artists", ui)
         self.assertIn("selectedGroupKey = null", ui)
         self.assertIn("selectedArtist = mediaMetadata.artist?.toString()", ui)
         self.assertIn("selectedArtist = track.artist", ui)
