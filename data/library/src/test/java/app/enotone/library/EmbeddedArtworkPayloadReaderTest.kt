@@ -70,7 +70,7 @@ class EmbeddedArtworkPayloadReaderTest {
                 maxDownloadedBytes = 512L * 1024,
             ).use { source ->
                 val result = EmbeddedArtworkPayloadReader().read(
-                    "cover.mp3", source.fileSize, source::readAt)
+                    "cover.mp3", source.fileSize, readAt = source::readAt)
                 assertArrayEquals(expected, result)
                 assertTrue(source.stats().requests in 1..4)
                 assertTrue(source.stats().downloadedBytes <= 4L * 65536)
@@ -85,14 +85,14 @@ class EmbeddedArtworkPayloadReaderTest {
         val payload = ByteArray(200_001) { (it % 251).toByte() }
         val file = mp3(payload)
         val result = EmbeddedArtworkPayloadReader().read(
-            "play.mp3", file.size.toLong(), blockReader(file))
+            "play.mp3", file.size.toLong(), readAt = blockReader(file))
         assertArrayEquals(payload, result)
     }
 
     @Test fun missingArtworkDoesNotReadPayload() {
         val noId3 = ByteArray(1_000)
         val result = EmbeddedArtworkPayloadReader().read(
-            "silent.mp3", noId3.size.toLong(), blockReader(noId3))
+            "silent.mp3", noId3.size.toLong(), readAt = blockReader(noId3))
         assertNull(result)
     }
 
