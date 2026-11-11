@@ -29,6 +29,8 @@ data class PlaybackSetupTimings(
     val seedSourcesMs: Long,
     val setSourcesMs: Long,
     val prepareAndPlayMs: Long,
+    /** Only the synchronous main-thread seed setup during a restored launch. */
+    val restoreSeedMs: Long? = null,
 )
 
 @OptIn(UnstableApi::class)
@@ -169,6 +171,7 @@ class PreviewAudioPlayback(
     private var stableShuffleApplied = false
     private var restoringShuffle = false
     private var deferredPrepare = false
+    private var stageBeforePrepare = false
 
     private fun newShuffleOrder(size: Int): IntArray {
         val order = ShuffleOrder.DefaultShuffleOrder(size, System.nanoTime())
@@ -190,19 +193,32 @@ class PreviewAudioPlayback(
         player.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(indices.copyOf(), System.nanoTime()))
     }
 
-    fun snapshotQueueState(savedAtEpochMs: Long): PersistedQueueState? {
-        val sourceKey = sourceKeyForQueue ?: return null
-        val currentId = player.currentMediaItem?.mediaId ?: return null
-        val result = PersistedQueueState(
-            trackIds = originalTrackIds,
-            selectedTrackId = currentId,
+    /** Constant-time checkpoint; large list validation happens on I/O executor. */
+    fun snapshotPosition(revision: String, savedAtEpochMs: Long): PersistedPositionState? {
+        val current = player.currentMediaItem?.mediaId ?: return null
+        if (sourceKeyForQueue == null) return null
+        return PersistedPositionState(
+            selectedTrackId = current,
             positionMs = player.currentPosition.coerceAtLeast(0L),
             repeatMode = player.repeatMode,
             shuffleEnabled = player.shuffleModeEnabled,
-            shuffledIndices = if (player.shuffleModeEnabled) configuredShuffle?.copyOf() else null,
-            sourceKey = sourceKey, savedAtEpochMs = savedAtEpochMs,
+            savedAtEpochMs = savedAtEpochMs,
+            queueRevision = revision,
         )
-        return result.takeIf(QueueStateCodec::isValid)
+    }
+
+    /** Immutable original queue and full permutation; only on queue/shuffle changes. */
+    fun snapshotLayout(revision: String, savedAtEpochMs: Long): PersistedQueueLayout? {
+        val sourceKey = sourceKeyForQueue ?: return null
+        if (originalTrackIds.isEmpty()) return null
+        return PersistedQueueLayout(
+            trackIds = originalTrackIds,
+            shuffledIndices = if (player.shuffleModeEnabled) configuredShuffle?.copyOf() else null,
+            shuffleEnabled = player.shuffleModeEnabled,
+            sourceKey = sourceKey,
+            queueRevision = revision,
+            savedAtEpochMs = savedAtEpochMs,
+        )
     }
     private var latestSetup = PlaybackSetupTimings(0L, 0L, 0L, 0L, 0L)
 
@@ -220,16 +236,21 @@ class PreviewAudioPlayback(
         scheduledPlaylistFill = null
         pendingPlaylist = null
         pendingMediaFactory = null
+        stageBeforePrepare = false
     }
 
-    /** Build a bounded portion of the full Media3 timeline after first READY. */
+    /** Fill one bounded chunk per UI turn; restore may stage while still IDLE. */
+    private fun mayFillPlaylist(): Boolean =
+        player.playbackState == Player.STATE_READY ||
+            (stageBeforePrepare && player.playbackState == Player.STATE_IDLE)
+
     private fun stagePlaylistAfterReady() {
         val plan = pendingPlaylist ?: return
         val factory = pendingMediaFactory ?: return
-        if (scheduledPlaylistFill != null || player.playbackState != Player.STATE_READY) return
+        if (scheduledPlaylistFill != null || !mayFillPlaylist()) return
         val task = Runnable {
             scheduledPlaylistFill = null
-            if (pendingPlaylist !== plan || player.playbackState != Player.STATE_READY) {
+            if (pendingPlaylist !== plan || !mayFillPlaylist()) {
                 return@Runnable
             }
             val chunk = plan.nextChunk() ?: run {
@@ -251,6 +272,7 @@ class PreviewAudioPlayback(
             if (plan.isComplete) {
                 pendingPlaylist = null
                 pendingMediaFactory = null
+                stageBeforePrepare = false
                 applyStableShuffleIfComplete()
             } else stagePlaylistAfterReady()
         }
@@ -424,6 +446,7 @@ class PreviewAudioPlayback(
         sourceKey: String,
     ) {
         deferredPrepare = false
+        stageBeforePrepare = false
         sourceKeyForQueue = sourceKey
         clearScheduledWriter()
         cancelPlaylistFill()
@@ -478,8 +501,9 @@ class PreviewAudioPlayback(
     }
 
     /**
-     * Full local Media3 timeline: never prepare() or play() during restoration.
-     * ProgressiveMediaSource construction is local; the first Play opens the stream.
+     * Only a bounded seed is created synchronously. The remaining Media3
+     * sources are appended/prepended in 32-item Handler turns even while IDLE;
+     * prepare() and network GET are deferred until explicit Play.
      */
     fun restoreQueue(
         email: String,
@@ -488,7 +512,8 @@ class PreviewAudioPlayback(
         state: PersistedQueueState,
         useTemporaryCache: Boolean,
     ) {
-        require(QueueStateCodec.isValid(state) && state.trackIds == tracks.map { it.id })
+        val t0 = SystemClock.elapsedRealtime()
+        require(state.trackIds == tracks.map { it.id })
         clearScheduledWriter()
         cancelPlaylistFill()
         handoffTracker.startNewQueue()
@@ -498,7 +523,9 @@ class PreviewAudioPlayback(
         scheduledNextId = null
         temporaryCache?.stopCurrent()
         cacheEnabledForQueue = useTemporaryCache
+
         val queue = PlaybackQueue.create(tracks, state.selectedTrackId)
+        val t1 = SystemClock.elapsedRealtime()
         val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
         val sourceFactory = if (useTemporaryCache) {
             val diskCache = temporaryCache ?: TransientMediaCache(applicationContext)
@@ -506,6 +533,7 @@ class PreviewAudioPlayback(
             diskCache.forPlayback(factory)
         } else factory
         val mediaFactory = ProgressiveMediaSource.Factory(sourceFactory)
+        val t2 = SystemClock.elapsedRealtime()
         activeRoutes = if (useTemporaryCache) queue.items.associateBy { it.id } else emptyMap()
         upstreamFactory = if (useTemporaryCache) factory else null
         expectedQueueSize = queue.size
@@ -513,26 +541,37 @@ class PreviewAudioPlayback(
         sourceKeyForQueue = state.sourceKey
         mediaIdIndices = queue.items.mapIndexed { index, item -> item.id to index }.toMap()
         configuredShuffle = state.shuffledIndices?.copyOf()
-        stableShuffleApplied = true
+        stableShuffleApplied = false
+
+        val plan = StagedPlaylistPlan.create(queue)
+        val seed = plan.seed.map { makeMediaSource(mediaFactory, it) }
+        val t3 = SystemClock.elapsedRealtime()
+        pendingPlaylist = if (plan.isComplete) null else plan
+        pendingMediaFactory = if (plan.isComplete) null else mediaFactory
+        // Suppress re-randomization: the saved full permutation is authoritative.
         restoringShuffle = true
         try {
-            player.repeatMode = state.repeatMode
             player.shuffleModeEnabled = false
-            player.setMediaSources(
-                queue.items.map { makeMediaSource(mediaFactory, it) },
-                queue.position, state.positionMs,
-            )
-            if (state.shuffleEnabled) {
-                player.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(
-                    state.shuffledIndices!!.copyOf(), System.nanoTime(),
-                ))
-            }
+            player.repeatMode = state.repeatMode
+            player.setMediaSources(seed, plan.seedSelectedIndex, state.positionMs)
             player.shuffleModeEnabled = state.shuffleEnabled
             player.pause()
             deferredPrepare = true
+            stageBeforePrepare = !plan.isComplete
         } finally {
             restoringShuffle = false
         }
+        applyStableShuffleIfComplete()
+        val t4 = SystemClock.elapsedRealtime()
+        latestSetup = PlaybackSetupTimings(
+            queueMs = t1 - t0,
+            routesAndCacheMs = t2 - t1,
+            seedSourcesMs = t3 - t2,
+            setSourcesMs = t4 - t3,
+            prepareAndPlayMs = 0L,
+            restoreSeedMs = t4 - t0,
+        )
+        if (stageBeforePrepare) stagePlaylistAfterReady()
     }
 
     /** Explicit Next/Previous means play the selected item, even after ENDED. */
