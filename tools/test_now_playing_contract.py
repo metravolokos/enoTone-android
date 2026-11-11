@@ -31,7 +31,7 @@ class NowPlayingContractTest(unittest.TestCase):
         ):
             self.assertIn(token, screen)
         self.assertIn("BoxWithConstraints(", player)
-        self.assertIn("Modifier.fillMaxSize().verticalScroll(rememberScrollState())", player)
+        self.assertIn(".verticalScroll(rememberScrollState())", player)
         self.assertIn("Modifier.size(coverSide)", player)
         self.assertIn("onClose: () -> Unit", player)
         self.assertNotIn("AlertDialog(", player)

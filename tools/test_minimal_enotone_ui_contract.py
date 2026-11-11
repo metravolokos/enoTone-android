@@ -32,7 +32,7 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
         for token in ("artworkColors(artwork)", "Brush.verticalGradient(",
                       "Color.Black", "Color.White", "animateColorAsState(",
                       "animateFloatAsState(", 'playbackState == "PAUSED"',
-                      ".shadow(20.dp", "coverScale"):
+                      "elevation = 32.dp", "coverScale"):
             self.assertIn(token, player)
         self.assertIn("Bitmap.createScaledBitmap(", backdrop)
         self.assertNotIn("WebDav", backdrop)
