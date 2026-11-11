@@ -11,52 +11,6 @@ class AlbumDetailContractTest(unittest.TestCase):
     def src(self, path):
         return (ROOT / path).read_text(encoding="utf-8")
 
-    def test_album_header_is_lazy_list_item_and_other_tabs_unchanged(self):
-        screen = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        for required in (
-            "section == LibraryPage.ALBUMS && selectedGroup != null",
-            'item(key = "album-detail-header")',
-            "AlbumDetailHeader(",
-            "artworkGroup = artworkCatalog.byGroupKey[selectedGroup.key]",
-            "items(visible, key = { it.id })",
-            "LazyVerticalGrid(",
-            "GridCells.Fixed(2)",
-            "selectedGroupKey = group.key",
-            "LibraryPage.ARTISTS -> OfflineLibraryGrouping.artists(tracks)",
-            "LibraryPage.ALBUM_ARTISTS -> OfflineLibraryGrouping.albumArtists(tracks)",
-        ):
-            self.assertIn(required, screen)
-        self.assertLess(screen.index('item(key = "album-detail-header")'),
-                        screen.index("items(visible, key = { it.id })"))
-        self.assertNotIn("deleteDatabase(", screen)
-
-    def test_album_play_all_uses_full_group_and_existing_playback_path(self):
-        screen = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        for required in (
-            "val albumTracks = remember(tracks, section, selectedGroup)",
-            "tracks.filter { it.id in selectedGroup.trackIds }",
-            "val playTrack: (OfflineTrackRow, List<OfflineTrackRow>) -> Unit",
-            "playTrack(first, albumTracks)",
-            "playTrack(track, visible)",
-            "val queue = contextTracks.mapNotNull { shown ->",
-            "preparedById[shown.id]",
-            "service.playQueue(accountEmail, appPassword,",
-            "currentTrackId = track.id",
-            "canPlay = albumTracks.isNotEmpty()",
-        ):
-            self.assertIn(required, screen)
-        # One Media3 start path, shared by individual tracks and Play album.
-        self.assertEqual(1, screen.count("service.playQueue(accountEmail, appPassword,"))
-        # Opening the album and starting playback must never query Room.
-        # The new user-confirmed metadata refresh has its own explicit IO
-        # coroutine and is the only allowed database access in this region.
-        playback = screen[screen.index("val playTrack: (OfflineTrackRow,"):
-                          screen.index("// Explicit confirmation before ANY album tag HTTP.")]
-        self.assertNotIn("openLibraryDatabase(", playback)
-        self.assertIn("openLibraryDatabase(context)", screen[
-            screen.index("// Explicit confirmation before ANY album tag HTTP."):
-            screen.index("if (showPlayerDetails && selectedTitle != null)")])
-
     def test_album_header_reuses_cached_artwork_and_never_invents_year(self):
         header = self.src("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
         for required in (

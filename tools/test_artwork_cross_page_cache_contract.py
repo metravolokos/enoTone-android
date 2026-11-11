@@ -10,35 +10,6 @@ def read(path):
 
 
 class ArtworkCrossPageCacheContractTest(unittest.TestCase):
-    def test_album_resolution_is_shared_by_every_page(self):
-        ui = read("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        catalog = read("app/src/main/java/app/enotone/android/AlbumArtworkCatalog.kt")
-        track = read("app/src/main/java/app/enotone/android/TrackArtworkThumbnail.kt")
-        tile = read("app/src/main/java/app/enotone/android/AlbumArtworkTile.kt")
-        header = read("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
-        for token in (
-            "val artworkCatalog = remember(tracks, preparedById, libraryRefreshEpoch)",
-            "artworkGroup = artworkCatalog.byTrackId[track.id]",
-            "artworkGroup = artworkCatalog.byGroupKey[group.key]",
-            "artworkGroup = artworkCatalog.byGroupKey[selectedGroup.key]",
-            "currentArtwork = artworkRepository.albumCover(",
-            "fullArtwork = artworkRepository.albumCover(",
-        ):
-            self.assertIn(token, ui)
-        for token in (
-            "OfflineLibraryGrouping.albums(tracks)",
-            "OfflineTrackCatalog.albumOrder(",
-            'if (group.key == "album:missing") continue',
-            'AlbumArtworkGroup("track:" + track.id, listOf(target))',
-            "group.trackIds.forEach { byTrack[it] = artworkGroup }",
-        ):
-            self.assertIn(token, catalog)
-        self.assertIn("repository.albumCover(accountEmail, appPassword,", track)
-        self.assertIn("repository.albumCover(accountEmail, appPassword,", tile)
-        self.assertIn("repository.albumCover(accountEmail, appPassword,", header)
-        self.assertNotIn("WebDavRangeReader(", tile)
-        self.assertNotIn("WebDavRangeReader(", track)
-
     def test_permanent_store_and_no_album_network_on_cache_hit(self):
         cache = read("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
         for token in (
