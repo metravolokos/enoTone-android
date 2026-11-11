@@ -843,41 +843,31 @@ internal fun OfflineLibraryScreen(
             Text(count, style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (section == LibraryPage.TRACKS && selectedGroup == null &&
-            tracks.isNotEmpty() && search.isBlank()) {
+        if ((section == LibraryPage.TRACKS || section == LibraryPage.ALBUMS) &&
+            selectedGroup == null && tracks.isNotEmpty() && search.isBlank()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Button(
-                    enabled = playback != null && !selecting && appPassword.isNotBlank(),
-                    onClick = { visible.firstOrNull()?.let { playTrack(it, visible) } },
-                    modifier = Modifier.weight(1f).height(44.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                ) {
-                    Icon(painterResource(R.drawable.ic_action_play), contentDescription = null)
-                    Text(stringResource(R.string.album_play_all))
-                }
-                Button(
-                    enabled = playback != null && !selecting && appPassword.isNotBlank(),
+                val enabled = playback != null && !selecting && appPassword.isNotBlank()
+                val all = if (section == LibraryPage.TRACKS) visible else tracks
+                MusicListAction(
+                    text = stringResource(R.string.ui_play),
+                    icon = R.drawable.ic_action_play,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                    onClick = { all.firstOrNull()?.let { playTrack(it, all) } },
+                )
+                MusicListAction(
+                    text = stringResource(R.string.library_shuffle_all),
+                    icon = R.drawable.ic_action_shuffle,
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
                     onClick = {
-                        val shuffled = visible.shuffled()
+                        val shuffled = all.shuffled()
                         shuffled.firstOrNull()?.let { playTrack(it, shuffled) }
                     },
-                    modifier = Modifier.weight(1f).height(44.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                ) {
-                    Icon(painterResource(R.drawable.ic_action_shuffle), contentDescription = null)
-                    Text(stringResource(R.string.library_shuffle_all))
-                }
+                )
             }
         }
         when {
@@ -1055,6 +1045,8 @@ internal fun OfflineLibraryScreen(
                                 text = track.title,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
+                                color = if (isAlbumDetail) Color.White
+                                    else MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                             val subtitle = if (section == LibraryPage.ALBUMS &&
@@ -1067,7 +1059,8 @@ internal fun OfflineLibraryScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (isAlbumDetail) Color.White.copy(alpha = .66f)
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
