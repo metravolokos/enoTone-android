@@ -39,7 +39,7 @@ class ScreenshotParityContractTest(unittest.TestCase):
             ".systemBarsPadding()", ".navigationBarsPadding()",
         ):
             self.assertIn(token, library)
-        self.assertIn("repository.peekAlbum(", library)
+        self.assertIn("artworkRepository.peekAlbum(", library)
         self.assertIn("onArtworkLoaded(cover)", header)
         self.assertIn("modifier = Modifier.size(242.dp)", header)
         self.assertIn("R.string.ui_play", header)
