@@ -28,11 +28,6 @@ internal object UiAppearance {
     private var initialized = false
     var mode by mutableStateOf(UiMode.SYSTEM)
         private set
-    var playerVisible by mutableStateOf(false)
-        private set
-
-    fun showNowPlaying(visible: Boolean) { playerVisible = visible }
-
     fun initialize(context: Context) {
         if (initialized) return
         val prefs = context.applicationContext
@@ -125,8 +120,8 @@ internal fun EnoToneTheme(content: @Composable () -> Unit) {
             @Suppress("DEPRECATION")
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
             val controller = WindowCompat.getInsetsController(window, window.decorView)
-            controller.isAppearanceLightStatusBars = !dark && !UiAppearance.playerVisible
-            controller.isAppearanceLightNavigationBars = !dark && !UiAppearance.playerVisible
+            controller.isAppearanceLightStatusBars = !dark
+            controller.isAppearanceLightNavigationBars = !dark
         }
     }
     MaterialTheme(
