@@ -314,15 +314,17 @@ internal fun OfflineLibraryScreen(
         } ?: return@LaunchedEffect
         val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
         if (saved.sourceKey != sourceKey) return@LaunchedEffect
-        val filtered = QueueStateRestorer.filter(saved, preparedById.keys)
-            ?: return@LaunchedEffect
+        val filtered = withContext(Dispatchers.IO) {
+            QueueStateRestorer.filter(saved, preparedById.keys)
+        } ?: return@LaunchedEffect
         val queue = filtered.trackIds.mapNotNull(preparedById::get)
         if (queue.size != filtered.trackIds.size || active.queueSize > 0) {
             return@LaunchedEffect
         }
         if (runCatching {
                 active.restoreQueue(accountEmail, appPassword, queue, filtered,
-                    useCacheOnNextPlay)
+                    useCacheOnNextPlay,
+                    filteredMissingTracks = filtered.trackIds.size != saved.trackIds.size)
             }.getOrDefault(false)) {
             val track = tracks.firstOrNull { it.id == filtered.selectedTrackId }
             currentTrackId = filtered.selectedTrackId
@@ -331,6 +333,8 @@ internal fun OfflineLibraryScreen(
             queuePosition = filtered.trackIds.indexOf(filtered.selectedTrackId) + 1
             queueTotal = filtered.trackIds.size
             positionMs = filtered.positionMs
+            setupTimings = active.setupTimings()
+            media3DurationMs = setupTimings?.restoreSeedMs
             repeatMode = filtered.repeatMode
             shuffleEnabled = filtered.shuffleEnabled
             // STATE_IDLE is deliberately kept until Play: the existing
