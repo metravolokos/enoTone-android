@@ -20,7 +20,7 @@ class AlbumDetailContractTest(unittest.TestCase):
             "artworkGroup = artworkCatalog.byGroupKey[selectedGroup.key]",
             "items(visible, key = { it.id })",
             "LazyVerticalGrid(",
-            "GridCells.Adaptive(minSize = 148.dp)",
+            "GridCells.Fixed(2)",
             "selectedGroupKey = group.key",
             "LibraryPage.ARTISTS -> OfflineLibraryGrouping.artists(tracks)",
             "LibraryPage.ALBUM_ARTISTS -> OfflineLibraryGrouping.albumArtists(tracks)",
@@ -63,14 +63,13 @@ class AlbumDetailContractTest(unittest.TestCase):
             "LaunchedEffect(group.key, artworkGroup, accountEmail, appPassword)",
             "repository.albumCover(accountEmail, appPassword,",
             "group.subtitle?.takeIf",
-            "group.trackIds.size",
             "R.drawable.ic_nav_albums",
             "R.string.album_cover_description",
             "R.string.album_play_all",
             "Button(",
             "enabled = canPlay",
             "onClick = onPlayAll",
-            "modifier = Modifier.size(200.dp)",
+            "modifier = Modifier.size(240.dp)",
         ):
             self.assertIn(required, header)
         self.assertNotIn("WebDavRangeReader(", header)

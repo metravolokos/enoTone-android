@@ -65,7 +65,7 @@ class NowPlayingContractTest(unittest.TestCase):
         player = self.src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
         for token in (
             "remember(trackId) { mutableStateOf(false) }",
-            "remember(trackId) { mutableStateOf(0f) }",
+            "remember(trackId) { mutableFloatStateOf(0f) }",
             "PlaybackSeekPolicy.isKnownDuration(durationMs)",
             "PlaybackSeekPolicy.fraction(positionMs, durationMs)",
             "PlaybackSeekPolicy.positionForFraction(durationMs, scrubFraction)",

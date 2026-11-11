@@ -84,10 +84,10 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertIn("R.string.library_player_close", player)
         self.assertNotIn("AlertDialog(", ui[
             ui.index("if (showPlayerDetails && selectedTitle != null)"):
-            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)")
+            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)")
         ])
         self.assertLess(ui.index("if (showPlayerDetails && selectedTitle != null)"),
-            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)"))
+            ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)"))
         self.assertLess(ui.index("items(visible, key = { it.id })"),
             ui.index("// Floating mini player:"))
         self.assertNotIn("R.string.library_group_tags_only", ui)
@@ -99,12 +99,12 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         home = self.src("app/src/main/java/app/enotone/android/EnoToneHomeScreen.kt")
         settings = self.src("app/src/main/java/app/enotone/android/LibraryVisibilitySettings.kt")
         for token in (
-            "Modifier.fillMaxWidth().height(52.dp).selectableGroup()",
-            "Modifier.weight(1f).height(48.dp)",
+            "Modifier.fillMaxWidth().height(62.dp).selectableGroup()",
+            "Modifier.weight(1f).height(60.dp)",
             "role = Role.Tab",
             "selected = active",
-            "contentDescription = label",
-            "painter = painterResource(icon)",
+            "text = label",
+            "painter = painterResource(image)",
             "listOf<LibraryPage?>(null) + visiblePages",
             "null -> R.drawable.ic_nav_home",
             "null -> R.string.nav_home",
@@ -123,7 +123,7 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertIn("visible.size > 1", settings)
         self.assertNotIn("Row(modifier = Modifier.horizontalScroll(", ui)
         self.assertLess(ui.index("// Floating mini player:"),
-                        ui.index("// Five-slot navigation"))
+                        ui.index("// Floating labeled navigation"))
         for name in ("home", "tracks", "albums", "artists", "album_artists"):
             path = ROOT / f"app/src/main/res/drawable/ic_nav_{name}.xml"
             xml = ET.parse(path).getroot()
@@ -133,7 +133,7 @@ class CleanLibraryUiContractTest(unittest.TestCase):
 
     def test_compact_app_bar_search_and_mini_player(self):
         ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        self.assertIn("modifier = Modifier.fillMaxWidth().height(48.dp)", ui)
+        self.assertIn("modifier = Modifier.fillMaxWidth().height(if (selectedGroupKey == null) 78.dp else 52.dp)", ui)
         self.assertIn("R.drawable.ic_action_back", ui)
         self.assertNotIn("R.drawable.ic_action_pages", ui)
         self.assertIn("if (searchExpanded) {", ui)
@@ -145,10 +145,10 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertIn("selectedArtist = mediaMetadata.artist?.toString()", ui)
         self.assertIn("selectedArtist = track.artist", ui)
         mini = ui[ui.index("// Floating mini player:"):
-                  ui.index("// Five-slot navigation")]
+                  ui.index("// Floating labeled navigation")]
         self.assertIn("Modifier.fillMaxWidth().height(56.dp)", mini)
         self.assertNotIn("LinearProgressIndicator(", mini)
-        self.assertIn("FloatingControlsIsland(", ui)
+        self.assertIn("FloatingControlsIsland {", ui)
         self.assertIn("PaddingValues(bottom =", ui)
         self.assertIn("R.drawable.ic_action_play", mini)
         self.assertIn("R.drawable.ic_action_pause", mini)

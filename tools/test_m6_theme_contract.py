@@ -21,7 +21,7 @@ class ThemeContractTest(unittest.TestCase):
         activity = (UI / "MainActivity.kt").read_text(encoding="utf-8")
         library = (UI / "OfflineLibraryScreen.kt").read_text(encoding="utf-8")
         for token in ("background = Color.Black", "background = Color.White",
-                      "surface = Color(0xFF242426)", "surface = Color(0xFFF0F0F2)"):
+                      "surface = Color(0xFF1C1C1E)", "surface = Color(0xFFF2F2F7)"):
             self.assertIn(token, theme)
             self.assertNotIn(token, activity)
             self.assertNotIn(token, library)

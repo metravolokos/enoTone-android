@@ -29,7 +29,7 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
     def test_gradient_and_paused_album_shadow(self):
         player = src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
         backdrop = src("app/src/main/java/app/enotone/android/ArtworkBackdrop.kt")
-        for token in ("artworkColors(artwork)", "Brush.verticalGradient(",
+        for token in ("artworkColors(artwork)", "Brush.radialGradient(",
                       "Color.Black", "Color.White", "animateColorAsState(",
                       "animateFloatAsState(", 'playbackState == "PAUSED"',
                       "elevation = 32.dp", "coverScale"):
@@ -41,14 +41,14 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
         header = src("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
         for token in (
             "ButtonDefaults.buttonColors(",
-            "MaterialTheme.colorScheme.primaryContainer",
-            "MaterialTheme.colorScheme.onPrimaryContainer",
+            "MaterialTheme.colorScheme.surfaceVariant",
+            "MaterialTheme.colorScheme.primary",
             "R.string.album_play_all",
             "R.drawable.ic_action_more",
             "DropdownMenu(", "DropdownMenuItem(", "onRefreshTags()",
             "R.string.album_refresh_tags",
             "year?.toString()", "genre?.takeIf",
-            "group.trackIds.size", "repository.albumCover(",
+            "R.string.library_shuffle_all", "onShuffleAll", "repository.albumCover(",
         ):
             self.assertIn(token, header)
         self.assertNotIn("OutlinedButton(", header)
@@ -67,14 +67,14 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
     def test_mini_player_has_only_two_visible_transport_buttons(self):
         ui = src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
         mini = ui[ui.index("// Floating mini player:"):
-                  ui.index("// Five-slot navigation")]
+                  ui.index("// Floating labeled navigation")]
         self.assertIn('Modifier.fillMaxWidth().height(56.dp)', mini)
         self.assertIn("R.drawable.ic_action_play", mini)
         self.assertIn("R.drawable.ic_action_pause", mini)
         self.assertIn("R.drawable.ic_action_next", mini)
         self.assertNotIn("R.drawable.ic_action_expand", mini)
         self.assertNotIn("LinearProgressIndicator(", mini)
-        self.assertIn("FloatingControlsIsland(", ui)
+        self.assertIn("FloatingControlsIsland {", ui)
         self.assertIn("Modifier.size(48.dp).clickable(", mini)
         self.assertIn("onClickLabel = stringResource(R.string.library_player_open)", mini)
         self.assertIn("showPlayerDetails = true", mini)
