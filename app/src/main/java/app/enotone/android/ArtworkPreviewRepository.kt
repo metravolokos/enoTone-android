@@ -370,7 +370,7 @@ internal class ArtworkPreviewRepository(context: Context) {
         private val imageSlots = Semaphore(2)
         private val sourceLocks = Array(32) { Mutex() }
         // RAM only, different requested sizes; evictions never write variants.
-        private val memoryCache = object : LruCache<String, Bitmap>(12 * 1024) {
+        private val memoryCache = object : LruCache<String, Bitmap>(24 * 1024) {
             override fun sizeOf(key: String, value: Bitmap): Int =
                 maxOf(1, value.byteCount / 1024)
         }
