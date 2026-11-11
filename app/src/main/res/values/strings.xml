@@ -222,4 +222,5 @@
     <string name="album_refresh_retry_needed">Незавершённых в порции: %1$d — можно повторить</string>
     <string name="album_refresh_backoff">Временный сбой; повторите позднее</string>
     <string name="album_refresh_budget">Достигнут лимит запросов; можно продолжить</string>
+    <string name="album_actions">Действия с альбомом</string>
 </resources>

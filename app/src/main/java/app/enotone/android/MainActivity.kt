@@ -77,7 +77,7 @@ private enum class CredentialVaultState { NONE, RESTORED, SAVED, DELETED, FAILED
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { DiagnosticScreen() } }
+        setContent { EnoToneTheme { DiagnosticScreen() } }
     }
 }
 
@@ -1236,7 +1236,7 @@ private fun DiagnosticScreen() {
 @Preview(showBackground = true)
 @Composable
 private fun DiagnosticScreenPreview() {
-    MaterialTheme { DiagnosticScreen() }
+    EnoToneTheme { DiagnosticScreen() }
 }
 
 internal fun openLibraryDatabase(context: Context): EnoToneDatabase =

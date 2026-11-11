@@ -85,9 +85,10 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
         ):
             self.assertIn(token, ui)
         for token in (
-            "OutlinedButton(",
+            "DropdownMenu(",
+            "DropdownMenuItem(",
             "enabled = canRefreshTags && !refreshingTags",
-            "onClick = onRefreshTags",
+            "onRefreshTags()",
             "R.string.album_refresh_tags",
         ):
             self.assertIn(token, header)

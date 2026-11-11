@@ -11,19 +11,25 @@ UI = ROOT / "app/src/main/java/app/enotone/android"
 
 
 class ThemeContractTest(unittest.TestCase):
-    def test_default_material_theme_is_used_in_android(self):
+    def test_approved_enotone_material_theme_is_used_in_android(self):
         activity = (UI / "MainActivity.kt").read_text(encoding="utf-8")
-        self.assertIn("MaterialTheme { DiagnosticScreen() }", activity)
-        self.assertNotIn("EnoToneTheme { DiagnosticScreen() }", activity)
-        self.assertFalse((UI / "EnoToneTheme.kt").exists())
+        theme = (UI / "EnoToneTheme.kt").read_text(encoding="utf-8")
+        self.assertIn("EnoToneTheme { DiagnosticScreen() }", activity)
+        self.assertIn("MaterialTheme(", theme)
+        self.assertIn("lightColorScheme(", theme)
+        self.assertIn("darkColorScheme(", theme)
 
-    def test_unapproved_palette_is_not_shipped(self):
-        # No copy of the old project's colors in the current Compose screens.
+    def test_approved_colors_have_one_central_source(self):
+        # The owner accepted Graphite/Porcelain in enotone-design v1.3.
+        theme = (UI / "EnoToneTheme.kt").read_text(encoding="utf-8")
         activity = (UI / "MainActivity.kt").read_text(encoding="utf-8")
         library = (UI / "OfflineLibraryScreen.kt").read_text(encoding="utf-8")
         for token in ("0xFFEBAE9F", "0xFFEDE9E5", "0xFF1B1A19"):
+            self.assertIn(token, theme)
             self.assertNotIn(token, activity)
             self.assertNotIn(token, library)
+        self.assertNotIn("dynamicLightColorScheme", theme)
+        self.assertNotIn("dynamicDarkColorScheme", theme)
 
 
 if __name__ == "__main__":

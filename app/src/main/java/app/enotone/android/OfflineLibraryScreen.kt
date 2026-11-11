@@ -932,27 +932,40 @@ internal fun OfflineLibraryScreen(
                 horizontalArrangement = Arrangement.spacedBy(0.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // Cover and metadata both open Now Playing. Two transport
+                // actions stay visible; a redundant third "expand" button
+                // would take space away from long track titles.
                 Box(
-                    modifier = Modifier.size(40.dp).background(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(8.dp),
-                    ),
+                    modifier = Modifier.size(48.dp).clickable(
+                        onClickLabel = stringResource(R.string.library_player_open),
+                    ) {
+                        showPlayerDetails = true
+                    },
                     contentAlignment = Alignment.Center,
                 ) {
-                    if (currentArtwork != null) {
-                        Image(
-                            bitmap = currentArtwork!!.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop,
-                        )
-                    } else {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_nav_tracks),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp),
-                        )
+                    Box(
+                        modifier = Modifier.size(40.dp).background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(8.dp),
+                        ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (currentArtwork != null) {
+                            Image(
+                                bitmap = currentArtwork!!.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_nav_tracks),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
                     }
                 }
                 val compactStatus = when (playbackState) {
@@ -1003,12 +1016,6 @@ internal fun OfflineLibraryScreen(
                     Icon(
                         painter = painterResource(R.drawable.ic_action_next),
                         contentDescription = stringResource(R.string.playback_next),
-                    )
-                }
-                IconButton(onClick = { showPlayerDetails = true }) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_expand),
-                        contentDescription = stringResource(R.string.library_player_open),
                     )
                 }
             }
