@@ -307,10 +307,10 @@ internal fun OfflineLibraryScreen(
         if (active.queueSize > 0 || accountEmail.isBlank() || appPassword.isBlank() ||
             preparedById.isEmpty()) return@LaunchedEffect
         val saved = withContext(Dispatchers.IO) {
-            val savedLogin = LocalCredentialVault.restore(context)
+            val savedLogin = runCatching { LocalCredentialVault.restore(context) }.getOrNull()
             if (savedLogin?.email != accountEmail ||
                 savedLogin.password != appPassword) null
-            else active.readSavedQueue()
+            else runCatching { active.readSavedQueue() }.getOrNull()
         } ?: return@LaunchedEffect
         val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
         if (saved.sourceKey != sourceKey) return@LaunchedEffect
@@ -320,8 +320,10 @@ internal fun OfflineLibraryScreen(
         if (queue.size != filtered.trackIds.size || active.queueSize > 0) {
             return@LaunchedEffect
         }
-        if (active.restoreQueue(accountEmail, appPassword, queue, filtered,
-                useCacheOnNextPlay)) {
+        if (runCatching {
+                active.restoreQueue(accountEmail, appPassword, queue, filtered,
+                    useCacheOnNextPlay)
+            }.getOrDefault(false)) {
             val track = tracks.firstOrNull { it.id == filtered.selectedTrackId }
             currentTrackId = filtered.selectedTrackId
             selectedTitle = track?.title ?: queue.first { it.id == filtered.selectedTrackId }.title
