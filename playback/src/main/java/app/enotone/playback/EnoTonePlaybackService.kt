@@ -2,20 +2,20 @@ package app.enotone.playback
 
 import android.content.Intent
 import android.os.Binder
-import android.os.IBinder
 import android.os.Handler
+import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import androidx.media3.common.MediaItem
-import java.util.concurrent.Executors
 import androidx.media3.common.Player
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import java.util.UUID
+import java.util.concurrent.Executors
 
 /**
- * Media3 owns the playlist timeline and its built-in next/previous commands.
- * System UI and Bluetooth headsets can use standard Player actions. Credentials
- * and metadata remain only in the private in-process service and DataSources.
+ * Media3 owns the playlist. Only hashed IDs and numeric state are checkpointed.
+ * Queue layout and small position writes run on one serialized I/O executor.
  */
 class EnoTonePlaybackService : MediaSessionService() {
     private lateinit var playback: PreviewAudioPlayback
@@ -24,62 +24,102 @@ class EnoTonePlaybackService : MediaSessionService() {
     private val io = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
     private val store by lazy { QueueStateFileStore(applicationContext) }
-    private val throttle = QueueWriteThrottle(QueueMonotonicClock {
+    private val positionThrottle = QueueWriteThrottle(QueueMonotonicClock {
         SystemClock.elapsedRealtime()
     })
-    private var pendingSave: Runnable? = null
+    private var activeRevision: String? = null
+    private var queueMutation = false
+    private var pendingPositionSave: Runnable? = null
+
     private val periodicSave = object : Runnable {
         override fun run() {
-            if (playback.player.isPlaying) saveSnapshot()
+            if (playback.player.isPlaying) savePosition()
             handler.postDelayed(this, 12_000L)
         }
     }
+
     private val persistenceListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            if (mediaItem != null) saveSnapshot(urgent = true)
+            if (!queueMutation && mediaItem != null) savePosition(urgent = true)
         }
+
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-            if (!playWhenReady) saveSnapshot()
+            if (!queueMutation && !playWhenReady) savePosition()
         }
-        override fun onRepeatModeChanged(repeatMode: Int) = saveSnapshot(urgent = true)
-        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) =
-            saveSnapshot(urgent = true)
+
+        override fun onRepeatModeChanged(repeatMode: Int) {
+            if (!queueMutation) savePosition(urgent = true)
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+            if (!queueMutation) saveLayoutAndPosition()
+        }
     }
 
-    private fun saveSnapshot(urgent: Boolean = false) {
-        val snapshot = playback.snapshotQueueState(System.currentTimeMillis()) ?: return
-        val delay = throttle.delayMs(urgent)
-        pendingSave?.let(handler::removeCallbacks)
-        pendingSave = null
+    /** Snapshot only the small current-item fields on main; never scan 3590 IDs. */
+    private fun savePosition(urgent: Boolean = false) {
+        val revision = activeRevision ?: return
+        val snapshot = playback.snapshotPosition(revision, System.currentTimeMillis()) ?: return
+        val delay = positionThrottle.delayMs(urgent)
+        pendingPositionSave?.let(handler::removeCallbacks)
+        pendingPositionSave = null
         if (delay > 0L) {
-            val task = Runnable { pendingSave = null; saveSnapshot() }
-            pendingSave = task
+            val task = Runnable { pendingPositionSave = null; savePosition() }
+            pendingPositionSave = task
             handler.postDelayed(task, delay)
         } else {
-            throttle.markWritten()
+            positionThrottle.markWritten()
             io.execute {
-                try { store.write(snapshot) } catch (_: Exception) {
-                    // Never log file contents, track names or exceptions.
+                try { store.writePosition(snapshot) } catch (_: Exception) {
+                    // Never log file contents or private source details.
                 }
             }
         }
     }
 
-    /** Call from Dispatchers.IO. A malformed or absent JSON snapshot is null. */
+    /**
+     * New queue/shuffle: change revision before any position event, then
+     * serialize layout BEFORE the small checkpoint on the same I/O executor.
+     */
+    private fun saveLayoutAndPosition() {
+        val nextRevision = UUID.randomUUID().toString()
+        val layout = playback.snapshotLayout(nextRevision, System.currentTimeMillis()) ?: return
+        activeRevision = nextRevision
+        pendingPositionSave?.let(handler::removeCallbacks)
+        pendingPositionSave = null
+        io.execute {
+            try { store.writeLayout(layout) } catch (_: Exception) {
+                // A mismatched pair is discarded safely at the next restore.
+            }
+        }
+        savePosition(urgent = true)
+    }
+
+    /** Must be called from Dispatchers.IO; never open a network connection. */
     fun readSavedQueue(): PersistedQueueState? = store.read()
 
-    /** The caller verifies the opt-in vault and matches the hashed Room source. */
+    /** The caller already checked the opted-in vault, Room and account source. */
     fun restoreQueue(
         email: String,
         password: String,
         tracks: List<QueueTrack>,
         state: PersistedQueueState,
         useTemporaryCache: Boolean,
+        filteredMissingTracks: Boolean,
     ): Boolean {
         if (playback.logicalQueueSize > 0 || tracks.isEmpty() ||
             tracks.map { it.id } != state.trackIds) return false
-        playback.restoreQueue(email, password, tracks, state, useTemporaryCache)
-        saveSnapshot(urgent = true)
+        queueMutation = true
+        try {
+            playback.restoreQueue(email, password, tracks, state, useTemporaryCache)
+        } finally {
+            queueMutation = false
+        }
+        if (filteredMissingTracks) saveLayoutAndPosition()
+        else {
+            activeRevision = state.queueRevision
+            savePosition(urgent = true)
+        }
         return true
     }
 
@@ -93,7 +133,6 @@ class EnoTonePlaybackService : MediaSessionService() {
         playback.player.addListener(persistenceListener)
         handler.postDelayed(periodicSave, 12_000L)
         session = MediaSession.Builder(this, playback.player).build()
-        // Local in-process binding bypasses onGetSession; explicitly register.
         addSession(session)
     }
 
@@ -102,10 +141,8 @@ class EnoTonePlaybackService : MediaSessionService() {
     override fun onBind(intent: Intent?): IBinder? =
         if (intent?.action == ACTION_LOCAL_BIND) localBinder else super.onBind(intent)
 
-    val player: Player
-        get() = playback.player
+    val player: Player get() = playback.player
 
-    /** The list and Basic Auth are held in RAM by Media3 sources only. */
     fun playQueue(
         email: String,
         password: String,
@@ -114,13 +151,17 @@ class EnoTonePlaybackService : MediaSessionService() {
         useTemporaryCache: Boolean,
         sourceKey: String,
     ) {
-        playback.playQueue(email, password, tracks, selectedId, useTemporaryCache, sourceKey)
-        saveSnapshot(urgent = true)
+        queueMutation = true
+        try {
+            playback.playQueue(email, password, tracks, selectedId, useTemporaryCache, sourceKey)
+        } finally {
+            queueMutation = false
+        }
+        saveLayoutAndPosition()
     }
 
     val hasNext: Boolean get() = playback.player.hasNextMediaItem()
     val hasPrevious: Boolean get() = playback.player.hasPreviousMediaItem()
-    /** Full logical context remains 3590 even while Media3 fills in chunks. */
     val queueSize: Int get() = playback.logicalQueueSize
     val queuePosition: Int get() = playback.logicalQueuePosition
     val loadedQueueSize: Int get() = playback.loadedQueueSize
@@ -149,7 +190,6 @@ class EnoTonePlaybackService : MediaSessionService() {
     val repeatMode: Int get() = playback.player.repeatMode
     val shuffleEnabled: Boolean get() = playback.player.shuffleModeEnabled
 
-    /** Let ExoPlayer and MediaSession own the actual repeat and shuffle order. */
     fun cycleRepeatMode() {
         playback.player.repeatMode = PlaybackModes.nextRepeat(playback.player.repeatMode)
     }
@@ -158,11 +198,6 @@ class EnoTonePlaybackService : MediaSessionService() {
         playback.player.shuffleModeEnabled = !playback.player.shuffleModeEnabled
     }
 
-    /**
-     * Seek within the current Media3 item only. In M5 cache mode an already
-     * committed span is read locally; unavailable bytes use the same strictly
-     * validated HTTPS Range DataSource. No new WebDAV listing is triggered.
-     */
     val canSeekCurrent: Boolean
         get() = playback.player.isCommandAvailable(
             Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM) &&
@@ -170,9 +205,7 @@ class EnoTonePlaybackService : MediaSessionService() {
 
     fun seekToFraction(fraction: Float): Boolean {
         val player = playback.player
-        if (!player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) {
-            return false
-        }
+        if (!player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) return false
         val target = PlaybackSeekPolicy.positionForFraction(player.duration, fraction)
             ?: return false
         player.seekTo(target)
@@ -181,28 +214,33 @@ class EnoTonePlaybackService : MediaSessionService() {
 
     fun pause() = playback.pause()
     fun resume() = playback.resume()
+
+    /** Explicit Stop forgets both files. Android Settings 'Force stop' does not. */
     fun stopPlayback() {
-        pendingSave?.let(handler::removeCallbacks)
-        pendingSave = null
-        playback.stop()
+        pendingPositionSave?.let(handler::removeCallbacks)
+        pendingPositionSave = null
+        activeRevision = null
+        queueMutation = true
+        try { playback.stop() } finally { queueMutation = false }
         io.execute {
             try { store.clear() } catch (_: Exception) { }
         }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        saveSnapshot(urgent = true)
+        savePosition(urgent = true)
         super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
         handler.removeCallbacks(periodicSave)
-        pendingSave?.let(handler::removeCallbacks)
-        saveSnapshot(urgent = true)
+        pendingPositionSave?.let(handler::removeCallbacks)
+        pendingPositionSave = null
+        savePosition(urgent = true)
         playback.player.removeListener(persistenceListener)
         session.release()
         playback.close()
-        io.shutdown() // Flush queued writes in order; never block the main thread.
+        io.shutdown() // Ordered flush; no blocking main-thread fsync.
         super.onDestroy()
     }
 
