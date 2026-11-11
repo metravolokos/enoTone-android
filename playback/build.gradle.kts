@@ -23,6 +23,6 @@ dependencies {
     implementation(libs.media3.database)
     implementation(libs.media3.session)
     // Platform-independent JSON codec for JVM unit tests and Android runtime.
-    implementation("com.google.code.gson:gson:2.13.2")
+    implementation(libs.gson)
     testImplementation(libs.junit)
 }
