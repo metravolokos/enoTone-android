@@ -13,6 +13,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -44,6 +48,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
@@ -702,13 +707,13 @@ internal fun OfflineLibraryScreen(
     } else {
     Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         // Primary actions occupy one Material-sized row. Search is opt-in, so
         // the default screen spends its height on music, not a tall empty field.
         Row(
-            modifier = Modifier.fillMaxWidth().height(48.dp),
+            modifier = Modifier.fillMaxWidth().height(if (selectedGroupKey == null) 78.dp else 52.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -730,7 +735,8 @@ internal fun OfflineLibraryScreen(
                     LibraryPage.ARTISTS -> R.string.library_tab_artists
                     LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
                 }),
-                style = MaterialTheme.typography.titleMedium,
+                style = if (selectedGroupKey == null) MaterialTheme.typography.headlineLarge
+                    else MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -769,6 +775,43 @@ internal fun OfflineLibraryScreen(
             Text(count, style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        if (section == LibraryPage.TRACKS && selectedGroup == null &&
+            tracks.isNotEmpty() && search.isBlank()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Button(
+                    enabled = playback != null && !selecting && appPassword.isNotBlank(),
+                    onClick = { visible.firstOrNull()?.let { playTrack(it, visible) } },
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Icon(painterResource(R.drawable.ic_action_play), contentDescription = null)
+                    Text(stringResource(R.string.album_play_all))
+                }
+                Button(
+                    enabled = playback != null && !selecting && appPassword.isNotBlank(),
+                    onClick = {
+                        val shuffled = visible.shuffled()
+                        shuffled.firstOrNull()?.let { playTrack(it, shuffled) }
+                    },
+                    modifier = Modifier.weight(1f).height(44.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Icon(painterResource(R.drawable.ic_action_shuffle), contentDescription = null)
+                    Text(stringResource(R.string.library_shuffle_all))
+                }
+            }
+        }
         when {
             loading -> Text(stringResource(R.string.library_loading))
             failed -> Text(stringResource(R.string.library_failed))
@@ -780,12 +823,12 @@ internal fun OfflineLibraryScreen(
                     Text(stringResource(R.string.library_groups_empty))
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 148.dp),
+                        columns = GridCells.Fixed(2),
                         state = albumGridState,
                         contentPadding = PaddingValues(bottom = if (selectedTitle != null) 160.dp else 84.dp),
                         modifier = Modifier.fillMaxWidth().weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         gridItems(shownGroups, key = { it.key }) { group ->
                             AlbumArtworkTile(
@@ -814,19 +857,45 @@ internal fun OfflineLibraryScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(shownGroups, key = { it.key }) { group ->
-                            Column(modifier = Modifier.fillMaxWidth().clickable {
-                                selectedGroupKey = group.key
-                                search = ""
-                            }.padding(vertical = 4.dp)) {
-                                Text(group.name, maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis)
-                                val summary = listOfNotNull(group.subtitle,
-                                    stringResource(R.string.library_group_tracks,
-                                        group.trackIds.size)).joinToString(" · ")
-                                Text(summary, style = MaterialTheme.typography.bodySmall,
-                                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(72.dp)
+                                    .clickable {
+                                        selectedGroupKey = group.key
+                                        search = ""
+                                    },
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(56.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        text = group.name.take(1).uppercase(),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Text(
+                                    text = group.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = "›",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
                             }
-                            HorizontalDivider()
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.padding(start = 72.dp),
+                                thickness = 0.5.dp,
+                            )
                         }
                     }
                 }
@@ -855,6 +924,10 @@ internal fun OfflineLibraryScreen(
                                     playTrack(first, albumTracks)
                                 }
                             },
+                            onShuffleAll = {
+                                val shuffled = albumTracks.shuffled()
+                                shuffled.firstOrNull()?.let { playTrack(it, shuffled) }
+                            },
                             refreshingTags = albumRefreshBusy,
                             canRefreshTags = !albumRefreshBusy &&
                                 albumRefreshSampleIds.isNotEmpty() &&
@@ -881,14 +954,23 @@ internal fun OfflineLibraryScreen(
                     }
                 }
                 items(visible, key = { it.id }) { track ->
-                    // Group references are built from the existing local Room snapshot.
-                    Column(modifier = Modifier.fillMaxWidth().clickable(enabled = !selecting && playback != null) {
-                        playTrack(track, visible)
-                    }.padding(vertical = 4.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
+                    // All rows remain lazy. Cover loads only for composed items.
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(60.dp)
+                            .clickable(enabled = !selecting && playback != null) {
+                                playTrack(track, visible)
+                            },
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (section == LibraryPage.ALBUMS && selectedGroup != null) {
+                            Text(
+                                text = track.trackNumber?.toString().orEmpty(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(width = 32.dp, height = 24.dp),
+                            )
+                        } else {
                             TrackArtworkThumbnail(
                                 trackId = track.id,
                                 artworkGroup = artworkCatalog.byTrackId[track.id],
@@ -898,46 +980,61 @@ internal fun OfflineLibraryScreen(
                                 allowNetwork = playbackState != "LOADING" &&
                                     playbackState != "BUFFERING",
                             )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (section == LibraryPage.ALBUMS &&
-                                        selectedGroup != null && track.trackNumber != null) {
-                                        val disc = track.discNumber
-                                        val label = if (disc != null && disc > 1) {
-                                            "${disc}.${track.trackNumber.toString().padStart(2, '0')}"
-                                        } else track.trackNumber.toString()
-                                        Text(label, style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Text(track.title, maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.bodyLarge)
-                                }
-                                val subtitle = listOfNotNull(track.artist, track.album)
-                                    .joinToString(" · ")
-                                if (subtitle.isNotEmpty()) {
-                                    Text(subtitle, maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.bodySmall)
-                                }
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = track.title,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            val subtitle = if (section == LibraryPage.ALBUMS &&
+                                selectedGroup != null) track.artist.orEmpty()
+                            else listOfNotNull(track.artist, track.album)
+                                .joinToString(" · ")
+                            if (subtitle.isNotBlank()) {
+                                Text(
+                                    text = subtitle,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
                     }
-                    HorizontalDivider()
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = if (section == LibraryPage.ALBUMS &&
+                            selectedGroup != null) 44.dp else 56.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        thickness = 0.5.dp,
+                    )
                 }
             }
         }
     }
-    FloatingControlsIsland(
-        modifier = Modifier.align(Alignment.BottomCenter)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+    Column(
+        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // Floating mini player: two transport actions, no progress bar.
         // Touch targets retain the Material 48dp minimum; title opens full player.
         if (selectedTitle != null) {
+            FloatingControlsIsland {
             Row(
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+                    .pointerInput(Unit) {
+                        var dragged = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { dragged = 0f },
+                            onVerticalDrag = { change, distance ->
+                                dragged += distance
+                                change.consume()
+                            },
+                            onDragEnd = { if (dragged < -55f) showPlayerDetails = true },
+                        )
+                    },
                 horizontalArrangement = Arrangement.spacedBy(0.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -955,7 +1052,7 @@ internal fun OfflineLibraryScreen(
                     Box(
                         modifier = Modifier.size(40.dp).background(
                             MaterialTheme.colorScheme.surfaceVariant,
-                            RoundedCornerShape(8.dp),
+                            RoundedCornerShape(6.dp),
                         ),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -964,7 +1061,7 @@ internal fun OfflineLibraryScreen(
                                 bitmap = currentArtwork!!.asImageBitmap(),
                                 contentDescription = null,
                                 modifier = Modifier.size(40.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
+                                    .clip(RoundedCornerShape(6.dp)),
                                 contentScale = ContentScale.Crop,
                             )
                         } else {
@@ -995,13 +1092,14 @@ internal fun OfflineLibraryScreen(
                 ) {
                     Text(selectedTitle!!, maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.bodyMedium)
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold)
                     val subtitle = if (playbackState in listOf(
-                        "BUFFERING", "ERROR", "MISSING_PASSWORD", "MISSING_TRACK",
-                        "ENDED", "LOADING")) compactStatus else selectedArtist ?: compactStatus
+                        "ERROR", "MISSING_PASSWORD", "MISSING_TRACK"))
+                        compactStatus else selectedArtist.orEmpty()
                     Text(subtitle, maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 val paused = playbackState != "PLAYING" && playbackState != "BUFFERING"
@@ -1014,6 +1112,7 @@ internal fun OfflineLibraryScreen(
                     Icon(
                         painter = painterResource(if (paused)
                             R.drawable.ic_action_play else R.drawable.ic_action_pause),
+                        modifier = Modifier.size(28.dp),
                         contentDescription = stringResource(if (paused)
                             R.string.playback_resume else R.string.playback_pause),
                     )
@@ -1025,12 +1124,15 @@ internal fun OfflineLibraryScreen(
                     Icon(
                         painter = painterResource(R.drawable.ic_action_next),
                         contentDescription = stringResource(R.string.playback_next),
+                        modifier = Modifier.size(28.dp),
                     )
                 }
             }
+            }
         }
-        // Five-slot navigation floats in the same island.
+        // Floating labeled navigation is a separate island, 8dp below player.
         // Category visibility is managed only in Settings.
+        FloatingControlsIsland {
         CompactLibraryNavigation(
             selectedPage = section,
             visiblePages = visiblePages,
@@ -1045,6 +1147,7 @@ internal fun OfflineLibraryScreen(
             },
             enabled = !selecting,
         )
+        }
     }
     }
     }

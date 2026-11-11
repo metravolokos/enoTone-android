@@ -16,12 +16,17 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Typography
 import androidx.compose.ui.platform.LocalContext
 
 /** Neutral user interface with exactly one configurable chromatic accent. */
 internal enum class UiMode { SYSTEM, DARK, LIGHT }
 internal enum class UiAccent(val swatch: Color) {
-    RED(Color(0xFFC63749)),
+    RED(Color(0xFFFA233B)),
     BLUE(Color(0xFF286FAE)),
     GREEN(Color(0xFF27764E)),
     ORANGE(Color(0xFFAB5926)),
@@ -36,6 +41,9 @@ internal object UiAppearance {
         private set
     var accent by mutableStateOf(UiAccent.RED)
         private set
+    var playerVisible by mutableStateOf(false)
+        private set
+    fun showNowPlaying(visible: Boolean) { playerVisible = visible }
 
     fun initialize(context: Context) {
         if (initialized) return
@@ -60,15 +68,30 @@ internal object UiAppearance {
     }
 }
 
+/** Design-space equivalents of the supplied iOS point tokens, expressed as dp/sp. */
+private val musicType = Typography(
+    headlineLarge = TextStyle(fontSize = 34.sp, lineHeight = 41.sp, fontWeight = FontWeight.Bold),
+    headlineMedium = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
+    headlineSmall = TextStyle(fontSize = 20.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold),
+    titleLarge = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold),
+    titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
+    bodyLarge = TextStyle(fontSize = 17.sp, lineHeight = 22.sp),
+    bodyMedium = TextStyle(fontSize = 15.sp, lineHeight = 20.sp),
+    bodySmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp),
+    labelLarge = TextStyle(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
+    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium),
+    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium),
+)
+
 private val neutralDark = darkColorScheme(
     background = Color.Black,
     onBackground = Color.White,
-    surface = Color(0xFF242426),
+    surface = Color(0xFF1C1C1E),
     onSurface = Color.White,
-    surfaceVariant = Color(0xFF343437),
-    onSurfaceVariant = Color(0xFFB9B9BF),
+    surfaceVariant = Color(0xFF303034),
+    onSurfaceVariant = Color(0xFF98989F),
     outline = Color(0xFF77777B),
-    outlineVariant = Color(0xFF414145),
+    outlineVariant = Color(0xFF545458),
     secondary = Color(0xFFA9A9AE),
     onSecondary = Color.Black,
     secondaryContainer = Color(0xFF363639),
@@ -79,10 +102,10 @@ private val neutralDark = darkColorScheme(
 private val neutralLight = lightColorScheme(
     background = Color.White,
     onBackground = Color(0xFF161618),
-    surface = Color(0xFFF0F0F2),
+    surface = Color(0xFFF2F2F7),
     onSurface = Color(0xFF161618),
-    surfaceVariant = Color(0xFFE2E2E5),
-    onSurfaceVariant = Color(0xFF606067),
+    surfaceVariant = Color(0xFFE5E5EA),
+    onSurfaceVariant = Color(0xFF88888C),
     outline = Color(0xFF8C8C93),
     outlineVariant = Color(0xFFD4D4D8),
     secondary = Color(0xFF66666B),
@@ -111,11 +134,14 @@ internal fun EnoToneTheme(content: @Composable () -> Unit) {
             @Suppress("DEPRECATION")
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
             val controller = WindowCompat.getInsetsController(window, window.decorView)
-            controller.isAppearanceLightStatusBars = !dark
-            controller.isAppearanceLightNavigationBars = !dark
+            controller.isAppearanceLightStatusBars = !dark && !UiAppearance.playerVisible
+            controller.isAppearanceLightNavigationBars = !dark && !UiAppearance.playerVisible
         }
     }
-    val accent = UiAppearance.accent.swatch
+    val accent = if (dark) {
+        if (UiAppearance.accent == UiAccent.RED) Color(0xFFFA586A)
+        else lerp(UiAppearance.accent.swatch, Color.White, 0.18f)
+    } else UiAppearance.accent.swatch
     val neutral = if (dark) neutralDark else neutralLight
     val colors = neutral.copy(
         primary = accent,
@@ -123,7 +149,7 @@ internal fun EnoToneTheme(content: @Composable () -> Unit) {
         primaryContainer = accent,
         onPrimaryContainer = Color.White,
     )
-    MaterialTheme(colorScheme = colors) {
+    MaterialTheme(colorScheme = colors, typography = musicType) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,

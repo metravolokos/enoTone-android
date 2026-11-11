@@ -16,7 +16,7 @@ class AlbumArtworkGridContractTest(unittest.TestCase):
         for needle in (
             "section == LibraryPage.ALBUMS && selectedGroup == null",
             "LazyVerticalGrid(",
-            "GridCells.Adaptive(minSize = 148.dp)",
+            "GridCells.Fixed(2)",
             "gridItems(shownGroups, key = { it.key })",
             "AlbumArtworkTile(",
             "onOpen = {",

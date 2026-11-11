@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -53,6 +54,7 @@ internal fun AlbumDetailHeader(
     appPassword: String,
     canPlay: Boolean,
     onPlayAll: () -> Unit,
+    onShuffleAll: () -> Unit,
     canRefreshTags: Boolean,
     refreshingTags: Boolean,
     refreshMessage: String,
@@ -80,13 +82,14 @@ internal fun AlbumDetailHeader(
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            modifier = Modifier.size(200.dp)
-                .clip(RoundedCornerShape(16.dp))
+            modifier = Modifier.size(240.dp)
+                .shadow(5.dp, RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
@@ -96,7 +99,7 @@ internal fun AlbumDetailHeader(
                     bitmap = image.asImageBitmap(),
                     contentDescription = stringResource(R.string.album_cover_description),
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(200.dp),
+                    modifier = Modifier.size(240.dp),
                 )
             } else {
                 Icon(
@@ -109,14 +112,14 @@ internal fun AlbumDetailHeader(
         }
         Text(
             group.name,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
         )
         group.subtitle?.takeIf { it.isNotBlank() }?.let { artist ->
             Text(
                 artist,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center,
             )
         }
@@ -124,11 +127,10 @@ internal fun AlbumDetailHeader(
         // metadata line, primary Play and a secondary overflow action.
         // Administrative reindex never occupies the everyday album surface.
         val facts = listOfNotNull(
-            year?.toString(),
             genre?.takeIf { it.isNotBlank() },
-            stringResource(R.string.library_group_tracks, group.trackIds.size),
-        ).joinToString(" · ")
-        Text(
+            year?.toString(),
+        ).joinToString(" · ").uppercase()
+        if (facts.isNotEmpty()) Text(
             text = facts,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -139,21 +141,35 @@ internal fun AlbumDetailHeader(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(top = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         ) {
             Button(
                 enabled = canPlay,
                 onClick = onPlayAll,
+                modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.primary,
                 ),
+                shape = RoundedCornerShape(10.dp),
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_action_play),
-                    contentDescription = null,
-                )
+                Icon(painter = painterResource(R.drawable.ic_action_play),
+                    contentDescription = null)
                 Text(stringResource(R.string.album_play_all))
+            }
+            Button(
+                enabled = canPlay,
+                onClick = onShuffleAll,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                ),
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Icon(painter = painterResource(R.drawable.ic_action_shuffle),
+                    contentDescription = null)
+                Text(stringResource(R.string.library_shuffle_all))
             }
             Box {
                 IconButton(onClick = { actionsExpanded = true }) {

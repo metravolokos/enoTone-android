@@ -30,16 +30,16 @@ class UiEdgeToEdgeContractTest(unittest.TestCase):
         self.assertIn("Modifier.fillMaxSize().systemBarsPadding()", library)
         self.assertIn("Modifier.fillMaxSize().systemBarsPadding()", activity)
         self.assertIn(".windowInsetsPadding(WindowInsets.systemBars)", player)
-        self.assertLess(player.index("Brush.verticalGradient("),
+        self.assertLess(player.index(".drawBehind {"),
                         player.index(".windowInsetsPadding(WindowInsets.systemBars)"))
 
     def test_album_palette_and_stable_control_layout(self):
         player = read(BASE + "NowPlayingScreen.kt")
-        self.assertIn("Color.Black, 0.18f", player)
-        self.assertIn("Color.Black, 0.28f", player)
+        self.assertIn("spot1.copy(alpha = 0.95f)", player)
+        self.assertIn("spot2.copy(alpha = 0.82f)", player)
         self.assertNotIn("Color.Black, 0.59f", player)
         self.assertNotIn("Color.Black, 0.88f", player)
-        self.assertIn("0.54f to middleColor", player)
+        self.assertIn("lerp(sampled.first, sampled.second, 0.54f)", player)
         self.assertIn("stateDescription = stateText", player)
         self.assertNotIn("if (stateText.isNotBlank())", player)
         self.assertIn("elevation = 32.dp", player)
