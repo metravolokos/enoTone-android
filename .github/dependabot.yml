@@ -1,0 +1,27 @@
+# Обновления зависимостей — только через PR с полным CI (ТЗ, раздел 9).
+# Media3, Compose BOM, AGP, Kotlin/KSP: каждое обновление проверяется
+# на Huawei перед слиянием; Dependabot сам ничего не сливает.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      # Kotlin и KSP обязаны обновляться вместе: версия KSP привязана к Kotlin.
+      kotlin:
+        patterns: ["org.jetbrains.kotlin*", "com.google.devtools.ksp*"]
+      androidx-media3:
+        patterns: ["androidx.media3:*"]
+      androidx-room:
+        patterns: ["androidx.room:*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci(deps)"

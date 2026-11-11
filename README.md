@@ -24,7 +24,7 @@
 
 ## Сборка и обновление
 
-Проект использует **JDK 17, Android SDK 36** (minSdk 26, targetSdk 36), Gradle Kotlin DSL. Gradle Wrapper пока нет (M6-0/8): `gradle :app:assembleDebug`, команды тестов — в [TESTING](docs/TESTING.md). CI включает Android-проверки и контроль отсутствия GMS.
+Проект использует **JDK 17, Android SDK 36** (minSdk 26, targetSdk 36), Gradle Kotlin DSL. Сборка: `./gradlew :app:assembleDebug`; тесты, lint и detekt — `./gradlew testDebugUnitTest lintDebug detekt`, подробности в [TESTING](docs/TESTING.md). CI включает Android-проверки и контроль отсутствия GMS.
 
 **Важно:** `debug` собирается с отдельным идентификатором `.preview.rN` и эфемерной подписью; он **не обновляет** установленную Stable Preview. Основной сохраняющий данные канал: `app.enotone.android.preview`, подписываемый ключом из защищённых секретов CI. Не удаляйте установленную Stable Preview ради установки другой сборки. Секреты и данные медиатеки не включать в диагностические отчёты.
 

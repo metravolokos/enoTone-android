@@ -1,8 +1,15 @@
 # CHANGELOG
 
+## Unreleased — M6-0/8: инструменты качества (2026-11-12)
+
+- Gradle Wrapper 8.13 (`./gradlew`) с проверкой SHA-256 дистрибутива; проверка `gradle-wrapper.jar` в CI.
+- detekt 1.23.8 + правила ktlint (detekt-formatting) для всех модулей, **только отчёт** (артефакт `detekt-reports`); 546 замечаний — к разбору в M6-0/4–5. ADR-0076.
+- CI: JUnit и Android Lint во **всех** модулях (раньше lint только `:app`).
+- Dependabot: Gradle еженедельно (группы Kotlin+KSP, Media3, Room), GitHub Actions ежемесячно.
+
 ## Unreleased — M6-0/3: сохранение очереди (2026-11-12)
 
-- [ADR-0075](docs/DECISIONS/ADR-0075-queue-persistence.md): два атомарных JSON v1 в noBackupFilesDir с общей ревизией (большая очередь/перестановка пишется только при изменении очереди или shuffle, маленькая позиция/repeat — периодически), Gson через version catalog, восстановление seed из Room с порционным заполнением без сетевого prepare до Play, числовая диагностика restoreSeedMs; поведенческие JUnit-тесты рассинхронизации и очереди 3590. Повторный CI и Huawei ожидаются.
+- [ADR-0075](docs/DECISIONS/ADR-0075-queue-persistence.md): два атомарных JSON v1 в noBackupFilesDir с общей ревизией (большая очередь/перестановка пишется только при изменении очереди или shuffle, маленькая позиция/repeat — периодически), Gson через version catalog, восстановление seed из Room с порционным заполнением без сетевого prepare до Play, числовая диагностика restoreSeedMs; поведенческие JUnit-тесты рассинхронизации и очереди 3590. Слито как #82 (squash `130f2f7`); проверка на Huawei — по TESTING.
 
 ## Unreleased — M6-0/2: общая база данных и удержание Wi-Fi (2026-11-11)
 

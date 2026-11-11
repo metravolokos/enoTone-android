@@ -98,8 +98,24 @@ jobs:
           echo "ENOTONE_CI_COMPILER_MIRROR=$RUNNER_TEMP/enotone-ci-maven" >> "$GITHUB_ENV"
       - name: Mock WebDAV tests
         run: python3 -m unittest discover -s tools -p 'test_*.py' -v
-      - name: Build, JUnit and Lint
-        run: gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :core:network:testDebugUnitTest :core:database:testDebugUnitTest :data:library:testDebugUnitTest :playback:testDebugUnitTest :app:lintDebug
+      # Reject a tampered gradle-wrapper.jar (supply-chain check for ./gradlew users).
+      - name: Validate Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@v4
+      # Root tasks run in EVERY module, so new modules are tested and linted
+      # without editing this file (ADR-0074, M6-0/8).
+      - name: Build, JUnit and Lint (all modules)
+        run: gradle --no-daemon :app:assembleDebug testDebugUnitTest lintDebug
+      # Report-only until findings are fixed (ignoreFailures in build.gradle.kts).
+      - name: detekt + ktlint rules (report-only)
+        run: gradle --no-daemon detekt
+      - name: Upload detekt reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detekt-reports
+          path: '**/build/reports/detekt/'
+          if-no-files-found: ignore
+          retention-days: 14
       # Validate this brand-new build variant even on PRs where signing
       # secrets are deliberately unavailable. Compiles only, never packages an
       # unsigned stable APK or uploads it as a distributable artifact.

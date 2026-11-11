@@ -7,19 +7,22 @@
 | Шаг | Что проверяет |
 |---|---|
 | `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`) и «контрактные» тесты исходников (см. ниже) |
-| `gradle :app:assembleDebug … :testDebugUnitTest … :app:lintDebug` | сборка, JUnit-тесты `:core:network`, `:core:database`, `:data:library`, `:playback`, Android Lint `:app` |
+| Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
+| `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях** |
+| `gradle detekt` | статический анализ Kotlin + правила ktlint; **пока только отчёт** (артефакт `detekt-reports`), CI не блокирует — [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md) |
 | `:app:compileStablePreviewKotlin` | компиляция варианта Stable Preview без секретов |
 | Room schema | экспортированные схемы v1–v4 совпадают с закоммиченными |
 | `tools/check_no_gms.py` | дерево зависимостей и байты APK не содержат `com.google.android.gms`, `com.google.firebase`, `com.google.android.play` |
 | Stable Preview (только `main`) | подпись постоянным ключом и совпадение отпечатка сертификата |
 
-Локально (нужны JDK 17, Android SDK 36, Gradle 8.13; Gradle Wrapper пока нет — M6-0/8):
+Локально (нужны JDK 17+ и Android SDK 36 в `ANDROID_HOME`; Gradle скачивает wrapper):
 
 ```bash
 python3 -m unittest discover -s tools -p 'test_*.py' -v
-gradle --no-daemon :app:assembleDebug :core:network:testDebugUnitTest \
-  :data:library:testDebugUnitTest :playback:testDebugUnitTest :app:lintDebug
+./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt
 ```
+
+Отчёты detekt: `<модуль>/build/reports/detekt/`.
 
 Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopback, только для тестов); синтетические WAV с кириллическими NFC/NFD-именами — `python3 tools/generate_fixtures.py <каталог>`.
 

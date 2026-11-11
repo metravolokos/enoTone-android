@@ -1,0 +1,38 @@
+# detekt поверх стандартной конфигурации (buildUponDefaultConfig = true).
+# Здесь только осознанные отклонения; каждое — с причиной.
+complexity:
+  LongParameterList:
+    # Composable-функции принимают много параметров состояния и колбэков.
+    ignoreAnnotated: ['Composable']
+  LongMethod:
+    ignoreAnnotated: ['Composable', 'Preview']
+naming:
+  FunctionNaming:
+    # Composable-функции по соглашению Compose начинаются с заглавной буквы.
+    ignoreAnnotated: ['Composable']
+style:
+  MagicNumber:
+    # Размеры в dp/sp и цвета темы — не «магические» числа.
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    excludes: ['**/test/**', '**/*Theme.kt']
+formatting:
+  # Правила ktlint через detekt-formatting.
+  active: true
+  # Compose-код использует заглавные имена функций.
+  FunctionName:
+    active: false
+  # Существующий код использует собственный стиль переносов и отступов.
+  # Исправить это можно только массовым переформатированием, которое ТЗ
+  # запрещает смешивать с функциональными PR. Включать — отдельным PR
+  # с автоформатированием всего проекта, если владелец решит.
+  Indentation:
+    active: false
+  ArgumentListWrapping:
+    active: false
+  Wrapping:
+    active: false
+  MultiLineIfElse:
+    active: false
+  ParameterListWrapping:
+    active: false
