@@ -49,10 +49,19 @@ internal fun TrackArtworkThumbnail(
         )
     }
 
-    LaunchedEffect(trackId, target, accountEmail, appPassword, allowNetwork) {
+    LaunchedEffect(trackId, target, albumPreviewTarget, accountEmail,
+        appPassword, allowNetwork) {
         // Network checks only for visible tracks, never during import. While
         // waiting, the already cached album preview remains visible.
         if (allowNetwork && target != null && appPassword.isNotBlank()) {
+            if (cover == null && albumPreviewTarget != null &&
+                albumPreviewTarget.id != target.id) {
+                // If RAM was evicted on a page switch, first read the verified
+                // album master locally; DO NOT request its source via HTTP.
+                repository.cachedCover(accountEmail, albumPreviewTarget, 192)?.let {
+                    cover = it
+                }
+            }
             cover = repository.cover(accountEmail, appPassword, target, requestedSide = 192)
             // A confirmed individual cover overrides the album preview.
             // A genuinely absent one becomes the regular placeholder.
