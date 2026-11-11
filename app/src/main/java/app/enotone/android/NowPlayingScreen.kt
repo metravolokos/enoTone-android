@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -47,6 +49,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -113,12 +116,18 @@ internal fun NowPlayingScreen(
     val seekLabel = stringResource(R.string.playback_seek_slider)
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val sampled = remember(artwork) { artworkColors(artwork) }
-    // Dark mode falls toward black; light mode remains pale to keep ink legible.
-    val desiredTop = if (dark) lerp(sampled.first, Color.Black, 0.59f)
-        else lerp(sampled.first, Color.White, 0.76f)
-    val desiredBottom = if (dark) lerp(sampled.second, Color.Black, 0.88f)
-        else lerp(sampled.second, Color.White, 0.90f)
+    // The previous 59%/88% darkening erased most album colors on Huawei.
+    // Preserve the extracted colors while making the lower half softly darker
+    // in dark mode. Light mode stays bright and does not fall into black.
+    val mixed = lerp(sampled.first, sampled.second, 0.42f)
+    val desiredTop = if (dark) lerp(sampled.first, Color.Black, 0.18f)
+        else lerp(sampled.first, Color.White, 0.67f)
+    val desiredMiddle = if (dark) lerp(mixed, Color.Black, 0.14f)
+        else lerp(mixed, Color.White, 0.72f)
+    val desiredBottom = if (dark) lerp(mixed, Color.Black, 0.28f)
+        else lerp(sampled.second, Color.White, 0.78f)
     val topColor by animateColorAsState(desiredTop, tween(550), label = "artworkTop")
+    val middleColor by animateColorAsState(desiredMiddle, tween(550), label = "artworkMiddle")
     val bottomColor by animateColorAsState(desiredBottom, tween(550), label = "artworkBottom")
     val coverScale by animateFloatAsState(
         targetValue = if (playbackState == "PAUSED") 0.88f else 1f,
@@ -128,7 +137,11 @@ internal fun NowPlayingScreen(
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(listOf(topColor, bottomColor)),
+            Brush.verticalGradient(
+                0f to topColor,
+                0.54f to middleColor,
+                1f to bottomColor,
+            ),
         ),
     ) {
         // Scrolling keeps every playback control reachable on small/landscape
@@ -139,7 +152,9 @@ internal fun NowPlayingScreen(
             420.dp,
         )
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxSize()
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -164,28 +179,53 @@ internal fun NowPlayingScreen(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+            // A padded halo and an explicit high-contrast elevation shadow
+            // remain visible around both pale and dark album covers.
+            // Scale the *visual* cover on pause; reserve its layout height.
             Box(
-                modifier = Modifier.size(coverSide)
-                    .graphicsLayer { scaleX = coverScale; scaleY = coverScale }
-                    .shadow(20.dp, RoundedCornerShape(18.dp), clip = false)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.size(coverSide + 32.dp)
+                    .graphicsLayer { scaleX = coverScale; scaleY = coverScale },
                 contentAlignment = Alignment.Center,
             ) {
-                if (artwork != null) {
-                    Image(
-                        bitmap = artwork.asImageBitmap(),
-                        contentDescription = stringResource(R.string.artwork_description),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_nav_albums),
-                        contentDescription = stringResource(R.string.now_playing_no_artwork),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(64.dp),
-                    )
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                        .background(
+                            brush = Brush.radialGradient(
+                                0f to Color.Black.copy(alpha = if (dark) 0.48f else 0.28f),
+                                0.74f to Color.Black.copy(alpha = if (dark) 0.36f else 0.17f),
+                                1f to Color.Transparent,
+                            ),
+                            shape = RoundedCornerShape(30.dp),
+                        ),
+                )
+                Box(
+                    modifier = Modifier.size(coverSide)
+                        .shadow(
+                            elevation = 32.dp,
+                            shape = RoundedCornerShape(18.dp),
+                            clip = false,
+                            ambientColor = Color.Black.copy(alpha = 0.95f),
+                            spotColor = Color.Black.copy(alpha = 0.92f),
+                        )
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (artwork != null) {
+                        Image(
+                            bitmap = artwork.asImageBitmap(),
+                            contentDescription = stringResource(R.string.artwork_description),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_nav_albums),
+                            contentDescription = stringResource(R.string.now_playing_no_artwork),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(64.dp),
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
@@ -197,34 +237,19 @@ internal fun NowPlayingScreen(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (!artist.isNullOrBlank()) {
+            // Only one stable subtitle row: playback states do not add/remove
+            // text nodes or move the seek bar and transport buttons.
+            val subtitle = artist?.takeIf { it.isNotBlank() }
+                ?: album?.takeIf { it.isNotBlank() }
+            if (subtitle != null) {
                 Text(
-                    text = artist,
+                    text = subtitle,
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            if (!album.isNullOrBlank()) {
-                Text(
-                    text = album,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            if (stateText.isNotBlank()) {
-                Text(
-                    text = stateText,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
                 )
             }
 
@@ -283,7 +308,11 @@ internal fun NowPlayingScreen(
                 FilledIconButton(
                     enabled = controlsEnabled,
                     onClick = onPlayPause,
-                    modifier = Modifier.size(68.dp),
+                    modifier = Modifier.size(68.dp).semantics {
+                        // Buffering, pause and failure stay accessible to
+                        // screen readers but never shift visible controls.
+                        stateDescription = stateText
+                    },
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
