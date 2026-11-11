@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
@@ -80,7 +81,7 @@ internal fun ArtworkSettingsPanel(
         if (storedBytes != null) {
             val mib = storedBytes.toDouble() / (1024.0 * 1024.0)
             Text(stringResource(R.string.artwork_cache_size,
-                String.format(java.util.Locale.getDefault(), "%.1f", mib)),
+                String.format(LocalLocale.current.platformLocale, "%.1f", mib)),
                 style = MaterialTheme.typography.bodySmall)
         }
         OutlinedButton(
