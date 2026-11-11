@@ -67,3 +67,4 @@
 | 0074 | Этап M6-0: технический долг | Действует | Принято владельцем 2026-11-11 |
 | 0075 | Сохранение очереди, позиции, shuffle/repeat (M6-0/3) | Действует | В `main` (#82); Huawei-проверка ожидается |
 | 0076 | Gradle Wrapper, detekt + ktlint, lint всех модулей, Dependabot | Действует | M6-0/8; detekt пока report-only |
+| 0077 | Слой представления: AppContainer / ViewModel / PlaybackConnection | Предложено | M6-0/4a, Draft #92; развитие ADR-0008 и ADR-0074 |

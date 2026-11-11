@@ -11,7 +11,9 @@
 | M6-0/1 | Порядок в документации: короткие STATUS/KNOWN_ISSUES/TESTING, архив, индекс ADR, AGENTS.md | слит (#79) |
 | M6-0/2 | Один `EnoToneDatabase` на процесс; `WAKE_MODE_NETWORK` | слит (#80); Huawei: воспроизведение плавное, без зависаний (владелец, 2026-11-12) |
 | M6-0/3 | Сохранение очереди, позиции, shuffle/repeat | слит (#82); ждёт Huawei |
-| M6-0/4 | `AppContainer`, репозитории, ViewModel + StateFlow | — |
+| M6-0/4a | `AppContainer`, `LibraryRepository`, `PlaybackConnection`, `LibraryViewModel` медиатеки | Draft PR #92, ждёт CI/review/Huawei; не слит |
+| M6-0/4b | ViewModel настроек и диагностики (`MainActivity`, `DiagnosticScreen`) | после 4a |
+| M6-0/4c | Оставшиеся сервисы индексации и обложек | после 4b |
 | M6-0/5 | Перенос в `:feature:*`/`:core:model`; поведенческие тесты вместо строковых | — |
 | M6-0/6 | Room v5: длительность, модель плейлистов | — |
 | M6-0/7 | FTS, `Collator`, ё/е, Paging | — |
