@@ -47,7 +47,7 @@ class AcceptedDocumentationContractTest(unittest.TestCase):
         self.assertIn("ADR-0067", old)
         self.assertIn("1200 px", new)
         self.assertIn("filesDir", new)
-        self.assertIn("Без автоматического", read("docs/CURRENT_DECISIONS.md"))
+        self.assertIn("Нет автоматического", read("docs/CURRENT_DECISIONS.md"))
         self.assertIn("история", source)
         for p in ("docs/DECISIONS/ADR-0006-caches.md",
                   "docs/DECISIONS/ADR-0054-embedded-artwork-on-demand.md",
