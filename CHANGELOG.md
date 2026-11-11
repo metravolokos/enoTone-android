@@ -2,7 +2,7 @@
 
 ## Unreleased — M6-0/3: сохранение очереди (2026-11-12)
 
-- [ADR-0075](docs/DECISIONS/ADR-0075-queue-persistence.md): JSON v1 в noBackupFilesDir (только SHA-256 ID/sourceKey и состояние воспроизведения), атомарный I/O с throttling, сохранение позиции/режимов/shuffle, восстановление через локальную Room и добровольный vault на паузе без подготовки сетевого источника; поведенческие JUnit-тесты. CI и Huawei ещё не проверены.
+- [ADR-0075](docs/DECISIONS/ADR-0075-queue-persistence.md): два атомарных JSON v1 в noBackupFilesDir с общей ревизией (большая очередь/перестановка пишется только при изменении очереди или shuffle, маленькая позиция/repeat — периодически), Gson через version catalog, восстановление seed из Room с порционным заполнением без сетевого prepare до Play, числовая диагностика restoreSeedMs; поведенческие JUnit-тесты рассинхронизации и очереди 3590. Повторный CI и Huawei ожидаются.
 
 ## Unreleased — M6-0/2: общая база данных и удержание Wi-Fi (2026-11-11)
 
