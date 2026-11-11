@@ -21,30 +21,29 @@ class UiEdgeToEdgeContractTest(unittest.TestCase):
         self.assertIn("controller.isAppearanceLightStatusBars = !dark", theme)
         self.assertIn("controller.isAppearanceLightNavigationBars = !dark", theme)
 
-    def test_safe_insets_and_full_bleed_player_background(self):
-        activity = read(BASE + "MainActivity.kt")
-        home = read(BASE + "EnoToneHomeScreen.kt")
-        library = read(BASE + "OfflineLibraryScreen.kt")
-        player = read(BASE + "NowPlayingScreen.kt")
-        self.assertIn("Modifier.fillMaxSize().systemBarsPadding()", home)
-        self.assertIn(".systemBarsPadding()", library)
-        self.assertIn("Modifier.fillMaxSize().systemBarsPadding()", activity)
-        self.assertIn(".windowInsetsPadding(WindowInsets.systemBars)", player)
-        self.assertLess(player.index(".drawBehind {"),
-                        player.index(".windowInsetsPadding(WindowInsets.systemBars)"))
+    def test_safe_insets_and_graphite_background(self):
+        activity=read(BASE+"MainActivity.kt")
+        home=read(BASE+"EnoToneHomeScreen.kt")
+        library=read(BASE+"OfflineLibraryScreen.kt")
+        player=read(BASE+"NowPlayingScreen.kt")
+        self.assertIn("Modifier.fillMaxSize().systemBarsPadding()",home)
+        self.assertIn(".systemBarsPadding()",library)
+        self.assertIn("Modifier.fillMaxSize().systemBarsPadding()",activity)
+        self.assertIn(".windowInsetsPadding(WindowInsets.systemBars)",player)
+        self.assertIn("Brush.verticalGradient(",player)
+        self.assertNotIn("Brush.radialGradient(",player)
 
-    def test_album_palette_and_stable_control_layout(self):
-        player = read(BASE + "NowPlayingScreen.kt")
-        self.assertIn("primary.copy(alpha = .78f)", player)
-        self.assertIn("secondary.copy(alpha = .61f)", player)
-        self.assertNotIn("Color.Black, 0.59f", player)
-        self.assertNotIn("Color.Black, 0.88f", player)
-        self.assertIn("artworkColors(artwork)", player)
-        self.assertIn("stateDescription = status", player)
-        self.assertNotIn("if (stateText.isNotBlank())", player)
-        self.assertIn("elevation = 28.dp", player)
-        self.assertIn("Brush.radialGradient(", player)
-        self.assertNotIn("WebDavRangeReader(", player)
+    def test_neutral_player_has_fixed_transport_and_no_fake_elements(self):
+        player=read(BASE+"NowPlayingScreen.kt")
+        for token in ("color.surfaceContainerHigh", "color.background",
+                      "animateFloatAsState(", 'playbackState == "PAUSED"',
+                      "0.84f", "FilledIconButton(", "Slider(",
+                      "onSeekFraction(scrubFraction)"):
+            self.assertIn(token,player)
+        for token in ("artworkColors(", "Lossless", "ic_music_lyrics",
+                      "ic_music_cast", "ic_music_star"):
+            self.assertNotIn(token,player)
+        self.assertNotIn("WebDavRangeReader(",player)
 
     def test_media_and_persistent_artwork_unchanged(self):
         artwork = read(BASE + "ArtworkPreviewRepository.kt")
