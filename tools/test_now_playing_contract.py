@@ -47,7 +47,7 @@ class NowPlayingContractTest(unittest.TestCase):
         player = self.src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
         for token in (
             "LaunchedEffect(showPlayerDetails, currentTrackId, artworkCatalog,",
-            "if (!showPlayerDetails || appPassword.isBlank()) return@LaunchedEffect",
+            "if (!showPlayerDetails) return@LaunchedEffect",
             'state == "PLAYING" || state == "PAUSED"',
             "fullArtwork = artworkRepository.albumCover(",
             "requestedSide = 1200",
