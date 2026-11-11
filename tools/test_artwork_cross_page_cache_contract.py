@@ -1,4 +1,4 @@
-"""Cross-page artwork reuse without assuming every track shares album bytes."""
+"""Permanent album art: one verified master, all pages, opt-in background."""
 from pathlib import Path
 import unittest
 
@@ -10,79 +10,97 @@ def read(path):
 
 
 class ArtworkCrossPageCacheContractTest(unittest.TestCase):
-    def test_fast_memory_preview_and_disk_only_lookup_without_http(self):
-        cache = read("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
-        for part in (
-            "fun peek(email: String, target: PlayingArtworkTarget, requestedSide: Int): Bitmap?",
-            "fun cachedSizedCover(key: String, side: Int): Bitmap?",
-            "suspend fun cachedCover(",
-            "memoryCache.get(\"$key|$side\")",
-            "decodeFile(file, side)?.also",
-            "file.setLastModified(System.currentTimeMillis())",
-            "cachedSizedCover(key, side)?.let { return it }",
-            "cachedSizedCover(key, side) ?: withContext(Dispatchers.IO)",
-        ):
-            self.assertIn(part, cache)
-        local_only = cache[cache.index("suspend fun cachedCover("):
-                           cache.index("suspend fun invalidate(")]
-        self.assertNotIn("WebDavRangeReader(", local_only)
-        self.assertNotIn("storeMaster(", local_only)
-        self.assertNotIn("atomicWrite(", local_only)
-        self.assertNotIn("referenceFile(key).delete()", local_only)
-        self.assertNotIn("getExternalFilesDir(", cache)
-
-    def test_album_tile_does_not_clear_successful_preview_when_recomposed(self):
+    def test_album_resolution_is_shared_by_every_page(self):
+        ui = read("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
+        catalog = read("app/src/main/java/app/enotone/android/AlbumArtworkCatalog.kt")
+        track = read("app/src/main/java/app/enotone/android/TrackArtworkThumbnail.kt")
         tile = read("app/src/main/java/app/enotone/android/AlbumArtworkTile.kt")
         header = read("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
-        for source, side in ((tile, 384), (header, 512)):
-            self.assertIn("remember(group.key, target, accountEmail)", source)
-            self.assertIn(f"repository.peek(accountEmail, it, requestedSide = {side})", source)
-            self.assertIn(f"requestedSide = {side}) ?: cover", source)
-            self.assertNotIn("cover = null", source)
-        cache = read("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
-        self.assertIn("LruCache<String, Bitmap>(24 * 1024)", cache)
-        self.assertIn("CACHE_LIMIT_BYTES = 192L * 1024 * 1024", cache)
-        self.assertIn('enotone-artwork-v2', cache)
-        self.assertNotIn("enotone-artwork-v3", cache)
-
-    def test_track_uses_album_as_preview_only_and_validates_own_source(self):
-        ui = read("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        track = read("app/src/main/java/app/enotone/android/TrackArtworkThumbnail.kt")
-        self.assertIn("val albumPreviewByTrack = remember(tracks, preparedById,", ui)
-        self.assertIn("OfflineLibraryGrouping.albums(tracks).flatMap { group ->", ui)
-        self.assertIn('if (group.key == "album:missing") return@flatMap emptyList()', ui)
-        self.assertIn("albumPreviewTarget = albumPreviewByTrack[track.id]", ui)
-        self.assertIn("albumPreviewTarget: PlayingArtworkTarget?", track)
-        self.assertIn("repository.peek(accountEmail, it, requestedSide = 192)", track)
-        self.assertIn("repository.cachedCover(accountEmail, albumPreviewTarget, 192)", track)
-        self.assertIn("albumPreviewTarget.id != target.id", track)
-        self.assertIn("cover = repository.cover(accountEmail, appPassword, target, requestedSide = 192)", track)
-        self.assertNotIn("storeMaster(", track)
+        for token in (
+            "val artworkCatalog = remember(tracks, preparedById, libraryRefreshEpoch)",
+            "artworkGroup = artworkCatalog.byTrackId[track.id]",
+            "artworkGroup = artworkCatalog.byGroupKey[group.key]",
+            "artworkGroup = artworkCatalog.byGroupKey[selectedGroup.key]",
+            "currentArtwork = artworkRepository.albumCover(",
+            "fullArtwork = artworkRepository.albumCover(",
+        ):
+            self.assertIn(token, ui)
+        for token in (
+            "OfflineLibraryGrouping.albums(tracks)",
+            "OfflineTrackCatalog.albumOrder(",
+            'if (group.key == "album:missing") continue',
+            'AlbumArtworkGroup("track:" + track.id, listOf(target))',
+            "group.trackIds.forEach { byTrack[it] = artworkGroup }",
+        ):
+            self.assertIn(token, catalog)
+        self.assertIn("repository.albumCover(accountEmail, appPassword,", track)
+        self.assertIn("repository.albumCover(accountEmail, appPassword,", tile)
+        self.assertIn("repository.albumCover(accountEmail, appPassword,", header)
+        self.assertNotIn("WebDavRangeReader(", tile)
         self.assertNotIn("WebDavRangeReader(", track)
-        self.assertNotIn("queueTagRefreshByIds(", track)
-        self.assertNotIn("deleteDatabase(", ui)
 
-    def test_preserves_individual_source_identity_and_manual_invalidation(self):
-        repo = read("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
-        self.assertIn('target.id + "|" + target.encodedPath', repo)
-        self.assertIn("target.remoteEtag.orEmpty()", repo)
-        self.assertIn('File(directory, "ref-$sourceHash.txt")', repo)
-        self.assertIn('File(directory, "art-$contentHash.webp")', repo)
-        self.assertIn("referenceFile(key).delete()", repo)
-        self.assertIn("memoryCache.evictAll()", repo)
-        self.assertIn("const val MAX_SIDE = 1320", repo)
-        self.assertIn("private val imageSlots = Semaphore(2)", repo)
-        self.assertIn("maxRequests = 128", repo)
-        self.assertIn("maxDownloadedBytes = 8L * 1024 * 1024", repo)
-        self.assertNotIn("albumKey", repo)
+    def test_permanent_store_and_no_album_network_on_cache_hit(self):
+        cache = read("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
+        for token in (
+            "context.applicationContext.filesDir", "legacyDirectory",
+            "migrateLegacy(key)", "const val MAX_SIDE = 1200",
+            "fun peekAlbum(", "suspend fun cachedAlbumCover(", "suspend fun albumCover(",
+            "suspend fun isAlbumIndexed(", "selectedSource(email, group)",
+            "saveAlbumSelection(email, group, choice)",
+            "saveAlbumSelection(email, group, NO_ART_DIGEST)",
+            "private val NO_ART_DIGEST", "suspend fun clearAll()",
+            "private val albumLocks = Array(32) { Mutex() }",
+            "LruCache<String, Bitmap>(24 * 1024)",
+        ):
+            self.assertIn(token, cache)
+        self.assertNotIn("CACHE_LIMIT_BYTES", cache)
+        self.assertNotIn("trimCache()", cache)
+        local = cache[cache.index("suspend fun cachedAlbumCover("):
+                      cache.index("suspend fun isAlbumIndexed(")]
+        self.assertNotIn("WebDavRangeReader(", local)
+        self.assertNotIn("deleteDatabase(", cache)
+        self.assertIn('File(directory, "art-$contentHash.webp")', cache)
+        self.assertIn('File(directory, "ref-$sourceHash.txt")', cache)
 
-    def test_room_and_stable_preview_signing_unchanged(self):
+    def test_auto_mode_resumes_after_tag_index_and_not_on_boot(self):
+        main = read("app/src/main/java/app/enotone/android/MainActivity.kt")
+        planner = read("app/src/main/java/app/enotone/android/ArtworkIndexPlanner.kt")
+        worker = read("app/src/main/java/app/enotone/android/ArtworkIndexingForegroundService.kt")
+        preferences = read("app/src/main/java/app/enotone/android/ArtworkPreferences.kt")
+        self.assertIn("ArtworkLoadMode.ON_DEMAND", preferences)
+        self.assertIn("AUTO_AFTER_IMPORT", preferences)
+        self.assertIn("pendingFastScans(", main)
+        self.assertIn("ArtworkIndexPlanner.needsPreparation(appContext, email)", main)
+        self.assertIn("ArtworkScanRuntime.prepare(email, password)", main)
+        self.assertIn("ArtworkIndexingForegroundService.ACTION_START", main)
+        self.assertIn("ArtworkIndexPlanner.fromStoredLibrary(", worker)
+        self.assertIn("repository.isAlbumIndexed(login.email, group)", worker)
+        self.assertIn("repository.albumCover(login.email, login.password,", worker)
+        self.assertIn("START_NOT_STICKY", worker)
+        self.assertIn("MAX_SESSION_NANOS", worker)
+        self.assertIn("ManagedScanState.RUNNING", worker)
+        self.assertIn("ACTION_PAUSE", worker)
+        self.assertIn("ACTION_STOP", worker)
+        self.assertNotIn("WorkManager(", worker)
+        self.assertNotIn("putExtra(\"password\"", worker)
+        self.assertNotIn("WebDavRangeReader(", planner)
+        self.assertNotIn("deleteDatabase(", planner)
+
+    def test_settings_and_signing_are_stable(self):
+        settings = read("app/src/main/java/app/enotone/android/ArtworkSettingsPanel.kt")
+        main = read("app/src/main/java/app/enotone/android/MainActivity.kt")
         db = read("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
-        app = read("app/build.gradle.kts")
+        gradle = read("app/build.gradle.kts")
+        self.assertIn("ArtworkSettingsPanel(", main)
+        for token in (
+            "artwork_mode_auto", "artwork_mode_visible",
+            "R.string.artwork_cache_clear", "R.string.artwork_cache_confirm_title",
+            "R.string.artwork_index_progress",
+        ):
+            self.assertIn(token, settings)
+        self.assertIn("ArtworkPreviewRepository(appContext).clearAll()", main)
         self.assertIn("version = 4", db)
-        self.assertIn('applicationIdSuffix = ".preview"', app)
-        self.assertIn('getByName("stablePreview")', app)
-        self.assertNotIn("fallbackToDestructiveMigration", db)
+        self.assertIn('applicationIdSuffix = ".preview"', gradle)
 
 
 if __name__ == "__main__":
