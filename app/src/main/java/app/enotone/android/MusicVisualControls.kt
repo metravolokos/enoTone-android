@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
@@ -128,7 +129,7 @@ internal fun MusicThinSlider(
             if (value > 0f) {
                 drawRoundRect(
                     color = tint.copy(alpha = 0.92f),
-                    size = size.copy(width = size.width * value.coerceIn(0f, 1f)),
+                    size = Size(size.width * value.coerceIn(0f, 1f), size.height),
                     cornerRadius = CornerRadius(3.dp.toPx()),
                 )
             }
