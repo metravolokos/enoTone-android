@@ -46,16 +46,16 @@ class NowPlayingContractTest(unittest.TestCase):
         artwork = self.src("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
         player = self.src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
         for token in (
-            "LaunchedEffect(showPlayerDetails, currentTrackId, preparedById, appPassword,",
+            "LaunchedEffect(showPlayerDetails, currentTrackId, artworkCatalog,",
             "if (!showPlayerDetails || appPassword.isBlank()) return@LaunchedEffect",
             'state == "PLAYING" || state == "PAUSED"',
-            "fullArtwork = artworkRepository.cover(",
-            "requestedSide = 1320",
+            "fullArtwork = artworkRepository.albumCover(",
+            "requestedSide = 1200",
             "artwork = fullArtwork ?: currentArtwork",
             "remember(currentTrackId, accountEmail)",
         ):
             self.assertIn(token, screen)
-        self.assertIn("const val MAX_SIDE = 1320", artwork)
+        self.assertIn("const val MAX_SIDE = 1200", artwork)
         self.assertIn("enotone-artwork-v2", artwork)
         self.assertIn("Bitmap", player)
         self.assertIn("artwork.asImageBitmap()", player)
