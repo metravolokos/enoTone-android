@@ -34,7 +34,8 @@
 | Нет ViewModel и DI; Composable напрямую работают с БД и сетью | M6-0/4 |
 | Python-тесты в `tools/test_*_contract.py` проверяют наличие строк в исходниках, а не поведение | M6-0/5 |
 | Нет тестов `:app`, Room DAO, миграций, Compose UI | M6-0/5 |
-| Нет Gradle Wrapper, detekt/ktlint, lint только `:app`, нет Dependabot и release-workflow | M6-0/8 |
+| 546 замечаний detekt (отчёт в CI, не блокирует) | M6-0/4–5, затем блокирующий режим |
+| Нет release-workflow по тегу | После M6-0 |
 | Нет файла `LICENSE` (решение владельца) | M6-0/8 |
 
 ## Не реализовано из ТЗ (не дефекты, а объём)

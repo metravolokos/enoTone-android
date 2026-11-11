@@ -48,4 +48,4 @@
 
 ## 6. Сборка
 
-См. [docs/TESTING.md](docs/TESTING.md): JDK 17, Android SDK 36, Gradle 8.13 (Wrapper появится в M6-0/8).
+`./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt` — подробности в [docs/TESTING.md](docs/TESTING.md). Новый код не должен добавлять замечаний detekt ([ADR-0076](docs/DECISIONS/ADR-0076-quality-tooling.md)), даже пока detekt не блокирует CI.

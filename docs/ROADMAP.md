@@ -8,14 +8,14 @@
 
 | Шаг | Содержание | Состояние |
 |---|---|---|
-| M6-0/1 | Порядок в документации: короткие STATUS/KNOWN_ISSUES/TESTING, архив, индекс ADR, AGENTS.md | В main (PR #79) |
-| M6-0/2 | Один `EnoToneDatabase` на процесс; `WAKE_MODE_NETWORK` | В main (PR #80), ждёт Huawei |
-| M6-0/3 | Сохранение очереди, позиции, shuffle/repeat | Draft-кандидат: CI и Huawei ожидаются |
+| M6-0/1 | Порядок в документации: короткие STATUS/KNOWN_ISSUES/TESTING, архив, индекс ADR, AGENTS.md | слит (#79) |
+| M6-0/2 | Один `EnoToneDatabase` на процесс; `WAKE_MODE_NETWORK` | слит (#80); Huawei: воспроизведение плавное, без зависаний (владелец, 2026-11-12) |
+| M6-0/3 | Сохранение очереди, позиции, shuffle/repeat | слит (#82); ждёт Huawei |
 | M6-0/4 | `AppContainer`, репозитории, ViewModel + StateFlow | — |
 | M6-0/5 | Перенос в `:feature:*`/`:core:model`; поведенческие тесты вместо строковых | — |
 | M6-0/6 | Room v5: длительность, модель плейлистов | — |
 | M6-0/7 | FTS, `Collator`, ё/е, Paging | — |
-| M6-0/8 | Gradle Wrapper, detekt, ktlint, Dependabot, LICENSE | — |
+| M6-0/8 | Gradle Wrapper, detekt, ktlint, Dependabot, LICENSE | PR (без LICENSE — ждёт решения владельца) |
 
 **После M6-0:** UI плейлистов, экран очереди, единый сетевой слой (ADR), экспорт диагностики; затем ИИ (M8) и офлайн/DocumentsProvider (M9).
 
