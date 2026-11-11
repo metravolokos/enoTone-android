@@ -3,6 +3,9 @@ package app.enotone.android
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,7 +35,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -103,9 +111,25 @@ internal fun NowPlayingScreen(
         else -> ""
     }
     val seekLabel = stringResource(R.string.playback_seek_slider)
+    val dark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val sampled = remember(artwork) { artworkColors(artwork) }
+    // Dark mode falls toward black; light mode remains pale to keep ink legible.
+    val desiredTop = if (dark) lerp(sampled.first, Color.Black, 0.59f)
+        else lerp(sampled.first, Color.White, 0.76f)
+    val desiredBottom = if (dark) lerp(sampled.second, Color.Black, 0.88f)
+        else lerp(sampled.second, Color.White, 0.90f)
+    val topColor by animateColorAsState(desiredTop, tween(550), label = "artworkTop")
+    val bottomColor by animateColorAsState(desiredBottom, tween(550), label = "artworkBottom")
+    val coverScale by animateFloatAsState(
+        targetValue = if (playbackState == "PAUSED") 0.88f else 1f,
+        animationSpec = tween(260),
+        label = "pausedArtworkScale",
+    )
 
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        modifier = Modifier.fillMaxSize().background(
+            Brush.verticalGradient(listOf(topColor, bottomColor)),
+        ),
     ) {
         // Scrolling keeps every playback control reachable on small/landscape
         // screens, while a large square cover anchors the portrait layout.
@@ -142,6 +166,8 @@ internal fun NowPlayingScreen(
             Spacer(modifier = Modifier.height(8.dp))
             Box(
                 modifier = Modifier.size(coverSide)
+                    .graphicsLayer { scaleX = coverScale; scaleY = coverScale }
+                    .shadow(20.dp, RoundedCornerShape(18.dp), clip = false)
                     .clip(RoundedCornerShape(18.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,

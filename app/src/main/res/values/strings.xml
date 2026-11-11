@@ -223,4 +223,15 @@
     <string name="album_refresh_backoff">Временный сбой; повторите позднее</string>
     <string name="album_refresh_budget">Достигнут лимит запросов; можно продолжить</string>
     <string name="album_actions">Действия с альбомом</string>
+    <string name="appearance_title">Оформление</string>
+    <string name="appearance_theme">Режим экрана</string>
+    <string name="appearance_system">Как в системе</string>
+    <string name="appearance_dark">Тёмный</string>
+    <string name="appearance_light">Светлый</string>
+    <string name="appearance_accent">Цвет элементов управления</string>
+    <string name="appearance_red">Красный</string>
+    <string name="appearance_blue">Синий</string>
+    <string name="appearance_green">Зелёный</string>
+    <string name="appearance_orange">Оранжевый</string>
+    <string name="appearance_purple">Фиолетовый</string>
 </resources>

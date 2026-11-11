@@ -89,7 +89,7 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertLess(ui.index("if (showPlayerDetails && selectedTitle != null)"),
             ui.index("Column(\n        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp)"))
         self.assertLess(ui.index("items(visible, key = { it.id })"),
-            ui.index("// Fixed-height mini player:"))
+            ui.index("// Floating mini player:"))
         self.assertNotIn("R.string.library_group_tags_only", ui)
         self.assertNotIn("deleteDatabase(", ui)
 
@@ -122,7 +122,7 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertIn("preferences.saveHiddenPages(next)", settings)
         self.assertIn("visible.size > 1", settings)
         self.assertNotIn("Row(modifier = Modifier.horizontalScroll(", ui)
-        self.assertLess(ui.index("// Fixed-height mini player:"),
+        self.assertLess(ui.index("// Floating mini player:"),
                         ui.index("// Five-slot navigation"))
         for name in ("home", "tracks", "albums", "artists", "album_artists"):
             path = ROOT / f"app/src/main/res/drawable/ic_nav_{name}.xml"
@@ -144,10 +144,12 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertIn("selectedGroupKey = null", ui)
         self.assertIn("selectedArtist = mediaMetadata.artist?.toString()", ui)
         self.assertIn("selectedArtist = track.artist", ui)
-        mini = ui[ui.index("// Fixed-height mini player:"):
+        mini = ui[ui.index("// Floating mini player:"):
                   ui.index("// Five-slot navigation")]
         self.assertIn("Modifier.fillMaxWidth().height(56.dp)", mini)
-        self.assertIn("Modifier.fillMaxWidth().height(2.dp)", mini)
+        self.assertNotIn("LinearProgressIndicator(", mini)
+        self.assertIn("FloatingControlsIsland(", ui)
+        self.assertIn("PaddingValues(bottom =", ui)
         self.assertIn("R.drawable.ic_action_play", mini)
         self.assertIn("R.drawable.ic_action_pause", mini)
         self.assertIn("R.drawable.ic_action_next", mini)

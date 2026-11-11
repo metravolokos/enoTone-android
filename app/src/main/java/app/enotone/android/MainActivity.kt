@@ -345,6 +345,7 @@ private fun DiagnosticScreen() {
             Text(stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.titleLarge)
         }
+        AppearanceSettings()
         LibraryVisibilitySettings()
         ArtworkSettingsPanel(
             mode = artworkMode,

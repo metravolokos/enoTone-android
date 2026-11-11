@@ -1,8 +1,4 @@
-"""Guard the user's decision: retain standard Material Design colors in M6.
-
-The previous design-project palette is NOT approved for the Android player.
-Do not carry tokens across repositories until the owner accepts the UI design.
-"""
+"""Guard current neutral palettes and one user-controlled accent (ADR-0069)."""
 from pathlib import Path
 import unittest
 
@@ -20,14 +16,17 @@ class ThemeContractTest(unittest.TestCase):
         self.assertIn("darkColorScheme(", theme)
 
     def test_approved_colors_have_one_central_source(self):
-        # The owner accepted Graphite/Porcelain in enotone-design v1.3.
+        # The latest Android UI decision supersedes the former pink palette.
         theme = (UI / "EnoToneTheme.kt").read_text(encoding="utf-8")
         activity = (UI / "MainActivity.kt").read_text(encoding="utf-8")
         library = (UI / "OfflineLibraryScreen.kt").read_text(encoding="utf-8")
-        for token in ("0xFFEBAE9F", "0xFFEDE9E5", "0xFF1B1A19"):
+        for token in ("background = Color.Black", "background = Color.White",
+                      "surface = Color(0xFF242426)", "surface = Color(0xFFF0F0F2)"):
             self.assertIn(token, theme)
             self.assertNotIn(token, activity)
             self.assertNotIn(token, library)
+        self.assertIn("UiAccent", theme)
+        self.assertIn("UiAppearance", theme)
         self.assertNotIn("dynamicLightColorScheme", theme)
         self.assertNotIn("dynamicDarkColorScheme", theme)
 

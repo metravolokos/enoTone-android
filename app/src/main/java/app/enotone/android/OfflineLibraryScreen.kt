@@ -12,6 +12,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -45,7 +46,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -181,7 +181,7 @@ internal fun OfflineLibraryScreen(
     var selectedArtist by remember { mutableStateOf<String?>(null) }
     var currentTrackId by remember { mutableStateOf<String?>(null) }
     var currentArtwork by remember { mutableStateOf<Bitmap?>(null) }
-    // Only when Now Playing is open: decode up to 1320px from the same disk master.
+    // Only when Now Playing is open: decode up to 1200px from the permanent master.
     var fullArtwork by remember(currentTrackId, accountEmail) {
         mutableStateOf<Bitmap?>(null)
     }
@@ -699,6 +699,7 @@ internal fun OfflineLibraryScreen(
             onToggleShuffle = { playback?.toggleShuffle() },
         )
     } else {
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -780,6 +781,7 @@ internal fun OfflineLibraryScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 148.dp),
                         state = albumGridState,
+                        contentPadding = PaddingValues(bottom = if (selectedTitle != null) 160.dp else 84.dp),
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -806,6 +808,7 @@ internal fun OfflineLibraryScreen(
                 } else {
                     LazyColumn(
                         state = libraryListState,
+                        contentPadding = PaddingValues(bottom = if (selectedTitle != null) 160.dp else 84.dp),
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -829,6 +832,7 @@ internal fun OfflineLibraryScreen(
             }
             else -> LazyColumn(
                 state = libraryListState,
+                        contentPadding = PaddingValues(bottom = if (selectedTitle != null) 160.dp else 84.dp),
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -923,10 +927,14 @@ internal fun OfflineLibraryScreen(
                 }
             }
         }
-        // Fixed-height mini player: one 56dp row plus a 2dp progress line.
+    }
+    FloatingControlsIsland(
+        modifier = Modifier.align(Alignment.BottomCenter)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+    ) {
+        // Floating mini player: two transport actions, no progress bar.
         // Touch targets retain the Material 48dp minimum; title opens full player.
         if (selectedTitle != null) {
-            HorizontalDivider()
             Row(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 horizontalArrangement = Arrangement.spacedBy(0.dp),
@@ -1019,14 +1027,8 @@ internal fun OfflineLibraryScreen(
                     )
                 }
             }
-            if (PlaybackSeekPolicy.isKnownDuration(durationMs)) {
-                LinearProgressIndicator(
-                    progress = { PlaybackSeekPolicy.fraction(positionMs, durationMs) },
-                    modifier = Modifier.fillMaxWidth().height(2.dp),
-                )
-            }
         }
-        // Five-slot navigation (Home + four music pages) shared with Home.
+        // Five-slot navigation floats in the same island.
         // Category visibility is managed only in Settings.
         CompactLibraryNavigation(
             selectedPage = section,
@@ -1042,6 +1044,7 @@ internal fun OfflineLibraryScreen(
             },
             enabled = !selecting,
         )
+    }
     }
     }
 }
