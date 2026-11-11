@@ -23,11 +23,11 @@ class AlbumArtworkGridContractTest(unittest.TestCase):
             "selectedGroupKey = group.key",
             'search = ""',
             "val artworkCatalog = remember(tracks, preparedById, libraryRefreshEpoch)",
-            'if (group.key == "album:missing") return@mapNotNull null',
-            "preparedById[it]",
+            "AlbumArtworkCatalog.build(tracks)",
+            "preparedById[id]?.let { item ->",
         ):
             self.assertIn(needle, ui)
-        self.assertIn("LaunchedEffect(group.key, target, accountEmail, appPassword)", tile)
+        self.assertIn("LaunchedEffect(group.key, artworkGroup, accountEmail, appPassword)", tile)
         self.assertIn("repository.albumCover(accountEmail, appPassword,", tile)
         self.assertIn("modifier = Modifier.fillMaxWidth().aspectRatio(1f)", tile)
         self.assertIn("onClick = onOpen", tile)
