@@ -222,4 +222,5 @@
     <string name="album_refresh_retry_needed">Unfinished in this batch: %1$d — retry available</string>
     <string name="album_refresh_backoff">Temporary failure; retry later</string>
     <string name="album_refresh_budget">Request limit reached; continue when ready</string>
+    <string name="album_actions">Album actions</string>
 </resources>
