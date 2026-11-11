@@ -20,7 +20,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -137,7 +136,7 @@ internal class AndroidPlaybackConnection(
         if (bound) runCatching { context.unbindService(connection) }
         bound = false
         service = null
-        scope.cancel()
+        // The container is process-scoped; future ViewModels can reconnect.
         mutable.value = PlaybackSnapshot()
     }
 

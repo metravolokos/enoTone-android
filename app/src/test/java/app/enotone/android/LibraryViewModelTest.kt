@@ -84,7 +84,10 @@ class LibraryViewModelTest {
             this.filtered = filtered
             this.queue = queue
             current.value = current.value.copy(queueTotal = queue.size,
-                currentTrackId = saved.selectedTrackId)
+                currentTrackId = saved.selectedTrackId,
+                positionMs = saved.positionMs,
+                repeatMode = saved.repeatMode,
+                shuffleEnabled = saved.shuffleEnabled)
             return true
         }
         override fun playPause() = Unit

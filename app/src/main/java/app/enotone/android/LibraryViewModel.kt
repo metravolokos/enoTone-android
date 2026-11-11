@@ -17,12 +17,9 @@ import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.CachePhase
 import app.enotone.playback.PlaybackDataIssue
 import app.enotone.playback.QueueStateRestorer
-import app.enotone.playback.QueueTrack
-import app.enotone.playback.TransientCacheStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
@@ -386,9 +383,9 @@ internal class LibraryViewModel(
                 playbackState = playbackState,
                 currentTrackId = nextId,
                 selectedTitle = snapshot.title ?: old.selectedTitle,
-                selectedArtist = snapshot.artist ?:
-                    old.tracks.firstOrNull { it.id == snapshot.currentTrackId }?.artist
-                    ?: old.selectedArtist,
+                selectedArtist = if (snapshot.currentTrackId == null) old.selectedArtist
+                    else snapshot.artist ?:
+                        old.tracks.firstOrNull { it.id == snapshot.currentTrackId }?.artist,
                 positionMs = snapshot.positionMs,
                 durationMs = snapshot.durationMs,
                 canSeek = snapshot.canSeek,
