@@ -1,5 +1,6 @@
 package app.enotone.android
 
+import android.content.Context
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -7,88 +8,108 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 
-/**
- * enoTone's approved cross-platform color tokens (design repo v1.3).
- *
- * The layout takes its content-first hierarchy from music players, not their
- * brand colors, glass effects or proprietary UI assets. No dynamic Material You
- * recoloring: the artist's album covers keep their original pixels.
- *
- * Color contrast: dark icons/text on dusty-rose filled controls; dark-rose
- * text/icons on light backgrounds. Typography masters (Onest / Unbounded)
- * must be imported from the approved asset bundle before shipping custom fonts.
- */
-private object Brand {
-    val rose = Color(0xFFEBAE9F)
-    val graphite = Color(0xFF1B1A19)
-    val darkSurface = Color(0xFF252321)
-    val darkRaised = Color(0xFF2F2C2A)
-    val cream = Color(0xFFF4ECE4)
-    val darkSecondaryText = Color(0xFFB9AEA4)
-    val blueHighlight = Color(0xFF8FB0C2)
-
-    val porcelain = Color(0xFFEDE9E5)
-    val lightSurface = Color(0xFFF8F5F1)
-    val lightRaised = Color(0xFFE2DCD6)
-    val ink = Color(0xFF211E1C)
-    val lightSecondaryText = Color(0xFF5C544E)
-    val darkRose = Color(0xFFA24F3E)
+/** Neutral user interface with exactly one configurable chromatic accent. */
+internal enum class UiMode { SYSTEM, DARK, LIGHT }
+internal enum class UiAccent(val swatch: Color) {
+    RED(Color(0xFFC63749)),
+    BLUE(Color(0xFF286FAE)),
+    GREEN(Color(0xFF27764E)),
+    ORANGE(Color(0xFFAB5926)),
+    PURPLE(Color(0xFF7250A6)),
 }
 
-private val graphiteColors = darkColorScheme(
-    primary = Brand.rose,
-    onPrimary = Brand.ink,
-    primaryContainer = Brand.rose,
-    onPrimaryContainer = Brand.ink,
-    secondary = Brand.blueHighlight,
-    onSecondary = Brand.graphite,
-    secondaryContainer = Brand.darkRaised,
-    onSecondaryContainer = Brand.cream,
-    background = Brand.graphite,
-    onBackground = Brand.cream,
-    surface = Brand.darkSurface,
-    onSurface = Brand.cream,
-    surfaceVariant = Brand.darkRaised,
-    onSurfaceVariant = Brand.darkSecondaryText,
-    outline = Brand.darkSecondaryText,
-    outlineVariant = Brand.darkRaised,
+/** Only display options: no Room or credentials and no media-library requests. */
+internal object UiAppearance {
+    private const val PREFS = "enotone_ui_appearance_v1"
+    private var initialized = false
+    var mode by mutableStateOf(UiMode.SYSTEM)
+        private set
+    var accent by mutableStateOf(UiAccent.RED)
+        private set
+
+    fun initialize(context: Context) {
+        if (initialized) return
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        mode = UiMode.values().firstOrNull { it.name == prefs.getString("mode", null) }
+            ?: UiMode.SYSTEM
+        accent = UiAccent.values().firstOrNull { it.name == prefs.getString("accent", null) }
+            ?: UiAccent.RED
+        initialized = true
+    }
+
+    fun chooseMode(context: Context, value: UiMode) {
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString("mode", value.name).apply()
+        mode = value
+    }
+
+    fun chooseAccent(context: Context, value: UiAccent) {
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString("accent", value.name).apply()
+        accent = value
+    }
+}
+
+private val neutralDark = darkColorScheme(
+    background = Color.Black,
+    onBackground = Color.White,
+    surface = Color(0xFF242426),
+    onSurface = Color.White,
+    surfaceVariant = Color(0xFF343437),
+    onSurfaceVariant = Color(0xFFB9B9BF),
+    outline = Color(0xFF77777B),
+    outlineVariant = Color(0xFF414145),
+    secondary = Color(0xFFA9A9AE),
+    onSecondary = Color.Black,
+    secondaryContainer = Color(0xFF363639),
+    onSecondaryContainer = Color.White,
+    surfaceTint = Color.Transparent,
 )
 
-private val porcelainColors = lightColorScheme(
-    primary = Brand.darkRose,
-    onPrimary = Brand.lightSurface,
-    primaryContainer = Brand.rose,
-    onPrimaryContainer = Brand.ink,
-    secondary = Brand.lightSecondaryText,
-    onSecondary = Brand.lightSurface,
-    secondaryContainer = Brand.lightRaised,
-    onSecondaryContainer = Brand.ink,
-    background = Brand.porcelain,
-    onBackground = Brand.ink,
-    surface = Brand.lightSurface,
-    onSurface = Brand.ink,
-    surfaceVariant = Brand.lightRaised,
-    onSurfaceVariant = Brand.lightSecondaryText,
-    outline = Brand.lightSecondaryText,
-    outlineVariant = Brand.lightRaised,
+private val neutralLight = lightColorScheme(
+    background = Color.White,
+    onBackground = Color(0xFF161618),
+    surface = Color(0xFFF0F0F2),
+    onSurface = Color(0xFF161618),
+    surfaceVariant = Color(0xFFE2E2E5),
+    onSurfaceVariant = Color(0xFF606067),
+    outline = Color(0xFF8C8C93),
+    outlineVariant = Color(0xFFD4D4D8),
+    secondary = Color(0xFF66666B),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFE8E8EA),
+    onSecondaryContainer = Color(0xFF161618),
+    surfaceTint = Color.Transparent,
 )
 
 @Composable
 internal fun EnoToneTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) graphiteColors else porcelainColors,
-    ) {
-        // The Activity still has a legacy Android window theme. Without an
-        // explicit full-screen Compose surface, dark colors would be drawn
-        // over the window's light background.
+    val context = LocalContext.current
+    UiAppearance.initialize(context)
+    val dark = when (UiAppearance.mode) {
+        UiMode.SYSTEM -> isSystemInDarkTheme()
+        UiMode.DARK -> true
+        UiMode.LIGHT -> false
+    }
+    val accent = UiAppearance.accent.swatch
+    val neutral = if (dark) neutralDark else neutralLight
+    val colors = neutral.copy(
+        primary = accent,
+        onPrimary = Color.White,
+        primaryContainer = accent,
+        onPrimaryContainer = Color.White,
+    )
+    MaterialTheme(colorScheme = colors) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background,
-        ) {
-            content()
-        }
+        ) { content() }
     }
 }
