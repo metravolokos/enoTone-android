@@ -104,7 +104,7 @@ internal fun NowPlayingScreen(
         onDispose { UiAppearance.setPlayerVisible(false) }
     }
     var isScrubbing by remember(trackId) { mutableStateOf(false) }
-    var scrubFraction by remember(trackId) { mutableStateOf(0f) }
+    var scrubFraction by remember(trackId) { mutableFloatStateOf(0f) }
     val hasDuration = PlaybackSeekPolicy.isKnownDuration(durationMs)
     val shownFraction = if (isScrubbing) scrubFraction
         else PlaybackSeekPolicy.fraction(positionMs, durationMs)

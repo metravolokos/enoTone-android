@@ -55,7 +55,7 @@ class ExtendedTagMetadataContractTest(unittest.TestCase):
         catalog = self.src("data/library/src/main/java/app/enotone/library/OfflineTrackCatalog.kt")
         header = self.src("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
         for token in ('OfflineTrackCatalog.albumOrder(', 'OfflineTrackCatalog.commonAlbumYear(',
-                      'year = albumYear', 'track.trackNumber != null'):
+                      'year = albumYear', 'track.trackNumber?.toString().orEmpty()'):
             self.assertIn(token, screen)
         self.assertIn('val year: Int? = null', catalog)
         self.assertIn('fun albumOrder(', catalog)
