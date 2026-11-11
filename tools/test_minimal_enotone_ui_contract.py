@@ -11,22 +11,31 @@ def src(path):
 
 
 class MinimalEnoToneUiContractTest(unittest.TestCase):
-    def test_approved_graphite_porcelain_are_not_dynamic_colors(self):
+    def test_neutral_backgrounds_and_persisted_accent(self):
         theme = src("app/src/main/java/app/enotone/android/EnoToneTheme.kt")
+        settings = src("app/src/main/java/app/enotone/android/AppearanceSettings.kt")
         main = src("app/src/main/java/app/enotone/android/MainActivity.kt")
-        for token in (
-            "darkColorScheme(", "lightColorScheme(", "isSystemInDarkTheme()",
-            "Surface(", "Modifier.fillMaxSize()", "MaterialTheme.colorScheme.background",
-            "0xFF1B1A19", "0xFF252321", "0xFF2F2C2A", "0xFFF4ECE4",
-            "0xFFB9AEA4", "0xFFEBAE9F", "0xFF8FB0C2", "0xFFEDE9E5",
-            "0xFFF8F5F1", "0xFFE2DCD6", "0xFF211E1C", "0xFF5C544E",
-            "0xFFA24F3E", "onPrimaryContainer = Brand.ink",
-        ):
+        for token in ("darkColorScheme(", "lightColorScheme(", "Color.Black",
+                      "Color.White", "UiAccent", "UiMode", "getSharedPreferences(",
+                      "isSystemInDarkTheme()", "primaryContainer = accent",
+                      "background = Color.Black", "background = Color.White"):
             self.assertIn(token, theme)
         self.assertNotIn("dynamicDarkColorScheme", theme)
         self.assertNotIn("dynamicLightColorScheme", theme)
-        self.assertIn("setContent { EnoToneTheme { DiagnosticScreen() } }", main)
-        self.assertIn("EnoToneTheme { DiagnosticScreen() }", main)
+        self.assertIn("UiAppearance.chooseAccent(", settings)
+        self.assertIn("UiAppearance.chooseMode(", settings)
+        self.assertIn("AppearanceSettings()", main)
+
+    def test_gradient_and_paused_album_shadow(self):
+        player = src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
+        backdrop = src("app/src/main/java/app/enotone/android/ArtworkBackdrop.kt")
+        for token in ("artworkColors(artwork)", "Brush.verticalGradient(",
+                      "Color.Black", "Color.White", "animateColorAsState(",
+                      "animateFloatAsState(", 'playbackState == "PAUSED"',
+                      ".shadow(20.dp", "coverScale"):
+            self.assertIn(token, player)
+        self.assertIn("Bitmap.createScaledBitmap(", backdrop)
+        self.assertNotIn("WebDav", backdrop)
 
     def test_album_header_keeps_play_and_hides_technical_action_in_overflow(self):
         header = src("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
@@ -57,13 +66,15 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
 
     def test_mini_player_has_only_two_visible_transport_buttons(self):
         ui = src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        mini = ui[ui.index("// Fixed-height mini player:"):
+        mini = ui[ui.index("// Floating mini player:"):
                   ui.index("// Five-slot navigation")]
         self.assertIn('Modifier.fillMaxWidth().height(56.dp)', mini)
         self.assertIn("R.drawable.ic_action_play", mini)
         self.assertIn("R.drawable.ic_action_pause", mini)
         self.assertIn("R.drawable.ic_action_next", mini)
         self.assertNotIn("R.drawable.ic_action_expand", mini)
+        self.assertNotIn("LinearProgressIndicator(", mini)
+        self.assertIn("FloatingControlsIsland(", ui)
         self.assertIn("Modifier.size(48.dp).clickable(", mini)
         self.assertIn("onClickLabel = stringResource(R.string.library_player_open)", mini)
         self.assertIn("showPlayerDetails = true", mini)
