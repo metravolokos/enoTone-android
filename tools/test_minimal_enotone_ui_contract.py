@@ -68,6 +68,7 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
         self.assertIn("onClickLabel = stringResource(R.string.library_player_open)", mini)
         self.assertIn("showPlayerDetails = true", mini)
         # Same live playback session; Now Playing still uses its 1200px cover.
+        self.assertIn("if (currentArtwork != null) {", mini)
         self.assertIn("NowPlayingScreen(", ui)
         self.assertIn("requestedSide = 1200", ui)
 
