@@ -242,4 +242,5 @@
     <string name="ui_search_albums">Поиск в альбомах</string>
     <string name="ui_search_artists">Поиск в исполнителях</string>
     <string name="ui_volume">Громкость</string>
+    <string name="playback_restore_seed_ms">Восстановление Media3 (главный поток): %1$d мс</string>
 </resources>
