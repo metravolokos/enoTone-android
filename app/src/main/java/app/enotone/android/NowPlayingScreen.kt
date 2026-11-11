@@ -171,9 +171,15 @@ internal fun NowPlayingScreen(
                     )
                 }
                 Text(
-                    text = stringResource(R.string.now_playing_title),
+                    // Actual playback errors remain visible in this fixed
+                    // header slot; PAUSED/BUFFERING never create layout rows.
+                    text = if (playbackState in listOf(
+                        "ERROR", "MISSING_PASSWORD", "MISSING_TRACK",
+                    )) stateText else stringResource(R.string.now_playing_title),
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(modifier = Modifier.size(48.dp))
