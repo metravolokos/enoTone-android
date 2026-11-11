@@ -15,7 +15,7 @@ class ArtworkMasterCacheContractTest(unittest.TestCase):
         for token in (
             "enotone-artwork-v2",
             "const val MAX_SIDE = 1320",
-            "const val CACHE_LIMIT_BYTES = 64L * 1024 * 1024",
+            "const val CACHE_LIMIT_BYTES = 192L * 1024 * 1024",
             'File(directory, "ref-$sourceHash.txt")',
             'File(directory, "art-$contentHash.webp")',
             "val digest = sha256(encoded)",
@@ -24,7 +24,7 @@ class ArtworkMasterCacheContractTest(unittest.TestCase):
             "BitmapFactory.decodeFile(file.absolutePath, options)",
             "val side = requestedSide.coerceIn(1, MAX_SIDE)",
             "private fun scaleToSide(bitmap: Bitmap, requestedSide: Int)",
-            "LruCache<String, Bitmap>(12 * 1024)",
+            "LruCache<String, Bitmap>(24 * 1024)",
             "refreshEpoch only triggers UI recomposition",
         ):
             self.assertIn(token, art)
