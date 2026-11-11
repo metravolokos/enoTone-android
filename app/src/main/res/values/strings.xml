@@ -234,4 +234,5 @@
     <string name="appearance_green">Зелёный</string>
     <string name="appearance_orange">Оранжевый</string>
     <string name="appearance_purple">Фиолетовый</string>
+    <string name="library_shuffle_all">Перемешать</string>
 </resources>
