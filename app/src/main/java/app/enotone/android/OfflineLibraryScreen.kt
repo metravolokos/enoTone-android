@@ -709,7 +709,6 @@ internal fun OfflineLibraryScreen(
             onToggleShuffle = { playback?.toggleShuffle() },
         )
     } else {
-    val isAlbumDetail = section == LibraryPage.ALBUMS && selectedGroup != null
     Box(
         modifier = Modifier.fillMaxSize()
             .background(MaterialTheme.colorScheme.background),

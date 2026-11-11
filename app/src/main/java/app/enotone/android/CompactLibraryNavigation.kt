@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import app.enotone.library.LibraryPage
 
 /**
@@ -26,7 +27,7 @@ internal fun CompactLibraryNavigation(
 ) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = androidx.compose.ui.unit.Dp.Unspecified,
+        tonalElevation = 0.dp,
         windowInsets = WindowInsets(0, 0, 0, 0),
     ) {
         val destinations = listOf<LibraryPage?>(null) + visiblePages

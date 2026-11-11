@@ -46,6 +46,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -100,6 +101,8 @@ internal fun NowPlayingScreen(
         )
     }
 
+    val seekLabel = stringResource(R.string.playback_seek_slider)
+    val volumeLabel = stringResource(R.string.ui_volume)
     val knownDuration = PlaybackSeekPolicy.isKnownDuration(durationMs)
     var scrubbing by remember(trackId) { mutableStateOf(false) }
     var scrubFraction by remember(trackId) { mutableFloatStateOf(0f) }
@@ -212,7 +215,9 @@ internal fun NowPlayingScreen(
                     }
                     scrubbing = false
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().semantics {
+                    contentDescription = seekLabel
+                },
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -321,7 +326,9 @@ internal fun NowPlayingScreen(
                             0,
                         )
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).semantics {
+                        contentDescription = volumeLabel
+                    },
                 )
                 Icon(painterResource(R.drawable.ic_volume_high),
                     contentDescription = null, modifier = Modifier.size(18.dp),
