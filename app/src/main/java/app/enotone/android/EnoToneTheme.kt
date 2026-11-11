@@ -1,10 +1,13 @@
 package app.enotone.android
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -77,6 +80,15 @@ private val porcelainColors = lightColorScheme(
 internal fun EnoToneTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (isSystemInDarkTheme()) graphiteColors else porcelainColors,
-        content = content,
-    )
+    ) {
+        // The Activity still has a legacy Android window theme. Without an
+        // explicit full-screen Compose surface, dark colors would be drawn
+        // over the window's light background.
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            content()
+        }
+    }
 }
