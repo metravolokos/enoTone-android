@@ -1,4 +1,7 @@
-# STATUS — 2026-11-08
+# STATUS — хронологический журнал, начат 2026-11-08
+
+> **Актуальный принятый срез — 2026-11-11, Huawei Stable Preview #301:** [CURRENT_DECISIONS](CURRENT_DECISIONS.md). Все более ранние «ещё не готово»/Draft ниже сохраняются как хронология; **не** отменяют решения [ADR-0066](DECISIONS/ADR-0066-indexing-finalization.md) и [ADR-0067](DECISIONS/ADR-0067-permanent-album-artwork.md). Последнее подтверждение владельца — «Работает» после #301, без детального отчёта offline/GET/auto.
+
 
 ## Подтверждено
 - M0: Cloud.Mail.ru PROPFIND 207 и Range 206 на Huawei, GMS-free CI.
