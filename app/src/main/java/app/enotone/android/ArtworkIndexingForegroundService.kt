@@ -9,8 +9,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import app.enotone.library.LibrarySnapshotPlanner
-import app.enotone.library.OfflineTrackCatalog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -124,25 +122,12 @@ class ArtworkIndexingForegroundService : Service() {
             var completed = 0
             var total = 0
             try {
-                val db = openLibraryDatabase(applicationContext)
-                try {
-                    val sourceKey = LibrarySnapshotPlanner.accountKey(login.email)
-                    val rows = db.remoteTrackDao().allForSource(sourceKey)
-                    val playable = rows.filter {
-                        it.sourceKey == sourceKey && it.missingScans == 0 &&
-                            (it.remoteSize ?: 0L) > 0L
-                    }.associateBy { it.id }
-                    val catalog = AlbumArtworkCatalog.build(
-                        OfflineTrackCatalog.build(sourceKey, rows),
-                    ) { id ->
-                        val item = playable[id] ?: return@build null
-                        PlayingArtworkTarget(id, item.encodedPath,
-                            item.remoteSize ?: return@build null, item.remoteEtag)
-                    }
-                    val repository = ArtworkPreviewRepository(applicationContext)
-                    total = catalog.groups.size
+                val groups = ArtworkIndexPlanner.fromStoredLibrary(
+                    applicationContext, login.email)
+                val repository = ArtworkPreviewRepository(applicationContext)
+                total = groups.size
                     val startedAt = System.nanoTime()
-                    for (group in catalog.groups) {
+                for (group in groups) {
                         coroutineContext.ensureActive()
                         if (System.nanoTime() - startedAt >= MAX_SESSION_NANOS) break
                         // Tag import has priority; it has its own four-reader
@@ -173,9 +158,6 @@ class ArtworkIndexingForegroundService : Service() {
                         if (completed == total) ArtworkScanState.COMPLETE
                         else ArtworkScanState.PAUSED, completed, total,
                         terminating = true)
-                } finally {
-                    db.close()
-                }
             } catch (_: CancellationException) {
                 // A user pause/stop already published its state.
             } catch (_: Exception) {
