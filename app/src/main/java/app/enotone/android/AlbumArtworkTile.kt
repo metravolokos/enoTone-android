@@ -38,7 +38,7 @@ import android.graphics.Bitmap
 @Composable
 internal fun AlbumArtworkTile(
     group: OfflineLibraryGroup,
-    target: PlayingArtworkTarget?,
+    artworkGroup: AlbumArtworkGroup?,
     repository: ArtworkPreviewRepository,
     accountEmail: String,
     appPassword: String,
@@ -47,17 +47,20 @@ internal fun AlbumArtworkTile(
     // Lazy grid/list items are disposed during navigation. If we already
     // drew this source on another page, paint the RAM image immediately
     // instead of briefly resetting it to a placeholder.
-    var cover by remember(group.key, target, accountEmail) {
-        mutableStateOf<Bitmap?>(target?.let {
-            repository.peek(accountEmail, it, requestedSide = 384)
+    var cover by remember(group.key, artworkGroup, accountEmail) {
+        mutableStateOf<Bitmap?>(artworkGroup?.let {
+            repository.peekAlbum(accountEmail, it, requestedSide = 384)
         })
     }
-    LaunchedEffect(group.key, target, accountEmail, appPassword) {
-        if (target != null && appPassword.isNotBlank()) {
-            // The same v2 master supplies all sizes; never start a new GET
-            // when a source reference exists on disk.
-            cover = repository.cover(accountEmail, appPassword, target,
-                requestedSide = 384) ?: cover
+    LaunchedEffect(group.key, artworkGroup, accountEmail, appPassword) {
+        if (artworkGroup != null) {
+            repository.cachedAlbumCover(accountEmail, artworkGroup, 384)?.let {
+                cover = it
+            }
+            if (appPassword.isNotBlank()) {
+                cover = repository.albumCover(accountEmail, appPassword,
+                    artworkGroup, requestedSide = 384) ?: cover
+            }
         }
     }
 
