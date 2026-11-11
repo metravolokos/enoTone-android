@@ -15,6 +15,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.ShuffleOrder
 
 /**
  * Media3 player used by private MediaSessionService with native playlist controls.
@@ -162,6 +163,47 @@ class PreviewAudioPlayback(
     private var scheduledPlaylistFill: Runnable? = null
     private var expectedQueueSize = 0
     private var mediaIdIndices: Map<String, Int> = emptyMap()
+    private var originalTrackIds: List<String> = emptyList()
+    private var sourceKeyForQueue: String? = null
+    private var configuredShuffle: IntArray? = null
+    private var stableShuffleApplied = false
+    private var restoringShuffle = false
+    private var deferredPrepare = false
+
+    private fun newShuffleOrder(size: Int): IntArray {
+        val order = ShuffleOrder.DefaultShuffleOrder(size, System.nanoTime())
+        val indices = IntArray(size)
+        var current = order.firstIndex
+        for (i in indices.indices) {
+            indices[i] = current
+            current = order.getNextIndex(current)
+        }
+        return indices
+    }
+
+    /** Staged Media3 order is incomplete; install an exact full permutation once. */
+    private fun applyStableShuffleIfComplete() {
+        if (stableShuffleApplied || !player.shuffleModeEnabled ||
+            player.mediaItemCount != expectedQueueSize) return
+        val indices = configuredShuffle ?: return
+        stableShuffleApplied = true
+        player.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(indices.copyOf(), System.nanoTime()))
+    }
+
+    fun snapshotQueueState(savedAtEpochMs: Long): PersistedQueueState? {
+        val sourceKey = sourceKeyForQueue ?: return null
+        val currentId = player.currentMediaItem?.mediaId ?: return null
+        val result = PersistedQueueState(
+            trackIds = originalTrackIds,
+            selectedTrackId = currentId,
+            positionMs = player.currentPosition.coerceAtLeast(0L),
+            repeatMode = player.repeatMode,
+            shuffleEnabled = player.shuffleModeEnabled,
+            shuffledIndices = if (player.shuffleModeEnabled) configuredShuffle?.copyOf() else null,
+            sourceKey = sourceKey, savedAtEpochMs = savedAtEpochMs,
+        )
+        return result.takeIf(QueueStateCodec::isValid)
+    }
     private var latestSetup = PlaybackSetupTimings(0L, 0L, 0L, 0L, 0L)
 
     val logicalQueueSize: Int get() = expectedQueueSize
@@ -209,6 +251,7 @@ class PreviewAudioPlayback(
             if (plan.isComplete) {
                 pendingPlaylist = null
                 pendingMediaFactory = null
+                applyStableShuffleIfComplete()
             } else stagePlaylistAfterReady()
         }
         scheduledPlaylistFill = task
@@ -277,6 +320,13 @@ class PreviewAudioPlayback(
     }
 
     private val cacheTransitionListener = object : Player.Listener {
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            // MediaSession controls bypass service.resume().
+            if (playWhenReady && deferredPrepare && player.playbackState == Player.STATE_IDLE) {
+                deferredPrepare = false
+                player.prepare()
+            }
+        }
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             clearScheduledWriter()
             pendingCache = null
@@ -297,7 +347,12 @@ class PreviewAudioPlayback(
         }
 
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-            // The next target may change while a finished current track plays.
+            if (!restoringShuffle) {
+                configuredShuffle = if (shuffleModeEnabled && expectedQueueSize > 0)
+                    newShuffleOrder(expectedQueueSize) else null
+                stableShuffleApplied = false
+                applyStableShuffleIfComplete()
+            }
             refreshNextPrefetch()
         }
 
@@ -309,6 +364,7 @@ class PreviewAudioPlayback(
             timeline: androidx.media3.common.Timeline,
             reason: Int,
         ) {
+            applyStableShuffleIfComplete()
             // With staged playlist fill the next item may appear after COMPLETE.
             if (fullyCachedCurrentId != null && scheduledNextId == null) {
                 refreshNextPrefetch()
