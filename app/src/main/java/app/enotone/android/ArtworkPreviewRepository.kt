@@ -44,6 +44,36 @@ internal data class PlayingArtworkTarget(
 internal class ArtworkPreviewRepository(context: Context) {
     private val directory = File(context.applicationContext.cacheDir, "enotone-artwork-v2")
 
+    /**
+     * Non-blocking lookup for Compose's FIRST frame when a lazy row or album
+     * tile is recreated. Never touches disk or starts HTTP. If a different
+     * display size is already in RAM, Compose may scale it visually while the
+     * requested quality is decoded in the background.
+     */
+    fun peek(email: String, target: PlayingArtworkTarget, requestedSide: Int): Bitmap? {
+        if (email.isBlank() || target.remoteSize <= 0L) return null
+        val key = sourceKey(email, target)
+        val side = requestedSide.coerceIn(1, MAX_SIDE)
+        memoryCache.get("$key|$side")?.let { return it }
+        return VIEW_SIDES.asSequence().filter { it > side }
+            .mapNotNull { memoryCache.get("$key|$it") }.firstOrNull()
+            ?: VIEW_SIDES.asSequence().filter { it < side }
+                .sortedDescending()
+                .mapNotNull { memoryCache.get("$key|$it") }.firstOrNull()
+    }
+
+    /** Reuse a resident larger bitmap instead of opening the WebP master. */
+    private fun cachedSizedCover(key: String, side: Int): Bitmap? {
+        val memoryKey = "$key|$side"
+        memoryCache.get(memoryKey)?.let { return it }
+        val larger = VIEW_SIDES.asSequence().filter { it > side }
+            .mapNotNull { memoryCache.get("$key|$it") }.firstOrNull()
+            ?: return null
+        val scaled = scaleToSide(larger, side)
+        memoryCache.put(memoryKey, scaled)
+        return scaled
+    }
+
     suspend fun cover(
         email: String,
         password: String,
@@ -61,7 +91,7 @@ internal class ArtworkPreviewRepository(context: Context) {
 
         val key = sourceKey(email, target)
         val memoryKey = "$key|$side"
-        memoryCache.get(memoryKey)?.let { return it }
+        cachedSizedCover(key, side)?.let { return it }
 
         // Shared across repository instances, current playback and visible
         // LazyColumn/Grid cells. Two image network/IO tasks at most.
@@ -69,7 +99,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             val lock = sourceLocks[key.substring(0, 2).toInt(16) % sourceLocks.size]
             lock.lock()
             try {
-                memoryCache.get(memoryKey) ?: withContext(Dispatchers.IO) {
+                cachedSizedCover(key, side) ?: withContext(Dispatchers.IO) {
                     loadOrFetch(key, memoryKey, side, email, password, target, name)
                 }
             } finally {
@@ -287,7 +317,11 @@ internal class ArtworkPreviewRepository(context: Context) {
         const val MAX_DIMENSION = 8192
         const val MAX_PIXELS = 40_000_000L
         const val MAX_DISK_FILE_BYTES = 4 * 1024 * 1024
-        const val CACHE_LIMIT_BYTES = 64L * 1024 * 1024
+        // Artwork masters are larger than album tiles. 64 MiB could evict
+        // previously viewed albums during ordinary browsing, forcing WebDAV
+        // rereads. Still a bounded Android-managed cache (not permanent data).
+        const val CACHE_LIMIT_BYTES = 192L * 1024 * 1024
+        private val VIEW_SIDES = intArrayOf(192, 384, 512, 1320)
         private val HEX = Regex("[0-9a-f]{64}")
         private val imageSlots = Semaphore(2)
         private val sourceLocks = Array(32) { Mutex() }
