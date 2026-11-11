@@ -421,7 +421,10 @@ class PreviewAudioPlayback(
         tracks: List<QueueTrack>,
         selectedId: String,
         useTemporaryCache: Boolean,
+        sourceKey: String,
     ) {
+        deferredPrepare = false
+        sourceKeyForQueue = sourceKey
         clearScheduledWriter()
         cancelPlaylistFill()
         handoffTracker.startNewQueue()
@@ -449,6 +452,9 @@ class PreviewAudioPlayback(
         upstreamFactory = if (useTemporaryCache) factory else null
         expectedQueueSize = queue.size
         mediaIdIndices = queue.items.mapIndexed { index, item -> item.id to index }.toMap()
+        originalTrackIds = queue.items.map { it.id }
+        configuredShuffle = if (player.shuffleModeEnabled) newShuffleOrder(queue.size) else null
+        stableShuffleApplied = false
         val plan = StagedPlaylistPlan.create(queue)
         // Only five sources at most are materialized before first sound.
         val firstSources = plan.seed.map { makeMediaSource(mediaFactory, it) }
@@ -458,6 +464,7 @@ class PreviewAudioPlayback(
         pendingMediaFactory = if (plan.isComplete) null else mediaFactory
         player.setMediaSources(firstSources, plan.seedSelectedIndex, C.TIME_UNSET)
         val t4 = SystemClock.elapsedRealtime()
+        applyStableShuffleIfComplete()
         player.prepare()
         player.play()
         val t5 = SystemClock.elapsedRealtime()
@@ -470,6 +477,64 @@ class PreviewAudioPlayback(
         )
     }
 
+    /**
+     * Full local Media3 timeline: never prepare() or play() during restoration.
+     * ProgressiveMediaSource construction is local; the first Play opens the stream.
+     */
+    fun restoreQueue(
+        email: String,
+        appPassword: String,
+        tracks: List<QueueTrack>,
+        state: PersistedQueueState,
+        useTemporaryCache: Boolean,
+    ) {
+        require(QueueStateCodec.isValid(state) && state.trackIds == tracks.map { it.id })
+        clearScheduledWriter()
+        cancelPlaylistFill()
+        handoffTracker.startNewQueue()
+        lastEndRecoveryId = null
+        pendingCache = null
+        fullyCachedCurrentId = null
+        scheduledNextId = null
+        temporaryCache?.stopCurrent()
+        cacheEnabledForQueue = useTemporaryCache
+        val queue = PlaybackQueue.create(tracks, state.selectedTrackId)
+        val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
+        val sourceFactory = if (useTemporaryCache) {
+            val diskCache = temporaryCache ?: TransientMediaCache(applicationContext)
+                .also { temporaryCache = it }
+            diskCache.forPlayback(factory)
+        } else factory
+        val mediaFactory = ProgressiveMediaSource.Factory(sourceFactory)
+        activeRoutes = if (useTemporaryCache) queue.items.associateBy { it.id } else emptyMap()
+        upstreamFactory = if (useTemporaryCache) factory else null
+        expectedQueueSize = queue.size
+        originalTrackIds = queue.items.map { it.id }
+        sourceKeyForQueue = state.sourceKey
+        mediaIdIndices = queue.items.mapIndexed { index, item -> item.id to index }.toMap()
+        configuredShuffle = state.shuffledIndices?.copyOf()
+        stableShuffleApplied = true
+        restoringShuffle = true
+        try {
+            player.repeatMode = state.repeatMode
+            player.shuffleModeEnabled = false
+            player.setMediaSources(
+                queue.items.map { makeMediaSource(mediaFactory, it) },
+                queue.position, state.positionMs,
+            )
+            if (state.shuffleEnabled) {
+                player.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(
+                    state.shuffledIndices!!.copyOf(), System.nanoTime(),
+                ))
+            }
+            player.shuffleModeEnabled = state.shuffleEnabled
+            player.pause()
+            deferredPrepare = true
+        } finally {
+            restoringShuffle = false
+        }
+    }
+
     /** Explicit Next/Previous means play the selected item, even after ENDED. */
     fun resumeAfterManualSkip() {
         if (player.playbackState == Player.STATE_ENDED ||
@@ -479,7 +544,13 @@ class PreviewAudioPlayback(
 
     fun pause() = player.pause()
 
-    fun resume() = player.play()
+    fun resume() {
+        if (deferredPrepare && player.playbackState == Player.STATE_IDLE) {
+            deferredPrepare = false
+            player.prepare()
+        }
+        player.play()
+    }
 
     fun stop() {
         handoffTracker.stop()
@@ -490,6 +561,11 @@ class PreviewAudioPlayback(
         cancelPlaylistFill()
         expectedQueueSize = 0
         mediaIdIndices = emptyMap()
+        originalTrackIds = emptyList()
+        sourceKeyForQueue = null
+        configuredShuffle = null
+        stableShuffleApplied = false
+        deferredPrepare = false
         pendingCache = null
         temporaryCache?.stopCurrent()
         cacheEnabledForQueue = false
