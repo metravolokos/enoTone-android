@@ -333,7 +333,10 @@ internal fun OfflineLibraryScreen(
             positionMs = filtered.positionMs
             repeatMode = filtered.repeatMode
             shuffleEnabled = filtered.shuffleEnabled
-            playbackState = "PAUSED"
+            // STATE_IDLE is deliberately kept until Play: the existing
+            // artwork loader also waits for READY/PLAYING before its first GET.
+            // Mini-player already shows the item and a Play button in IDLE.
+            playbackState = media3PlaybackLabel(active.player)
         }
     }
 
