@@ -242,4 +242,5 @@
     <string name="ui_search_albums">Search in albums</string>
     <string name="ui_search_artists">Search in artists</string>
     <string name="ui_volume">Volume</string>
+    <string name="playback_restore_seed_ms">Media3 restore setup (main thread): %1$d ms</string>
 </resources>

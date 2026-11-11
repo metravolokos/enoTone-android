@@ -22,5 +22,7 @@ dependencies {
     implementation(libs.media3.datasource)
     implementation(libs.media3.database)
     implementation(libs.media3.session)
+    // Platform-independent JSON codec for JVM unit tests and Android runtime.
+    implementation(libs.gson)
     testImplementation(libs.junit)
 }

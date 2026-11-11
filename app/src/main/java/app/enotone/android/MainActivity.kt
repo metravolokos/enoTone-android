@@ -63,6 +63,7 @@ import app.enotone.library.PilotIndexProgress
 import app.enotone.library.WebDavRangeReader
 import app.enotone.library.WebDavRangeMediaDataSource
 import app.enotone.database.RemoteTrackEntity
+import app.enotone.playback.QueueStateFileStore
 import java.text.Normalizer
 import app.enotone.network.FlatLibraryWebDavClient
 import app.enotone.network.FlatWebDavHttpError
@@ -134,8 +135,27 @@ private fun DiagnosticScreen() {
                 password = restored.password
                 vaultState = CredentialVaultState.RESTORED
                 showConnection = false
-                // Credentials restore silently. Home is the launch destination;
-                // a restored account never bypasses the new Home screen.
+                // Restore the normal Home destination unless there is a
+                // resumable offline queue: that case opens the existing library
+                // so its mini-player is visible immediately, still paused.
+                val resumeExists = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val state = QueueStateFileStore(appContext).read()
+                            ?: return@runCatching false
+                        val sourceKey = LibrarySnapshotPlanner.accountKey(restored.email)
+                        if (state.sourceKey != sourceKey) return@runCatching false
+                        val ids = state.trackIds.toSet()
+                        openLibraryDatabase(appContext).remoteTrackDao()
+                            .allForSource(sourceKey).any {
+                                it.id in ids && it.missingScans == 0 &&
+                                    (it.remoteSize ?: 0L) > 0L
+                            }
+                    }.getOrDefault(false)
+                }
+                if (resumeExists) {
+                    initialLibraryPage = LibraryPage.TRACKS
+                    showingLibrary = resumeExists
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled

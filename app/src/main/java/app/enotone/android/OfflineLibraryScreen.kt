@@ -103,6 +103,7 @@ import app.enotone.playback.PlaybackDataIssueClassifier
 import app.enotone.playback.TransientCacheStatus
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.QueueTrack
+import app.enotone.playback.QueueStateRestorer
 import app.enotone.playback.WebDavPlaybackTarget
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -295,6 +296,51 @@ internal fun OfflineLibraryScreen(
         onDispose {
             if (bound) context.unbindService(connection)
             playback = null
+        }
+    }
+
+    // Restore once a usable local catalogue and an opt-in credential vault exist.
+    // Room resolution and vault access run off main; missing accounts/tracks are
+    // intentionally silent, and restoration never opens a network connection.
+    LaunchedEffect(playback, preparedById, accountEmail, appPassword) {
+        val active = playback ?: return@LaunchedEffect
+        if (active.queueSize > 0 || accountEmail.isBlank() || appPassword.isBlank() ||
+            preparedById.isEmpty()) return@LaunchedEffect
+        val saved = withContext(Dispatchers.IO) {
+            val savedLogin = runCatching { LocalCredentialVault.restore(context) }.getOrNull()
+            if (savedLogin?.email != accountEmail ||
+                savedLogin.password != appPassword) null
+            else runCatching { active.readSavedQueue() }.getOrNull()
+        } ?: return@LaunchedEffect
+        val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
+        if (saved.sourceKey != sourceKey) return@LaunchedEffect
+        val filtered = withContext(Dispatchers.IO) {
+            QueueStateRestorer.filter(saved, preparedById.keys)
+        } ?: return@LaunchedEffect
+        val queue = filtered.trackIds.mapNotNull(preparedById::get)
+        if (queue.size != filtered.trackIds.size || active.queueSize > 0) {
+            return@LaunchedEffect
+        }
+        if (runCatching {
+                active.restoreQueue(accountEmail, appPassword, queue, filtered,
+                    useCacheOnNextPlay,
+                    filteredMissingTracks = filtered.trackIds.size != saved.trackIds.size)
+            }.getOrDefault(false)) {
+            val track = tracks.firstOrNull { it.id == filtered.selectedTrackId }
+            currentTrackId = filtered.selectedTrackId
+            selectedTitle = track?.title ?: queue.first { it.id == filtered.selectedTrackId }.title
+            selectedArtist = track?.artist
+            queuePosition = filtered.trackIds.indexOf(filtered.selectedTrackId) + 1
+            queueTotal = filtered.trackIds.size
+            positionMs = filtered.positionMs
+            setupTimings = active.setupTimings()
+            media3DurationMs = setupTimings?.restoreSeedMs
+            repeatMode = filtered.repeatMode
+            shuffleEnabled = filtered.shuffleEnabled
+            // STATE_IDLE is deliberately kept until Play: the existing
+            // artwork loader also waits for READY/PLAYING before its first GET.
+            // Mini-player already shows the item and a Play button in IDLE.
+            playbackState = media3PlaybackLabel(active.player)
         }
     }
 
@@ -556,7 +602,8 @@ internal fun OfflineLibraryScreen(
                         ?: throw IllegalStateException("Playback service disconnected")
                     val media3StartedAt = SystemClock.elapsedRealtime()
                     service.playQueue(accountEmail, appPassword,
-                        queue, track.id, useCacheOnNextPlay)
+                        queue, track.id, useCacheOnNextPlay,
+                        LibrarySnapshotPlanner.accountKey(accountEmail))
                     currentTrackId = track.id
                     media3DurationMs =
                         SystemClock.elapsedRealtime() - media3StartedAt
