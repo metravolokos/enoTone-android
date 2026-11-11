@@ -109,6 +109,50 @@ internal class ArtworkPreviewRepository(context: Context) {
     }
 
     /**
+     * Resolve an already verified source from the disk cache WITHOUT opening
+     * WebDAV. Used for a transient album preview on another library page.
+     * A cache miss is just a miss: do not create source refs or guess artwork.
+     */
+    suspend fun cachedCover(
+        email: String,
+        target: PlayingArtworkTarget,
+        requestedSide: Int = 192,
+    ): Bitmap? {
+        if (email.isBlank() || target.remoteSize <= 0L) return null
+        val side = requestedSide.coerceIn(1, MAX_SIDE)
+        val key = sourceKey(email, target)
+        cachedSizedCover(key, side)?.let { return it }
+        return imageSlots.withPermit {
+            val lock = sourceLocks[key.substring(0, 2).toInt(16) % sourceLocks.size]
+            lock.lock()
+            try {
+                cachedSizedCover(key, side) ?: withContext(Dispatchers.IO) {
+                    val reference = referenceFile(key)
+                    val digest = if (reference.isFile && reference.length() == 64L) {
+                        reference.readText(Charsets.US_ASCII).takeIf { HEX.matches(it) }
+                    } else null
+                    if (digest == null) null else {
+                        val file = masterFile(digest)
+                        if (file.isFile &&
+                            file.length() in 1L..MAX_DISK_FILE_BYTES.toLong()) {
+                            decodeFile(file, side)?.also {
+                                memoryCache.put("$key|$side", it)
+                                file.setLastModified(System.currentTimeMillis())
+                            }
+                        } else null
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            } finally {
+                lock.unlock()
+            }
+        }
+    }
+
+    /**
      * An explicit reindex may change an embedded picture even if the server
      * incorrectly retains the same ETag and size. Forget only those source
      * references; shared image blobs survive for any other source that uses them.
