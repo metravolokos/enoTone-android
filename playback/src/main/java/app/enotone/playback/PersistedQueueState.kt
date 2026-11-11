@@ -104,7 +104,7 @@ object QueueStateRestorer {
                 ?: survivors.first()
         }
         val reordered = if (state.shuffleEnabled) {
-            state.shuffledIndices!!.mapNotNull { newIndex[it] }.toIntArray()
+            state.shuffledIndices!!.toList().mapNotNull { newIndex[it] }.toIntArray()
         } else null
         return state.copy(
             trackIds = survivors,
