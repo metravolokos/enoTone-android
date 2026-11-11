@@ -156,6 +156,157 @@ internal class ArtworkPreviewRepository(context: Context) {
         }
     }
 
+    /** A stored album record includes its CURRENT candidate versions. */
+    private fun albumKey(email: String, group: AlbumArtworkGroup): String =
+        sha256(("album-v1|" + email.trim().lowercase(Locale.ROOT) + "|" +
+            group.key).toByteArray(Charsets.UTF_8))
+
+    private fun groupSignature(email: String, group: AlbumArtworkGroup): String =
+        sha256(group.targets.joinToString("|") { sourceKey(email, it) }
+            .toByteArray(Charsets.US_ASCII))
+
+    private fun albumReference(key: String) = File(directory, "album-$key.txt")
+
+    private fun selectedSource(
+        email: String, group: AlbumArtworkGroup,
+    ): String? {
+        val ref = albumReference(albumKey(email, group))
+        if (!ref.isFile || ref.length() != 129L) return null
+        val fields = ref.readText(Charsets.US_ASCII).split(":")
+        return if (fields.size == 2 &&
+            fields[0] == groupSignature(email, group) &&
+            HEX.matches(fields[1])) fields[1] else null
+    }
+
+    private fun saveAlbumSelection(
+        email: String, group: AlbumArtworkGroup, choice: String,
+    ) {
+        val key = albumKey(email, group)
+        atomicWrite(albumReference(key),
+            (groupSignature(email, group) + ":" + choice).toByteArray(Charsets.US_ASCII))
+    }
+
+    /**
+     * Fast first frame. Looks only at RAM, not at the network or storage.
+     * Album aliases are visual; verified source references remain individual.
+     */
+    fun peekAlbum(email: String, group: AlbumArtworkGroup, requestedSide: Int): Bitmap? {
+        if (email.isBlank()) return null
+        val side = requestedSide.coerceIn(1, MAX_SIDE)
+        val key = albumKey(email, group)
+        memoryCache.get("album-$key|$side")?.let { return it }
+        return group.targets.asSequence().mapNotNull { peek(email, it, side) }.firstOrNull()
+    }
+
+    /** A clean local-only cache lookup, never HTTP. */
+    suspend fun cachedAlbumCover(
+        email: String, group: AlbumArtworkGroup, requestedSide: Int = 192,
+    ): Bitmap? {
+        if (email.isBlank() || group.targets.isEmpty()) return null
+        val side = requestedSide.coerceIn(1, MAX_SIDE)
+        val key = albumKey(email, group)
+        memoryCache.get("album-$key|$side")?.let { return it }
+        val choice = withContext(Dispatchers.IO) { selectedSource(email, group) }
+            ?: return null
+        if (choice == NO_ART_DIGEST) return null
+        val target = group.targets.firstOrNull { sourceKey(email, it) == choice }
+            ?: return null
+        return cachedCover(email, target, side)?.also {
+            memoryCache.put("album-$key|$side", it)
+        }
+    }
+
+    /**
+     * Persisted checkpoint is either one verified source or DEFINITIVE
+     * absence across all candidates. Network failures are never complete.
+     * Used to resume background indexing without rereading completed albums.
+     */
+    suspend fun isAlbumIndexed(email: String, group: AlbumArtworkGroup): Boolean =
+        withContext(Dispatchers.IO) {
+            val choice = selectedSource(email, group) ?: return@withContext false
+            if (choice == NO_ART_DIGEST) return@withContext true
+            if (group.targets.none { sourceKey(email, it) == choice })
+                return@withContext false
+            val reference = referenceFile(choice)
+            if (!reference.isFile || reference.length() != 64L)
+                return@withContext false
+            val digest = reference.readText(Charsets.US_ASCII)
+            digest != NO_ART_DIGEST && HEX.matches(digest) &&
+                masterFile(digest).isFile
+        }
+
+    /**
+     * All pages and the optional background worker call the SAME loader.
+     * For a real album, only the first viable embedded picture is needed.
+     * Each missing candidate is checked once; transient errors are retried
+     * on a later viewing or app launch, not checkpointed as no-cover.
+     */
+    suspend fun albumCover(
+        email: String,
+        password: String,
+        group: AlbumArtworkGroup,
+        requestedSide: Int = 512,
+    ): Bitmap? {
+        if (email.isBlank() || password.isBlank() || group.targets.isEmpty()) return null
+        val side = requestedSide.coerceIn(1, MAX_SIDE)
+        cachedAlbumCover(email, group, side)?.let { return it }
+        val albumHash = albumKey(email, group)
+        val lock = albumLocks[albumHash.substring(0, 2).toInt(16) % albumLocks.size]
+        lock.lock()
+        try {
+            cachedAlbumCover(email, group, side)?.let { return it }
+            val chosen = withContext(Dispatchers.IO) { selectedSource(email, group) }
+            if (chosen == NO_ART_DIGEST) return null
+            for (target in group.targets) {
+                coroutineContext.ensureActive()
+                val loaded = cover(email, password, target, side)
+                if (loaded != null) {
+                    val choice = sourceKey(email, target)
+                    withContext(Dispatchers.IO) {
+                        if (referenceFile(choice).isFile) {
+                            saveAlbumSelection(email, group, choice)
+                        }
+                    }
+                    memoryCache.put("album-$albumHash|$side", loaded)
+                    return loaded
+                }
+                // A genuine no-art file can be skipped. A failed HTTP read,
+                // corrupt image, or full storage must not be permanently
+                // classified as empty or cause a storm of fallback GETs.
+                val missing = withContext(Dispatchers.IO) {
+                    val ref = referenceFile(sourceKey(email, target))
+                    ref.isFile && ref.length() == 64L &&
+                        ref.readText(Charsets.US_ASCII) == NO_ART_DIGEST
+                }
+                if (!missing) return null
+            }
+            withContext(Dispatchers.IO) {
+                saveAlbumSelection(email, group, NO_ART_DIGEST)
+            }
+            return null
+        } finally {
+            lock.unlock()
+        }
+    }
+
+    /** User-controlled storage usage, no names or remote paths exposed. */
+    suspend fun storedBytes(): Long = withContext(Dispatchers.IO) {
+        directory.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
+    }
+
+    /** Clear BOTH stores so the legacy temporary v2 cannot repopulate it. */
+    suspend fun clearAll() {
+        imageSlots.withPermit {
+            imageSlots.withPermit {
+                withContext(Dispatchers.IO) {
+                    directory.deleteRecursively()
+                    legacyDirectory.deleteRecursively()
+                    memoryCache.evictAll()
+                }
+            }
+        }
+    }
+
     /**
      * An explicit reindex may change an embedded picture even if the server
      * incorrectly retains the same ETag and size. Forget only those source
@@ -177,6 +328,11 @@ internal class ArtworkPreviewRepository(context: Context) {
             // Memory entries may have been derived from any of these references.
             // The small bounded RAM LRU is cheap to refill from intact disk masters.
             memoryCache.evictAll()
+            // Reindex must also forget negative album checkpoints even when
+            // remote ETag and file size did not change.
+            directory.listFiles()?.filter {
+                it.name.startsWith("album-") && it.name.endsWith(".txt")
+            }?.forEach { it.delete() }
         }
     }
 
@@ -343,6 +499,24 @@ internal class ArtworkPreviewRepository(context: Context) {
         }
     }
 
+    /**
+     * Preserve previous v2 downloads on upgrade. Convert legacy masters to
+     * the new 1200px cap, instead of copying 1320px blobs into permanent
+     * storage. Runs only while the source lock is held on Dispatchers.IO.
+     */
+    private fun migrateLegacy(key: String) {
+        if (referenceFile(key).isFile) return
+        val legacyRef = File(legacyDirectory, "ref-$key.txt")
+        if (!legacyRef.isFile || legacyRef.length() != 64L) return
+        val digest = legacyRef.readText(Charsets.US_ASCII)
+        if (!HEX.matches(digest) || digest == NO_ART_DIGEST) return
+        val legacyMaster = File(legacyDirectory, "art-$digest.webp")
+        if (!legacyMaster.isFile ||
+            legacyMaster.length() !in 1L..MAX_DISK_FILE_BYTES.toLong()) return
+        val bitmap = decodeFile(legacyMaster, MAX_SIDE) ?: return
+        storeMaster(key, bitmap)
+    }
+
     private fun referenceFile(sourceHash: String) = File(directory, "ref-$sourceHash.txt")
     private fun masterFile(contentHash: String) = File(directory, "art-$contentHash.webp")
 
@@ -366,6 +540,7 @@ internal class ArtworkPreviewRepository(context: Context) {
         private val HEX = Regex("[0-9a-f]{64}")
         private val imageSlots = Semaphore(2)
         private val sourceLocks = Array(32) { Mutex() }
+        private val albumLocks = Array(32) { Mutex() }
         // RAM only, different requested sizes; evictions never write variants.
         private val memoryCache = object : LruCache<String, Bitmap>(24 * 1024) {
             override fun sizeOf(key: String, value: Bitmap): Int =
