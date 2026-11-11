@@ -235,4 +235,5 @@
     <string name="appearance_orange">Оранжевый</string>
     <string name="appearance_purple">Фиолетовый</string>
     <string name="library_shuffle_all">Перемешать</string>
+    <string name="home_library_sections">Разделы медиатеки</string>
 </resources>
