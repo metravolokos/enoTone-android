@@ -1084,7 +1084,7 @@ internal fun OfflineLibraryScreen(
         // Floating mini player: two transport actions, no progress bar.
         // Touch targets retain the Material 48dp minimum; title opens full player.
         if (selectedTitle != null) {
-            FloatingControlsIsland {
+            FloatingControlsIsland(compact = true) {
             Row(
                 modifier = Modifier.fillMaxWidth().height(56.dp)
                     .pointerInput(Unit) {
