@@ -152,8 +152,10 @@ private fun DiagnosticScreen() {
                             }
                     }.getOrDefault(false)
                 }
-                if (resumeExists) initialLibraryPage = LibraryPage.TRACKS
-                showingLibrary = resumeExists
+                if (resumeExists) {
+                    initialLibraryPage = LibraryPage.TRACKS
+                    showingLibrary = resumeExists
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
