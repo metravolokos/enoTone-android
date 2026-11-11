@@ -181,7 +181,7 @@ internal fun OfflineLibraryScreen(
     var selectedArtist by remember { mutableStateOf<String?>(null) }
     var currentTrackId by remember { mutableStateOf<String?>(null) }
     var currentArtwork by remember { mutableStateOf<Bitmap?>(null) }
-    // Only when Now Playing is open: decode up to 1320px from the same disk master.
+    // Only when Now Playing is open: decode up to 1200px from the permanent master.
     var fullArtwork by remember(currentTrackId, accountEmail) {
         mutableStateOf<Bitmap?>(null)
     }
