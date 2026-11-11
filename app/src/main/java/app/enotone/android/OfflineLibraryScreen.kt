@@ -346,20 +346,22 @@ internal fun OfflineLibraryScreen(
         val id = currentTrackId ?: return@LaunchedEffect
         val target = preparedById[id] ?: return@LaunchedEffect
         if (appPassword.isBlank()) return@LaunchedEffect
+        val picture = PlayingArtworkTarget(
+            id = id,
+            encodedPath = target.encodedPath,
+            remoteSize = target.remoteSize,
+            remoteEtag = target.remoteEtag,
+        )
+        // Painting a resident image must not wait for audio READY. Only the
+        // potentially network-backed lookup remains delayed for audio priority.
+        currentArtwork = artworkRepository.peek(accountEmail, picture, 512)
         // Prioritize the audio stream over artwork GETs during cold start.
         // READY is represented by PLAYING or PAUSED in media3PlaybackLabel().
         snapshotFlow { playbackState }.first { state ->
             state == "PLAYING" || state == "PAUSED"
         }
-        currentArtwork = artworkRepository.cover(
-            accountEmail, appPassword,
-            PlayingArtworkTarget(
-                id = id,
-                encodedPath = target.encodedPath,
-                remoteSize = target.remoteSize,
-                remoteEtag = target.remoteEtag,
-            ),
-        )
+        currentArtwork = artworkRepository.cover(accountEmail, appPassword, picture,
+            requestedSide = 512)
     }
 
     // Full-resolution artwork is only requested while the dedicated page is
