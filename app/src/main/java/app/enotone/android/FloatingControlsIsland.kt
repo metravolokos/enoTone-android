@@ -11,18 +11,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 
-/** Floating island: the scrollable music view continues behind and beside it. */
+/**
+ * Translucent neutral surface above scrollable content. Do not apply
+ * Modifier.blur to controls: that blurs text and buttons themselves, not the
+ * content behind. A genuine backdrop-blur renderer can be added separately.
+ */
 @Composable
 internal fun FloatingControlsIsland(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(20.dp)
     Column(
         modifier = modifier
-            .shadow(14.dp, shape, clip = false)
+            .shadow(12.dp, shape, clip = false)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface),
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.91f)),
         content = content,
     )
 }
