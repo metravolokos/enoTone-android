@@ -1031,7 +1031,8 @@ internal fun OfflineLibraryScreen(
                             Text(
                                 text = track.trackNumber?.toString().orEmpty(),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (isAlbumDetail) Color.White.copy(alpha = .70f)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(width = 32.dp, height = 24.dp),
                             )
                         } else {
@@ -1069,11 +1070,22 @@ internal fun OfflineLibraryScreen(
                                 )
                             }
                         }
+                        IconButton(
+                            onClick = {}, enabled = false, modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_action_more),
+                                contentDescription = null,
+                                tint = if (isAlbumDetail) Color.White.copy(alpha = .75f)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     HorizontalDivider(
                         modifier = Modifier.padding(start = if (section == LibraryPage.ALBUMS &&
                             selectedGroup != null) 44.dp else 56.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant,
+                        color = if (isAlbumDetail) Color.White.copy(alpha = .22f)
+                            else MaterialTheme.colorScheme.outlineVariant,
                         thickness = 0.5.dp,
                     )
                 }
