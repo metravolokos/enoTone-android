@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Media3 WAKE_MODE_NETWORK: wake + Wi-Fi lock only while playing (ADR-0074). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"

@@ -237,7 +237,7 @@ internal fun OfflineLibraryScreen(
             val (catalogue, prepared) = withContext(Dispatchers.IO) {
                 val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
                 val db = openLibraryDatabase(context)
-                try {
+                run {
                     val remote = db.remoteTrackDao().allForSource(sourceKey)
                     val catalogue = OfflineTrackCatalog.build(sourceKey, remote)
                     val byId = remote.associateBy { it.id }
@@ -256,8 +256,6 @@ internal fun OfflineLibraryScreen(
                         )
                     }.associateBy { it.id }
                     catalogue to prepared
-                } finally {
-                    db.close()
                 }
             }
             preparedById = prepared
@@ -602,11 +600,9 @@ internal fun OfflineLibraryScreen(
                             try {
                                 val result = withContext(Dispatchers.IO) {
                                     val db = openLibraryDatabase(context)
-                                    try {
+                                    run {
                                         AlbumTagRefresher(db).refresh(
                                             accountEmail, appPassword, ids)
-                                    } finally {
-                                        db.close()
                                     }
                                 }
                                 // An explicit album refresh also invalidates

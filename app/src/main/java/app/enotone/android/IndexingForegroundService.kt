@@ -174,7 +174,7 @@ class IndexingForegroundService : Service() {
             var stage = "DATABASE_OPEN"
             try {
                 val database = openLibraryDatabase(applicationContext)
-                try {
+                run {
                     stage = "INDEX_BATCH"
                     val final = ManagedTagIndexSession(database).run(
                         request.login.email,
@@ -207,8 +207,6 @@ class IndexingForegroundService : Service() {
                         terminating = true,
                     )
                     stage = "DATABASE_CLOSE"
-                } finally {
-                    database.close()
                 }
             } catch (_: CancellationException) {
                 // Pause/stop was set before cancellation; preserve its reason.

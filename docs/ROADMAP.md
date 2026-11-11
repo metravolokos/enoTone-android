@@ -8,8 +8,8 @@
 
 | Шаг | Содержание | Состояние |
 |---|---|---|
-| M6-0/1 | Порядок в документации: короткие STATUS/KNOWN_ISSUES/TESTING, архив, индекс ADR, AGENTS.md | в работе |
-| M6-0/2 | Один `EnoToneDatabase` на процесс; `WAKE_MODE_NETWORK` | — |
+| M6-0/1 | Порядок в документации: короткие STATUS/KNOWN_ISSUES/TESTING, архив, индекс ADR, AGENTS.md | PR готов |
+| M6-0/2 | Один `EnoToneDatabase` на процесс; `WAKE_MODE_NETWORK` | PR, ждёт Huawei |
 | M6-0/3 | Сохранение очереди, позиции, shuffle/repeat | — |
 | M6-0/4 | `AppContainer`, репозитории, ViewModel + StateFlow | — |
 | M6-0/5 | Перенос в `:feature:*`/`:core:model`; поведенческие тесты вместо строковых | — |

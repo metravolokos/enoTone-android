@@ -15,7 +15,7 @@ internal object ArtworkIndexPlanner {
         context: Context, accountEmail: String,
     ): List<AlbumArtworkGroup> = withContext(Dispatchers.IO) {
         val db = openLibraryDatabase(context.applicationContext)
-        try {
+        run {
             val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
             val rows = db.remoteTrackDao().allForSource(sourceKey)
             val playable = rows.filter {
@@ -31,8 +31,6 @@ internal object ArtworkIndexPlanner {
                     remoteEtag = item.remoteEtag,
                 )
             }.groups
-        } finally {
-            db.close()
         }
     }
 
