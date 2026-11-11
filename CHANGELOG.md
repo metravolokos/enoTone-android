@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## Unreleased — Graphite Material3 (2026-11-11, PR #78)
+
+- Убраны цветные пользовательские акценты, настройка акцента и цветные фоны обложек в UI; System/Dark/Light остаются.
+- Нативная `NavigationBar`, поднятый `Surface` мини-плеера, действующие разделы без Radio/Search-фикций.
+- Now Playing с графитовым тональным переходом, нативными Material 3 `Slider`, `FilledIconButton`, реальными Media3 и STREAM_MUSIC, без Lossless/Lyrics/Cast/Favorites/Queue заглушек.
+- Альбомный экран нейтрален, сохранены Play/Shuffle и меню переиндексации. Room v4, WebDAV и постоянный master artwork 1200px без изменений.
+- Исторические визуальные ADR-0068–0072 заменены ADR-0073; Huawei-приёмка после подписанной APK.
+
 ## Unreleased — screenshot-parity Huawei / ADR-0072 (2026-11-11)
 
 - Apple Music Android reference: toolbar + постоянный поиск, однострочные Play/Shuffle, альбомная страница с цветным фоном и белой play-капсулой, 3 радиальных слоя Now Playing и тонкая полоса перемотки, отдельные более округлые мини/таб капсулы.

@@ -13,7 +13,7 @@ class TrackArtworkThumbnailContractTest(unittest.TestCase):
         screen = self.text("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
         tile = self.text("app/src/main/java/app/enotone/android/TrackArtworkThumbnail.kt")
         row = screen[screen.index("items(visible, key = { it.id }) { track ->"):
-                     screen.index("// Floating mini player:")]
+                     screen.index("// Native Material 3 mini-player:")]
         for token in ("TrackArtworkThumbnail(", "trackId = track.id",
                       "artworkGroup = artworkCatalog.byTrackId[track.id]",
                       "repository = artworkRepository",

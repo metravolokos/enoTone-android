@@ -19,8 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -59,6 +57,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.TextStyle
@@ -466,21 +465,6 @@ internal fun OfflineLibraryScreen(
         }
     }
     val selectedGroup = groups.firstOrNull { it.key == selectedGroupKey }
-    // Derive the album page background from cached artwork; the header
-    // updates it once its image finishes loading, without new network GETs.
-    var albumBackdropArt by remember(accountEmail, selectedGroupKey) {
-        mutableStateOf<Bitmap?>(selectedGroup?.let { group ->
-            artworkCatalog.byGroupKey[group.key]?.let { art ->
-                artworkRepository.peekAlbum(accountEmail, art, requestedSide = 384)
-            }
-        })
-    }
-    val albumPalette = remember(albumBackdropArt) { artworkColors(albumBackdropArt) }
-    val showColoredAlbum = section == LibraryPage.ALBUMS && selectedGroup != null
-    DisposableEffect(showColoredAlbum) {
-        UiAppearance.showColoredAlbum(showColoredAlbum)
-        onDispose { UiAppearance.showColoredAlbum(false) }
-    }
     val shownGroups = remember(groups, search) {
         groups.filter { OfflineLibraryGrouping.matches(it, search) }
     }
@@ -725,20 +709,9 @@ internal fun OfflineLibraryScreen(
             onToggleShuffle = { playback?.toggleShuffle() },
         )
     } else {
-    val isAlbumDetail = section == LibraryPage.ALBUMS && selectedGroup != null
-    val albumTop = lerp(albumPalette.first, Color.Black, 0.36f)
-    val albumBottom = lerp(albumPalette.second, Color.Black, 0.68f)
     Box(
-        modifier = Modifier.fillMaxSize().background(
-            if (isAlbumDetail) Brush.verticalGradient(
-                0f to albumTop,
-                .53f to lerp(albumTop, albumBottom, .48f),
-                1f to albumBottom,
-            ) else Brush.verticalGradient(
-                listOf(MaterialTheme.colorScheme.background,
-                    MaterialTheme.colorScheme.background),
-            ),
-        ),
+        modifier = Modifier.fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
     ) {
     Column(
         modifier = Modifier.fillMaxSize().systemBarsPadding()
@@ -759,40 +732,15 @@ internal fun OfflineLibraryScreen(
                 },
                 modifier = Modifier.size(48.dp)
                     .background(
-                        if (isAlbumDetail) Color.White.copy(alpha = .14f)
-                        else MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.surface,
                         androidx.compose.foundation.shape.CircleShape,
                     ),
             ) {
                 Icon(painterResource(R.drawable.ic_action_back),
                     contentDescription = stringResource(R.string.library_group_back),
-                    tint = if (isAlbumDetail) Color.White
-                        else MaterialTheme.colorScheme.onSurface)
+                    tint = MaterialTheme.colorScheme.onSurface)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconButton(
-                    onClick = {}, enabled = false, modifier = Modifier.size(48.dp)
-                        .background(if (isAlbumDetail) Color.White.copy(alpha = .13f)
-                            else MaterialTheme.colorScheme.surface,
-                            androidx.compose.foundation.shape.CircleShape),
-                ) {
-                    Icon(painterResource(R.drawable.ic_music_filter),
-                        contentDescription = null,
-                        tint = if (isAlbumDetail) Color.White
-                            else MaterialTheme.colorScheme.onSurface)
-                }
-                IconButton(
-                    onClick = {}, enabled = false, modifier = Modifier.size(48.dp)
-                        .background(if (isAlbumDetail) Color.White.copy(alpha = .13f)
-                            else MaterialTheme.colorScheme.surface,
-                            androidx.compose.foundation.shape.CircleShape),
-                ) {
-                    Icon(painterResource(R.drawable.ic_action_more),
-                        contentDescription = null,
-                        tint = if (isAlbumDetail) Color.White
-                            else MaterialTheme.colorScheme.onSurface)
-                }
-            }
+
         }
         if (selectedGroupKey == null) {
             Text(
@@ -888,7 +836,7 @@ internal fun OfflineLibraryScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         state = albumGridState,
-                        contentPadding = PaddingValues(bottom = if (selectedTitle != null) 160.dp else 84.dp),
+                        contentPadding = PaddingValues(bottom = if (selectedTitle != null) 184.dp else 100.dp),
                         modifier = Modifier.fillMaxWidth().weight(1f),
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -1013,7 +961,6 @@ internal fun OfflineLibraryScreen(
                                         albumRefreshSampleIds
                                 }
                             },
-                            onArtworkLoaded = { albumBackdropArt = it },
                         )
                     }
                 }
@@ -1031,8 +978,7 @@ internal fun OfflineLibraryScreen(
                             Text(
                                 text = track.trackNumber?.toString().orEmpty(),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (isAlbumDetail) Color.White.copy(alpha = .70f)
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(width = 32.dp, height = 24.dp),
                             )
                         } else {
@@ -1051,8 +997,7 @@ internal fun OfflineLibraryScreen(
                                 text = track.title,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                color = if (isAlbumDetail) Color.White
-                                    else MaterialTheme.colorScheme.onSurface,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                             val subtitle = if (section == LibraryPage.ALBUMS &&
@@ -1065,27 +1010,15 @@ internal fun OfflineLibraryScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isAlbumDetail) Color.White.copy(alpha = .66f)
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                        }
-                        IconButton(
-                            onClick = {}, enabled = false, modifier = Modifier.size(36.dp),
-                        ) {
-                            Icon(
-                                painterResource(R.drawable.ic_action_more),
-                                contentDescription = null,
-                                tint = if (isAlbumDetail) Color.White.copy(alpha = .75f)
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
                         }
                     }
                     HorizontalDivider(
                         modifier = Modifier.padding(start = if (section == LibraryPage.ALBUMS &&
                             selectedGroup != null) 44.dp else 56.dp),
-                        color = if (isAlbumDetail) Color.White.copy(alpha = .22f)
-                            else MaterialTheme.colorScheme.outlineVariant,
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         thickness = 0.5.dp,
                     )
                 }
@@ -1094,14 +1027,19 @@ internal fun OfflineLibraryScreen(
     }
     Column(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        // Floating mini player: two transport actions, no progress bar.
-        // Touch targets retain the Material 48dp minimum; title opens full player.
+        // Native Material 3 mini-player: a raised Surface above the NavigationBar.
         if (selectedTitle != null) {
-            FloatingControlsIsland(compact = true) {
+            Surface(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 2.dp,
+                shadowElevation = 4.dp,
+            ) {
             Row(
                 modifier = Modifier.fillMaxWidth().height(56.dp)
                     .pointerInput(Unit) {
@@ -1210,9 +1148,7 @@ internal fun OfflineLibraryScreen(
             }
             }
         }
-        // Floating labeled navigation is a separate island, 8dp below player.
-        // Category visibility is managed only in Settings.
-        FloatingControlsIsland {
+        // Material 3 NavigationBar; category visibility is managed in Settings.
         CompactLibraryNavigation(
             selectedPage = section,
             visiblePages = visiblePages,
@@ -1227,7 +1163,6 @@ internal fun OfflineLibraryScreen(
             },
             enabled = !selecting,
         )
-        }
     }
     }
     }

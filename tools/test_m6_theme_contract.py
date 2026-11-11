@@ -1,35 +1,26 @@
-"""Guard current neutral palettes and one user-controlled accent (ADR-0069)."""
+"""Graphite Material 3: native dark/light/system and no custom accents."""
 from pathlib import Path
 import unittest
-
-ROOT = Path(__file__).resolve().parents[1]
-UI = ROOT / "app/src/main/java/app/enotone/android"
-
-
+UI = Path(__file__).resolve().parents[1] / "app/src/main/java/app/enotone/android"
 class ThemeContractTest(unittest.TestCase):
-    def test_approved_enotone_material_theme_is_used_in_android(self):
-        activity = (UI / "MainActivity.kt").read_text(encoding="utf-8")
-        theme = (UI / "EnoToneTheme.kt").read_text(encoding="utf-8")
-        self.assertIn("EnoToneTheme { DiagnosticScreen() }", activity)
-        self.assertIn("MaterialTheme(", theme)
-        self.assertIn("lightColorScheme(", theme)
-        self.assertIn("darkColorScheme(", theme)
-
-    def test_approved_colors_have_one_central_source(self):
-        # The latest Android UI decision supersedes the former pink palette.
-        theme = (UI / "EnoToneTheme.kt").read_text(encoding="utf-8")
-        activity = (UI / "MainActivity.kt").read_text(encoding="utf-8")
-        library = (UI / "OfflineLibraryScreen.kt").read_text(encoding="utf-8")
-        for token in ("background = Color.Black", "background = Color.White",
-                      "surface = Color(0xFF1C1C1E)", "surface = Color(0xFFF2F2F7)"):
+    def test_graphite_tokens_and_theme(self):
+        theme = (UI / "EnoToneTheme.kt").read_text()
+        for token in ("MaterialTheme(", "darkColorScheme(", "lightColorScheme(",
+                      "Color(0xFF101113)", "Color(0xFFF7F7F8)",
+                      "primaryContainer = Color(0xFF3A3B40)",
+                      "primaryContainer = Color(0xFFE1E2E6)",
+                      "UiMode.SYSTEM", "isSystemInDarkTheme()"):
             self.assertIn(token, theme)
-            self.assertNotIn(token, activity)
-            self.assertNotIn(token, library)
-        self.assertIn("UiAccent", theme)
-        self.assertIn("UiAppearance", theme)
-        self.assertNotIn("dynamicLightColorScheme", theme)
         self.assertNotIn("dynamicDarkColorScheme", theme)
-
-
+        self.assertNotIn("dynamicLightColorScheme", theme)
+    def test_appearance_has_only_mode_not_accent(self):
+        theme = (UI / "EnoToneTheme.kt").read_text()
+        settings = (UI / "AppearanceSettings.kt").read_text()
+        self.assertIn('putString("mode", value.name)', theme)
+        self.assertIn("UiAppearance.chooseMode(context, mode)", settings)
+        self.assertIn("RadioButton(", settings)
+        self.assertNotIn("UiAccent", theme + settings)
+        self.assertNotIn("chooseAccent", theme + settings)
+        self.assertNotIn("appearance_accent", settings)
 if __name__ == "__main__":
     unittest.main()

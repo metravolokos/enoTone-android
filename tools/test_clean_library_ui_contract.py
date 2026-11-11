@@ -89,82 +89,48 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertLess(ui.index("if (showPlayerDetails && selectedTitle != null)"),
             ui.index("Column(\n        modifier = Modifier.fillMaxSize().systemBarsPadding()"))
         self.assertLess(ui.index("items(visible, key = { it.id })"),
-            ui.index("// Floating mini player:"))
+            ui.index("// Native Material 3 mini-player:"))
         self.assertNotIn("R.string.library_group_tags_only", ui)
         self.assertNotIn("deleteDatabase(", ui)
 
-    def test_five_position_navigation_and_visibility_settings(self):
-        nav = self.src("app/src/main/java/app/enotone/android/CompactLibraryNavigation.kt")
-        ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        home = self.src("app/src/main/java/app/enotone/android/EnoToneHomeScreen.kt")
-        settings = self.src("app/src/main/java/app/enotone/android/LibraryVisibilitySettings.kt")
-        for token in (
-            "Modifier.fillMaxWidth().height(62.dp).selectableGroup()",
-            "Modifier.weight(1f).height(60.dp)",
-            "role = Role.Tab",
-            "selected = active",
-            "text = label",
-            "painter = painterResource(image)",
-            "listOf<LibraryPage?>(null) + visiblePages",
-            "null -> R.drawable.ic_nav_home",
-            "null -> R.string.nav_home",
-        ):
-            self.assertIn(token, nav)
-        self.assertIn("CompactLibraryNavigation(", home)
-        self.assertIn("CompactLibraryNavigation(", ui)
-        self.assertIn("onHome = onBack", ui)
-        self.assertIn("if (page != section)", ui)
-        self.assertIn("selectedGroupKey = null", ui)
-        self.assertIn('search = ""', ui)
-        self.assertNotIn("showPageSettings", ui)
-        self.assertNotIn("R.drawable.ic_action_pages", ui)
-        self.assertIn("LibraryPageVisibility.withVisibility(", settings)
-        self.assertIn("preferences.saveHiddenPages(next)", settings)
-        self.assertIn("visible.size > 1", settings)
-        self.assertNotIn("Row(modifier = Modifier.horizontalScroll(", ui)
-        self.assertLess(ui.index("// Floating mini player:"),
-                        ui.index("// Floating labeled navigation"))
-        for name in ("home", "tracks", "albums", "artists", "album_artists"):
-            path = ROOT / f"app/src/main/res/drawable/ic_nav_{name}.xml"
-            xml = ET.parse(path).getroot()
-            self.assertEqual(xml.tag, "vector")
-            self.assertEqual(xml.attrib.get(
-                "{http://schemas.android.com/apk/res/android}height"), "24dp")
+    def test_native_navigation_and_saved_visibility_settings(self):
+        nav=self.src("app/src/main/java/app/enotone/android/CompactLibraryNavigation.kt")
+        ui=self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
+        home=self.src("app/src/main/java/app/enotone/android/EnoToneHomeScreen.kt")
+        settings=self.src("app/src/main/java/app/enotone/android/LibraryVisibilitySettings.kt")
+        for token in ("NavigationBar(", "NavigationBarItem(", "NavigationBarItemDefaults.colors(",
+                      "indicatorColor = MaterialTheme.colorScheme.primaryContainer",
+                      "listOf<LibraryPage?>(null) + visiblePages",
+                      "selected = selectedPage == page", "onPageSelected(page)"):
+            self.assertIn(token,nav)
+        self.assertIn("CompactLibraryNavigation(",ui)
+        self.assertIn("CompactLibraryNavigation(",home)
+        self.assertIn("onHome = onBack",ui)
+        self.assertIn("if (page != section)",ui)
+        self.assertIn("selectedGroupKey = null",ui)
+        self.assertIn("LibraryPageVisibility.withVisibility(",settings)
+        self.assertIn("preferences.saveHiddenPages(next)",settings)
+        self.assertIn("visible.size > 1",settings)
+        self.assertNotIn("ic_music_radio",nav)
 
-    def test_compact_app_bar_search_and_mini_player(self):
-        ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        self.assertIn("modifier = Modifier.fillMaxWidth().height(52.dp)", ui)
-        self.assertIn("R.drawable.ic_action_back", ui)
-        self.assertNotIn("R.drawable.ic_action_pages", ui)
-        self.assertIn("BasicTextField(", ui)
-        self.assertIn("if (search.isNotBlank()) {", ui)
-        self.assertIn("R.string.ui_search_songs", ui)
-        self.assertIn("R.string.ui_search_albums", ui)
-        self.assertIn("R.string.ui_search_artists", ui)
-        self.assertIn("selectedGroupKey = null", ui)
-        self.assertIn("selectedArtist = mediaMetadata.artist?.toString()", ui)
-        self.assertIn("selectedArtist = track.artist", ui)
-        mini = ui[ui.index("// Floating mini player:"):
-                  ui.index("// Floating labeled navigation")]
-        self.assertIn("Modifier.fillMaxWidth().height(56.dp)", mini)
-        self.assertNotIn("LinearProgressIndicator(", mini)
-        self.assertIn("FloatingControlsIsland {", ui)
-        self.assertIn("PaddingValues(bottom =", ui)
-        self.assertIn("R.drawable.ic_action_play", mini)
-        self.assertIn("R.drawable.ic_action_pause", mini)
-        self.assertIn("R.drawable.ic_action_next", mini)
-        self.assertNotIn("R.drawable.ic_action_expand", mini)
-        self.assertIn("onClickLabel = stringResource(R.string.library_player_open)", mini)
-        self.assertIn("contentDescription = stringResource", mini)
-        self.assertNotIn("TextButton(", mini)
-        # The app bar and footer use platform text descriptions with 48dp targets.
-        for name in ("back", "search", "close", "pages", "play", "pause",
-                     "next", "expand"):
-            path = ROOT / f"app/src/main/res/drawable/ic_action_{name}.xml"
-            xml = ET.parse(path).getroot()
-            self.assertEqual(xml.tag, "vector")
-            self.assertEqual(xml.attrib.get(
-                "{http://schemas.android.com/apk/res/android}height"), "24dp")
+    def test_local_search_and_native_material3_mini_player(self):
+        ui=self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
+        for token in ("BasicTextField(", "if (search.isNotBlank()) {",
+                      "R.string.ui_search_songs", "R.string.ui_search_albums",
+                      "R.string.ui_search_artists", "selectedArtist = track.artist",
+                      "selectedArtist = mediaMetadata.artist?.toString()"):
+            self.assertIn(token,ui)
+        mini=ui[ui.index("// Native Material 3 mini-player:"):
+                ui.index("// Material 3 NavigationBar;")]
+        for token in ("Surface(", "shadowElevation = 4.dp",
+                      "Modifier.fillMaxWidth().height(56.dp)",
+                      "R.drawable.ic_action_play", "R.drawable.ic_action_pause",
+                      "R.drawable.ic_action_next",
+                      "onClickLabel = stringResource(R.string.library_player_open)"):
+            self.assertIn(token,mini)
+        self.assertNotIn("LinearProgressIndicator(",mini)
+        self.assertNotIn("FloatingControlsIsland",ui)
+        self.assertIn("PaddingValues(bottom =",ui)
 
     def test_new_ux_strings_in_both_languages(self):
         needed = {

@@ -62,7 +62,7 @@ class ExtendedTagMetadataContractTest(unittest.TestCase):
         self.assertIn('fun commonAlbumYear(', catalog)
         self.assertIn('year?.toString()', header)
         self.assertIn('genre?.takeIf { it.isNotBlank() }', header)
-        self.assertIn('text = facts', header)
+        self.assertIn('Text(facts,', header)
         self.assertNotIn('WebDavRangeReader(', screen)
         self.assertNotIn('queueAllTagRefresh(', screen)
         self.assertNotIn('fallbackToDestructiveMigration', screen)
