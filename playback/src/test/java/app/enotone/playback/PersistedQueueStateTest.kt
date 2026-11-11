@@ -67,7 +67,7 @@ class PersistedQueueStateTest {
     @Test fun malformedPositionDefaultsToFirstTrackZeroAndRepeatOff() {
         val q = QueueStateCodec.encodeLayout(state().layout())
         for (damaged in listOf<String?>(null, "", "{bad-json",
-            "{\"version\":999}", "{\"password\":\"example\"}")) {
+            "{\"password\":\"example\"}")) {
             val recovered = QueueStateCodec.assemble(q, damaged)!!
             assertEquals(id(1), recovered.selectedTrackId)
             assertEquals(0L, recovered.positionMs)
@@ -75,6 +75,13 @@ class PersistedQueueStateTest {
             assertTrue(recovered.shuffleEnabled)
             assertArrayEquals(intArrayOf(2, 0, 3, 1), recovered.shuffledIndices)
         }
+    }
+
+    @Test fun unknownPositionVersionIsNotRestored() {
+        val q = QueueStateCodec.encodeLayout(state().layout())
+        val p = QueueStateCodec.encodePosition(state().position())
+            .replace("\"version\":1", "\"version\":5")
+        assertNull(QueueStateCodec.assemble(q, p))
     }
 
     @Test fun neitherJsonFileContainsPathsTagsOrCredentials() {
