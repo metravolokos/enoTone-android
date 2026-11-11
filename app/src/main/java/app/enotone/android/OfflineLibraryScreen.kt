@@ -476,6 +476,11 @@ internal fun OfflineLibraryScreen(
         })
     }
     val albumPalette = remember(albumBackdropArt) { artworkColors(albumBackdropArt) }
+    val showColoredAlbum = section == LibraryPage.ALBUMS && selectedGroup != null
+    DisposableEffect(showColoredAlbum) {
+        UiAppearance.showColoredAlbum(showColoredAlbum)
+        onDispose { UiAppearance.showColoredAlbum(false) }
+    }
     val shownGroups = remember(groups, search) {
         groups.filter { OfflineLibraryGrouping.matches(it, search) }
     }
