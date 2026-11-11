@@ -151,7 +151,8 @@ class CleanLibraryUiContractTest(unittest.TestCase):
         self.assertIn("R.drawable.ic_action_play", mini)
         self.assertIn("R.drawable.ic_action_pause", mini)
         self.assertIn("R.drawable.ic_action_next", mini)
-        self.assertIn("R.drawable.ic_action_expand", mini)
+        self.assertNotIn("R.drawable.ic_action_expand", mini)
+        self.assertIn("onClickLabel = stringResource(R.string.library_player_open)", mini)
         self.assertIn("contentDescription = stringResource", mini)
         self.assertNotIn("TextButton(", mini)
         # The app bar and footer use platform text descriptions with 48dp targets.
