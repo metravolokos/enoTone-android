@@ -14,20 +14,20 @@ class OnDemandArtworkContractTest(unittest.TestCase):
         for token in (
             "currentTrackId = mediaItem?.mediaId",
             "currentTrackId = active.player.currentMediaItem?.mediaId",
-            "LaunchedEffect(currentTrackId, preparedById, appPassword, accountEmail,\n        libraryRefreshEpoch)",
+            "LaunchedEffect(currentTrackId, artworkCatalog, appPassword, accountEmail,",
             "snapshotFlow { playbackState }.first { state ->",
             'state == "PLAYING" || state == "PAUSED"',
-            "val target = preparedById[id] ?: return@LaunchedEffect",
+            "val group = artworkCatalog.byTrackId[id] ?: return@LaunchedEffect",
             "PlayingArtworkTarget(",
-            "currentArtwork = artworkRepository.cover(",
+            "currentArtwork = artworkRepository.albumCover(",
             "bitmap = currentArtwork!!.asImageBitmap()",
         ):
             self.assertIn(token, ui)
         now_playing = (APP / "NowPlayingScreen.kt").read_text()
         self.assertIn("Image(", now_playing)
         self.assertIn("R.string.artwork_description", now_playing)
-        self.assertIn("fullArtwork = artworkRepository.cover(", ui)
-        self.assertIn("requestedSide = 1320", ui)
+        self.assertIn("fullArtwork = artworkRepository.albumCover(", ui)
+        self.assertIn("requestedSide = 1200", ui)
         # No trigger on scroll, opening an album, artist or tab switch.
         self.assertNotIn("LaunchedEffect(visible", ui)
         self.assertNotIn("LaunchedEffect(shownGroups", ui)
@@ -37,15 +37,15 @@ class OnDemandArtworkContractTest(unittest.TestCase):
         code = (APP / "ArtworkPreviewRepository.kt").read_text()
         payload = (LIB / "EmbeddedArtworkPayloadReader.kt").read_text()
         for token in (
-            "context.applicationContext.cacheDir",
+            "context.applicationContext.filesDir",
             "enotone-artwork-v2",
             "MessageDigest.getInstance(\"SHA-256\")",
             "WebDavRangeReader(",
             "EmbeddedArtworkPayloadReader().read(",
             "maxRequests = 128",
             "maxDownloadedBytes = 8L * 1024 * 1024",
-            "const val MAX_SIDE = 1320",
-            "const val CACHE_LIMIT_BYTES = 192L * 1024 * 1024",
+            "const val MAX_SIDE = 1200",
+            "context.applicationContext.filesDir",
             "BitmapFactory.Options().apply { inJustDecodeBounds = true }",
             "coroutineContext",
         ):
