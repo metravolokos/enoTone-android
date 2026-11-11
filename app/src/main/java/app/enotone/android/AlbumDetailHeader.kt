@@ -60,6 +60,7 @@ internal fun AlbumDetailHeader(
     refreshingTags: Boolean,
     refreshMessage: String,
     onRefreshTags: () -> Unit,
+    onArtworkLoaded: (Bitmap?) -> Unit = {},
 ) {
     var actionsExpanded by remember(group.key) { mutableStateOf(false) }
     // Lazy grid/list items are disposed during navigation. If we already
@@ -82,6 +83,7 @@ internal fun AlbumDetailHeader(
         }
     }
 
+    LaunchedEffect(cover) { onArtworkLoaded(cover) }
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

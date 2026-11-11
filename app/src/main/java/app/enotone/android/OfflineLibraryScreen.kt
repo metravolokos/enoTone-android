@@ -18,6 +18,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
@@ -461,6 +464,16 @@ internal fun OfflineLibraryScreen(
         }
     }
     val selectedGroup = groups.firstOrNull { it.key == selectedGroupKey }
+    // Derive the album page background from cached artwork; the header
+    // updates it once its image finishes loading, without new network GETs.
+    var albumBackdropArt by remember(accountEmail, selectedGroupKey) {
+        mutableStateOf<Bitmap?>(selectedGroup?.let { group ->
+            artworkCatalog.byGroupKey[group.key]?.let { art ->
+                artworkRepository.peekAlbum(accountEmail, art, requestedSide = 384)
+            }
+        })
+    }
+    val albumPalette = remember(albumBackdropArt) { artworkColors(albumBackdropArt) }
     val shownGroups = remember(groups, search) {
         groups.filter { OfflineLibraryGrouping.matches(it, search) }
     }
@@ -705,9 +718,24 @@ internal fun OfflineLibraryScreen(
             onToggleShuffle = { playback?.toggleShuffle() },
         )
     } else {
-    Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
+    val isAlbumDetail = section == LibraryPage.ALBUMS && selectedGroup != null
+    val albumTop = lerp(albumPalette.first, Color.Black, 0.36f)
+    val albumBottom = lerp(albumPalette.second, Color.Black, 0.68f)
+    Box(
+        modifier = Modifier.fillMaxSize().background(
+            if (isAlbumDetail) Brush.verticalGradient(
+                0f to albumTop,
+                .53f to lerp(albumTop, albumBottom, .48f),
+                1f to albumBottom,
+            ) else Brush.verticalGradient(
+                listOf(MaterialTheme.colorScheme.background,
+                    MaterialTheme.colorScheme.background),
+            ),
+        ),
+    ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxSize().systemBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         // Primary actions occupy one Material-sized row. Search is opt-in, so
@@ -950,6 +978,7 @@ internal fun OfflineLibraryScreen(
                                         albumRefreshSampleIds
                                 }
                             },
+                            onArtworkLoaded = { albumBackdropArt = it },
                         )
                     }
                 }
@@ -1015,6 +1044,7 @@ internal fun OfflineLibraryScreen(
     }
     Column(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+            .navigationBarsPadding()
             .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
