@@ -60,6 +60,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -738,58 +740,96 @@ internal fun OfflineLibraryScreen(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // Primary actions occupy one Material-sized row. Search is opt-in, so
-        // the default screen spends its height on music, not a tall empty field.
         Row(
-            modifier = Modifier.fillMaxWidth().height(if (selectedGroupKey == null) 78.dp else 52.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.fillMaxWidth().height(52.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            if (selectedGroupKey != null) {
-                IconButton(onClick = {
-                    selectedGroupKey = null
-                    search = ""
-                }) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_action_back),
-                        contentDescription = stringResource(R.string.library_group_back),
-                    )
+            IconButton(
+                onClick = {
+                    if (selectedGroupKey != null) {
+                        selectedGroupKey = null
+                        search = ""
+                    } else onBack()
+                },
+                modifier = Modifier.size(48.dp)
+                    .background(
+                        if (isAlbumDetail) Color.White.copy(alpha = .14f)
+                        else MaterialTheme.colorScheme.surface,
+                        androidx.compose.foundation.shape.CircleShape,
+                    ),
+            ) {
+                Icon(painterResource(R.drawable.ic_action_back),
+                    contentDescription = stringResource(R.string.library_group_back),
+                    tint = if (isAlbumDetail) Color.White
+                        else MaterialTheme.colorScheme.onSurface)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(
+                    onClick = {}, enabled = false, modifier = Modifier.size(48.dp)
+                        .background(if (isAlbumDetail) Color.White.copy(alpha = .13f)
+                            else MaterialTheme.colorScheme.surface,
+                            androidx.compose.foundation.shape.CircleShape),
+                ) {
+                    Icon(painterResource(R.drawable.ic_music_filter),
+                        contentDescription = null,
+                        tint = if (isAlbumDetail) Color.White
+                            else MaterialTheme.colorScheme.onSurface)
+                }
+                IconButton(
+                    onClick = {}, enabled = false, modifier = Modifier.size(48.dp)
+                        .background(if (isAlbumDetail) Color.White.copy(alpha = .13f)
+                            else MaterialTheme.colorScheme.surface,
+                            androidx.compose.foundation.shape.CircleShape),
+                ) {
+                    Icon(painterResource(R.drawable.ic_action_more),
+                        contentDescription = null,
+                        tint = if (isAlbumDetail) Color.White
+                            else MaterialTheme.colorScheme.onSurface)
                 }
             }
+        }
+        if (selectedGroupKey == null) {
             Text(
-                text = selectedGroup?.name ?: stringResource(when (section) {
-                    LibraryPage.TRACKS -> R.string.library_tab_tracks
+                text = stringResource(when (section) {
+                    LibraryPage.TRACKS -> R.string.ui_songs_title
                     LibraryPage.ALBUMS -> R.string.library_tab_albums
                     LibraryPage.ARTISTS -> R.string.library_tab_artists
                     LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
                 }),
-                style = if (selectedGroupKey == null) MaterialTheme.typography.headlineLarge
-                    else MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.headlineLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 8.dp),
             )
-            IconButton(onClick = {
-                if (searchExpanded) {
-                    search = ""
-                    searchExpanded = false
-                } else searchExpanded = true
-            }) {
-                Icon(
-                    painter = painterResource(if (searchExpanded)
-                        R.drawable.ic_action_close else R.drawable.ic_action_search),
-                    contentDescription = stringResource(if (searchExpanded)
-                        R.string.library_close_search else R.string.library_open_search),
-                )
-            }
-        }
-        if (searchExpanded) {
-            OutlinedTextField(
+            BasicTextField(
                 value = search,
                 onValueChange = { search = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(stringResource(R.string.library_search_short)) },
                 singleLine = true,
+                textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 17.sp),
+                modifier = Modifier.fillMaxWidth().height(52.dp)
+                    .background(MaterialTheme.colorScheme.surface,
+                        RoundedCornerShape(12.dp))
+                    .padding(horizontal = 16.dp),
+                decorationBox = { innerField ->
+                    Box(modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.CenterStart) {
+                        if (search.isEmpty()) {
+                            Text(
+                                text = stringResource(when (section) {
+                                    LibraryPage.TRACKS -> R.string.ui_search_songs
+                                    LibraryPage.ALBUMS -> R.string.ui_search_albums
+                                    LibraryPage.ARTISTS -> R.string.ui_search_artists
+                                    LibraryPage.ALBUM_ARTISTS -> R.string.ui_search_artists
+                                }),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 17.sp,
+                            )
+                        }
+                        innerField()
+                    }
+                },
             )
         }
         if (search.isNotBlank()) {

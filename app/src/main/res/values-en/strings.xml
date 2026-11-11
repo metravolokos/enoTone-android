@@ -237,4 +237,8 @@
     <string name="library_shuffle_all">Shuffle</string>
     <string name="home_library_sections">Library sections</string>
     <string name="ui_play">Play</string>
+    <string name="ui_songs_title">Songs</string>
+    <string name="ui_search_songs">Search in songs</string>
+    <string name="ui_search_albums">Search in albums</string>
+    <string name="ui_search_artists">Search in artists</string>
 </resources>
