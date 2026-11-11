@@ -3,6 +3,10 @@
 > **Актуальный принятый срез — 2026-11-11, Huawei Stable Preview #301:** [CURRENT_DECISIONS](CURRENT_DECISIONS.md). Все более ранние «ещё не готово»/Draft ниже сохраняются как хронология; **не** отменяют решения [ADR-0066](DECISIONS/ADR-0066-indexing-finalization.md) и [ADR-0067](DECISIONS/ADR-0067-permanent-album-artwork.md). Последнее подтверждение владельца — «Работает» после #301, без детального отчёта offline/GET/auto.
 
 
+## Новый дизайн Graphite Material 3 (2026-11-11)
+
+Владелец отверг копирование Apple Music после Stable Preview #338. Выбран новый Android Material 3 / Expressive: серая гамма, без цветных акцентов, без заглушек. [ADR-0073](DECISIONS/ADR-0073-graphite-material3.md), Draft PR #78. Стандартный NavigationBar, `Surface` mini-player и нейтральный Now Playing реализованы как код-кандидат. **Это ещё не аппаратная проверка и не подтверждение установки.**
+
 ## Android UI parity — парные скриншоты 11 ноября 2026
 
 Подготовлен кандидат [ADR-0072](DECISIONS/ADR-0072-screenshot-parity-huawei.md) в Draft PR #77. На скриншотах выявлены реальные отличия от Apple Music Android, в коде меняются локальный поиск, кнопки, full-screen цвета альбомов, тонкий player seek, мини-острова. Mock placeholder-only действия не выдают себя за реализованные функции. До CI и Huawei сравнения — **визуальное принятие не заявлено**.
