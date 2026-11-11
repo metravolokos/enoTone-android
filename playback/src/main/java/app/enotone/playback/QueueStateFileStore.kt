@@ -5,7 +5,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 /** File operations must be invoked on the service's single I/O executor. */
-internal class QueueStateFileStore(context: Context) {
+class QueueStateFileStore(context: Context) {
     private val file = File(context.noBackupFilesDir, "enotone-queue-v1.json")
     private val temp = File(context.noBackupFilesDir, "enotone-queue-v1.json.tmp")
 
