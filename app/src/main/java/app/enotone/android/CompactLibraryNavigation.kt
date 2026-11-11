@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -36,7 +35,6 @@ internal fun CompactLibraryNavigation(
     onPageSelected: (LibraryPage) -> Unit,
     enabled: Boolean = true,
 ) {
-    HorizontalDivider()
     Row(
         modifier = Modifier.fillMaxWidth().height(52.dp).selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
