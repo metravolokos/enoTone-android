@@ -474,6 +474,26 @@ internal fun OfflineLibraryScreen(
             )
         }.toMap()
     }
+    // Shared, local album context across Tracks / Artist / Album Artist
+    // pages. The representative is ONLY a visual preview until each track's
+    // embedded picture has been checked. Never infer a shared content hash
+    // or persist an album-wide source alias.
+    val albumPreviewByTrack = remember(tracks, preparedById, libraryRefreshEpoch) {
+        OfflineLibraryGrouping.albums(tracks).flatMap { group ->
+            if (group.key == "album:missing") return@flatMap emptyList()
+            val representative = group.trackIds.asSequence()
+                .mapNotNull { preparedById[it] }.firstOrNull()
+                ?: return@flatMap emptyList()
+            val target = PlayingArtworkTarget(
+                id = representative.id,
+                encodedPath = representative.encodedPath,
+                remoteSize = representative.remoteSize,
+                remoteEtag = representative.remoteEtag,
+                refreshEpoch = libraryRefreshEpoch,
+            )
+            group.trackIds.map { it to target }
+        }.toMap()
+    }
     // The visible set is also the playback queue context; no Media3 changes.
     val visible = remember(tracks, section, selectedGroup, search) {
         val candidates = when (section) {
@@ -913,6 +933,7 @@ internal fun OfflineLibraryScreen(
                             TrackArtworkThumbnail(
                                 trackId = track.id,
                                 target = artworkTarget,
+                                albumPreviewTarget = albumPreviewByTrack[track.id],
                                 repository = artworkRepository,
                                 accountEmail = accountEmail,
                                 appPassword = appPassword,
