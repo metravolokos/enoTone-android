@@ -19,7 +19,7 @@ class NowPlayingContractTest(unittest.TestCase):
             "NowPlayingScreen(",
             "BackHandler(enabled = showPlayerDetails) { showPlayerDetails = false }",
             "onClose = { showPlayerDetails = false }",
-            "} else {\n    Box(modifier = Modifier.fillMaxSize()) {",
+            "} else {\n    Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {",
             "showPlayerDetails = true",
             "playback?.seekToFraction(fraction)",
             "playback?.pause()",
