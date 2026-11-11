@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -82,125 +83,153 @@ internal fun AlbumDetailHeader(
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            modifier = Modifier.size(240.dp)
-                .shadow(5.dp, RoundedCornerShape(8.dp))
+            modifier = Modifier.size(242.dp)
+                .shadow(
+                    elevation = 18.dp, shape = RoundedCornerShape(8.dp),
+                    clip = false,
+                    ambientColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = .70f),
+                    spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = .60f),
+                )
                 .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
-            val image = cover
-            if (image != null) {
+            if (cover != null) {
                 Image(
-                    bitmap = image.asImageBitmap(),
+                    bitmap = cover!!.asImageBitmap(),
                     contentDescription = stringResource(R.string.album_cover_description),
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(240.dp),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(242.dp),
                 )
             } else {
                 Icon(
                     painter = painterResource(R.drawable.ic_nav_albums),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(48.dp),
                 )
             }
         }
+        androidx.compose.foundation.layout.Spacer(Modifier.size(16.dp))
         Text(
             group.name,
             style = MaterialTheme.typography.headlineMedium,
+            color = androidx.compose.ui.graphics.Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
-        group.subtitle?.takeIf { it.isNotBlank() }?.let { artist ->
+        group.subtitle?.takeIf { it.isNotBlank() }?.let {
             Text(
-                artist,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
+                text = it,
+                style = MaterialTheme.typography.headlineSmall,
+                color = androidx.compose.ui.graphics.Color.White.copy(alpha = .83f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
             )
         }
-        // Apple Music-inspired hierarchy: cover, title, artist, ONE quiet
-        // metadata line, primary Play and a secondary overflow action.
-        // Administrative reindex never occupies the everyday album surface.
         val facts = listOfNotNull(
             genre?.takeIf { it.isNotBlank() },
             year?.toString(),
-        ).joinToString(" · ").uppercase()
-        if (facts.isNotEmpty()) Text(
-            text = facts,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+        ).joinToString(" · ")
+        if (facts.isNotBlank()) {
+            androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp))
+            Text(
+                text = facts,
+                color = androidx.compose.ui.graphics.Color.White.copy(alpha = .68f),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        androidx.compose.foundation.layout.Spacer(Modifier.size(20.dp))
+        // Screenshot structure: small shuffle circle, big white play capsule,
+        // small add circle (a disabled placeholder until playlists arrive).
         Row(
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Button(
-                enabled = canPlay,
-                onClick = onPlayAll,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                ),
-                shape = RoundedCornerShape(10.dp),
+            Box(
+                modifier = Modifier.size(52.dp)
+                    .background(
+                        androidx.compose.ui.graphics.Color.White.copy(alpha = .13f),
+                        RoundedCornerShape(26.dp),
+                    ),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(painter = painterResource(R.drawable.ic_action_play),
-                    contentDescription = null)
-                Text(stringResource(R.string.album_play_all))
-            }
-            Button(
-                enabled = canPlay,
-                onClick = onShuffleAll,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                ),
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Icon(painter = painterResource(R.drawable.ic_action_shuffle),
-                    contentDescription = null)
-                Text(stringResource(R.string.library_shuffle_all))
-            }
-            Box {
-                IconButton(onClick = { actionsExpanded = true }) {
+                IconButton(onClick = onShuffleAll, enabled = canPlay) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_action_more),
-                        contentDescription = stringResource(R.string.album_actions),
+                        painter = painterResource(R.drawable.ic_action_shuffle),
+                        contentDescription = stringResource(R.string.library_shuffle_all),
+                        tint = androidx.compose.ui.graphics.Color.White,
                     )
                 }
-                DropdownMenu(
-                    expanded = actionsExpanded,
-                    onDismissRequest = { actionsExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(if (refreshingTags)
-                            R.string.album_refresh_busy else R.string.album_refresh_tags)) },
-                        enabled = canRefreshTags && !refreshingTags,
-                        onClick = {
-                            actionsExpanded = false
-                            onRefreshTags()
-                        },
-                    )
+            }
+            Button(
+                onClick = onPlayAll,
+                enabled = canPlay,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = androidx.compose.ui.graphics.Color.White,
+                    contentColor = androidx.compose.ui.graphics.Color(0xFF202024),
+                    disabledContainerColor = androidx.compose.ui.graphics.Color.White.copy(alpha=.62f),
+                    disabledContentColor = androidx.compose.ui.graphics.Color.DarkGray,
+                ),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
+            ) {
+                Icon(painterResource(R.drawable.ic_action_play), contentDescription = null,
+                    modifier = Modifier.size(20.dp))
+                Text(
+                    stringResource(R.string.ui_play),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                )
+            }
+            Box(
+                modifier = Modifier.size(52.dp).background(
+                    androidx.compose.ui.graphics.Color.White.copy(alpha=.13f),
+                    RoundedCornerShape(26.dp),
+                ),
+                contentAlignment = Alignment.Center,
+            ) {
+                IconButton(enabled = false, onClick = {}) {
+                    Icon(painterResource(R.drawable.ic_music_add), contentDescription = null,
+                        tint = androidx.compose.ui.graphics.Color.White)
                 }
             }
         }
-        if (refreshMessage.isNotEmpty()) {
-            Text(
-                text = refreshMessage,
+        // Reindexing stays in overflow, with the same real callback.
+        Box(modifier = Modifier.align(Alignment.End)) {
+            IconButton(onClick = { actionsExpanded = true }) {
+                Icon(painterResource(R.drawable.ic_action_more),
+                    contentDescription = stringResource(R.string.album_actions),
+                    tint = androidx.compose.ui.graphics.Color.White)
+            }
+            DropdownMenu(expanded = actionsExpanded,
+                onDismissRequest = { actionsExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (refreshingTags)
+                        R.string.album_refresh_busy else R.string.album_refresh_tags)) },
+                    enabled = canRefreshTags && !refreshingTags,
+                    onClick = {
+                        actionsExpanded = false
+                        onRefreshTags()
+                    },
+                )
+            }
+        }
+        if (refreshMessage.isNotBlank()) {
+            Text(refreshMessage,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
+                color = androidx.compose.ui.graphics.Color.White.copy(alpha=.7f),
+                textAlign = TextAlign.Center)
         }
     }
 }

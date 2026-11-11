@@ -236,4 +236,5 @@
     <string name="appearance_purple">Purple</string>
     <string name="library_shuffle_all">Shuffle</string>
     <string name="home_library_sections">Library sections</string>
+    <string name="ui_play">Play</string>
 </resources>
