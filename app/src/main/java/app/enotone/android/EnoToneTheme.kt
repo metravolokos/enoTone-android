@@ -41,6 +41,9 @@ internal object UiAppearance {
         private set
     var accent by mutableStateOf(UiAccent.RED)
         private set
+    var playerVisible by mutableStateOf(false)
+        private set
+    fun setPlayerVisible(visible: Boolean) { playerVisible = visible }
 
     fun initialize(context: Context) {
         if (initialized) return
@@ -131,8 +134,8 @@ internal fun EnoToneTheme(content: @Composable () -> Unit) {
             @Suppress("DEPRECATION")
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
             val controller = WindowCompat.getInsetsController(window, window.decorView)
-            controller.isAppearanceLightStatusBars = !dark
-            controller.isAppearanceLightNavigationBars = !dark
+            controller.isAppearanceLightStatusBars = !dark && !UiAppearance.playerVisible
+            controller.isAppearanceLightNavigationBars = !dark && !UiAppearance.playerVisible
         }
     }
     val accent = if (dark) {
