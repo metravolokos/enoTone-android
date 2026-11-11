@@ -110,7 +110,7 @@ jobs:
         run: gradle --no-daemon detekt
       - name: Upload detekt reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: detekt-reports
           path: '**/build/reports/detekt/'
@@ -211,7 +211,7 @@ jobs:
           echo "::notice::Isolated preview package; runner-generated debug signatures are not stable between runs"
       - name: Upload debug APK
         id: upload_preview
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success()
         with:
           name: enotone-preview-debug-apk
@@ -286,7 +286,7 @@ jobs:
       - name: Upload verified stable Preview APK
         id: upload_stable_preview
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.ENOTONE_STABLE_PREVIEW_ENABLED == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: enotone-stable-preview-apk
           path: app/build/outputs/apk/stablePreview/app-stablePreview.apk
@@ -318,7 +318,7 @@ jobs:
 
       - name: Upload blocked diagnostic APK (not approved for installation)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: enotone-m0-blocked-diagnostic-apk
           path: app/build/outputs/apk/debug/app-debug.apk
