@@ -100,8 +100,8 @@ internal fun NowPlayingScreen(
 ) {
     // White system icons above the full-bleed artwork sheet; restore on close.
     DisposableEffect(Unit) {
-        UiAppearance.setPlayerVisible(true)
-        onDispose { UiAppearance.setPlayerVisible(false) }
+        UiAppearance.showNowPlaying(true)
+        onDispose { UiAppearance.showNowPlaying(false) }
     }
     var isScrubbing by remember(trackId) { mutableStateOf(false) }
     var scrubFraction by remember(trackId) { mutableFloatStateOf(0f) }

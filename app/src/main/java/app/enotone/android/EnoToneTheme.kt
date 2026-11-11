@@ -43,7 +43,7 @@ internal object UiAppearance {
         private set
     var playerVisible by mutableStateOf(false)
         private set
-    fun setPlayerVisible(visible: Boolean) { playerVisible = visible }
+    fun showNowPlaying(visible: Boolean) { playerVisible = visible }
 
     fun initialize(context: Context) {
         if (initialized) return
