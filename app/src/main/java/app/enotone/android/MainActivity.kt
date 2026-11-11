@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.content.pm.PackageManager
 import android.content.Context
 import android.content.Intent
-import androidx.room.Room
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
@@ -159,11 +158,9 @@ private fun DiagnosticScreen() {
         try {
             val pendingTags = withContext(Dispatchers.IO) {
                 val db = openLibraryDatabase(appContext)
-                try {
+                run {
                     db.remoteTrackDao().pendingFastScans(
                         LibrarySnapshotPlanner.accountKey(email)).isNotEmpty()
-                } finally {
-                    db.close()
                 }
             }
             if (pendingTags) return@LaunchedEffect
@@ -244,15 +241,13 @@ private fun DiagnosticScreen() {
             try {
                 val result = withContext(Dispatchers.IO) {
                     val database = openLibraryDatabase(appContext)
-                    try {
+                    run {
                         PilotTagIndexer(database).run(
                             email, password, count,
                             onProgress = { progress ->
                                 withContext(Dispatchers.Main) { report = showPilot(progress) }
                             },
                         )
-                    } finally {
-                        database.close()
                     }
                 }
                 report = showPilot(result)
@@ -568,15 +563,13 @@ private fun DiagnosticScreen() {
                         FlatLibraryWebDavClient().use { client ->
                             val listing = client.list(email, password)
                             val database = openLibraryDatabase(appContext)
-                            try {
+                            run {
                                 val store = LibrarySnapshotStore(database)
                                 val plan = store.save(email, listing)
                                 val pending = database.remoteTrackDao().pendingFastScans(
                                     LibrarySnapshotPlanner.accountKey(email)).size
                                 intArrayOf(listing.tracks.size, store.presentCount(email),
                                     plan.inserted, plan.changed, plan.unchanged, pending)
-                            } finally {
-                                database.close()
                             }
                         }
                     }
@@ -632,7 +625,7 @@ private fun DiagnosticScreen() {
                                 try {
                                     queued = withContext(Dispatchers.IO) {
                                         val db = openLibraryDatabase(appContext)
-                                        try {
+                                        run {
                                             val selected = LibraryReindexCoordinator(db).queue(
                                                 email, LibraryReindexScope.EntireLibrary)
                                             if (selected.queued > 0) {
@@ -658,8 +651,6 @@ private fun DiagnosticScreen() {
                                                 }
                                             }
                                             selected.queued
-                                        } finally {
-                                            db.close()
                                         }
                                     }
                                     report = if (queued > 0) String.format(
@@ -694,10 +685,8 @@ private fun DiagnosticScreen() {
                 try {
                     val saved = withContext(Dispatchers.IO) {
                         val database = openLibraryDatabase(appContext)
-                        try {
+                        run {
                             LibrarySnapshotStore(database).presentCount(email)
-                        } finally {
-                            database.close()
                         }
                     }
                     report = String.format(Locale.getDefault(), storedReport, saved)
@@ -717,10 +706,8 @@ private fun DiagnosticScreen() {
                 try {
                     val coverage = withContext(Dispatchers.IO) {
                         val database = openLibraryDatabase(appContext)
-                        try {
+                        run {
                             LibraryTagStore(database).storedCoverage(email)
-                        } finally {
-                            database.close()
                         }
                     }
                     // Only aggregate counts reach the UI, never private metadata.
@@ -755,8 +742,7 @@ private fun DiagnosticScreen() {
                     try {
                         tagAuditRows = withContext(Dispatchers.IO) {
                             val database = openLibraryDatabase(appContext)
-                            try { LibraryTagStore(database).missingAlbum(email) }
-                            finally { database.close() }
+                            run { LibraryTagStore(database).missingAlbum(email) }
                         }
                         tagAuditSelectedId = null
                         tagAuditMessage = if (tagAuditRows.isEmpty())
@@ -774,8 +760,7 @@ private fun DiagnosticScreen() {
                     try {
                         tagAuditRows = withContext(Dispatchers.IO) {
                             val database = openLibraryDatabase(appContext)
-                            try { LibraryTagStore(database).missingAlbumArtist(email) }
-                            finally { database.close() }
+                            run { LibraryTagStore(database).missingAlbumArtist(email) }
                         }
                         tagAuditSelectedId = null
                         tagAuditMessage = if (tagAuditRows.isEmpty())
@@ -803,10 +788,10 @@ private fun DiagnosticScreen() {
                     try {
                         tagAuditRows = withContext(Dispatchers.IO) {
                             val database = openLibraryDatabase(appContext)
-                            try {
+                            run {
                                 LibraryTagStore(database).findTracks(
                                     email, tagAuditSearch)
-                            } finally { database.close() }
+                            }
                         }
                         tagAuditSelectedId = null
                         tagAuditMessage = if (tagAuditRows.isEmpty())
@@ -847,10 +832,10 @@ private fun DiagnosticScreen() {
                         try {
                             val queued = withContext(Dispatchers.IO) {
                                 val database = openLibraryDatabase(appContext)
-                                try {
+                                run {
                                     LibraryTagStore(database).queueOneForRefresh(
                                         email, selected.id)
-                                } finally { database.close() }
+                                }
                             }
                             tagAuditMessage = if (queued) auditQueued else auditFailed
                         } catch (_: Exception) {
@@ -880,8 +865,7 @@ private fun DiagnosticScreen() {
                     try {
                         val queued = withContext(Dispatchers.IO) {
                             val database = openLibraryDatabase(appContext)
-                            try { LibraryTagStore(database).queueAllForRefresh(email) }
-                            finally { database.close() }
+                            run { LibraryTagStore(database).queueAllForRefresh(email) }
                         }
                         tagAuditMessage = String.format(Locale.getDefault(),
                             auditQueuedAll, queued)
@@ -904,7 +888,7 @@ private fun DiagnosticScreen() {
                 try {
                     val result = withContext(Dispatchers.IO) {
                         val database = openLibraryDatabase(appContext)
-                        val selected = try {
+                        val selected = run {
                             val sourceKey = LibrarySnapshotPlanner.accountKey(email)
                             val available = database.remoteTrackDao().allForSource(sourceKey)
                                 .filter { it.missingScans == 0 && (it.remoteSize ?: 0L) > 0L }
@@ -922,8 +906,6 @@ private fun DiagnosticScreen() {
                                     it.fileName == Normalizer.normalize(name, Normalizer.Form.NFC)
                                 }
                             }
-                        } finally {
-                            database.close()
                         }
                         if (selected == null) {
                             intArrayOf(-1, 0, 0, 0, 0, 0, 0)
@@ -951,11 +933,9 @@ private fun DiagnosticScreen() {
                                 // Persist only if Room still contains the same file version.
                                 tagStage = "STORE"
                                 val writeDatabase = openLibraryDatabase(appContext)
-                                val persisted = try {
+                                val persisted = run {
                                     LibraryTagStore(writeDatabase).saveIfUnchanged(
                                         email, selected, tags)
-                                } finally {
-                                    writeDatabase.close()
                                 }
                                 intArrayOf(1,
                                     if (tags.title != null) 1 else 0,
@@ -1015,7 +995,7 @@ private fun DiagnosticScreen() {
                 try {
                     val outcome = withContext(Dispatchers.IO) {
                         val database = openLibraryDatabase(appContext)
-                        val selected = try {
+                        val selected = run {
                             val key = LibrarySnapshotPlanner.accountKey(email)
                             val candidates = database.remoteTrackDao().allForSource(key).filter {
                                 it.missingScans == 0 &&
@@ -1039,8 +1019,6 @@ private fun DiagnosticScreen() {
                                     it.fileName == Normalizer.normalize(name, Normalizer.Form.NFC)
                                 }
                             }
-                        } finally {
-                            database.close()
                         }
                         if (selected == null) null else {
                             stage = "FAST_RANGE"
@@ -1062,11 +1040,9 @@ private fun DiagnosticScreen() {
                                 if (extractedTags != null) {
                                     stage = "FAST_STORE"
                                     val storeDatabase = openLibraryDatabase(appContext)
-                                    persisted = try {
+                                    persisted = run {
                                         LibraryTagStore(storeDatabase).saveIfUnchanged(
                                             email, selected, extractedTags)
-                                    } finally {
-                                        storeDatabase.close()
                                     }
                                 }
                                 FastProbeResult(
@@ -1105,10 +1081,8 @@ private fun DiagnosticScreen() {
                 try {
                     val stored = withContext(Dispatchers.IO) {
                         val database = openLibraryDatabase(appContext)
-                        try {
+                        run {
                             PilotTagIndexer(database).offlineCheckpoint(email)
-                        } finally {
-                            database.close()
                         }
                     }
                     report = String.format(Locale.getDefault(), pilotOffline,
@@ -1247,12 +1221,12 @@ private fun DiagnosticScreenPreview() {
     EnoToneTheme { DiagnosticScreen() }
 }
 
+/**
+ * Returns the process-wide shared database (M6-0/2). Never close the result.
+ * The name is kept for now; call sites move to repositories in M6-0/4.
+ */
 internal fun openLibraryDatabase(context: Context): EnoToneDatabase =
-    Room.databaseBuilder(
-        context.applicationContext,
-        EnoToneDatabase::class.java,
-        "enotone-local-library.db",
-    ).build()
+    EnoToneDatabase.getInstance(context)
 
 /** Aggregates only; never carries remote names or tag values to Compose. */
 private data class FastProbeResult(

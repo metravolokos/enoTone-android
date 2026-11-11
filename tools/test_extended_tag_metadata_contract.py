@@ -19,8 +19,9 @@ class ExtendedTagMetadataContractTest(unittest.TestCase):
             self.assertIn(token, db)
         for field in ('year', 'trackNumber', 'discNumber'):
             self.assertIn(f'val {field}: Int? = null', entity)
-        self.assertIn('"enotone-local-library.db"', main)
-        self.assertNotIn('fallbackToDestructiveMigration', main)
+        # M6-0/2: the builder moved into the shared EnoToneDatabase.getInstance().
+        self.assertIn('"enotone-local-library.db"', db)
+        self.assertNotIn('fallbackToDestructiveMigration', db + main)
 
     def test_fast_parser_and_bounded_cas_persist_new_metadata(self):
         parser = self.src("data/library/src/main/java/app/enotone/library/FastAudioTagReader.kt")

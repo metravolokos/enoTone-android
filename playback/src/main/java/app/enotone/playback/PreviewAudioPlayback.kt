@@ -328,6 +328,11 @@ class PreviewAudioPlayback(
         }
     }
     val player: ExoPlayer = ExoPlayer.Builder(context.applicationContext)
+        // Streaming from WebDAV with the screen off: without a Wi-Fi lock the
+        // system may power down Wi-Fi mid-track (ADR-0074, M6-0/2). Media3
+        // holds the wake and Wi-Fi locks only while playing or buffering.
+        // Requires android.permission.WAKE_LOCK in the app manifest.
+        .setWakeMode(C.WAKE_MODE_NETWORK)
         .build().apply {
             setAudioAttributes(
                 AudioAttributes.Builder()
