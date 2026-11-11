@@ -80,7 +80,7 @@ class UnifiedImportGenreContractTest(unittest.TestCase):
         self.assertIn("OfflineTrackCatalog.commonAlbumGenre(albumTracks)", ui)
         self.assertIn("genre = albumGenre", ui)
         self.assertIn("genre?.takeIf { it.isNotBlank() }", header)
-        self.assertIn("text = facts", header)
+        self.assertIn("Text(facts,", header)
         self.assertNotIn("WebDavRangeReader(", header)
 
     def test_cover_policy_remains_lazy_not_a_bulk_import(self):

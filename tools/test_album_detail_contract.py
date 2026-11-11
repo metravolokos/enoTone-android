@@ -69,7 +69,7 @@ class AlbumDetailContractTest(unittest.TestCase):
             "Button(",
             "enabled = canPlay",
             "onClick = onPlayAll",
-            "modifier = Modifier.size(242.dp)",
+            "modifier = Modifier.size(232.dp)",
         ):
             self.assertIn(required, header)
         self.assertNotIn("WebDavRangeReader(", header)
