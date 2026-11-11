@@ -12,7 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.enotone.library.OfflineLibraryGroup
 
@@ -54,6 +58,7 @@ internal fun AlbumDetailHeader(
     refreshMessage: String,
     onRefreshTags: () -> Unit,
 ) {
+    var actionsExpanded by remember(group.key) { mutableStateOf(false) }
     // Lazy grid/list items are disposed during navigation. If we already
     // drew this source on another page, paint the RAM image immediately
     // instead of briefly resetting it to a placeholder.
@@ -115,33 +120,34 @@ internal fun AlbumDetailHeader(
                 textAlign = TextAlign.Center,
             )
         }
-        if (year != null) {
-            Text(
-                text = year.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (!genre.isNullOrBlank()) {
-            Text(
-                text = genre,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        // Apple Music-inspired hierarchy: cover, title, artist, ONE quiet
+        // metadata line, primary Play and a secondary overflow action.
+        // Administrative reindex never occupies the everyday album surface.
+        val facts = listOfNotNull(
+            year?.toString(),
+            genre?.takeIf { it.isNotBlank() },
+            stringResource(R.string.library_group_tracks, group.trackIds.size),
+        ).joinToString(" · ")
         Text(
-            text = stringResource(R.string.library_group_tracks, group.trackIds.size),
+            text = facts,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
-        Button(
-            enabled = canPlay,
-            onClick = onPlayAll,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(top = 4.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Button(
+                enabled = canPlay,
+                onClick = onPlayAll,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ),
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_action_play),
@@ -149,13 +155,28 @@ internal fun AlbumDetailHeader(
                 )
                 Text(stringResource(R.string.album_play_all))
             }
-        }
-        OutlinedButton(
-            enabled = canRefreshTags && !refreshingTags,
-            onClick = onRefreshTags,
-        ) {
-            Text(stringResource(if (refreshingTags)
-                R.string.album_refresh_busy else R.string.album_refresh_tags))
+            Box {
+                IconButton(onClick = { actionsExpanded = true }) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_action_more),
+                        contentDescription = stringResource(R.string.album_actions),
+                    )
+                }
+                DropdownMenu(
+                    expanded = actionsExpanded,
+                    onDismissRequest = { actionsExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(if (refreshingTags)
+                            R.string.album_refresh_busy else R.string.album_refresh_tags)) },
+                        enabled = canRefreshTags && !refreshingTags,
+                        onClick = {
+                            actionsExpanded = false
+                            onRefreshTags()
+                        },
+                    )
+                }
+            }
         }
         if (refreshMessage.isNotEmpty()) {
             Text(
