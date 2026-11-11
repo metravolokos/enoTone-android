@@ -386,8 +386,15 @@ internal class ArtworkPreviewRepository(context: Context) {
                 }
             }
             if (raw == null) {
-                if (lookupCode == ArtworkLookupCode.NOT_FOUND) {
-                    // Never mistake an HTTP / decoding error for "no image".
+                if (lookupCode in setOf(
+                    ArtworkLookupCode.NOT_FOUND,
+                    ArtworkLookupCode.UNSUPPORTED_FORMAT,
+                    ArtworkLookupCode.UNSUPPORTED_LAYOUT,
+                    ArtworkLookupCode.INVALID_METADATA,
+                    ArtworkLookupCode.LIMIT_EXCEEDED,
+                )) {
+                    // A deterministic unsupported image is a complete attempt.
+                    // READ_FAILED, auth and network faults remain retryable.
                     atomicWrite(reference, NO_ART_DIGEST.toByteArray(Charsets.US_ASCII))
                 }
                 return null
@@ -397,7 +404,14 @@ internal class ArtworkPreviewRepository(context: Context) {
                 decode(raw, MAX_SIDE)
             } finally {
                 raw.fill(0)
-            } ?: return null
+            }
+            if (master == null) {
+                // Successfully downloaded but not decodable: not an HTTP
+                // failure. Avoid fetching the same broken embedded art every
+                // launch; manual reindex removes this negative checkpoint.
+                atomicWrite(reference, NO_ART_DIGEST.toByteArray(Charsets.US_ASCII))
+                return null
+            }
             coroutineContext.ensureActive()
             try {
                 // Store the quality master BEFORE making a small UI bitmap.
