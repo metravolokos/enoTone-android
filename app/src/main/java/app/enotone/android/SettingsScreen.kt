@@ -82,6 +82,10 @@ internal fun DiagnosticScreen() {
     val account by accountModel.state.collectAsStateWithLifecycle()
     val email = account.email
     val password = account.password
+    val technicalModel: TechnicalProbeViewModel = viewModel(factory = remember(appContext) {
+        TechnicalProbeViewModel.factory((appContext as EnoToneApplication).container)
+    })
+    val technicalState by technicalModel.state.collectAsStateWithLifecycle()
     var testFile by remember { mutableStateOf("") }
     var testInfinity by remember { mutableStateOf(false) }
     var report by remember { mutableStateOf("") }
@@ -189,6 +193,23 @@ internal fun DiagnosticScreen() {
     val countReport = stringResource(R.string.file_count_report)
     val countFailed = stringResource(R.string.file_count_failed)
     val httpFailure = stringResource(R.string.webdav_http_failed)
+    // One-way delivery from the ViewModel; never exposes paths or credentials.
+    LaunchedEffect(technicalState.version) {
+        if (technicalState.version > 0) {
+            report = when (val result = technicalState.result) {
+                is TechnicalProbeResult.Report -> result.text
+                is TechnicalProbeResult.Counts -> String.format(
+                    Locale.getDefault(), countReport,
+                    result.value.playable, result.value.directories,
+                    result.value.nested, result.value.nonAudio, result.value.invalid)
+                is TechnicalProbeResult.HttpFailure ->
+                    String.format(Locale.getDefault(), httpFailure, result.status)
+                TechnicalProbeResult.FailedProbe -> diagnosticFailed
+                TechnicalProbeResult.FailedListing -> countFailed
+                null -> ""
+            }
+        }
+    }
 
     fun showPilot(progress: PilotIndexProgress): String =
         String.format(Locale.getDefault(), pilotReport,
@@ -417,54 +438,20 @@ internal fun DiagnosticScreen() {
             Checkbox(checked = testInfinity, onCheckedChange = { testInfinity = it })
             Text(stringResource(R.string.test_infinity))
         }
-        Button(enabled = !busy, onClick = {
-            if (email.isBlank() || password.isBlank()) {
-                report = missingCredentials
-            } else {
-                busy = true
+        Button(enabled = !busy && !technicalState.busy, onClick = {
+            if (email.isBlank() || password.isBlank()) report = missingCredentials
+            else {
                 report = ""
-                scope.launch {
-                    try {
-                        report = withContext(Dispatchers.IO) {
-                            WebDavDiagnostics().inspect(email, password, testFile, testInfinity).toSanitizedText()
-                        }
-                    } catch (_: Exception) {
-                        report = diagnosticFailed
-                    } finally {
-                        busy = false
-                    }
-                }
+                technicalModel.check(email, password, testFile, testInfinity)
             }
         }) {
-            Text(if (busy) stringResource(R.string.running) else stringResource(R.string.run_probe))
+            Text(if (technicalState.busy) stringResource(R.string.running)
+                else stringResource(R.string.run_probe))
         }
-        Button(enabled = !busy && email.isNotBlank() && password.isNotBlank(), onClick = {
-            busy = true
-            report = ""
-            scope.launch {
-                try {
-                    val counts = withContext(Dispatchers.IO) {
-                        FlatLibraryWebDavClient().use { client ->
-                            val listing = client.list(email, password)
-                            intArrayOf(
-                                listing.tracks.size, listing.skippedDirectories,
-                                listing.skippedNested, listing.skippedNonAudio, listing.invalidEntries,
-                            )
-                        }
-                    }
-                    // Only counters cross into UI. Never display or log private remote paths.
-                    report = String.format(
-                        Locale.getDefault(), countReport,
-                        counts[0], counts[1], counts[2], counts[3], counts[4],
-                    )
-                } catch (e: FlatWebDavHttpError) {
-                    report = String.format(Locale.getDefault(), httpFailure, e.statusCode)
-                } catch (_: Exception) {
-                    report = countFailed
-                } finally {
-                    busy = false
-                }
-            }
+        Button(enabled = !busy && !technicalState.busy &&
+            email.isNotBlank() && password.isNotBlank(), onClick = {
+                report = ""
+                technicalModel.count(email, password)
         }) {
             Text(stringResource(R.string.count_audio_files))
         }
