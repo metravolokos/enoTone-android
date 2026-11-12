@@ -86,6 +86,10 @@ internal class PlayerViewModel(
         }
         viewModelScope.launch {
             connection.state.collect { current ->
+                if (accountEvents.value.phase == AccountPhase.SIGNED_OUT) {
+                    mutable.update { it.copy(playback = PlaybackSnapshot()) }
+                    return@collect
+                }
                 val old = mutable.value.playback
                 mutable.update { it.copy(playback = current) }
                 if (current.currentTrackId != old.currentTrackId ||
@@ -148,7 +152,7 @@ internal class PlayerViewModel(
         restoredAccount = null
         loadingAccount = null
         artworkJob?.cancel()
-        mutable.value = SharedPlayerUiState(playback = connection.state.value)
+        mutable.value = SharedPlayerUiState()
     }
 
     private fun ensureCatalog(saved: StoredWebDavLogin) {

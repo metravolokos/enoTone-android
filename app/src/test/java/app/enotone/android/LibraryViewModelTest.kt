@@ -2,6 +2,7 @@ package app.enotone.android
 
 import android.graphics.Bitmap
 import app.enotone.library.AlbumTagRefreshReport
+import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.LibraryPage
 import app.enotone.library.LibraryRepository
 import app.enotone.library.LibrarySnapshot
@@ -113,6 +114,7 @@ class LibraryViewModelTest {
         scope: TestScope,
         repository: FakeRepository,
         player: FakeConnection = FakeConnection(),
+        events: StateFlow<AccountState> = MutableStateFlow(AccountState()),
     ): LibraryViewModel = LibraryViewModel(
         accountEmail = email,
         password = "RAM-only",
@@ -125,6 +127,7 @@ class LibraryViewModelTest {
         messages = AlbumRefreshMessages(),
         clockMs = { 1234L },
         managedStatus = MutableStateFlow(ManagedScanStatus()),
+        accountEvents = events,
     )
 
     @Test fun loadDataAndEmptyLibrary() = runTest {
@@ -224,4 +227,52 @@ class LibraryViewModelTest {
             assertEquals(0, player.disconnectedCount)
         } finally { Dispatchers.resetMain() }
     }
+
+    @Test fun signOutImmediatelyClearsActivityScopedLibraryAndBlocksStaleQueries() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val session = AccountSession()
+            val original = row(1, "Зима")
+            val repo = FakeRepository(catalog(original, row(2, "Весна")))
+            val connection = FakeConnection()
+            val vm = model(this, repo, connection, session.state)
+            advanceUntilIdle()
+            assertEquals(2, vm.state.value.tracks.size)
+            assertEquals(2, vm.state.value.visible.size)
+            val key = LibrarySnapshotPlanner.accountKey(email)
+
+            session.beginSignOut(key)
+            advanceUntilIdle()
+            assertFalse(vm.state.value.loading)
+            assertTrue(vm.state.value.tracks.isEmpty())
+            assertTrue(vm.state.value.visible.isEmpty())
+            assertTrue(vm.state.value.artworkCatalog.groups.isEmpty())
+            assertNull(vm.state.value.currentTrackId)
+
+            session.finishSignOut(key)
+            advanceUntilIdle()
+            vm.onSearch("Зима")
+            vm.onTrackClicked(original, listOf(original))
+            advanceUntilIdle()
+            assertTrue(vm.state.value.tracks.isEmpty())
+            assertTrue(vm.state.value.visible.isEmpty())
+            assertNull(connection.selected) // no stale playback after account deletion
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun suspendedRoomLoadCannotRepopulateAfterSignOut() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val session = AccountSession()
+            val key = LibrarySnapshotPlanner.accountKey(email)
+            session.finishSignOut(key)
+            val vm = model(this, FakeRepository(catalog(row(1, "Старый трек"))),
+                events = session.state)
+            advanceUntilIdle()
+            assertTrue(vm.state.value.tracks.isEmpty())
+            assertTrue(vm.state.value.visible.isEmpty())
+            assertFalse(vm.state.value.loading)
+        } finally { Dispatchers.resetMain() }
+    }
+
 }

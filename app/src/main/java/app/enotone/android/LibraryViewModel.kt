@@ -148,6 +148,7 @@ internal class LibraryViewModel(
     private val clockMs: () -> Long = { System.nanoTime() / NANOS_PER_MILLISECOND },
     visiblePages: List<LibraryPage> = LibraryPageVisibility.defaultOrder,
     private val managedStatus: StateFlow<ManagedScanStatus> = ManagedScanRuntime.status,
+    private val accountEvents: StateFlow<AccountState> = MutableStateFlow(AccountState()),
 ) : ViewModel(), LibraryScreenActions {
     private val firstPage = LibraryPageVisibility.selectedOrFallback(initialPage, visiblePages)
     private val mutable = MutableStateFlow(
@@ -170,11 +171,45 @@ internal class LibraryViewModel(
     private var bufferingAfterTapMs: Long? = null
     private var readyAfterTapMs: Long? = null
     private var playingAfterTapMs: Long? = null
+    private var accountBlocked = accountEvents.value.blocks(sourceKey)
+
+    private fun unavailable(): Boolean = accountEvents.value.blocks(sourceKey)
+
+    /** Cancel callbacks and forget all in-memory tags, groups and artwork. */
+    private fun forgetAccount() {
+        filtersJob?.cancel()
+        artworkJob?.cancel()
+        fullArtworkJob?.cancel()
+        filterVersion++
+        artworkEpoch++
+        catalogue = LibrarySnapshot(emptyList(), emptyMap())
+        checkedByGroup.clear()
+        attemptedByGroup.clear()
+        selectionStartedAt = 0L
+        roomDurationMs = null
+        media3DurationMs = null
+        mutable.update { last ->
+            LibraryUiState(section = last.section, visiblePages = last.visiblePages,
+                managedScanStatus = last.managedScanStatus, loading = false)
+        }
+    }
 
     init {
         viewModelScope.launch {
+            accountEvents.collect { event ->
+                val blocked = event.blocks(sourceKey)
+                if (blocked) {
+                    accountBlocked = true
+                    forgetAccount()
+                } else if (accountBlocked) {
+                    accountBlocked = false
+                    reload()
+                }
+            }
+        }
+        viewModelScope.launch {
             connection.state.collect { snapshot ->
-                applyPlayback(snapshot)
+                if (!unavailable()) applyPlayback(snapshot)
             }
         }
         viewModelScope.launch {
@@ -187,10 +222,16 @@ internal class LibraryViewModel(
     }
 
     private fun reload() {
+        if (unavailable()) {
+            forgetAccount()
+            return
+        }
         viewModelScope.launch {
+            if (unavailable()) return@launch
             mutable.update { it.copy(loading = true, failed = false) }
             try {
                 val result = repository.load(accountEmail)
+                if (unavailable()) return@launch
                 catalogue = result
                 val covers = withContext(io) {
                     AlbumArtworkCatalog.build(result.tracks) { id ->
@@ -200,6 +241,7 @@ internal class LibraryViewModel(
                         }
                     }
                 }
+                if (unavailable()) return@launch
                 mutable.update {
                     it.copy(tracks = result.tracks, artworkCatalog = covers,
                         loading = false, failed = false)
@@ -259,7 +301,7 @@ internal class LibraryViewModel(
                     OfflineTrackCatalog.commonAlbumYear(album),
                     OfflineTrackCatalog.commonAlbumGenre(album), next)
             }
-            if (generation == filterVersion) {
+            if (generation == filterVersion && !unavailable()) {
                 mutable.update { current ->
                     current.copy(groups = result.groups, shownGroups = result.shown,
                         selectedGroup = result.group, visible = result.visible,
@@ -320,7 +362,7 @@ internal class LibraryViewModel(
     }
 
     override fun onTrackClicked(track: OfflineTrackRow, context: List<OfflineTrackRow>) {
-        if (mutable.value.selecting || !mutable.value.playbackConnected) return
+        if (unavailable() || mutable.value.selecting || !mutable.value.playbackConnected) return
         mutable.update { it.copy(selectedTitle = track.title, selectedArtist = track.artist) }
         if (password.isBlank()) {
             mutable.update { it.copy(playbackState = "MISSING_PASSWORD") }
@@ -339,11 +381,13 @@ internal class LibraryViewModel(
         }
         viewModelScope.launch {
             try {
+                if (unavailable()) return@launch
                 val started = clockMs()
                 val queue = withContext(io) {
                     context.mapNotNull { catalogue.preparedById[it.id] }
                 }
                 roomDurationMs = clockMs() - started
+                if (unavailable()) return@launch
                 if (queue.none { it.id == track.id }) {
                     mutable.update { it.copy(playbackState = "MISSING_TRACK") }
                 } else {
@@ -373,6 +417,7 @@ internal class LibraryViewModel(
     // Translate one complete Media3 snapshot atomically for the UI.
     @Suppress("CyclomaticComplexMethod")
     private fun applyPlayback(snapshot: PlaybackSnapshot) {
+        if (unavailable()) return
         val prior = mutable.value
         val playbackState = if (prior.selecting) prior.playbackState
             else snapshot.playbackState
@@ -432,6 +477,7 @@ internal class LibraryViewModel(
     }
 
     private fun refreshArtwork() {
+        if (unavailable()) return
         artworkJob?.cancel()
         fullArtworkJob?.cancel()
         val value = mutable.value
@@ -457,6 +503,7 @@ internal class LibraryViewModel(
     }
 
     private fun loadFullArtwork() {
+        if (unavailable()) return
         fullArtworkJob?.cancel()
         val value = mutable.value
         val group = value.artworkCatalog.byTrackId[value.currentTrackId]
@@ -487,6 +534,7 @@ internal class LibraryViewModel(
     // Guard conditions preserve the album-only refresh budget and selected group.
     @Suppress("CyclomaticComplexMethod", "ComplexCondition")
     override fun onConfirmAlbumRefresh() {
+        if (unavailable()) return
         val request = mutable.value.confirmAlbumRefresh ?: return
         mutable.update { it.copy(confirmAlbumRefresh = null) }
         val current = mutable.value
@@ -501,6 +549,7 @@ internal class LibraryViewModel(
         viewModelScope.launch {
             try {
                 val result = repository.refreshAlbum(accountEmail, password, ids)
+                if (unavailable()) return@launch
                 val refreshed = result.checkedIds.mapNotNull { id ->
                     catalogue.preparedById[id]?.let {
                         PlayingArtworkTarget(it.id, it.encodedPath, it.remoteSize, it.remoteEtag)
@@ -565,7 +614,8 @@ internal class LibraryViewModel(
                     RepositoryArtworkLoader(container.artworkPreviewRepository),
                     container.io, unknownAlbumName, messages,
                     useCache = { PlaybackDiagnosticsRuntime.useCacheOnNextPlay },
-                    visiblePages = visiblePages) as T
+                    visiblePages = visiblePages,
+                    accountEvents = container.accountSession.state) as T
             }
         }
     }

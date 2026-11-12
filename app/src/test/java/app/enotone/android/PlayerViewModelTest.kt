@@ -158,4 +158,35 @@ class PlayerViewModelTest {
             assertNull(connection.lastRestored)
         } finally { Dispatchers.resetMain() }
     }
+
+    @Test fun appScopeSignOutStopsRestoringAndDropsOldMiniPlayerState() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val session = AccountSession()
+            val repo = Repo(catalog())
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            val connection = Connection()
+            val vm = PlayerViewModel(
+                connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true },
+                accountEvents = session.state,
+            )
+            advanceUntilIdle()
+            assertEquals(1, connection.restores)
+            vm.onNowPlaying(true)
+            session.beginSignOut(LibrarySnapshotPlanner.accountKey(email))
+            advanceUntilIdle()
+            assertFalse(vm.state.value.nowPlaying)
+            session.finishSignOut(LibrarySnapshotPlanner.accountKey(email))
+            advanceUntilIdle()
+            assertEquals(0, vm.state.value.playback.queueTotal)
+            assertFalse(vm.state.value.nowPlaying)
+            assertNull(vm.state.value.artwork)
+            vm.onCredentialsPersisted(email, "stored-password")
+            advanceUntilIdle()
+            assertEquals(1, connection.restores) // blocked by account session
+        } finally { Dispatchers.resetMain() }
+    }
+
 }
