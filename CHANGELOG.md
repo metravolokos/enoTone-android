@@ -1,29 +1,37 @@
 # CHANGELOG
 
-> С 2026-11-12 версии нумеруются по [ADR-0078](docs/DECISIONS/ADR-0078-versioning.md): секции `Unreleased` получают номер версии при приёмке на Huawei. Всё, что ниже, вошло в **0.6.0**.
+> Версии — по [ADR-0078](docs/DECISIONS/ADR-0078-versioning.md): новое пишется в `Unreleased`; при приёмке на Huawei секция получает номер принятой сборки.
 
-## Unreleased — нумерация версий (2026-11-12)
+## Unreleased
+
+- Разработка версии 0.6.1.
+
+## 0.6.0 — 2026-11-12
+
+Принята владельцем на Huawei: `0.6.0-preview.429` (`main` `f6a1359`), git-метка `v0.6.0`. Включает всё ниже.
+
+### нумерация версий (2026-11-12)
 
 - `versionName` = `0.6.0`; Stable Preview — `0.6.0-preview.<номер CI>`. Версия показывается первой строкой в Настройках. ADR-0078, процедура — RELEASE.md.
 - После слияния #98 (D1): статусы ADR-0079, ROADMAP, REQUIREMENTS (O-08, O-14; нумерация версий — O-15), STATUS. Дизайн привязан к этапам: M6-0/5 открывает D2, M6-0/6–7 нужны для D4, M6-0/4b–4c — для D6; правило в AGENTS.md; строка в KNOWN_ISSUES о неиспользуемых ресурсах.
 
-## Unreleased — M6-0/R (D1): ресурсы дизайна Android v2 (2026-11-12)
+### M6-0/R (D1): ресурсы дизайна Android v2 (2026-11-12)
 
 - Иконка приложения v2.0 (adaptive: Бандит на «Графите» + legacy PNG), `android:icon`/`android:roundIcon` в манифесте — единственное видимое изменение.
 - Неиспользуемые пока ресурсы для шагов D2–D6: 19 значков `ic_eno_*` (UI Icons v1), `enotone_wordmark` с цветами темы, 12 поз Бандита (`drawable-nodpi/bandit_*.webp`, `tools/convert_bandit.py`), палитра `eno_*`, шрифты Onest/Unbounded (OFL); `tools:keep`. Источник — `enotone-design` `ea2931c`.
 - `docs/DESIGN_PLAN.md` — порядок переноса дизайна; [ADR-0079](docs/DECISIONS/ADR-0079-design-resources-v2.md); AGENTS, ROADMAP, CURRENT_DECISIONS, REQUIREMENTS (O-08, O-14), TESTING (п. 13), THIRD_PARTY_LICENSES.
 
-## Unreleased — исправления по Huawei 2026-11-12
+### исправления по Huawei 2026-11-12
 
 - Восстановленный трек до первого Play показывал шкалу на нуле и «--:--»: длительность теперь сохраняется в файле позиции (необязательное поле `durationMs`, старые файлы читаются) и показывается до подготовки плеера.
 - Возврат из «Сейчас играет» сбрасывал список медиатеки в начало (регрессия #92): состояния прокрутки сохраняются через `SaveableStateHolder` / `rememberSaveable`.
 - Регулятор громкости удалён полностью — код, строки, иконки (решение владельца, REQUIREMENTS O-12); строковые проверки переведены на запрет.
 
-## Unreleased — матрица требований (#93, 2026-11-12)
+### матрица требований (#93, 2026-11-12)
 
 - `docs/REQUIREMENTS.md`: все требования ТЗ и решения владельца O-01…O-11 со статусом и доказательством; правило в AGENTS.md — каждый PR обновляет затронутые строки. После слияния #92 строки O-10, R-3.9, R-4.3, R-6.6d обновлены.
 
-## Unreleased — M6-0/4a: слой представления медиатеки (#92, слит 2026-11-12)
+### M6-0/4a: слой представления медиатеки (#92, слит 2026-11-12)
 
 - Общий Activity-scoped `PlayerViewModel` восстанавливает очередь при запуске на любом экране и ведёт мини-плеер на Home / Library / Settings; строка диагностики checkpoint; JVM-тесты атомарной пары и отката. Проверка на Huawei открыта.
 
@@ -32,24 +40,24 @@
 - Убраны завязанные на старый Kotlin-файл Python-проверки строк; оставлен временный защитный контракт без `stopPlayback` и секретов в `Intent` на новом владельце кода. Mock WebDAV не менялся. Подробное сопоставление — описание PR #92.
 - Room-схема, WebDAV-клиенты, `:playback`, внешний вид и правила получения обложек не изменены. CI exact HEAD и Huawei smoke должны быть подтверждены отдельно; никаких PASS заранее.
 
-## Unreleased — M6-0/8: инструменты качества (2026-11-12)
+### M6-0/8: инструменты качества (2026-11-12)
 
 - Gradle Wrapper 8.13 (`./gradlew`) с проверкой SHA-256 дистрибутива; проверка `gradle-wrapper.jar` в CI.
 - detekt 1.23.8 + правила ktlint (detekt-formatting) для всех модулей, **только отчёт** (артефакт `detekt-reports`); 546 замечаний — к разбору в M6-0/4–5. ADR-0076.
 - CI: JUnit и Android Lint во **всех** модулях (раньше lint только `:app`).
 - Dependabot: Gradle еженедельно (группы Kotlin+KSP, Media3, Room), GitHub Actions ежемесячно.
 
-## Unreleased — M6-0/3: сохранение очереди (2026-11-12)
+### M6-0/3: сохранение очереди (2026-11-12)
 
 - [ADR-0075](docs/DECISIONS/ADR-0075-queue-persistence.md): два атомарных JSON v1 в noBackupFilesDir с общей ревизией (большая очередь/перестановка пишется только при изменении очереди или shuffle, маленькая позиция/repeat — периодически), Gson через version catalog, восстановление seed из Room с порционным заполнением без сетевого prepare до Play, числовая диагностика restoreSeedMs; поведенческие JUnit-тесты рассинхронизации и очереди 3590. Слито как #82 (squash `130f2f7`); проверка на Huawei — по TESTING.
 
-## Unreleased — M6-0/2: общая база данных и удержание Wi-Fi (2026-11-11)
+### M6-0/2: общая база данных и удержание Wi-Fi (2026-11-11)
 
 - `EnoToneDatabase.getInstance()` — один экземпляр Room на процесс вместо создания и закрытия новой базы в 20 местах UI и сервисов; файл базы и схема v4 не изменены, данные на устройстве сохраняются.
 - ExoPlayer: `setWakeMode(C.WAKE_MODE_NETWORK)` и разрешение `WAKE_LOCK` — Media3 удерживает Wi-Fi только во время воспроизведения/буферизации.
 - Контрактный тест имени файла базы перенаправлен на `EnoToneDatabase.kt`.
 
-## Unreleased — M6-0/1: порядок в документации (2026-11-11)
+### M6-0/1: порядок в документации (2026-11-11)
 
 - Начат этап M6-0 — устранение технического долга по итогам аудита ([ADR-0074](docs/DECISIONS/ADR-0074-m6-0-tech-debt-plan.md)); визуальное направление заморожено на ADR-0073.
 - `docs/STATUS.md`, `docs/KNOWN_ISSUES.md`, `docs/TESTING.md` переписаны как описание **текущего** состояния; прежние журналы (включая Huawei #301 «Работает» и все числовые отчёты) перенесены без изменений в `docs/archive/`, туда же — `REVISION_2026-11-10.md` и `UI_REVIEW_2026-11-10.md`.
@@ -58,7 +66,7 @@
 - `ARCHITECTURE.md`: раздел о фактическом состоянии модулей; `ROADMAP.md`, `CURRENT_DECISIONS.md`, `README.md` — этап M6-0, устаревшие UI-разделы сведены к истории.
 - Код приложения не менялся.
 
-## Unreleased — Graphite Material3 (2026-11-11, PR #78)
+### Graphite Material3 (2026-11-11, PR #78)
 
 - Убраны цветные пользовательские акценты, настройка акцента и цветные фоны обложек в UI; System/Dark/Light остаются.
 - Нативная `NavigationBar`, поднятый `Surface` мини-плеера, действующие разделы без Radio/Search-фикций.
@@ -66,27 +74,27 @@
 - Альбомный экран нейтрален, сохранены Play/Shuffle и меню переиндексации. Room v4, WebDAV и постоянный master artwork 1200px без изменений.
 - Исторические визуальные ADR-0068–0072 заменены ADR-0073; Huawei-приёмка после подписанной APK.
 
-## Unreleased — screenshot-parity Huawei / ADR-0072 (2026-11-11)
+### screenshot-parity Huawei / ADR-0072 (2026-11-11)
 
 - Apple Music Android reference: toolbar + постоянный поиск, однострочные Play/Shuffle, альбомная страница с цветным фоном и белой play-капсулой, 3 радиальных слоя Now Playing и тонкая полоса перемотки, отдельные более округлые мини/таб капсулы.
 - Отключённые заглушки: избранное, добавление, фильтр, lyrics/cast; системная громкость, Media3 и локальный поиск работают.
 - Нет изменений Room v4, WebDAV и 1200px постоянных обложек; аппаратное визуальное сравнение обязательно.
 
 
-## Unreleased — новая визуальная реконструкция Apple Music / ADR-0071 (2026-11-11)
+### новая визуальная реконструкция Apple Music / ADR-0071 (2026-11-11)
 
 - Нейтральные цвета с подъемом #1C1C1E / #F2F2F7, красный по умолчанию #FA586A / #FA233B, прежняя настройка одного акцента и системной/темной/светлой темы.
 - Типографика, подписи табов, отдельный mini-player над навигацией, свайп вверх, большие заголовки, сетка двух альбомов, списки артистов и песен, реальные Play/Shuffle.
 - Now Playing с тремя радиальными цветными пятнами в обеих темах, белым контентом, 334dp верхним пределом обложки, тенью/PAUSED 0.84, seek, transport, системной громкостью.
 - Без дополнительной сети/Room и фиктивных lyrics/AirPlay; см. ограничения и ручную приёмку в ADR-0071.
 
-## Unreleased — Huawei fixes after Stable Preview #314 (2026-11-11)
+### Huawei fixes after Stable Preview #314 (2026-11-11)
 
 - [ADR-0070](docs/DECISIONS/ADR-0070-vivid-artwork-system-bars.md): более насыщенные цвета обложки на трехступенчатом Now Playing градиенте, отсутствие видимых динамических «Пауза»/«Буферизация» и сдвига транспорта, тень с радиальной глубиной.
 - Прозрачные status/navigation bars и безопасная edge-to-edge компоновка; фон плеера под системными полосами.
 - Без новых WebDAV-запросов, без изменений Room/Media3/постоянных обложек. Новую Huawei-проверку фиксировать отдельно.
 
-## Unreleased — нейтральное оформление Android (2026-11-11)
+### нейтральное оформление Android (2026-11-11)
 
 - [ADR-0069](docs/DECISIONS/ADR-0069-neutral-floating-artwork-ui.md): настраиваемые тёмный/светлый режимы, один сохраняемый цветной акцент и нейтральные серые поверхности.
 - Навигация с мини-плеером поверх списков единым закруглённым островом и тенью, без мини-прогресса; Now Playing — локальные цвета обложки, градиент по режиму, тень и анимация PAUSED.
@@ -103,7 +111,7 @@
 - Разделено текущее принятое состояние и старые Draft: [CURRENT_DECISIONS](docs/CURRENT_DECISIONS.md) / [ADR-0066](docs/DECISIONS/ADR-0066-indexing-finalization.md) / [ADR-0067](docs/DECISIONS/ADR-0067-permanent-album-artwork.md). Старые записи журнала ниже сохранены по дате.
 
 
-## Unreleased — M1
+### M1
 - PR #7 merged после зелёного CI #31: системный MediaMetadataRetriever и нормализация тегов (NFC, fallback title).
 - WebDAV Range источник и MediaDataSource: только HTTP 206 и Content-Range, 64 КиБ RAM-блок, 8 МиБ/128 запросов для **одного** файла.
 - Добавлена ручная кнопка диагностического чтения тегов одного файла без отображения личного содержимого и без записи в Room; тесты MockWebServer, ADR-0018.
@@ -136,42 +144,42 @@
 - Huawei Preview #54: FLAC Vorbis title/artist/album, **1 GET/65536 байт**, Room saved=1. MP3 ID3v2.4 ранее 3 GET/196608 байт/Room saved=1.
 - Draft M1: ручной ограниченный индексатор до 10/20 треков, общий бюджет GET/байт/времени, сохраняемые пофайловые статусы Room v2 с AutoMigration v1→v2 и безопасным пропуском неизменённых файлов. Полный каталог не сканируется, нужна CI/приёмка (ADR-0028).
 
-## Unreleased — M1 pilot fault reporting (Draft PR #20)
+### M1 pilot fault reporting (Draft PR #20)
 - Раздельная офлайн-статистика успешных, временных ошибок, постоянных ошибок и ещё не проверенных файлов без нового WebDAV-запроса.
 - Показывается только безопасный этап/код последнего сбоя и HTTP статус; значения исключений/путей/тегов не отображаются.
 - Временные сбои можно повторить следующей ручной попыткой; постоянные пропускаются до изменения версии файла. Добавлены синтетические JVM тесты, лимиты пилота без изменений.
 
-## Unreleased — M2 local tracks (Draft)
+### M2 local tracks (Draft)
 - Первый read-only экран «Треки»: список из Room без WebDAV, поиск по названию, исполнителю, альбому.
 - Файлы без тегов показываются по имени файла; загружаются только существующие локальные метаданные, без фоновой индексации.
 - JVM тестирование построения и поиска по 3590 синтетическим трекам; ADR-0030 и инструкция проверки.
 
-## Unreleased — M3 one-track playback (Draft)
+### M3 one-track playback (Draft)
 - По нажатию на трек в офлайн-медиатеке пробный Media3 ExoPlayer GET выбранного файла из Cloud.Mail.ru WebDAV; пароль только RAM и заголовок, редиректы запрещены; после блокировки GMS gate у OkHttp заменено на собственный HttpURLConnection Media3 DataSource со строгой проверкой HTTP 206 / Content-Range.
 - Кнопки пауза/продолжить/стоп, безопасные коды ошибок, автоматическая пауза при сворачивании. Foreground-only без очереди и кэша.
 - Новый тест валидатора WebDAV URL и ADR-0031; реальная совместимость на Huawei пока не подтверждена.
 
-## Unreleased — M3 background MediaSession (Draft)
+### M3 background MediaSession (Draft)
 - Плеер вынесен из Compose-экрана в `MediaSessionService` с типом foreground mediaPlayback и стандартным медиауведомлением Android.
 - Приватный локальный Binder передаёт секреты только в RAM; экран при закрытии отключается от службы, не останавливая воспроизведение.
 - Добавлен contract-test AndroidManifest + жизненного цикла для безопасности; фон и медиа-кнопки на Huawei пока не проверены.
 
-## Unreleased — M4-A local context queue (Draft)
+### M4-A local context queue (Draft)
 - Следующий и предыдущий трек по текущему списку/поиску из Room, счётчик позиции, автоматический переход после завершения.
 - Не более 10000 локальных записей, все данные очереди и credentials только в RAM MediaSessionService, без дополнительных PROPFIND и без массового скачивания.
 - Синтетические JVM-тесты границ и 3590 треков, расширен contract-test службы; ADR-0033.
 
-## Unreleased — M4-B native Media3 skip (Draft)
+### M4-B native Media3 skip (Draft)
 - Очередь поиска/списка передаётся ExoPlayer как настоящий плейлист. Next/previous/автопереход обеспечиваются стандартными Player-командами MediaSession и Android, а не вторым вручную изменяемым индексом.
 - Для каждого трека новый безопасный источник выбирает его собственные размер и ETag, с прежним HTTPS-only/206/no-redirect и GMS-free gate.
 - Синтетический тест маршрутизации 3590 элементов, тест контракта MediaSession и ADR-0034.
 
-## Unreleased — M4-C repeat/shuffle (Draft)
+### M4-C repeat/shuffle (Draft)
 - Режим повтора (выкл. → текущий трек → очередь) и включаемый случайный порядок через native Media3 Player.
 - Состояние кнопок синхронизируется через Media3 listener и восстанавливается при возврате к экрану; лишние GET, новый кэш и миграции Room не добавлены.
 - JVM-тесты повтора, contract-test и ADR-0035; Huawei ещё не проверен.
 
-## Unreleased — M5-A transient current cache (Draft)
+### M5-A transient current cache (Draft)
 - Media3 SimpleCache/CacheWriter в app-private cacheDir: полная загрузка текущего файла отдельно от play/pause, read-only cache при воспроизведении, LRU 512 МиБ.
 - Один файл до 256 МиБ при резерве 128 МиБ; ETag-versioned opaque cache keys, локальный прогресс в KiB, очистка на закрытии службы/новом запуске.
 - Stream fallback при проблемах кэша; предзагрузка следующего и бесшовный switch уже открытого соединения — не здесь.
@@ -183,22 +191,22 @@
 
 - M5-A startup investigation (#111, Huawei): на 3590 записях ~3,3 с синхронного Media3 setup и лишь ~0,44–0,59 с до READY; cache-off и cache-on почти одинаковы. Эксперимент: стартовать Media3 с выбранного ±2, после READY добавлять все остальные треки порциями по 32 без изменения итоговой последовательности. Добавлены цифровые фазы синхронного setup и прогресс постановки очереди, синтетические JVM тесты на 3590 элементов. До CI/Huawei — Draft.
 
-## Unreleased — M5-B single next preload (Draft)
+### M5-B single next preload (Draft)
 - После 100% текущего файла один serial Media3 CacheWriter скачивает следующий MediaItem согласно native Media3 order (shuffle/repeat, staged timeline); Pause не отменяет загрузку.
 - Статусы current/next независимы, Stop и выбор другого трека отменяют оба worker, лимиты диска и строгий WebDAV GMS-free источник сохранены.
 - JVM выбор следующего по Media3 ID (3590 синтетических записей), security contract, ADR-0037. До CI/Huawei — Draft.
 
-## Unreleased — M6-A handoff and clean UI with default Material colors (Draft)
+### M6-A handoff and clean UI with default Material colors (Draft)
 - Private anonymous measurement of track changes (button/auto/MediaSession), with numeric time-to-READY and time-to-isPlaying plus pre-cached-next boolean; no identifiers, telemetry or logs.
 - Folded Room/Media3 debug traces behind optional diagnostics; default cache-on; added two current/next progress bars.
 - After Huawei Preview #129 passed functional smoke, owner rejected carrying the old project's palette into Android: restored unmodified standard MaterialTheme colors; custom palette is deferred pending explicit Android design approval.
 - Kotlin tracker tests, private service/static contract, default-theme contract, ADR-0038. Huawei #129 functions confirmed; exact-HEAD CI after palette revert pending.
 
-## Unreleased — docs: сверка оригинального ТЗ и актуальной дорожной карты (2026-11-09)
+### docs: сверка оригинального ТЗ и актуальной дорожной карты (2026-11-09)
 - Обновлён ROADMAP по подтверждённым Huawei/CI этапам M0–M6-A, явно отделены принятые срезы от неполных требований M1/M2/M3/M4/M5 и будущих M7–M9.
 - Исправлены устаревшие вопросы об ожидании приёмки M0, зафиксировано ожидание аппаратной проверки seek в отдельном Draft PR #30 (CI #138 зелёный). Никаких изменений runtime, APK или сохранённой Room.
 
-## Unreleased — M6-B current-track seek (Draft)
+### M6-B current-track seek (Draft)
 - Доступный Material3 Slider для перемотки внутри текущего Media3 трека, позиция и длительность с обновлением раз в 500 мс.
 - Сервис принимает только ограниченную цель seek при известной длительности и доступной Media3 seek command; единственный seek отправляется после отпускания ползунка. Existing GMS-free HTTPS Range + temporary cache и быстрый staged-плейлист не изменены.
 - Pure Kotlin policy/JVM tests, Python security/UI contract, ADR-0039; Huawei smoke pending. Остаются стандартные цвета Material Design, прежние палитры не импортируются.
@@ -213,7 +221,7 @@
 - Перемотка и воспроизведение на границах треков подтверждены в Preview #157; работают обычные/shuffle автопереходы, Next после Pause, ручной Next в shuffle и repeat-one.
 - CI #157 зелёный на точном HEAD `7c058e5e257982a38d021aff76e639f927f7f2d6`, PR #30 объединён (`6d14ee81d3da50c611f854ddaf140930dfb745d3`). Не заявлены неподтверждённые zero-GET, gapless или окончательная первопричина прежнего IO 2000.
 
-## Unreleased — opt-in stable Preview update channel (Draft)
+### opt-in stable Preview update channel (Draft)
 - Separate same-package `app.enotone.android.preview` signed build for in-place upgrades preserving Room; only main branch with explicit secret-backed PKCS12, fingerprint pin and opt-in flag. Default isolated per-run debug APK unchanged; playback/Room/network code unchanged. First stable installation starts with a new private Room; previous `.preview.rN` data cannot be transferred. CI and Huawei update test required.
 
 ## Hardware verification — stable Preview #167 (2026-11-09)
@@ -222,7 +230,7 @@
 ## Huawei acceptance — stable Preview update #169 (2026-11-09)
 - Signed #169 installed over #167 without uninstalling; existing Room music list remained accessible and playback works after re-entering password. Persistent update channel accepted on Huawei. Encrypted credential saving is a separate opt-in Draft change.
 
-## Unreleased — M0-K optional credential vault (Draft)
+### M0-K optional credential vault (Draft)
 - AES-256-GCM key generated in AndroidKeyStore; only encrypted email/password stored in non-backed-up private SharedPreferences after explicit button press, with restore on next activity launch and explicit erase. Failure falls back to manual sign-in; Room, GMS-free WebDAV and Media3 unchanged.
 
 ## Huawei smoke — opt-in secure sign-in #172 (2026-11-09)
@@ -234,14 +242,14 @@
 ## Huawei acceptance — M2-A and first stable 10-file tag pilot (2026-11-09)
 - On-device #177: user confirmed both group tabs populated after bounded 10/10 MP3/FLAC scans (12 HTTP GET, 786432 bytes, zero errors); tracks play/skip in grouped context. Full library indexing not performed.
 
-## Unreleased — M1 bounded manual resume (Draft)
+### M1 bounded manual resume (Draft)
 - New explicit Resume button for up to 100 next unprocessed candidates, still using existing per-run ceilings of 60 GET, 4 MiB, ~180 seconds, and unchanged per-file Room checkpoint. No background scan or bulk import, and existing 10/20 pilot behavior unchanged. Huawei smoke pending.
 
 ## Huawei M1 bounded resume #179 and M2 Album Artist precedence (2026-11-09)
 - Owner reported 52/52 saved tags, 60 GET / 3932160 bytes, zero errors, stop NETWORK_BUDGET; 62/3590 indexed total. Existing checkpoints continue to survive upgrades; multi-run stop/resume acceptance pending.
 - Correct artist navigation to prioritize Album Artist over per-track Artist; retain both independent fields, accept common FLAC Vorbis Album Artist tag aliases. Existing Room schema and WebDAV/Media3 unchanged; on-device grouping smoke still pending.
 
-## Unreleased — M1 managed indexing (Issue #40, Draft 2026-11-09)
+### M1 managed indexing (Issue #40, Draft 2026-11-09)
 - Foreground-only opt-in managed tag indexing over four capped existing pilot passes, up to 240 GET / 16 MiB per session (each <=60 GET / 4 MiB), Wi‑Fi by default, explicit cellular consent, pause/resume/stop, onStop cancellation and Room checkpoint reuse. No change to playback/Room schema/Keystore/parser; Huawei acceptance pending.
 - Huawei accepted #181 Album Artist navigation and #179 bounded 52/52 tag indexing (62 total); no automatic 3590-file scan.
 
