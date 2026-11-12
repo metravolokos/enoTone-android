@@ -16,7 +16,7 @@ android {
         // 0.<milestone>.<patch> until the first public release 1.0.0 (ADR-0078).
         // MINOR = current roadmap milestone; PATCH = bumped by hand when the
         // owner accepts a result on Huawei. Build number is appended per variant.
-        versionName = "0.6.1"
+        versionName = "0.6.2"
     }
     buildFeatures { compose = true }
     compileOptions {
