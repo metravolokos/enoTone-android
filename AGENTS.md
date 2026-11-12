@@ -6,8 +6,9 @@
 
 1. [docs/CURRENT_DECISIONS.md](docs/CURRENT_DECISIONS.md) — действующие решения.
 2. [docs/STATUS.md](docs/STATUS.md) — текущее состояние и следующий шаг.
-3. [docs/DECISIONS/README.md](docs/DECISIONS/README.md) — индекс ADR с **фактическими** статусами.
-4. [docs/ROADMAP.md](docs/ROADMAP.md), [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md), [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+3. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) — **матрица требований** ТЗ и решений владельца со статусами и доказательствами.
+4. [docs/DECISIONS/README.md](docs/DECISIONS/README.md) — индекс ADR с **фактическими** статусами.
+5. [docs/ROADMAP.md](docs/ROADMAP.md), [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md), [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 Исторические журналы лежат в `docs/archive/` и **не** описывают текущее состояние. Исходное ТЗ (`docs/ORIGINAL_PROMPT_AllMusic_Player.md`) уступает более поздним решениям владельца.
 
@@ -22,7 +23,7 @@
 ## 3. Жёсткие ограничения (нарушать нельзя)
 
 - Без GMS / Play Services / Firebase, без телеметрии, без сетевых вызовов кроме WebDAV пользователя и явно включённого ИИ-API. Только HTTPS. GMS-gate в CI не ослаблять и не «белить» маркеры.
-- Учётные данные и пути к личной музыке — никогда в Git, логи, backup, crash, Room, Intent. Хранение входа — только добровольное, Android Keystore AES-GCM ([ADR-0043](docs/DECISIONS/ADR-0043-m0k-optional-credential-vault.md)); `security-crypto` запрещён.
+- Учётные данные и пути к личной музыке — никогда в Git, логи, backup, crash, Room, Intent. Хранение входа — Android Keystore AES-GCM ([ADR-0043](docs/DECISIONS/ADR-0043-m0k-optional-credential-vault.md)); `security-crypto` запрещён. Решение владельца 2026-11-12 (REQUIREMENTS O-09): вход будет сохраняться всегда, а «Выйти» — стирать данные аккаунта; до шага M6-0/4b и нового ADR действует добровольное хранение.
 - **Обложки:** мастер до 1200 px в постоянном `filesDir/enotone-artwork-v2`, без автоматического LRU и удаления; режимы `ON_DEMAND` / `AUTO_AFTER_IMPORT`; одна выбранная обложка реального альбома на всех экранах; «Неизвестный альбом» не смешивать; никаких массовых image GET во время PROPFIND/индексации тегов ([ADR-0067](docs/DECISIONS/ADR-0067-permanent-album-artwork.md)).
 - **Импорт/обновление — одно действие**, инкрементальное. Полную переиндексацию 3590 файлов запускать **только после отдельного подтверждения владельца**, никогда ради UI-проверки.
 - Room: только миграции без потери данных, схемы экспортируются и коммитятся. Существующую базу на устройстве владельца не удалять.
@@ -37,6 +38,7 @@
 - Не отмечать проверку на устройстве как пройденную без отдельного сообщения владельца с указанием, что именно проверено. Общий ответ «Работает» не равен PASS для отдельных сценариев.
 - Не добавлять новые тесты, проверяющие наличие строк в исходниках (`tools/test_*_contract.py`). Тестировать поведение: JUnit / Robolectric / Compose UI.
 - Не добавлять заглушки, выдающие себя за готовые функции.
+- **Каждый PR обновляет строки [REQUIREMENTS](docs/REQUIREMENTS.md)**, которые он затрагивает: статус и доказательство. Требование нельзя молча пропустить, удалить или считать выполненным без доказательства. Отмена или изменение требования — только решением владельца (ADR или дата сообщения), строка переводится в ⛔.
 
 ## 5. Документация — дисциплина
 
