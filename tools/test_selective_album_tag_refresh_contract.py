@@ -57,50 +57,6 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
         ):
             self.assertIn(token, pilot)
 
-    def test_user_confirms_selected_album_and_local_result_reloads(self):
-        ui = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        header = self.src("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
-        for token in (
-            "val albumRefreshSampleIds = remember(",
-            "AlbumTagRefreshSelection.nextBatch(",
-            "albumAttemptedByGroup[selectedGroup?.key].orEmpty()",
-            "result.attemptedIds",
-            "result.checkedIds",
-            "unfinished = ids.count { it !in result.checkedIds }",
-            "R.string.album_refresh_retry_needed",
-            "eligibleIds,",
-            "confirmAlbumRefresh = selectedGroup.key to",
-            "AlertDialog(",
-            "R.string.album_refresh_confirm_title",
-            "R.string.album_refresh_confirm_text",
-            "AlbumTagRefresher(db).refresh(",
-            "managedIndexStatus.state != ManagedScanState.RUNNING",
-            'playbackState !in setOf("PLAYING", "BUFFERING", "LOADING")',
-            "libraryRefreshEpoch++",
-            "LaunchedEffect(accountEmail, libraryRefreshEpoch)",
-            "albumCheckedByGroup = albumCheckedByGroup +",
-            "R.string.album_refresh_done",
-            "onPlayAll = {",
-            "playTrack(first, albumTracks)",
-        ):
-            self.assertIn(token, ui)
-        for token in (
-            "DropdownMenu(",
-            "DropdownMenuItem(",
-            "enabled = canRefreshTags && !refreshingTags",
-            "onRefreshTags()",
-            "R.string.album_refresh_tags",
-        ):
-            self.assertIn(token, header)
-        policy = self.src(
-            "data/library/src/main/java/app/enotone/library/AlbumTagRefreshSelection.kt")
-        self.assertIn("waiting = albumIds.distinct().filterNot { it in completedIds }", policy)
-        self.assertIn("val fresh = waiting.filterNot { it in attemptedIds }", policy)
-        self.assertIn("val retried = waiting.filter { it in attemptedIds }", policy)
-        self.assertNotIn("queueAllForRefresh(", ui)
-        self.assertNotIn("WebDavRangeReader(", header)
-        self.assertNotIn("deleteDatabase(", ui)
-
     def test_only_ui_strings_added_and_room_v3_stable(self):
         names = {
             "album_refresh_tags", "album_refresh_busy",

@@ -28,6 +28,8 @@ class EnoTonePlaybackService : MediaSessionService() {
         SystemClock.elapsedRealtime()
     })
     private var activeRevision: String? = null
+    private var layoutWritePending = false
+    private var layoutGeneration = 0L
     private var queueMutation = false
     private var pendingPositionSave: Runnable? = null
 
@@ -51,13 +53,11 @@ class EnoTonePlaybackService : MediaSessionService() {
             if (!queueMutation) savePosition(urgent = true)
         }
 
-        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-            if (!queueMutation) saveLayoutAndPosition()
-        }
     }
 
     /** Snapshot only the small current-item fields on main; never scan 3590 IDs. */
     private fun savePosition(urgent: Boolean = false) {
+        if (layoutWritePending) return
         val revision = activeRevision ?: return
         val snapshot = playback.snapshotPosition(revision, System.currentTimeMillis()) ?: return
         val delay = positionThrottle.delayMs(urgent)
@@ -83,16 +83,26 @@ class EnoTonePlaybackService : MediaSessionService() {
      */
     private fun saveLayoutAndPosition() {
         val nextRevision = UUID.randomUUID().toString()
-        val layout = playback.snapshotLayout(nextRevision, System.currentTimeMillis()) ?: return
-        activeRevision = nextRevision
+        val now = System.currentTimeMillis()
+        val layout = playback.snapshotLayout(nextRevision, now) ?: return
+        val position = playback.snapshotPosition(nextRevision, now) ?: return
+        val generation = ++layoutGeneration
+        layoutWritePending = true
         pendingPositionSave?.let(handler::removeCallbacks)
         pendingPositionSave = null
         io.execute {
-            try { store.writeLayout(layout) } catch (_: Exception) {
-                // A mismatched pair is discarded safely at the next restore.
+            val completed = runCatching {
+                store.writeLayoutAndPosition(layout, position)
+            }.isSuccess
+            handler.post {
+                if (generation == layoutGeneration) {
+                    // The current revision advances only after both files exist.
+                    if (completed) activeRevision = nextRevision
+                    layoutWritePending = false
+                    if (completed) savePosition(urgent = true)
+                }
             }
         }
-        savePosition(urgent = true)
     }
 
     /** Must be called from Dispatchers.IO; never open a network connection. */
@@ -130,6 +140,9 @@ class EnoTonePlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         playback = PreviewAudioPlayback(this)
+        // The callback fires after the player's full shuffle permutation exists.
+        // Listener registration order must never determine persistence correctness.
+        playback.onShuffleLayoutReady = { if (!queueMutation) saveLayoutAndPosition() }
         playback.player.addListener(persistenceListener)
         handler.postDelayed(periodicSave, 12_000L)
         session = MediaSession.Builder(this, playback.player).build()
@@ -220,6 +233,8 @@ class EnoTonePlaybackService : MediaSessionService() {
         pendingPositionSave?.let(handler::removeCallbacks)
         pendingPositionSave = null
         activeRevision = null
+        layoutGeneration++
+        layoutWritePending = false
         queueMutation = true
         try { playback.stop() } finally { queueMutation = false }
         io.execute {
@@ -238,6 +253,7 @@ class EnoTonePlaybackService : MediaSessionService() {
         pendingPositionSave = null
         savePosition(urgent = true)
         playback.player.removeListener(persistenceListener)
+        playback.onShuffleLayoutReady = null
         session.release()
         playback.close()
         io.shutdown() // Ordered flush; no blocking main-thread fsync.

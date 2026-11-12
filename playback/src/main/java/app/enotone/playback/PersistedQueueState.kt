@@ -4,6 +4,15 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 
+/** Fixed, anonymous recovery reason; no filenames, hashes or credentials. */
+enum class QueueRestoreCode {
+    NO_LAYOUT_FILE, LAYOUT_INVALID, POSITION_INVALID, REVISION_MISMATCH,
+    SHUFFLE_MISMATCH, FOREIGN_VERSION, SOURCE_MISMATCH, NO_TRACKS_IN_ROOM,
+    NO_CREDENTIALS, SERVICE_HAS_QUEUE, RESTORED,
+}
+data class QueueReadResult(val state: PersistedQueueState?, val code: QueueRestoreCode)
+
+
 /** Immutable queue layout; written only when the order or shuffle mode changes. */
 data class PersistedQueueLayout(
     val trackIds: List<String>,
@@ -149,6 +158,33 @@ object QueueStateCodec {
         }
     } catch (_: RuntimeException) {
         null
+    }
+
+    private fun foreignVersion(raw: String): Boolean = try {
+        JsonParser.parseString(raw).asJsonObject.get("version")?.asInt != VERSION
+    } catch (_: RuntimeException) {
+        false
+    }
+
+    fun inspect(layoutRaw: String?, positionRaw: String?): QueueReadResult {
+        if (layoutRaw == null) return QueueReadResult(null, QueueRestoreCode.NO_LAYOUT_FILE)
+        if (foreignVersion(layoutRaw)) return QueueReadResult(null, QueueRestoreCode.FOREIGN_VERSION)
+        val layout = decodeLayout(layoutRaw)
+            ?: return QueueReadResult(null, QueueRestoreCode.LAYOUT_INVALID)
+        if (positionRaw != null && foreignVersion(positionRaw)) {
+            return QueueReadResult(null, QueueRestoreCode.FOREIGN_VERSION)
+        }
+        val position = positionRaw?.let(::decodePosition)
+        if (position != null && position.queueRevision != layout.queueRevision) {
+            return QueueReadResult(null, QueueRestoreCode.REVISION_MISMATCH)
+        }
+        if (position != null && position.shuffleEnabled != layout.shuffleEnabled) {
+            return QueueReadResult(null, QueueRestoreCode.SHUFFLE_MISMATCH)
+        }
+        val reconstructed = assemble(layoutRaw, positionRaw)
+        return QueueReadResult(reconstructed,
+            if (positionRaw != null && position == null) QueueRestoreCode.POSITION_INVALID
+            else QueueRestoreCode.RESTORED)
     }
 
     private fun hasForeignPositionVersion(raw: String): Boolean = try {

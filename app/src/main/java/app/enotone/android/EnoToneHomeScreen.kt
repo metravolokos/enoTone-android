@@ -34,6 +34,7 @@ internal fun EnoToneHomeScreen(
     connectedAccount: Boolean,
     onSettings: () -> Unit,
     onOpenPage: (LibraryPage) -> Unit,
+    miniPlayer: @Composable () -> Unit = {},
 ) {
     Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
         Column(
@@ -133,6 +134,7 @@ internal fun EnoToneHomeScreen(
         }
         Column(modifier = Modifier.align(Alignment.BottomCenter)
             .fillMaxWidth()) {
+            miniPlayer()
             CompactLibraryNavigation(
                 selectedPage = null,
                 visiblePages = visiblePages,

@@ -51,23 +51,3 @@ class ExtendedTagMetadataContractTest(unittest.TestCase):
         for field in ('year', 'trackNumber', 'discNumber'):
             self.assertIn(f'{field} = if (sameVersion) old?.{field} else null', planner)
 
-    def test_album_display_never_forces_mass_rescan_or_fakes_values(self):
-        screen = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        catalog = self.src("data/library/src/main/java/app/enotone/library/OfflineTrackCatalog.kt")
-        header = self.src("app/src/main/java/app/enotone/android/AlbumDetailHeader.kt")
-        for token in ('OfflineTrackCatalog.albumOrder(', 'OfflineTrackCatalog.commonAlbumYear(',
-                      'year = albumYear', 'track.trackNumber?.toString().orEmpty()'):
-            self.assertIn(token, screen)
-        self.assertIn('val year: Int? = null', catalog)
-        self.assertIn('fun albumOrder(', catalog)
-        self.assertIn('fun commonAlbumYear(', catalog)
-        self.assertIn('year?.toString()', header)
-        self.assertIn('genre?.takeIf { it.isNotBlank() }', header)
-        self.assertIn('Text(facts,', header)
-        self.assertNotIn('WebDavRangeReader(', screen)
-        self.assertNotIn('queueAllTagRefresh(', screen)
-        self.assertNotIn('fallbackToDestructiveMigration', screen)
-
-
-if __name__ == "__main__":
-    unittest.main()

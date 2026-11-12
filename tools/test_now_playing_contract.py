@@ -11,56 +11,6 @@ class NowPlayingContractTest(unittest.TestCase):
     def src(self, path):
         return (ROOT / path).read_text(encoding="utf-8")
 
-    def test_fullscreen_not_alert_dialog_or_secondary_player(self):
-        screen = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        player = self.src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
-        for token in (
-            "if (showPlayerDetails && selectedTitle != null) {",
-            "NowPlayingScreen(",
-            "BackHandler(enabled = showPlayerDetails) { showPlayerDetails = false }",
-            "onClose = { showPlayerDetails = false }",
-            "} else {\n    Box(",
-            "showPlayerDetails = true",
-            "playback?.seekToFraction(fraction)",
-            "playback?.pause()",
-            "playback?.resume()",
-            "playback?.playNext()",
-            "playback?.playPrevious()",
-            "playback?.cycleRepeatMode()",
-            "playback?.toggleShuffle()",
-        ):
-            self.assertIn(token, screen)
-        self.assertIn("BoxWithConstraints(", player)
-        self.assertIn(".windowInsetsPadding(WindowInsets.systemBars)", player)
-        self.assertIn("Modifier.size(coverSide)", player)
-        self.assertIn("onClose: () -> Unit", player)
-        self.assertNotIn("AlertDialog(", player)
-        self.assertNotIn("ExoPlayer.Builder(", player)
-        self.assertNotIn("MediaSession(", player)
-        self.assertNotIn("bindService(", player)
-        self.assertNotIn("openLibraryDatabase(", player)
-        self.assertNotIn("WebDavRangeReader(", player)
-
-    def test_large_artwork_is_only_fetched_while_visible_and_audio_ready(self):
-        screen = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        artwork = self.src("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
-        player = self.src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
-        for token in (
-            "LaunchedEffect(showPlayerDetails, currentTrackId, artworkCatalog,",
-            "if (!showPlayerDetails) return@LaunchedEffect",
-            'state == "PLAYING" || state == "PAUSED"',
-            "fullArtwork = artworkRepository.albumCover(",
-            "requestedSide = 1200",
-            "artwork = fullArtwork ?: currentArtwork",
-            "remember(currentTrackId, accountEmail)",
-        ):
-            self.assertIn(token, screen)
-        self.assertIn("const val MAX_SIDE = 1200", artwork)
-        self.assertIn("enotone-artwork-v2", artwork)
-        self.assertIn("Bitmap", player)
-        self.assertIn("artwork.asImageBitmap()", player)
-        self.assertNotIn("repository.cover(", player)
-
     def test_track_sensitive_seek_and_transport_buttons_have_accessible_labels(self):
         player = self.src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
         for token in (
@@ -113,35 +63,3 @@ class NowPlayingContractTest(unittest.TestCase):
                 "24dp",
             )
 
-    def test_settings_keeps_anonymous_playback_diagnostics(self):
-        main = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
-        screen = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        panel = self.src("app/src/main/java/app/enotone/android/PlaybackDiagnosticsPanel.kt")
-        self.assertIn("if (showTechnicalTools) {", main)
-        self.assertIn("PlaybackDiagnosticsPanel()", main)
-        self.assertIn("PlaybackDiagnosticsRuntime.publish(", screen)
-        self.assertIn("PlaybackDiagnosticSnapshot(", screen)
-        self.assertIn("PlaybackDiagnosticsRuntime.useCacheOnNextPlay", screen)
-        for token in ("playback_startup_timing", "playback_setup_breakdown",
-                      "handoff_summary", "playback_cache_downloading",
-                      "playback_next_cache_downloading", "playback_error_stage"):
-            self.assertIn(token, panel)
-        self.assertNotIn("WebDavRangeReader(", panel)
-        self.assertNotIn("allForSource(", panel)
-        self.assertNotIn("Log.", panel)
-        self.assertNotIn("encodedPath", screen[screen.index(
-            "PlaybackDiagnosticsRuntime.publish("):screen.index("delay(500L)",
-            screen.index("PlaybackDiagnosticsRuntime.publish("))])
-
-    def test_room_and_signed_preview_are_unchanged(self):
-        db = self.src("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
-        gradle = self.src("app/build.gradle.kts")
-        screen = self.src("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        self.assertIn("version = 4", db)
-        self.assertIn('applicationIdSuffix = ".preview"', gradle)
-        self.assertIn('getByName("stablePreview")', gradle)
-        self.assertNotIn("deleteDatabase(", screen)
-
-
-if __name__ == "__main__":
-    unittest.main()

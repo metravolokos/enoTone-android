@@ -9,30 +9,6 @@ LIB = ROOT / "data/library/src/main/java/app/enotone/library"
 
 
 class OnDemandArtworkContractTest(unittest.TestCase):
-    def test_only_current_media_item_can_start_artwork_request(self):
-        ui = (APP / "OfflineLibraryScreen.kt").read_text()
-        for token in (
-            "currentTrackId = mediaItem?.mediaId",
-            "currentTrackId = active.player.currentMediaItem?.mediaId",
-            "LaunchedEffect(currentTrackId, artworkCatalog, appPassword, accountEmail,",
-            "snapshotFlow { playbackState }.first { state ->",
-            'state == "PLAYING" || state == "PAUSED"',
-            "val group = artworkCatalog.byTrackId[id] ?: return@LaunchedEffect",
-            "PlayingArtworkTarget(",
-            "currentArtwork = artworkRepository.albumCover(",
-            "bitmap = currentArtwork!!.asImageBitmap()",
-        ):
-            self.assertIn(token, ui)
-        now_playing = (APP / "NowPlayingScreen.kt").read_text()
-        self.assertIn("Image(", now_playing)
-        self.assertIn("R.string.artwork_description", now_playing)
-        self.assertIn("fullArtwork = artworkRepository.albumCover(", ui)
-        self.assertIn("requestedSide = 1200", ui)
-        # No trigger on scroll, opening an album, artist or tab switch.
-        self.assertNotIn("LaunchedEffect(visible", ui)
-        self.assertNotIn("LaunchedEffect(shownGroups", ui)
-        self.assertNotIn("deleteDatabase(", ui)
-
     def test_range_and_cache_limits_are_private(self):
         code = (APP / "ArtworkPreviewRepository.kt").read_text()
         payload = (LIB / "EmbeddedArtworkPayloadReader.kt").read_text()

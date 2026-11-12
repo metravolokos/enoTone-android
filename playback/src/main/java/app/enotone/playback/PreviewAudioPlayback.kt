@@ -169,6 +169,8 @@ class PreviewAudioPlayback(
     private var sourceKeyForQueue: String? = null
     private var configuredShuffle: IntArray? = null
     private var stableShuffleApplied = false
+    /** Called only after configuredShuffle is ready, including MediaSession controls. */
+    var onShuffleLayoutReady: (() -> Unit)? = null
     private var restoringShuffle = false
     private var deferredPrepare = false
     private var stageBeforePrepare = false
@@ -376,6 +378,7 @@ class PreviewAudioPlayback(
                 applyStableShuffleIfComplete()
             }
             refreshNextPrefetch()
+            if (!restoringShuffle && expectedQueueSize > 0) onShuffleLayoutReady?.invoke()
         }
 
         override fun onRepeatModeChanged(repeatMode: Int) {

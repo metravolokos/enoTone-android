@@ -1,5 +1,14 @@
 # CHANGELOG
 
+- **Draft PR #92 (ревью 2026-11-12; не слито):** общий Activity-scoped PlayerViewModel восстанавливает очередь на Home и ведёт мини-плеер на Home/Library/Settings; техническая строка диагностики checkpoint; JVM regression-тесты атомарной пары и rollback. Huawei smoke остаётся открытым.
+
+## Unreleased — M6-0/4a: слой представления медиатеки (Draft PR #92, 2026-11-12)
+
+- [ADR-0077](docs/DECISIONS/ADR-0077-presentation-layer.md): `EnoToneApplication`, ручной `AppContainer` с общей Room v4, `LibraryRepository` с IO, `PlaybackConnection` со снимками Media3 и `LibraryViewModel` + одним `StateFlow`.
+- `OfflineLibraryScreen.kt` сокращён до 118 строк; неизменённая Graphite Material 3-разметка находится в `LibraryScreenContent.kt`. Добавлены четыре фиктивных @Preview, JVM-тесты состояний/поиска/очереди/восстановления и чистого преобразования каталога.
+- Убраны завязанные на старый Kotlin-файл Python-проверки строк; оставлен временный защитный контракт без `stopPlayback` и секретов в `Intent` на новом владельце кода. Mock WebDAV не менялся. Подробное сопоставление — описание PR #92.
+- Room-схема, WebDAV-клиенты, `:playback`, внешний вид и правила получения обложек не изменены. CI exact HEAD и Huawei smoke должны быть подтверждены отдельно; никаких PASS заранее.
+
 ## Unreleased — M6-0/8: инструменты качества (2026-11-12)
 
 - Gradle Wrapper 8.13 (`./gradlew`) с проверкой SHA-256 дистрибутива; проверка `gradle-wrapper.jar` в CI.

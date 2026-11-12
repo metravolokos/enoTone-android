@@ -9,6 +9,7 @@
     <!-- Media3 WAKE_MODE_NETWORK: wake + Wi-Fi lock only while playing (ADR-0074). -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
+        android:name=".EnoToneApplication"
         android:allowBackup="false"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"

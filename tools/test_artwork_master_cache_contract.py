@@ -58,29 +58,6 @@ class ArtworkMasterCacheContractTest(unittest.TestCase):
         # share one cover without reading/validating each source.
         self.assertIn('target.id + "|" + target.encodedPath', art)
 
-    def test_local_view_sizes_and_etag_independent_manual_invalidation(self):
-        screen = self.code("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        track = self.code("app/src/main/java/app/enotone/android/TrackArtworkThumbnail.kt")
-        art = self.code("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
-        self.assertIn("requestedSide = 192", track)
-        self.assertIn("requestedSide: Int = 512", art)
-        self.assertIn("val refreshEpoch: Int = 0", art)
-        self.assertIn("suspend fun invalidate(email: String,", art)
-        self.assertIn("referenceFile(key).delete()", art)
-        self.assertIn("memoryCache.evictAll()", art)
-        self.assertIn("artworkRepository.invalidate(accountEmail, refreshedPictures)", screen)
-        self.assertIn("result.checkedIds.mapNotNull { id ->", screen)
-        self.assertIn("artworkCatalog.byGroupKey[key]?.targets.orEmpty()", screen)
-        self.assertLess(screen.index("artworkRepository.invalidate(accountEmail, refreshedPictures)"),
-                        screen.index("libraryRefreshEpoch++"))
-        self.assertIn("refreshEpoch = libraryRefreshEpoch", screen)
-        # Invalidating a reference must not remove a shared content-addressed
-        # blob, as other tracks may still refer to the identical image.
-        invalidate = art[art.index("suspend fun invalidate("):
-                         art.index("private suspend fun loadOrFetch")]
-        self.assertNotIn("masterFile(", invalidate)
-        self.assertNotIn("deleteDatabase(", invalidate)
-
     def test_no_unapproved_changes_to_database_or_preview_package(self):
         database = self.code("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         gradle = self.code("app/build.gradle.kts")

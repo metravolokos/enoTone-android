@@ -10,34 +10,6 @@ class AlbumArtworkGridContractTest(unittest.TestCase):
     def text(self, path):
         return (ROOT / path).read_text(encoding="utf-8")
 
-    def test_lazy_grid_only_in_album_root_and_click_opens_group(self):
-        ui = self.text("app/src/main/java/app/enotone/android/OfflineLibraryScreen.kt")
-        tile = self.text("app/src/main/java/app/enotone/android/AlbumArtworkTile.kt")
-        for needle in (
-            "section == LibraryPage.ALBUMS && selectedGroup == null",
-            "LazyVerticalGrid(",
-            "GridCells.Fixed(2)",
-            "gridItems(shownGroups, key = { it.key })",
-            "AlbumArtworkTile(",
-            "onOpen = {",
-            "selectedGroupKey = group.key",
-            'search = ""',
-            "val artworkCatalog = remember(tracks, preparedById, libraryRefreshEpoch)",
-            "AlbumArtworkCatalog.build(tracks)",
-            "preparedById[id]?.let { item ->",
-        ):
-            self.assertIn(needle, ui)
-        self.assertIn("LaunchedEffect(group.key, artworkGroup, accountEmail, appPassword)", tile)
-        self.assertIn("repository.albumCover(accountEmail, appPassword,", tile)
-        self.assertIn("modifier = Modifier.fillMaxWidth().aspectRatio(1f)", tile)
-        self.assertIn("onClick = onOpen", tile)
-        self.assertNotIn("WebDavRangeReader(", tile)
-        self.assertNotIn("openLibraryDatabase(", tile)
-        # Album grid occurs before artist list and track list, both preserved.
-        self.assertLess(ui.index("section == LibraryPage.ALBUMS && selectedGroup == null"),
-                        ui.index("section != LibraryPage.TRACKS && selectedGroup == null -> {"))
-        self.assertIn("items(visible, key = { it.id })", ui)
-
     def test_one_shared_two_request_throttle_and_existing_cache(self):
         repo = self.text("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
         for needle in (

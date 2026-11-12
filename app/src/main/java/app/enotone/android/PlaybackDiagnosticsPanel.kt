@@ -21,6 +21,7 @@ import app.enotone.playback.HandoffPhase
 import app.enotone.playback.HandoffSnapshot
 import app.enotone.playback.PlaybackDataIssue
 import app.enotone.playback.PlaybackSetupTimings
+import app.enotone.playback.QueuePersistenceDiagnostics
 import app.enotone.playback.TransientCacheStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -62,6 +63,7 @@ internal object PlaybackDiagnosticsRuntime {
 @Composable
 internal fun PlaybackDiagnosticsPanel() {
     val status by PlaybackDiagnosticsRuntime.status.collectAsState()
+    val queue by QueuePersistenceDiagnostics.state.collectAsState()
     val temporaryCache = PlaybackDiagnosticsRuntime.useCacheOnNextPlay
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -76,6 +78,12 @@ internal fun PlaybackDiagnosticsPanel() {
                 else R.string.playback_mode_baseline,
             ))
         }
+        Text(
+            text = stringResource(R.string.playback_queue_restore_summary,
+                queue.result.name, queue.readResult.name, queue.layoutWrites,
+                queue.positionWrites, queue.writeErrors, queue.lastExceptionClass),
+            style = MaterialTheme.typography.bodySmall,
+        )
         if (!status.hasSession) {
             Text(stringResource(R.string.playback_diagnostics_no_session),
                 style = MaterialTheme.typography.bodySmall)

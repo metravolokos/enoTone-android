@@ -20,7 +20,10 @@ kotlin {
 dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:network"))
+    implementation(project(":playback"))
+    implementation(libs.coroutines.android)
     implementation(libs.room.ktx)
     testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
 }
