@@ -22,6 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -149,6 +150,7 @@ internal class LibraryViewModel(
     visiblePages: List<LibraryPage> = LibraryPageVisibility.defaultOrder,
     private val managedStatus: StateFlow<ManagedScanStatus> = ManagedScanRuntime.status,
     private val accountEvents: StateFlow<AccountState> = MutableStateFlow(AccountState()),
+    private val dataRevision: StateFlow<Long> = LibraryDataRevision.value,
 ) : ViewModel(), LibraryScreenActions {
     private val firstPage = LibraryPageVisibility.selectedOrFallback(initialPage, visiblePages)
     private val mutable = MutableStateFlow(
@@ -172,6 +174,8 @@ internal class LibraryViewModel(
     private var readyAfterTapMs: Long? = null
     private var playingAfterTapMs: Long? = null
     private var accountBlocked = accountEvents.value.blocks(sourceKey)
+    private var handledOpenRequest: Int? = null
+    private var reloadJob: Job? = null
 
     private fun unavailable(): Boolean = accountEvents.value.blocks(sourceKey)
 
@@ -217,6 +221,14 @@ internal class LibraryViewModel(
                 mutable.update { it.copy(managedScanStatus = status) }
             }
         }
+        viewModelScope.launch {
+            // Аудит п. 2: импорт, индексация, обложки и обновление альбома меняют Room —
+            // снимок перечитывается без пересоздания экрана. Первое значение — начальная загрузка ниже.
+            dataRevision.drop(1).collect {
+                artworkEpoch++
+                reload()
+            }
+        }
         // App-scoped PlayerViewModel owns binding/unbinding and restoration.
         reload()
     }
@@ -226,7 +238,9 @@ internal class LibraryViewModel(
             forgetAccount()
             return
         }
-        viewModelScope.launch {
+        // Несколько сигналов подряд (импорт, ревизия, альбом) дают одно чтение Room.
+        reloadJob?.cancel()
+        reloadJob = viewModelScope.launch {
             if (unavailable()) return@launch
             mutable.update { it.copy(loading = true, failed = false) }
             try {
@@ -334,6 +348,29 @@ internal class LibraryViewModel(
             it.copy(section = page, search = "", selectedGroupKey = null)
         }
         derivePages()
+    }
+
+    /**
+     * Аудит п. 3: переход с «Домой» — событие существующей ViewModel. Каждый переход имеет номер,
+     * поэтому возврат из «Сейчас играет» (тот же номер) не сбрасывает выбранную страницу (O-13).
+     */
+    fun onOpenRequest(request: Int, page: LibraryPage) {
+        if (handledOpenRequest == request) return
+        val first = handledOpenRequest == null
+        handledOpenRequest = request
+        if (!first) onPageSelected(LibraryPageVisibility.selectedOrFallback(page, mutable.value.visiblePages))
+    }
+
+    /** Аудит п. 3: настройки видимости страниц применяются к уже созданной медиатеке. */
+    fun onVisiblePagesChanged(pages: List<LibraryPage>) {
+        if (pages.isEmpty() || pages == mutable.value.visiblePages) return
+        val section = LibraryPageVisibility.selectedOrFallback(mutable.value.section, pages)
+        val moved = section != mutable.value.section
+        mutable.update {
+            if (moved) it.copy(visiblePages = pages, section = section, search = "", selectedGroupKey = null)
+            else it.copy(visiblePages = pages)
+        }
+        if (moved) derivePages()
     }
 
     override fun onGroupSelected(key: String?) {
@@ -573,6 +610,8 @@ internal class LibraryViewModel(
                 mutable.update { it.copy(albumRefreshFeedback = key to feedback) }
                 artworkEpoch++
                 reload()
+                // Ревизия общая: плеер тоже перечитает каталог; повторный reload здесь отменит текущий.
+                LibraryDataRevision.bump()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {

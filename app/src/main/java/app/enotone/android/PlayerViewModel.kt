@@ -17,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -48,8 +49,8 @@ internal data class SharedPlayerUiState(
  * Activity-scoped MediaSession observer. Unlike LibraryViewModel it survives
  * Home/Library/Settings transitions and attempts restore even on Home.
  */
-// All transport commands stay together in one Activity-scoped owner.
-@Suppress("TooManyFunctions")
+// All transport commands stay together in one Activity-scoped owner; manual DI keeps test injection.
+@Suppress("TooManyFunctions", "LongParameterList")
 internal class PlayerViewModel(
     private val connection: PlaybackConnection,
     private val repository: LibraryRepository,
@@ -58,6 +59,7 @@ internal class PlayerViewModel(
     private val io: CoroutineDispatcher,
     private val useCache: () -> Boolean,
     private val accountEvents: StateFlow<AccountState> = MutableStateFlow(AccountState()),
+    private val dataRevision: StateFlow<Long> = LibraryDataRevision.value,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(SharedPlayerUiState())
     val state: StateFlow<SharedPlayerUiState> = mutable
@@ -70,6 +72,7 @@ internal class PlayerViewModel(
     // Verified and encrypted logins are the only restoration credentials.
     private var restoreAllowed = false
     private var loadingAccount: String? = null
+    private var catalogGeneration = 0
 
     init {
         viewModelScope.launch {
@@ -100,6 +103,16 @@ internal class PlayerViewModel(
                 if (current.connected && current.queueTotal == 0) maybeRestore()
             }
         }
+        viewModelScope.launch {
+            // Аудит п. 2: каталог плеера (альбом, обложки) устаревает после импорта и индексации.
+            dataRevision.drop(1).collect {
+                catalogGeneration++
+                catalog = null
+                covers = null
+                loadingAccount = null
+                login?.takeIf { restoreAllowed }?.let(::ensureCatalog)
+            }
+        }
         connection.connect()
         viewModelScope.launch {
             val stored = withContext(io) { credentialsProvider.credentials() }
@@ -120,6 +133,7 @@ internal class PlayerViewModel(
             accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(email))) return
         val verified = StoredWebDavLogin(email, password)
         if (login != verified) {
+            catalogGeneration++
             login = verified
             catalog = null
             covers = null
@@ -146,6 +160,7 @@ internal class PlayerViewModel(
     }
 
     fun onSignedOut() {
+        catalogGeneration++
         restoreAllowed = false
         login = null
         catalog = null
@@ -160,6 +175,7 @@ internal class PlayerViewModel(
         if (accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(saved.email))) return
         if (catalog != null || loadingAccount == saved.email) return
         loadingAccount = saved.email
+        val generation = catalogGeneration
         viewModelScope.launch {
             try {
                 val loaded = repository.load(saved.email)
@@ -170,7 +186,8 @@ internal class PlayerViewModel(
                         }
                     }
                 }
-                if (login?.email == saved.email && restoreAllowed &&
+                val current = generation == catalogGeneration && login?.email == saved.email
+                if (current && restoreAllowed &&
                     !accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(saved.email))) {
                     catalog = loaded
                     covers = artwork
@@ -182,7 +199,7 @@ internal class PlayerViewModel(
             } catch (_: Exception) {
                 QueuePersistenceDiagnostics.result(QueueRestoreCode.NO_TRACKS_IN_ROOM)
             } finally {
-                loadingAccount = null
+                if (generation == catalogGeneration) loadingAccount = null
             }
         }
     }

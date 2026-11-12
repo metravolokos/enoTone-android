@@ -1,6 +1,7 @@
 package app.enotone.android
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -17,6 +18,7 @@ internal fun OfflineLibraryScreen(
     accountEmail: String,
     appPassword: String,
     initialPage: LibraryPage = LibraryPage.TRACKS,
+    openRequest: Int = 0,
     onBack: () -> Unit,
     player: SharedPlayerUiState = SharedPlayerUiState(),
     onPlayerOpen: () -> Unit = {},
@@ -50,6 +52,9 @@ internal fun OfflineLibraryScreen(
         key = "library:${accountEmail.hashCode()}:${appPassword.hashCode()}",
         factory = factory,
     )
+    // Аудит п. 3: ViewModel живёт дольше экрана — выбор страницы и видимость передаются событиями.
+    LaunchedEffect(model, openRequest) { model.onOpenRequest(openRequest, initialPage) }
+    LaunchedEffect(model, pages) { model.onVisiblePagesChanged(pages) }
     val state by model.state.collectAsStateWithLifecycle()
     LibraryScreenContent(
         state = state,

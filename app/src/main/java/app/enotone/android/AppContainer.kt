@@ -8,6 +8,7 @@ import app.enotone.library.RoomLibraryRepository
 import app.enotone.playback.QueueStateFileStore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 
 /** Application-scope manual wiring (ADR-0077). No ViewModel or secrets are retained here. */
 class AppContainer(
@@ -50,5 +51,11 @@ class AppContainer(
 class EnoToneApplication : Application() {
     val container: AppContainer by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         AppContainer(this)
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Живёт столько же, сколько процесс; держит только числа и состояния служб.
+        LibraryDataRevision.watch(MainScope())
     }
 }
