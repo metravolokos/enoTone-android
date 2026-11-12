@@ -40,6 +40,35 @@ class PersistedQueueStateTest {
         assertEquals(initial.queueRevision, restored.queueRevision)
     }
 
+    @Test fun savedDurationRoundTripsForTheProgressBarBeforeFirstPlay() {
+        val restored = roundTrip(state().copy(durationMs = 228_000L))!!
+        assertEquals(228_000L, restored.durationMs)
+    }
+
+    @Test fun checkpointWithoutDurationFromOlderBuildStillRestores() {
+        val old = state()
+        // Exactly the field set written before durationMs existed.
+        val position = QueueStateCodec.encodePosition(old.position())
+        assertFalse(position.contains("durationMs"))
+        val restored = QueueStateCodec.assemble(
+            QueueStateCodec.encodeLayout(old.layout()), position)!!
+        assertEquals(0L, restored.durationMs)
+        assertEquals(old.positionMs, restored.positionMs)
+    }
+
+    @Test fun durationIsDroppedWhenTheSelectedTrackDisappeared() {
+        val s = state().copy(durationMs = 228_000L)
+        val filtered = QueueStateRestorer.filter(s, setOf(id(1), id(2), id(4)))!!
+        assertEquals(id(4), filtered.selectedTrackId)
+        assertEquals(0L, filtered.durationMs)
+    }
+
+    @Test fun negativeDurationIsRejected() {
+        val raw = QueueStateCodec.encodePosition(state().position())
+            .replace("}", ",\"durationMs\":-5}")
+        assertNull(QueueStateCodec.decodePosition(raw))
+    }
+
     @Test fun noShuffleRoundTripHasNoPermutation() {
         val restored = roundTrip(state(shuffled = null))!!
         assertNull(restored.shuffledIndices)

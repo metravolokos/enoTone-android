@@ -171,6 +171,8 @@ class PreviewAudioPlayback(
     private var stableShuffleApplied = false
     /** Called only after configuredShuffle is ready, including MediaSession controls. */
     var onShuffleLayoutReady: (() -> Unit)? = null
+    /** Saved duration of the restored item, shown until Media3 knows the real one. */
+    private var restoredDuration: Pair<String, Long>? = null
     private var restoringShuffle = false
     private var deferredPrepare = false
     private var stageBeforePrepare = false
@@ -206,7 +208,20 @@ class PreviewAudioPlayback(
             shuffleEnabled = player.shuffleModeEnabled,
             savedAtEpochMs = savedAtEpochMs,
             queueRevision = revision,
+            durationMs = displayDurationMs,
         )
+    }
+
+    /**
+     * Duration for the UI: the real Media3 value when known; otherwise, for the
+     * restored (paused, not prepared) item, the duration saved with the
+     * checkpoint, so the progress bar is not stuck at zero before the first Play.
+     */
+    val displayDurationMs: Long get() {
+        val known = player.duration
+        if (PlaybackSeekPolicy.isKnownDuration(known)) return known
+        val saved = restoredDuration ?: return 0L
+        return if (player.currentMediaItem?.mediaId == saved.first) saved.second else 0L
     }
 
     /** Immutable original queue and full permutation; only on queue/shuffle changes. */
@@ -462,6 +477,7 @@ class PreviewAudioPlayback(
         cacheEnabledForQueue = useTemporaryCache
 
         val t0 = SystemClock.elapsedRealtime()
+        restoredDuration = null
         val queue = PlaybackQueue.create(tracks, selectedId)
         val t1 = SystemClock.elapsedRealtime()
         val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
@@ -545,6 +561,8 @@ class PreviewAudioPlayback(
         mediaIdIndices = queue.items.mapIndexed { index, item -> item.id to index }.toMap()
         configuredShuffle = state.shuffledIndices?.copyOf()
         stableShuffleApplied = false
+        restoredDuration = state.durationMs.takeIf { it > 0L }
+            ?.let { state.selectedTrackId to it }
 
         val plan = StagedPlaylistPlan.create(queue)
         val seed = plan.seed.map { makeMediaSource(mediaFactory, it) }
@@ -595,6 +613,7 @@ class PreviewAudioPlayback(
     }
 
     fun stop() {
+        restoredDuration = null
         handoffTracker.stop()
         lastEndRecoveryId = null
         clearScheduledWriter()

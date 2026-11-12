@@ -31,7 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,8 +84,13 @@ internal fun LibraryScreenContent(
     val artworkCatalog = state.artworkCatalog
     val playbackState = state.playbackState
     val miniVisible = player.playback.queueTotal > 0
-    val libraryListState = remember(section, selectedGroupKey, search) { LazyListState() }
-    val albumGridState = remember(section, search) { LazyGridState() }
+    // Saveable: the app-level Now Playing screen removes the library from
+    // composition; MainActivity keeps these states in a SaveableStateHolder so
+    // Back returns to the same scroll position (Huawei regression after #92).
+    val libraryListState = rememberSaveable(section, selectedGroupKey, search,
+        saver = LazyListState.Saver) { LazyListState() }
+    val albumGridState = rememberSaveable(section, search,
+        saver = LazyGridState.Saver) { LazyGridState() }
 
     val albumRequest = state.confirmAlbumRefresh
     if (albumRequest != null) {

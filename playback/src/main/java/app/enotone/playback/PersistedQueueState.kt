@@ -33,6 +33,9 @@ data class PersistedPositionState(
     val savedAtEpochMs: Long,
     val queueRevision: String,
     val version: Int = QueueStateCodec.VERSION,
+    /** Last known duration of the selected track; 0 = unknown. Lets the paused,
+     *  not-yet-prepared restored player show a correct progress bar without GET. */
+    val durationMs: Long = 0L,
 )
 
 /** Restored in-memory state; only hashes and numeric playback state cross the disk boundary. */
@@ -47,13 +50,14 @@ data class PersistedQueueState(
     val savedAtEpochMs: Long,
     val queueRevision: String,
     val version: Int = QueueStateCodec.VERSION,
+    val durationMs: Long = 0L,
 ) {
     fun layout() = PersistedQueueLayout(
         trackIds, shuffledIndices, shuffleEnabled, sourceKey, queueRevision, savedAtEpochMs, version,
     )
     fun position() = PersistedPositionState(
         selectedTrackId, positionMs, repeatMode, shuffleEnabled,
-        savedAtEpochMs, queueRevision, version,
+        savedAtEpochMs, queueRevision, version, durationMs,
     )
 }
 
@@ -86,6 +90,7 @@ object QueueStateCodec {
     fun isValidPosition(position: PersistedPositionState): Boolean =
         position.version == VERSION && hash.matches(position.selectedTrackId) &&
             position.positionMs >= 0L && position.repeatMode in 0..2 &&
+            position.durationMs >= 0L &&
             position.savedAtEpochMs >= 0L && revision.matches(position.queueRevision)
 
     fun isValid(state: PersistedQueueState): Boolean =
@@ -140,13 +145,17 @@ object QueueStateCodec {
         json.addProperty("shuffleEnabled", position.shuffleEnabled)
         json.addProperty("savedAtEpochMs", position.savedAtEpochMs)
         json.addProperty("queueRevision", position.queueRevision)
+        if (position.durationMs > 0L) json.addProperty("durationMs", position.durationMs)
         return json.toString()
     }
 
     fun decodePosition(raw: String): PersistedPositionState? = try {
         if (raw.isBlank() || raw.length > 8_192) null else {
             val json = JsonParser.parseString(raw).asJsonObject
-            if (json.keySet() != positionFields) null else PersistedPositionState(
+            // durationMs is optional: checkpoints written before it existed stay readable.
+            val keys = json.keySet()
+            if (keys != positionFields && keys != positionFields + "durationMs") null
+            else PersistedPositionState(
                 selectedTrackId = json.get("selectedTrackId").asString,
                 positionMs = json.get("positionMs").asLong,
                 repeatMode = json.get("repeatMode").asInt,
@@ -154,6 +163,7 @@ object QueueStateCodec {
                 savedAtEpochMs = json.get("savedAtEpochMs").asLong,
                 queueRevision = json.get("queueRevision").asString,
                 version = json.get("version").asInt,
+                durationMs = json.get("durationMs")?.asLong ?: 0L,
             ).takeIf(::isValidPosition)
         }
     } catch (_: RuntimeException) {
@@ -222,6 +232,7 @@ object QueueStateCodec {
             sourceKey = layout.sourceKey,
             savedAtEpochMs = safePosition.savedAtEpochMs,
             queueRevision = layout.queueRevision,
+            durationMs = safePosition.durationMs,
         )
     }
 }
@@ -247,6 +258,7 @@ object QueueStateRestorer {
             trackIds = survivors,
             selectedTrackId = selected,
             positionMs = if (selectedExists) state.positionMs else 0L,
+            durationMs = if (selectedExists) state.durationMs else 0L,
             shuffledIndices = reordered,
         )
     }

@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,6 +125,9 @@ private fun DiagnosticScreen() {
         PlayerViewModel.factory((appContext as EnoToneApplication).container)
     })
     val player by playerModel.state.collectAsStateWithLifecycle()
+    // Keeps the library's saveable UI state (scroll positions) while the
+    // app-level Now Playing screen temporarily replaces it.
+    val libraryStateHolder = rememberSaveableStateHolder()
     // Unpersisted credentials are used only after opening the library; they
     // do not grant the automatic queue restoration policy.
     LaunchedEffect(showingLibrary, email, password) {
@@ -350,15 +354,17 @@ private fun DiagnosticScreen() {
         return
     }
     if (showingLibrary) {
-        OfflineLibraryScreen(
-            accountEmail = email, appPassword = password,
-            initialPage = initialLibraryPage,
-            onBack = { showingLibrary = false },
-            player = player,
-            onPlayerOpen = { playerModel.onNowPlaying(true) },
-            onPlayerPlayPause = playerModel::onPlayPause,
-            onPlayerNext = playerModel::onNext,
-        )
+        libraryStateHolder.SaveableStateProvider(LIBRARY_STATE_KEY) {
+            OfflineLibraryScreen(
+                accountEmail = email, appPassword = password,
+                initialPage = initialLibraryPage,
+                onBack = { showingLibrary = false },
+                player = player,
+                onPlayerOpen = { playerModel.onNowPlaying(true) },
+                onPlayerPlayPause = playerModel::onPlayPause,
+                onPlayerNext = playerModel::onNext,
+            )
+        }
         return
     }
 
@@ -1309,3 +1315,6 @@ private data class FastProbeResult(
     val bytes: Long,
     val saved: Int,
 )
+
+/** SaveableStateHolder key for the library destination. */
+private const val LIBRARY_STATE_KEY = "library"

@@ -1,8 +1,6 @@
 package app.enotone.android
 
-import android.content.Context
 import android.graphics.Bitmap
-import android.media.AudioManager
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -43,7 +41,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -58,7 +55,8 @@ import app.enotone.playback.PlaybackSeekPolicy
 /**
  * Material 3 Expressive / Graphite player. No artwork-sourced colors, fake
  * quality indicators, favorites, lyrics, cast, queue sheet or disabled icons.
- * All visible actions call the existing Media3 service or Android audio API.
+ * All visible actions call the existing Media3 service. No in-app volume
+ * control: system volume keys only (owner decision 2026-11-12, REQUIREMENTS O-12).
  */
 @Composable
 internal fun NowPlayingScreen(
@@ -88,21 +86,8 @@ internal fun NowPlayingScreen(
     onToggleShuffle: () -> Unit,
 ) {
     val color = MaterialTheme.colorScheme
-    val ctx = LocalContext.current
-    val audio = remember(ctx) {
-        ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    }
-    val maxVolume = remember(audio) {
-        audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-    }
-    var volume by remember(audio) {
-        mutableFloatStateOf(
-            audio.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume,
-        )
-    }
 
     val seekLabel = stringResource(R.string.playback_seek_slider)
-    val volumeLabel = stringResource(R.string.ui_volume)
     val knownDuration = PlaybackSeekPolicy.isKnownDuration(durationMs)
     var scrubbing by remember(trackId) { mutableStateOf(false) }
     var scrubFraction by remember(trackId) { mutableFloatStateOf(0f) }
@@ -307,32 +292,6 @@ internal fun NowPlayingScreen(
                         tint = if (repeatMode != Player.REPEAT_MODE_OFF)
                             color.primary else color.onSurfaceVariant)
                 }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(painterResource(R.drawable.ic_volume_low),
-                    contentDescription = null, modifier = Modifier.size(18.dp),
-                    tint = color.onSurfaceVariant)
-                Slider(
-                    value = volume.coerceIn(0f, 1f),
-                    onValueChange = { next ->
-                        volume = next
-                        audio.setStreamVolume(
-                            AudioManager.STREAM_MUSIC,
-                            (next * maxVolume).toInt().coerceIn(0, maxVolume),
-                            0,
-                        )
-                    },
-                    modifier = Modifier.weight(1f).semantics {
-                        contentDescription = volumeLabel
-                    },
-                )
-                Icon(painterResource(R.drawable.ic_volume_high),
-                    contentDescription = null, modifier = Modifier.size(18.dp),
-                    tint = color.onSurfaceVariant)
             }
         }
     }

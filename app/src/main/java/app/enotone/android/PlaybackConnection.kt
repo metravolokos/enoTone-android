@@ -12,7 +12,6 @@ import app.enotone.playback.HandoffSnapshot
 import app.enotone.playback.PersistedQueueState
 import app.enotone.playback.PlaybackDataIssue
 import app.enotone.playback.PlaybackDataIssueClassifier
-import app.enotone.playback.PlaybackSeekPolicy
 import app.enotone.playback.PlaybackSetupTimings
 import app.enotone.playback.QueueTrack
 import app.enotone.playback.TransientCacheStatus
@@ -154,7 +153,6 @@ internal class AndroidPlaybackConnection(
             return
         }
         val p = active.player
-        val duration = p.duration
         val error = p.playerError
         mutable.value = PlaybackSnapshot(
             connected = true,
@@ -163,7 +161,8 @@ internal class AndroidPlaybackConnection(
             title = p.currentMediaItem?.mediaMetadata?.title?.toString(),
             artist = p.currentMediaItem?.mediaMetadata?.artist?.toString(),
             positionMs = p.currentPosition.coerceAtLeast(0L),
-            durationMs = if (PlaybackSeekPolicy.isKnownDuration(duration)) duration else 0L,
+            // Includes the saved duration of a restored, not yet prepared item.
+            durationMs = active.displayDurationMs,
             canSeek = active.canSeekCurrent,
             queuePosition = active.queuePosition + 1,
             queueTotal = active.queueSize,
