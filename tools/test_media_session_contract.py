@@ -63,7 +63,11 @@ class MediaSessionContractTest(unittest.TestCase):
         self.assertIn("bindService(", connection)
         self.assertIn("unbindService(", connection)
         self.assertIn("EnoTonePlaybackService", connection)
-        self.assertNotIn("stopPlayback(", connection)
+        # Explicit account sign-out may call stopPlayback(), but merely
+        # unbinding an Activity must not change playback state.
+        disconnect = connection.split("override fun disconnect()", 1)[1].split(
+            "private fun publish()", 1)[0]
+        self.assertNotIn("stopPlayback(", disconnect)
         self.assertNotIn("putExtra(", connection)
 
     def test_m5_current_cache_is_transient_and_pause_independent(self):

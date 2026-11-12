@@ -9,7 +9,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Android adapter for account cleanup. Album/source hashes are journaled
@@ -59,14 +59,16 @@ internal class AndroidAccountSignOutPort(
             }
         }
         // A command returning does NOT mean the service has finished writing.
-        withTimeout(30_000L) {
+        val stopped = withTimeoutOrNull(30_000L) {
             ManagedScanRuntime.status.first {
                 it.state != ManagedScanState.RUNNING && !it.terminating
             }
             ArtworkScanRuntime.status.first {
                 it.state != ArtworkScanState.RUNNING && !it.terminating
             }
+            true
         }
+        check(stopped == true) { "Indexer did not stop safely" }
     }
 
     override suspend fun deleteTracks(sourceKey: String) = withContext(io) {

@@ -118,9 +118,9 @@ internal class PlayerViewModel(
     }
 
     fun onSignOutFailed() {
-        restoreAllowed = login != null
-        login?.let { ensureCatalog(it) }
-        maybeRestore()
+        // Cleanup may have already deleted Room records. Keep credentials
+        // for retry, but do not rehydrate a partially erased queue.
+        restoreAllowed = false
     }
 
     fun onSignedOut() {
@@ -198,6 +198,9 @@ internal class PlayerViewModel(
                     QueuePersistenceDiagnostics.result(QueueRestoreCode.NO_TRACKS_IN_ROOM)
                     return@launch
                 }
+                // An in-flight restore may have started before the user
+                // confirmed sign-out. Never repopulate the queue during cleanup.
+                if (!restoreAllowed || login != saved) return@launch
                 if (connection.state.value.queueTotal > 0) {
                     QueuePersistenceDiagnostics.result(QueueRestoreCode.SERVICE_HAS_QUEUE)
                     return@launch
