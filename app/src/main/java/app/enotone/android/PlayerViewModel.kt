@@ -32,7 +32,8 @@ internal fun interface CredentialsProvider {
 
 internal class VaultCredentialsProvider(private val context: Context) : CredentialsProvider {
     override suspend fun credentials(): StoredWebDavLogin? =
-        runCatching { LocalCredentialVault.restore(context) }.getOrNull()
+        if (SignOutMarker.pending(context)) null
+        else runCatching { LocalCredentialVault.restore(context) }.getOrNull()
 }
 
 internal data class SharedPlayerUiState(
