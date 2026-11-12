@@ -10,7 +10,7 @@ junit = "4.13.2"
 room = "2.8.5"
 media3 = "1.11.1"
 ksp = "2.3.10"
-gson = "2.13.2"
+gson = "2.15.0"
 detekt = "1.23.8"
 lifecycle = "2.9.4"
 
