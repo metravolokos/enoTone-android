@@ -42,13 +42,17 @@ internal class AndroidArtworkSettingsGateway(
 
     override suspend fun resumeAuto(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) return
+        val accountKey = LibrarySnapshotPlanner.accountKey(email)
+        if (container.accountSession.state.value.blocks(accountKey)) return
         // All indexed-tags checks stay off the Compose render and main threads.
         val mayStart = withContext(container.io) {
             val pending = container.database.remoteTrackDao().pendingFastScans(
                 LibrarySnapshotPlanner.accountKey(email)).isNotEmpty()
             !pending && ArtworkIndexPlanner.needsPreparation(context, email)
         }
-        if (mayStart && ManagedScanRuntime.status.value.state != ManagedScanState.RUNNING &&
+        // Signing out may have begun while the Room lookup was suspended.
+        if (mayStart && !container.accountSession.state.value.blocks(accountKey) &&
+            ManagedScanRuntime.status.value.state != ManagedScanState.RUNNING &&
             !ManagedScanRuntime.status.value.terminating &&
             ArtworkScanRuntime.prepare(email, password)) {
             try {
