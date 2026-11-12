@@ -31,7 +31,7 @@ class PlayerViewModelTest {
     private fun catalog(): LibrarySnapshot {
         val ids = listOf(id(1), id(2))
         return LibrarySnapshot(
-            ids.map { OfflineTrackRow(id = it, title = "Track", album = "Album") },
+            ids.map { OfflineTrackRow(id = it, title = "Track", artist = "Artist", album = "Album") },
             ids.associateWith { QueueTrack(it, "Track", "/AllMusic/${it}.mp3", 100L, null) },
         )
     }
