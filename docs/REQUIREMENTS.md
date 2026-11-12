@@ -66,7 +66,7 @@
 |---|---|---|---|
 | R-4.1 | Модули `:core:*`, `:data:*`, `:playback`, `:feature:*` | 🟡 | M6-0/5 |
 | R-4.2 | Абстракция `MusicSource` | ❌ | |
-| R-4.3 | UDF: MVVM/MVI + StateFlow, логика не в Composable | 🟡 | медиатека и плеер — #92 (T: `LibraryViewModelTest`, `PlayerViewModelTest`); M6-0/4b-1 (#100): T `AccountSettingsViewModelTest`, `LibraryViewModelTest` (реакция на выход), `PlayerViewModelTest`; оставшиеся технические действия и деление экрана — M6-0/4b-2 |
+| R-4.3 | UDF: MVVM/MVI + StateFlow, логика не в Composable | 🟡 | медиатека и плеер — #92 (T: `LibraryViewModelTest`, `PlayerViewModelTest`); M6-0/4b-1 (#100): T `AccountSettingsViewModelTest`, `LibraryViewModelTest` (реакция на выход), `PlayerViewModelTest`; M6-0/4b-2 Draft: T `ArtworkSettingsViewModelTest`, `TechnicalProbeViewModelTest`, `ManagedIndexSettingsViewModelTest`; остались импорт/переиндексация, tag-audit, probe одного трека и деление остальных разделов |
 | R-4.4 | Room — единственный источник истины для UI | 🟡 | медиатека — да; часть состояния в UI |
 | R-4.5 | Стабильный ID трека | 🟡 | SHA от пути; нет канонизации кодирования |
 | R-4.6 | Эвристика повторного сопоставления при переименовании | ❌ | M6-0/6 |
@@ -149,7 +149,7 @@
 | R-9.4 | Защищённый `main` | ❌ | правило ветки не включено (только владелец может) |
 | R-9.5 | Шаблоны PR / issue | ✅ | `.github/` |
 | R-10 | Документация §10 (AGENTS, ADR, STATUS, ROADMAP и т. д.) | ✅ | M6-0/1 |
-| R-11.1 | `@Preview` и состояния загрузка / пусто / ошибка / данные для каждого экрана | 🟡 | медиатека — 4 превью (#92); M6-0/4b-1 (#100): 4 превью аккаунта (нет входа / проверка / вход / ошибка); прочие экраны ещё без полного покрытия |
+| R-11.1 | `@Preview` и состояния загрузка / пусто / ошибка / данные для каждого экрана | 🟡 | медиатека — 4 превью (#92); M6-0/4b-1 (#100): 4 превью аккаунта (нет входа / проверка / вход / ошибка); в Draft 4b-2 — 2 Preview секции индексации (IDLE/ERROR); прочие экраны ещё без полного покрытия |
 | R-11.2 | StrictMode в debug | ❌ | |
 | R-11.3 | Централизованный логгер без секретов | ❌ | логов нет вовсе |
 | R-11.4 | Магические числа в одном конфигурационном месте | 🟡 | частично (`*Policy`), detekt MagicNumber |
