@@ -130,18 +130,19 @@ private fun SettingsAccountEffects(
     artworkModel: ArtworkSettingsViewModel,
     onSignedOut: () -> Unit,
 ) {
-    val email = account.email
-    val password = account.password
-    LaunchedEffect(account.loggedIn, account.busy, email, password) {
-        session.updateLogin(
-            if (account.loggedIn && !account.busy) StoredWebDavLogin(email, password) else null)
-    }
+    // Рабочий вход — только подтверждённый (ADR-0080): поля формы сюда не попадают.
+    val working = account.workingLogin
+    val library = account.libraryLogin
+    LaunchedEffect(working) { session.updateLogin(working) }
     LaunchedEffect(showingSettings) { artworkModel.setVisible(showingSettings) }
-    LaunchedEffect(showingLibrary, account.loggedIn, email, password) {
-        if (showingLibrary && account.loggedIn) playerModel.onCredentialsPersisted(email, password)
+    LaunchedEffect(showingLibrary, library) {
+        if (showingLibrary && library != null) playerModel.onCredentialsPersisted(library.email, library.password)
     }
     LaunchedEffect(account.verifiedVersion) {
-        if (account.verifiedVersion > 0) playerModel.onCredentialsPersisted(email, password)
+        val verified = account.active
+        if (account.verifiedVersion > 0 && verified != null) {
+            playerModel.onCredentialsPersisted(verified.email, verified.password)
+        }
     }
     LaunchedEffect(account.signedOutVersion) {
         if (account.signedOutVersion > 0) {

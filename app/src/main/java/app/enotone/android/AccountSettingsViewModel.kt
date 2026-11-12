@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.network.WebDavDiagnostics
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +17,10 @@ import kotlinx.coroutines.withContext
 /** Account I/O boundary; fake implementations run without Android/Room/WebDAV. */
 internal interface AccountSettingsGateway {
     suspend fun restore(): StoredWebDavLogin?
+
+    /** Выход начат и не завершён (в том числе до перезапуска процесса): новые операции запрещены. */
+    suspend fun signOutPending(): Boolean = false
+
     suspend fun verify(email: String, password: String): Boolean
     suspend fun save(email: String, password: String)
     suspend fun countTracks(email: String): Int
@@ -30,6 +33,17 @@ internal class AndroidAccountSettingsGateway(
 ) : AccountSettingsGateway {
     override suspend fun restore(): StoredWebDavLogin? = withContext(container.io) {
         LocalCredentialVault.restore(context)
+    }
+
+    override suspend fun signOutPending(): Boolean {
+        val pending = withContext(container.io) { SignOutMarker.pending(context) }
+        if (pending) {
+            // Блокирует медиатеку и плеер этого аккаунта так же, как неудачный выход в текущем сеансе.
+            withContext(container.io) { LocalCredentialVault.restore(context) }?.let {
+                container.accountSession.failSignOut(LibrarySnapshotPlanner.accountKey(it.email))
+            }
+        }
+        return pending
     }
 
     override suspend fun verify(email: String, password: String): Boolean =
@@ -55,8 +69,11 @@ internal class AndroidAccountSettingsGateway(
     override suspend fun signOut(email: String) {
         val key = LibrarySnapshotPlanner.accountKey(email)
         container.accountSession.beginSignOut(key)
+        // Флаг без личных данных переживает гибель процесса: незавершённый выход блокирует работу и после запуска.
+        withContext(container.io) { SignOutMarker.begin(context) }
         try {
             container.accountSignOut(email).run(key)
+            withContext(container.io) { SignOutMarker.finish(context) }
             container.accountSession.finishSignOut(key)
         } catch (cancelled: CancellationException) {
             container.accountSession.failSignOut(key)
@@ -71,8 +88,13 @@ internal class AndroidAccountSettingsGateway(
 internal enum class AccountError { RESTORE, CONNECTION, STORAGE, OTHER_ACCOUNT, SIGN_OUT }
 
 internal data class AccountUiState(
+    /** Редактируемые поля формы входа: до проверки никуда не передаются. */
     val email: String = "",
     val password: String = "",
+    /** Подтверждённый вход: восстановлен из Keystore или успешно проверен и сохранён. */
+    val active: StoredWebDavLogin? = null,
+    /** Выход начат, но не завершён: импорт, индексация, обложки и медиатека заблокированы до повтора. */
+    val signOutFailed: Boolean = false,
     val restoring: Boolean = true,
     val checking: Boolean = false,
     val loggedIn: Boolean = false,
@@ -86,6 +108,12 @@ internal data class AccountUiState(
     val failedSignOutVersion: Int = 0,
 ) {
     val busy: Boolean get() = restoring || checking || signingOut
+
+    /** Единственный источник входа для рабочих операций и медиатеки. */
+    val workingLogin: StoredWebDavLogin? get() = libraryLogin.takeIf { !busy }
+
+    /** Вход для медиатеки и плеера: не зависит от кратких фаз проверки, но не после незавершённого выхода. */
+    val libraryLogin: StoredWebDavLogin? get() = active.takeIf { loggedIn && !signOutFailed }
 }
 
 internal class AccountSettingsViewModel(
@@ -94,7 +122,6 @@ internal class AccountSettingsViewModel(
     private val mutable = MutableStateFlow(AccountUiState())
     val state: StateFlow<AccountUiState> = mutable.asStateFlow()
     private var activeEmail: String? = null
-    private var editVersion = 0
 
     init {
         viewModelScope.launch {
@@ -102,10 +129,12 @@ internal class AccountSettingsViewModel(
                 val saved = gateway.restore()
                 if (saved != null) {
                     activeEmail = saved.email
+                    val pending = gateway.signOutPending()
+                    // Рабочий вход — только сохранённый; правки полей во время восстановления не применяются.
                     mutable.update {
-                        it.copy(email = if (editVersion == 0) saved.email else it.email,
-                            password = if (editVersion == 0) saved.password else it.password,
-                            loggedIn = true)
+                        it.copy(email = saved.email, password = saved.password, active = saved,
+                            loggedIn = true, signOutFailed = pending,
+                            error = if (pending) AccountError.SIGN_OUT else it.error)
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -119,12 +148,12 @@ internal class AccountSettingsViewModel(
     }
 
     fun onEmailChanged(value: String) {
-        editVersion++
+        if (mutable.value.loggedIn) return
         mutable.update { it.copy(email = value, error = null) }
     }
 
     fun onPasswordChanged(value: String) {
-        editVersion++
+        if (mutable.value.loggedIn) return
         mutable.update { it.copy(password = value, error = null) }
     }
 
@@ -154,6 +183,7 @@ internal class AccountSettingsViewModel(
                     activeEmail = current.email
                     mutable.update {
                         it.copy(loggedIn = true, error = null,
+                            active = StoredWebDavLogin(current.email, current.password),
                             verifiedVersion = it.verifiedVersion + 1)
                     }
                 }
@@ -197,20 +227,21 @@ internal class AccountSettingsViewModel(
                 gateway.signOut(email)
                 activeEmail = null
                 mutable.update {
-                    it.copy(email = "", password = "", loggedIn = false,
+                    it.copy(email = "", password = "", loggedIn = false, active = null, signOutFailed = false,
                         trackCount = 0, failureStep = null,
                         signedOutVersion = it.signedOutVersion + 1)
                 }
             } catch (cancelled: CancellationException) {
+                mutable.update { it.copy(signOutFailed = true) }
                 throw cancelled
             } catch (failure: AccountSignOutFailure) {
                 mutable.update {
-                    it.copy(error = AccountError.SIGN_OUT, failureStep = failure.step,
+                    it.copy(error = AccountError.SIGN_OUT, failureStep = failure.step, signOutFailed = true,
                         failedSignOutVersion = it.failedSignOutVersion + 1)
                 }
             } catch (_: Exception) {
                 mutable.update {
-                    it.copy(error = AccountError.SIGN_OUT,
+                    it.copy(error = AccountError.SIGN_OUT, signOutFailed = true,
                         failedSignOutVersion = it.failedSignOutVersion + 1)
                 }
             } finally {

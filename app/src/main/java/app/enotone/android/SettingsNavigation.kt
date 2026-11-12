@@ -53,10 +53,11 @@ internal fun SettingsMusicDestination(
         )
         true
     }
-    showingLibrary -> {
+    showingLibrary && account.libraryLogin != null -> {
+        val login = requireNotNull(account.libraryLogin)
         libraryStateHolder.SaveableStateProvider(LIBRARY_STATE_KEY) {
             OfflineLibraryScreen(
-                accountEmail = account.email, appPassword = account.password,
+                accountEmail = login.email, appPassword = login.password,
                 initialPage = initialLibraryPage,
                 onBack = onLibraryBack,
                 player = player,
@@ -75,7 +76,7 @@ internal fun SettingsMusicDestination(
             LibraryPagePreferences(appContext).hiddenPages())
         EnoToneHomeScreen(
             visiblePages = pages,
-            connectedAccount = account.loggedIn,
+            connectedAccount = account.libraryLogin != null,
             onSettings = onSettings,
             onOpenPage = onOpenPage,
             miniPlayer = {
