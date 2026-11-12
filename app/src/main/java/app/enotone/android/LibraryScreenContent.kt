@@ -135,7 +135,6 @@ internal fun LibraryScreenContent(
                     contentDescription = stringResource(R.string.library_group_back),
                     tint = MaterialTheme.colorScheme.onSurface)
             }
-
         }
         if (selectedGroupKey == null) {
             Text(
