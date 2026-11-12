@@ -2,7 +2,7 @@
 
 > Только **текущие** проблемы. Исправленное — удалять отсюда и отмечать в CHANGELOG. История 2026-11-08…11 — [archive/KNOWN_ISSUES_JOURNAL_2026-11-08_11.md](archive/KNOWN_ISSUES_JOURNAL_2026-11-08_11.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md). План устранения — [ADR-0074](DECISIONS/ADR-0074-m6-0-tech-debt-plan.md) (номера шагов M6-0/N).
 
-**Обновлено:** 2026-11-12; версия в разработке 0.6.2; база `main` после #105; чистка «Настроек» (ADR-0081) — PR #106, проверка на Huawei ожидается.
+**Обновлено:** 2026-11-12; версия в разработке 0.6.2; база `main` после #105; чистка «Настроек» (#106) принята на Huawei (0.6.2-preview.460).
 
 ## Воспроизведение
 
@@ -33,7 +33,7 @@
 | Huawei при установке из файла показывает «Выявлена угроза: не отвечает требованиям качества и безопасности Huawei» (впервые замечено на 0.6.0-preview.429). Это общее предупреждение для приложений вне AppGallery; разрешения и библиотеки сборки проверены, сторонних SDK нет | Нажимать «Установить»; убрать можно только публикацией в AppGallery / F-Droid — см. OPEN_QUESTIONS |
 | Ресурсы дизайна Android v2 ([ADR-0079](DECISIONS/ADR-0079-design-resources-v2.md)) лежат в `:app`, но не используются экранами до D2; `tools:keep` снимается по мере использования | D2–D6 ([DESIGN_PLAN](DESIGN_PLAN.md)) |
 | 10 из 15 модулей пустые; службы индексации и обложек ещё не разделены | M6-0/4c–5 |
-| Настройки переделаны (ADR-0081): регрессия на Huawei ещё не проверена. В слое данных остались неиспользуемые после чистки `LibraryTagStore.findTracks/queueOneForRefresh/queueAllForRefresh/storedCoverage`, `PilotTagIndexer.offlineCheckpoint`, режим `ManagedIndexMode.BOUNDED` | TESTING «Чистка настроек»; данные — M6-0/4c |
+| После чистки «Настроек» (ADR-0081) в слое данных остались неиспользуемые после чистки `LibraryTagStore.findTracks/queueOneForRefresh/queueAllForRefresh/storedCoverage`, `PilotTagIndexer.offlineCheckpoint`, режим `ManagedIndexMode.BOUNDED` | M6-0/4c |
 | Python-тесты в `tools/test_*_contract.py` проверяют наличие строк в исходниках, а не поведение | M6-0/5 |
 | JVM-тесты медиатеки/плеера/AccountSignOut есть, но отсутствуют Room/Robolectric-тест реального `DELETE FROM remote_tracks WHERE sourceKey` (R-8.5), интеграционная проверка полного выхода/гонок сервисов и Compose UI-тесты | M6-0/4b-1 и /5; Huawei Б-1, Б-2 только по согласованию |
 | 546 замечаний detekt (отчёт в CI, не блокирует) | M6-0/4–5, затем блокирующий режим |
