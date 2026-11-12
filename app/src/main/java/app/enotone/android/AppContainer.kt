@@ -31,7 +31,6 @@ class AppContainer(
         AndroidPlaybackConnection(appContext, main)
     }
     internal val backgroundWorkLauncher: BackgroundWorkLauncher by lazy { AndroidBackgroundWorkLauncher(appContext) }
-    internal val settingsWorkSession = SettingsWorkSession()
 
     @Suppress("SpreadOperator") // Android Resources.getString принимает varargs.
     internal val settingsText = SettingsText { id, args -> appContext.getString(id, *args) }

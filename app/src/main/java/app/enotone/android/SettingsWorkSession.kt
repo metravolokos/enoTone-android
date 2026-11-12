@@ -1,5 +1,6 @@
 package app.enotone.android
 
+import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -47,3 +48,10 @@ internal val ManagedScanStatus.active: Boolean
 
 internal val ArtworkScanStatus.active: Boolean
     get() = state == ArtworkScanState.RUNNING || terminating
+
+/** Сеанс принадлежит Activity и не удерживает секрет в process-wide AppContainer. */
+internal class SettingsSessionViewModel : ViewModel() {
+    val session = SettingsWorkSession()
+
+    override fun onCleared() { session.updateLogin(null) }
+}

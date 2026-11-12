@@ -108,7 +108,7 @@ private fun AuditRefreshAll(state: DiagnosticsUiState, actions: DiagnosticsActio
 @Preview
 @Composable
 internal fun SettingsAuditSectionPreview() {
-    val row = RemoteTrackEntity("demo", "source", "/AllMusic/demo.flac", "demo.flac", null, 100L, null,
+    val row = RemoteTrackEntity("demo", "source", "/AllMusic/demo.flac", "demo.flac", null, PREVIEW_TRACK_BYTES, null,
         title = "Демонстрационный трек", artist = "Исполнитель", lastSeenEpoch = 0)
     MaterialTheme {
         Column {
@@ -124,3 +124,5 @@ internal fun SettingsAuditSectionStatePreview() {
     MaterialTheme { Column { SettingsAuditSection(DiagnosticsUiState(message = "Ошибка чтения"),
         object : DiagnosticsActions {}) } }
 }
+
+private const val PREVIEW_TRACK_BYTES = 100L

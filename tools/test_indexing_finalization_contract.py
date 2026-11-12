@@ -38,6 +38,8 @@ class IndexingFinalizationContractTest(unittest.TestCase):
         self.assertNotIn("FlatLibraryWebDavClient(", reindex)
         self.assertNotIn("startForeground(", reindex)
         self.assertNotIn("deleteDatabase(", reindex)
+        settings_gateway = src("app/src/main/java/app/enotone/android/LibraryIndexingGateway.kt")
+        self.assertNotIn("deleteDatabase(", settings_gateway)
 
     def test_old_tags_survive_failed_or_cancelled_forced_refresh(self):
         dao = src("core/database/src/main/java/app/enotone/database/RemoteTrackDao.kt")

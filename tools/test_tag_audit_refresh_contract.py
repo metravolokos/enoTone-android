@@ -26,6 +26,10 @@ class AuditRefreshContractTest(unittest.TestCase):
         for needle in ("missingAlbum(accountEmail:", "missingAlbumArtist(accountEmail:",
                        "findTracks(accountEmail:", "queueOneForRefresh(", "queueAllForRefresh("):
             self.assertIn(needle, store)
+        diagnostics = (ROOT / 'app/src/main/java/app/enotone/android/DiagnosticsGateway.kt').read_text()
+        diagnostics += (ROOT / 'app/src/main/java/app/enotone/android/DiagnosticsViewModel.kt').read_text()
+        self.assertNotIn("Log.", diagnostics)
+        self.assertNotIn("println(", diagnostics)
 
     def test_queue_and_scan_preserve_old_tags_on_failed_refresh(self):
         dao = DAO.read_text()

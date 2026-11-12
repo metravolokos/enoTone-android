@@ -38,7 +38,9 @@ import app.enotone.library.LibraryPage
 internal fun DiagnosticScreen() {
     val appContext = LocalContext.current.applicationContext
     val container = (appContext as EnoToneApplication).container
-    val factory = remember(container) { SettingsViewModelFactory(container) }
+    val sessionModel: SettingsSessionViewModel = viewModel(factory = SettingsSessionFactory)
+    val session = sessionModel.session
+    val factory = remember(container, session) { SettingsViewModelFactory(container, session) }
     val accountModel: AccountSettingsViewModel = viewModel(factory = remember(appContext) {
         AccountSettingsViewModel.factory(container, appContext)
     })
@@ -60,7 +62,7 @@ internal fun DiagnosticScreen() {
     })
     val player by playerModel.state.collectAsStateWithLifecycle()
     val libraryStateHolder = rememberSaveableStateHolder()
-    SettingsAccountEffects(account, showingLibrary, showingSettings, container, playerModel, artworkModel,
+    SettingsAccountEffects(account, showingLibrary, showingSettings, session, playerModel, artworkModel,
         onConnected = { showConnection = false }, onSignedOut = { showingLibrary = false; showConnection = true })
     SettingsNotificationPermission(if (indexing.permissionPending) indexing.permissionRequest else 0,
         indexingModel::onNotificationPermission)
@@ -138,7 +140,7 @@ private fun SettingsAccountEffects(
     account: AccountUiState,
     showingLibrary: Boolean,
     showingSettings: Boolean,
-    container: AppContainer,
+    session: SettingsWorkSession,
     playerModel: PlayerViewModel,
     artworkModel: ArtworkSettingsViewModel,
     onConnected: () -> Unit,
@@ -147,7 +149,7 @@ private fun SettingsAccountEffects(
     val email = account.email
     val password = account.password
     LaunchedEffect(account.loggedIn, account.busy, email, password) {
-        container.settingsWorkSession.updateLogin(
+        session.updateLogin(
             if (account.loggedIn && !account.busy) StoredWebDavLogin(email, password) else null)
     }
     LaunchedEffect(showingSettings) { artworkModel.setVisible(showingSettings) }

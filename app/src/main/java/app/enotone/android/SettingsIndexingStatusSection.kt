@@ -21,34 +21,34 @@ internal fun SettingsIndexingStatusSection(state: LibraryIndexingUiState, action
     val managedPaused = stringResource(R.string.managed_index_paused)
     val managedStopped = stringResource(R.string.managed_index_stopped)
     val managedError = stringResource(R.string.managed_index_failed)
-        Text(stringResource(R.string.managed_index_title),
-            style = MaterialTheme.typography.titleMedium)
-        if (showTechnicalTools) {
-            Text(stringResource(R.string.managed_index_explanation),
-                style = MaterialTheme.typography.bodySmall)
-        }
-        if (state.permissionDenied) {
-            Text(stringResource(R.string.managed_notification_permission_denied),
-                style = MaterialTheme.typography.bodySmall)
-        }
-        IndexingServiceControls(state, actions, showTechnicalTools)
-        IndexingProgress(state.status, showIndexDetails, showTechnicalTools, onToggleDetails)
-        if (showIndexDetails || showTechnicalTools) {
-        state.status.failureStage?.let { stage ->
-            Text(stringResource(R.string.managed_index_internal_failure,
-                stage, state.status.failureReason ?: "UNEXPECTED"),
-                style = MaterialTheme.typography.bodySmall)
-        }
-        }
-        val managedMessage = when (state.status.state) {
-            ManagedScanState.PAUSED -> managedPaused
-            ManagedScanState.STOPPED -> managedStopped
-            ManagedScanState.ERROR -> managedError
-            else -> ""
-        }
-        if (managedMessage.isNotEmpty()) {
-            Text(managedMessage, style = MaterialTheme.typography.bodySmall)
-        }
+    Text(stringResource(R.string.managed_index_title),
+        style = MaterialTheme.typography.titleMedium)
+    if (showTechnicalTools) {
+        Text(stringResource(R.string.managed_index_explanation),
+            style = MaterialTheme.typography.bodySmall)
+    }
+    if (state.permissionDenied) {
+        Text(stringResource(R.string.managed_notification_permission_denied),
+            style = MaterialTheme.typography.bodySmall)
+    }
+    IndexingServiceControls(state, actions, showTechnicalTools)
+    IndexingProgress(state.status, showIndexDetails, showTechnicalTools, onToggleDetails)
+    if (showIndexDetails || showTechnicalTools) {
+    state.status.failureStage?.let { stage ->
+        Text(stringResource(R.string.managed_index_internal_failure,
+            stage, state.status.failureReason ?: "UNEXPECTED"),
+            style = MaterialTheme.typography.bodySmall)
+    }
+    }
+    val managedMessage = when (state.status.state) {
+        ManagedScanState.PAUSED -> managedPaused
+        ManagedScanState.STOPPED -> managedStopped
+        ManagedScanState.ERROR -> managedError
+        else -> ""
+    }
+    if (managedMessage.isNotEmpty()) {
+        Text(managedMessage, style = MaterialTheme.typography.bodySmall)
+    }
 }
 
 @Composable
