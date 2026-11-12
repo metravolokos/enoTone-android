@@ -2,12 +2,10 @@ package app.enotone.android
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -80,13 +78,12 @@ internal fun DiagnosticScreen() {
             showingLibrary = true
         })) return
 
-    Box(modifier = Modifier.fillMaxSize()) {
-    // Отдельная прокрутка для основного экрана и подэкрана «Диагностика».
+    // Мини-плеера в «Настройках» и «Диагностике» нет (O-10 уточнено владельцем 2026-11-13):
+    // он нужен только на экранах музыки. Отдельная прокрутка для основного экрана и подэкрана.
     key(showingDiagnostics) {
     Column(
         modifier = Modifier.fillMaxSize().systemBarsPadding()
-            .verticalScroll(rememberScrollState()).padding(16.dp)
-            .padding(bottom = if (player.playback.queueTotal > 0) 88.dp else 0.dp),
+            .verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (showingDiagnostics) {
@@ -119,16 +116,6 @@ internal fun DiagnosticScreen() {
             }
             SettingsDiagnosticsEntry { showingDiagnostics = true }
         }
-    }
-    }
-    Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-        .navigationBarsPadding()) {
-        EnoToneMiniPlayer(
-            player = player,
-            onOpen = { playerModel.onNowPlaying(true) },
-            onPlayPause = playerModel::onPlayPause,
-            onNext = playerModel::onNext,
-        )
     }
     }
 }
