@@ -33,3 +33,12 @@ internal fun ArtworkLoadingPreview() {
 internal fun ArtworkErrorPreview() {
     MaterialTheme { SettingsArtworkSection(ArtworkSettingsUiState(feedback = "Ошибка очистки"), {}, {}, {}, {}) }
 }
+
+@Preview
+@Composable
+internal fun ArtworkRunningPreview() {
+    val status = ArtworkScanStatus(ArtworkScanState.RUNNING, completed = 1, total = 2)
+    MaterialTheme {
+        SettingsArtworkSection(ArtworkSettingsUiState(status = status), {}, {}, {}, {})
+    }
+}

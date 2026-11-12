@@ -85,27 +85,8 @@ internal fun DiagnosticScreen() {
             .padding(bottom = if (player.playback.queueTotal > 0) 88.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = { showingSettings = false }) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_action_back),
-                    contentDescription = stringResource(R.string.library_back),
-                )
-            }
-            Text(stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.titleLarge)
-        }
-        // Version first: owner reports from Huawei must name the exact build.
         val version = remember(appContext) { appVersionName(appContext) }
-        if (version.isNotBlank()) {
-            Text(stringResource(R.string.settings_app_version, version),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        SettingsHeader(version) { showingSettings = false }
         AppearanceSettings()
         LibraryVisibilitySettings()
         SettingsArtworkSection(artwork, artworkModel::changeMode, artworkModel::clear,
@@ -185,4 +166,28 @@ private fun SettingsAccountEffects(
         }
     }
     LaunchedEffect(account.loggedIn) { if (account.loggedIn) onConnected() }
+}
+
+@Composable
+private fun SettingsHeader(version: String, onBack: () -> Unit) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_action_back),
+                    contentDescription = stringResource(R.string.library_back),
+                )
+            }
+            Text(stringResource(R.string.settings_title),
+                style = MaterialTheme.typography.titleLarge)
+        }
+        // Version first: owner reports from Huawei must name the exact build.
+        if (version.isNotBlank()) {
+            Text(stringResource(R.string.settings_app_version, version),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
 }

@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import app.enotone.database.RemoteTrackEntity
 
 @Composable
 internal fun SettingsAuditSection(state: DiagnosticsUiState, actions: DiagnosticsActions) {
@@ -107,8 +108,14 @@ private fun AuditRefreshAll(state: DiagnosticsUiState, actions: DiagnosticsActio
 @Preview
 @Composable
 internal fun SettingsAuditSectionPreview() {
-    MaterialTheme { Column { SettingsAuditSection(DiagnosticsUiState(hasLogin = true),
-        object : DiagnosticsActions {}) } }
+    val row = RemoteTrackEntity("demo", "source", "/AllMusic/demo.flac", "demo.flac", null, 100L, null,
+        title = "Демонстрационный трек", artist = "Исполнитель", lastSeenEpoch = 0)
+    MaterialTheme {
+        Column {
+            SettingsAuditSection(DiagnosticsUiState(hasLogin = true, rows = listOf(row), selectedId = row.id),
+                object : DiagnosticsActions {})
+        }
+    }
 }
 
 @Preview
