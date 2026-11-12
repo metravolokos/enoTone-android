@@ -16,6 +16,7 @@ class AppContainer(
     val main: CoroutineDispatcher = Dispatchers.Main.immediate,
 ) {
     private val appContext = context.applicationContext
+    internal val accountSession = AccountSession()
     val database: EnoToneDatabase by lazy { EnoToneDatabase.getInstance(appContext) }
     val libraryRepository: LibraryRepository by lazy {
         RoomLibraryRepository(database, io, QueueStateFileStore(appContext)::read)

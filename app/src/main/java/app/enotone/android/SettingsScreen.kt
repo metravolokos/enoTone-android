@@ -126,12 +126,9 @@ internal fun DiagnosticScreen() {
     }
     LaunchedEffect(account.signedOutVersion) {
         if (account.signedOutVersion > 0) {
-            playerModel.onSignedOut()
+            showingLibrary = false
             showConnection = true
         }
-    }
-    LaunchedEffect(account.failedSignOutVersion) {
-        if (account.failedSignOutVersion > 0) playerModel.onSignOutFailed()
     }
     LaunchedEffect(account.loggedIn) {
         if (account.loggedIn) showConnection = false
@@ -470,10 +467,7 @@ internal fun DiagnosticScreen() {
             onPasswordChange = accountModel::onPasswordChanged,
             onVerify = accountModel::verifyConnection,
             onRequestSignOut = accountModel::requestSignOut,
-            onConfirmSignOut = {
-                playerModel.onSignOutStarted()
-                accountModel.confirmSignOut()
-            },
+            onConfirmSignOut = accountModel::confirmSignOut,
             onCancelSignOut = accountModel::cancelSignOut,
         )
         OutlinedButton(onClick = { showTechnicalTools = !showTechnicalTools }) {

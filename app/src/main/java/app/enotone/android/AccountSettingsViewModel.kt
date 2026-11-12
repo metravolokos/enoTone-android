@@ -41,8 +41,10 @@ internal class AndroidAccountSettingsGateway(
             }
         }
 
-    override suspend fun save(email: String, password: String) = withContext(container.io) {
-        LocalCredentialVault.save(context, email, password)
+    override suspend fun save(email: String, password: String) {
+        withContext(container.io) { LocalCredentialVault.save(context, email, password) }
+        // Only publish ACTIVE after the encrypted write actually succeeds.
+        container.accountSession.signedIn(LibrarySnapshotPlanner.accountKey(email))
     }
 
     override suspend fun countTracks(email: String): Int = withContext(container.io) {
@@ -51,7 +53,18 @@ internal class AndroidAccountSettingsGateway(
     }
 
     override suspend fun signOut(email: String) {
-        container.accountSignOut(email).run(LibrarySnapshotPlanner.accountKey(email))
+        val key = LibrarySnapshotPlanner.accountKey(email)
+        container.accountSession.beginSignOut(key)
+        try {
+            container.accountSignOut(email).run(key)
+            container.accountSession.finishSignOut(key)
+        } catch (cancelled: CancellationException) {
+            container.accountSession.failSignOut(key)
+            throw cancelled
+        } catch (failure: Exception) {
+            container.accountSession.failSignOut(key)
+            throw failure
+        }
     }
 }
 

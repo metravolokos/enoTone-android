@@ -56,6 +56,7 @@ internal class PlayerViewModel(
     private val artworkLoader: LibraryArtworkLoader,
     private val io: CoroutineDispatcher,
     private val useCache: () -> Boolean,
+    private val accountEvents: StateFlow<AccountState> = MutableStateFlow(AccountState()),
 ) : ViewModel() {
     private val mutable = MutableStateFlow(SharedPlayerUiState())
     val state: StateFlow<SharedPlayerUiState> = mutable
@@ -70,6 +71,19 @@ internal class PlayerViewModel(
     private var loadingAccount: String? = null
 
     init {
+        viewModelScope.launch {
+            accountEvents.collect { event ->
+                val currentLogin = login
+                val affected = currentLogin != null &&
+                    event.sourceKey == LibrarySnapshotPlanner.accountKey(currentLogin.email)
+                when {
+                    affected && event.phase == AccountPhase.SIGNING_OUT -> onSignOutStarted()
+                    event.phase == AccountPhase.SIGNED_OUT && (affected ||
+                        currentLogin == null) -> onSignedOut()
+                    affected && event.phase == AccountPhase.SIGN_OUT_FAILED -> onSignOutFailed()
+                }
+            }
+        }
         viewModelScope.launch {
             connection.state.collect { current ->
                 val old = mutable.value.playback
@@ -86,7 +100,7 @@ internal class PlayerViewModel(
             val stored = withContext(io) { credentialsProvider.credentials() }
             if (stored == null) {
                 QueuePersistenceDiagnostics.result(QueueRestoreCode.NO_CREDENTIALS)
-            } else {
+            } else if (!accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(stored.email))) {
                 login = stored
                 restoreAllowed = true
                 ensureCatalog(stored)
@@ -97,7 +111,8 @@ internal class PlayerViewModel(
 
     /** Called only after WebDAV verification AND a successful vault write. */
     fun onCredentialsPersisted(email: String, password: String) {
-        if (email.isBlank() || password.isBlank()) return
+        if (email.isBlank() || password.isBlank() ||
+            accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(email))) return
         val verified = StoredWebDavLogin(email, password)
         if (login != verified) {
             login = verified
@@ -115,6 +130,8 @@ internal class PlayerViewModel(
     /** Blocks the bind/queue-restoration race while ordered cleanup runs. */
     fun onSignOutStarted() {
         restoreAllowed = false
+        artworkJob?.cancel()
+        mutable.update { it.copy(nowPlaying = false, artwork = null, largeArtwork = null) }
     }
 
     fun onSignOutFailed() {
@@ -135,6 +152,7 @@ internal class PlayerViewModel(
     }
 
     private fun ensureCatalog(saved: StoredWebDavLogin) {
+        if (accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(saved.email))) return
         if (catalog != null || loadingAccount == saved.email) return
         loadingAccount = saved.email
         viewModelScope.launch {
@@ -147,7 +165,8 @@ internal class PlayerViewModel(
                         }
                     }
                 }
-                if (login?.email == saved.email) {
+                if (login?.email == saved.email && restoreAllowed &&
+                    !accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(saved.email))) {
                     catalog = loaded
                     covers = artwork
                     loadArtwork()
@@ -166,7 +185,9 @@ internal class PlayerViewModel(
     // Guarded once per source to prevent repeated bind/restore races on Home.
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
     private fun maybeRestore() {
-        if (!restoreAllowed) return
+        if (!restoreAllowed || login?.let {
+                accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(it.email))
+            } == true) return
         val snapshot = mutable.value.playback
         if (!snapshot.connected) return
         if (snapshot.queueTotal > 0) return
@@ -200,7 +221,8 @@ internal class PlayerViewModel(
                 }
                 // An in-flight restore may have started before the user
                 // confirmed sign-out. Never repopulate the queue during cleanup.
-                if (!restoreAllowed || login != saved) return@launch
+                if (!restoreAllowed || login != saved ||
+                    accountEvents.value.blocks(sourceKey)) return@launch
                 if (connection.state.value.queueTotal > 0) {
                     QueuePersistenceDiagnostics.result(QueueRestoreCode.SERVICE_HAS_QUEUE)
                     return@launch
@@ -224,6 +246,7 @@ internal class PlayerViewModel(
     private fun loadArtwork() {
         artworkJob?.cancel()
         val saved = login ?: return
+        if (accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(saved.email))) return
         if (covers == null) ensureCatalog(saved)
         val item = mutable.value.playback.currentTrackId
         val group = covers?.byTrackId?.get(item)
@@ -286,6 +309,7 @@ internal class PlayerViewModel(
                         artworkLoader = RepositoryArtworkLoader(container.artworkPreviewRepository),
                         io = container.io,
                         useCache = { PlaybackDiagnosticsRuntime.useCacheOnNextPlay },
+                        accountEvents = container.accountSession.state,
                     ) as T
                 }
             }
