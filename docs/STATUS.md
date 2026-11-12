@@ -24,7 +24,7 @@
 - **M6-0 — технический долг** ([ADR-0074](DECISIONS/ADR-0074-m6-0-tech-debt-plan.md)). Новые функции и визуальные изменения заморожены.
 - Слиты: M6-0/1 (#79), M6-0/2 (#80), M6-0/3 (#82, [ADR-0075](DECISIONS/ADR-0075-queue-persistence.md)), M6-0/8 (#81, [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md); `LICENSE` ждёт решения владельца).
 - M6-0/2 на Huawei: владелец сообщил, что воспроизведение плавное, без зависаний (2026-11-12).
-- M6-0/4a ([Draft #92](https://github.com/metravolokos/enoTone-android/pull/92)): ручной `AppContainer`, репозиторий медиатеки, `PlaybackConnection`, `LibraryViewModel`, поведенческие JUnit; UI-входная точка 118 строк. До merge требуются зелёный exact-HEAD CI и ревью.
+- M6-0/4a ([Draft #92](https://github.com/metravolokos/enoTone-android/pull/92)): ручной `AppContainer`, репозиторий медиатеки, `PlaybackConnection`, `LibraryViewModel`, поведенческие JUnit; UI-входная точка 118 строк. Ревью выявило дублирование владельцев восстановления и отсутствие мини-плеера вне медиатеки. Исправления внесены в эту же ветку; до merge требуются зелёный exact-HEAD CI, повторное ревью и команда владельца.
 
 ## Следующий конкретный шаг
 

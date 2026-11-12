@@ -1,5 +1,7 @@
 # CHANGELOG
 
+- **Draft PR #92 (ревью 2026-11-12; не слито):** общий Activity-scoped PlayerViewModel восстанавливает очередь на Home и ведёт мини-плеер на Home/Library/Settings; техническая строка диагностики checkpoint; JVM regression-тесты атомарной пары и rollback. Huawei smoke остаётся открытым.
+
 ## Unreleased — M6-0/4a: слой представления медиатеки (Draft PR #92, 2026-11-12)
 
 - [ADR-0077](docs/DECISIONS/ADR-0077-presentation-layer.md): `EnoToneApplication`, ручной `AppContainer` с общей Room v4, `LibraryRepository` с IO, `PlaybackConnection` со снимками Media3 и `LibraryViewModel` + одним `StateFlow`.
