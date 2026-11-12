@@ -414,6 +414,13 @@ private fun DiagnosticScreen() {
             Text(stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.titleLarge)
         }
+        // Version first: owner reports from Huawei must name the exact build.
+        val version = remember(appContext) { appVersionName(appContext) }
+        if (version.isNotBlank()) {
+            Text(stringResource(R.string.settings_app_version, version),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         AppearanceSettings()
         LibraryVisibilitySettings()
         ArtworkSettingsPanel(

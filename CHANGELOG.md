@@ -1,5 +1,11 @@
 # CHANGELOG
 
+> С 2026-11-12 версии нумеруются по [ADR-0078](docs/DECISIONS/ADR-0078-versioning.md): секции `Unreleased` получают номер версии при приёмке на Huawei. Всё, что ниже, вошло в **0.6.0**.
+
+## Unreleased — нумерация версий (2026-11-12)
+
+- `versionName` = `0.6.0`; Stable Preview — `0.6.0-preview.<номер CI>`. Версия показывается первой строкой в Настройках. ADR-0078, процедура — RELEASE.md.
+
 ## Unreleased — M6-0/R (D1): ресурсы дизайна Android v2 (2026-11-12)
 
 - Иконка приложения v2.0 (adaptive: Бандит на «Графите» + legacy PNG), `android:icon`/`android:roundIcon` в манифесте — единственное видимое изменение.

@@ -13,7 +13,10 @@ android {
         // Monotonic across GitHub Actions runs, including the stable Preview channel.
         // Local builds retain a harmless initial versionCode.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "0.0.1-m0"
+        // 0.<milestone>.<patch> until the first public release 1.0.0 (ADR-0078).
+        // MINOR = current roadmap milestone; PATCH = bumped by hand when the
+        // owner accepts a result on Huawei. Build number is appended per variant.
+        versionName = "0.6.0"
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -62,7 +65,9 @@ android {
             // Without an explicit fallback AGP cannot resolve :playback et al.
             matchingFallbacks += listOf("release", "debug")
             applicationIdSuffix = ".preview"
-            versionNameSuffix = "-preview"
+            // e.g. 0.6.0-preview.425 — the CI run number identifies the exact APK.
+            val stableRun = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+            versionNameSuffix = "-preview.$stableRun"
             signingConfig = signingConfigs.getByName("stablePreview")
             isDebuggable = false
         }
