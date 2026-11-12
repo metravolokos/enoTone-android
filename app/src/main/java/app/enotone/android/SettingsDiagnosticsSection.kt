@@ -19,12 +19,12 @@ internal fun SettingsDiagnosticsSection(state: DiagnosticsUiState, actions: Diag
         Text(stringResource(R.string.home_diagnostics_title),
             style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
-            value = state.file, onValueChange = actions::changeFile,
+            value = state.file, onValueChange = { actions.edit(DiagnosticsEdit.File(it)) },
             label = { Text(stringResource(R.string.test_file)) },
             modifier = Modifier.fillMaxWidth(),
         )
         Row {
-            Checkbox(checked = state.infinity, onCheckedChange = actions::changeInfinity)
+            Checkbox(checked = state.infinity, onCheckedChange = { actions.edit(DiagnosticsEdit.Infinity(it)) })
             Text(stringResource(R.string.test_infinity))
         }
         Button(enabled = !state.busy, onClick = { actions.inspect() }) {
@@ -33,17 +33,18 @@ internal fun SettingsDiagnosticsSection(state: DiagnosticsUiState, actions: Diag
         Button(enabled = !state.busy && state.hasLogin, onClick = { actions.run(DiagnosticCommand.COUNT) }) {
             Text(stringResource(R.string.count_audio_files))
         }
-
 }
 
 @Preview
 @Composable
-private fun SettingsDiagnosticsSectionPreview() {
-    MaterialTheme { Column { SettingsDiagnosticsSection(DiagnosticsUiState(hasLogin = true), object : DiagnosticsActions {}) } }
+internal fun SettingsDiagnosticsSectionPreview() {
+    MaterialTheme { Column { SettingsDiagnosticsSection(DiagnosticsUiState(hasLogin = true),
+        object : DiagnosticsActions {}) } }
 }
 
 @Preview
 @Composable
-private fun SettingsDiagnosticsSectionStatePreview() {
-    MaterialTheme { Column { SettingsDiagnosticsSection(DiagnosticsUiState(busy = true), object : DiagnosticsActions {}) } }
+internal fun SettingsDiagnosticsSectionStatePreview() {
+    MaterialTheme { Column { SettingsDiagnosticsSection(DiagnosticsUiState(busy = true),
+        object : DiagnosticsActions {}) } }
 }

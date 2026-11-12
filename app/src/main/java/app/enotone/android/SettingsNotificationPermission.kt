@@ -16,7 +16,8 @@ internal fun SettingsNotificationPermission(request: Int, onResult: (Boolean) ->
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), onResult)
     LaunchedEffect(request) {
         if (request == 0) return@LaunchedEffect
-        if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED) {
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
         } else {

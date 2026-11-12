@@ -33,13 +33,13 @@ internal fun SettingsIndexingSection(state: LibraryIndexingUiState, actions: Ind
             enabled = !state.busy && state.hasLogin &&
                 state.status.state != ManagedScanState.RUNNING &&
                 !state.status.terminating,
-            onClick = { actions.requestReindex() },
+            onClick = { actions.showReindex(true) },
         ) {
             Text(stringResource(R.string.library_reindex_action))
         }
         if (state.confirmReindex) {
             AlertDialog(
-                onDismissRequest = { actions.cancelReindex() },
+                onDismissRequest = { actions.showReindex(false) },
                 title = { Text(stringResource(R.string.library_reindex_confirm_title)) },
                 text = { Text(stringResource(R.string.library_reindex_confirm_message)) },
                 confirmButton = {
@@ -51,23 +51,24 @@ internal fun SettingsIndexingSection(state: LibraryIndexingUiState, actions: Ind
                     ) { Text(stringResource(R.string.library_reindex_confirm_action)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { actions.cancelReindex() }) {
+                    TextButton(onClick = { actions.showReindex(false) }) {
                         Text(stringResource(R.string.album_refresh_cancel))
                     }
                 },
             )
         }
-
 }
 
 @Preview
 @Composable
-private fun SettingsIndexingSectionPreview() {
-    MaterialTheme { Column { SettingsIndexingSection(LibraryIndexingUiState(hasLogin = true), object : IndexingActions {}) } }
+internal fun SettingsIndexingSectionPreview() {
+    MaterialTheme { Column { SettingsIndexingSection(LibraryIndexingUiState(hasLogin = true),
+        object : IndexingActions {}) } }
 }
 
 @Preview
 @Composable
-private fun SettingsIndexingSectionStatePreview() {
-    MaterialTheme { Column { SettingsIndexingSection(LibraryIndexingUiState(busy = true), object : IndexingActions {}) } }
+internal fun SettingsIndexingSectionStatePreview() {
+    MaterialTheme { Column { SettingsIndexingSection(LibraryIndexingUiState(busy = true),
+        object : IndexingActions {}) } }
 }

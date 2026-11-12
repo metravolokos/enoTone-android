@@ -30,7 +30,8 @@ class DiagnosticsViewModelTest {
             wait?.await()
             return command.name
         }
-        override suspend fun audit(query: AuditQuery, email: String, search: String): List<RemoteTrackEntity> = emptyList()
+        override suspend fun audit(query: AuditQuery, email: String,
+            search: String): List<RemoteTrackEntity> = emptyList()
         override suspend fun queue(email: String, id: String?): Int { queues++; return 3 }
         override suspend fun pilot(login: StoredWebDavLogin, count: Int, progress: (String) -> Unit): String {
             progress("PROGRESS")
@@ -45,7 +46,7 @@ class DiagnosticsViewModelTest {
         val model = DiagnosticsViewModel(gateway, FakeBackgroundWorkLauncher(), session, testSettingsText)
         session.updateLogin(testLogin)
         advanceUntilIdle()
-        model.changeFile("/AllMusic/private-track.flac")
+        model.edit(DiagnosticsEdit.File("/AllMusic/private-track.flac"))
         model.inspect()
         advanceUntilIdle()
         val report = model.state.value.report
@@ -87,7 +88,7 @@ class DiagnosticsViewModelTest {
         advanceUntilIdle()
         model.queueAll()
         assertEquals(0, gateway.queues)
-        model.confirmRefreshAll(true)
+        model.edit(DiagnosticsEdit.RefreshAll(true))
         launcher.indexing.value = ManagedScanStatus(ManagedScanState.RUNNING)
         model.queueAll()
         assertEquals(0, gateway.queues)
@@ -115,8 +116,8 @@ class DiagnosticsViewModelTest {
         advanceUntilIdle()
         assertFalse(model.state.value.busy)
         assertFalse(model.state.value.pilotRunning)
-        model.changeSearch("private track")
-        model.changeFile("/AllMusic/private.flac")
+        model.edit(DiagnosticsEdit.Search("private track"))
+        model.edit(DiagnosticsEdit.File("/AllMusic/private.flac"))
         session.updateLogin(null)
         advanceUntilIdle()
         assertEquals("", model.state.value.search)

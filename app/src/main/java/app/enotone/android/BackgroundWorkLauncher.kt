@@ -23,25 +23,23 @@ internal class AndroidBackgroundWorkLauncher(private val context: Context) : Bac
 
     override fun startIndexing(login: StoredWebDavLogin, mode: ManagedIndexMode): Boolean {
         if (!ManagedScanRuntime.prepare(login.email, login.password, mode)) return false
-        try {
+        runCatching {
             context.startForegroundService(Intent(context, IndexingForegroundService::class.java)
                 .setAction(IndexingForegroundService.ACTION_START))
-        } catch (failure: RuntimeException) {
+        }.onFailure {
             ManagedScanRuntime.update(ManagedScanState.ERROR)
-            throw failure
-        }
+        }.getOrThrow()
         return true
     }
 
     override fun startArtwork(login: StoredWebDavLogin): Boolean {
         if (!ArtworkScanRuntime.prepare(login.email, login.password)) return false
-        try {
+        runCatching {
             context.startForegroundService(Intent(context, ArtworkIndexingForegroundService::class.java)
                 .setAction(ArtworkIndexingForegroundService.ACTION_START))
-        } catch (failure: RuntimeException) {
+        }.onFailure {
             ArtworkScanRuntime.update(ArtworkScanState.ERROR, 0, 0)
-            throw failure
-        }
+        }.getOrThrow()
         return true
     }
 

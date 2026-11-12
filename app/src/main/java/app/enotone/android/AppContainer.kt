@@ -32,6 +32,8 @@ class AppContainer(
     }
     internal val backgroundWorkLauncher: BackgroundWorkLauncher by lazy { AndroidBackgroundWorkLauncher(appContext) }
     internal val settingsWorkSession = SettingsWorkSession()
+
+    @Suppress("SpreadOperator") // Android Resources.getString принимает varargs.
     internal val settingsText = SettingsText { id, args -> appContext.getString(id, *args) }
     internal val libraryIndexingGateway: LibraryIndexingGateway by lazy {
         AndroidLibraryIndexingGateway(this, settingsText)

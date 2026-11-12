@@ -8,16 +8,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 
 /** Android system / Dark / Light. Color accent selection was deliberately removed. */
 @Composable
 internal fun AppearanceSettings() {
     val context = LocalContext.current
-    AppearanceSettingsContent(UiAppearance.mode) { UiAppearance.chooseMode(context, it) }
+    AppearanceSettingsContent(UiAppearance.mode) { mode -> UiAppearance.chooseMode(context, mode) }
 }
 
 @Composable
@@ -55,6 +55,6 @@ internal fun AppearanceSettingsContent(selectedMode: UiMode, onMode: (UiMode) ->
 
 @Preview
 @Composable
-private fun AppearanceSettingsPreview() {
+internal fun AppearanceSettingsPreview() {
     MaterialTheme { AppearanceSettingsContent(UiMode.SYSTEM) {} }
 }

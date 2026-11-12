@@ -29,13 +29,17 @@ internal fun SettingsAuditSection(state: DiagnosticsUiState, actions: Diagnostic
             style = MaterialTheme.typography.bodySmall)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(modifier = Modifier.fillMaxWidth(),
-                enabled = !state.busy && state.hasLogin, onClick = { actions.audit(AuditQuery.MISSING_ALBUM) }) { Text(stringResource(R.string.tag_audit_missing_album)) }
+                enabled = !state.busy && state.hasLogin,
+                onClick = { actions.audit(AuditQuery.MISSING_ALBUM) },
+            ) { Text(stringResource(R.string.tag_audit_missing_album)) }
             Button(modifier = Modifier.fillMaxWidth(),
-                enabled = !state.busy && state.hasLogin, onClick = { actions.audit(AuditQuery.MISSING_ALBUM_ARTIST) }) { Text(stringResource(R.string.tag_audit_missing_album_artist)) }
+                enabled = !state.busy && state.hasLogin,
+                onClick = { actions.audit(AuditQuery.MISSING_ALBUM_ARTIST) },
+            ) { Text(stringResource(R.string.tag_audit_missing_album_artist)) }
         }
         OutlinedTextField(
             value = state.search,
-            onValueChange = actions::changeSearch,
+            onValueChange = { actions.edit(DiagnosticsEdit.Search(it)) },
             label = { Text(stringResource(R.string.tag_audit_search_hint)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -45,6 +49,15 @@ internal fun SettingsAuditSection(state: DiagnosticsUiState, actions: Diagnostic
             enabled = !state.busy && state.hasLogin && state.search.isNotBlank(),
             onClick = { actions.audit(AuditQuery.SEARCH) },
         ) { Text(stringResource(R.string.tag_audit_search_action)) }
+        AuditRows(state, actions)
+        if (state.message.isNotEmpty()) {
+            Text(state.message, style = MaterialTheme.typography.bodySmall)
+        }
+        AuditRefreshAll(state, actions)
+}
+
+@Composable
+private fun AuditRows(state: DiagnosticsUiState, actions: DiagnosticsActions) {
         if (state.rows.isNotEmpty()) {
             Text(stringResource(R.string.tag_audit_first_rows, state.rows.size),
                 style = MaterialTheme.typography.bodySmall)
@@ -52,7 +65,7 @@ internal fun SettingsAuditSection(state: DiagnosticsUiState, actions: Diagnostic
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(row.fileName, modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = { actions.select(row.id) }) {
+                    Button(onClick = { actions.edit(DiagnosticsEdit.Selection(row.id)) }) {
                         Text(stringResource(if (state.selectedId == row.id)
                             R.string.tag_audit_selected else R.string.tag_audit_select))
                     }
@@ -71,12 +84,13 @@ internal fun SettingsAuditSection(state: DiagnosticsUiState, actions: Diagnostic
                 onClick = { actions.queueSelected() },
             ) { Text(stringResource(R.string.tag_audit_queue_selected)) }
         }
-        if (state.message.isNotEmpty()) {
-            Text(state.message, style = MaterialTheme.typography.bodySmall)
-        }
+}
+
+@Composable
+private fun AuditRefreshAll(state: DiagnosticsUiState, actions: DiagnosticsActions) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Checkbox(checked = state.confirmRefreshAll,
-                onCheckedChange = actions::confirmRefreshAll)
+                onCheckedChange = { actions.edit(DiagnosticsEdit.RefreshAll(it)) })
             Text(stringResource(R.string.tag_audit_refresh_all_confirm),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall)
@@ -88,18 +102,18 @@ internal fun SettingsAuditSection(state: DiagnosticsUiState, actions: Diagnostic
         ) { Text(stringResource(R.string.tag_audit_queue_all)) }
         Text(stringResource(R.string.tag_audit_queue_instructions),
             style = MaterialTheme.typography.bodySmall)
-
-
 }
 
 @Preview
 @Composable
-private fun SettingsAuditSectionPreview() {
-    MaterialTheme { Column { SettingsAuditSection(DiagnosticsUiState(hasLogin = true), object : DiagnosticsActions {}) } }
+internal fun SettingsAuditSectionPreview() {
+    MaterialTheme { Column { SettingsAuditSection(DiagnosticsUiState(hasLogin = true),
+        object : DiagnosticsActions {}) } }
 }
 
 @Preview
 @Composable
-private fun SettingsAuditSectionStatePreview() {
-    MaterialTheme { Column { SettingsAuditSection(DiagnosticsUiState(message = "Ошибка чтения"), object : DiagnosticsActions {}) } }
+internal fun SettingsAuditSectionStatePreview() {
+    MaterialTheme { Column { SettingsAuditSection(DiagnosticsUiState(message = "Ошибка чтения"),
+        object : DiagnosticsActions {}) } }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.enotone.database.RemoteTrackEntity
 import app.enotone.network.FlatWebDavHttpError
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,11 +52,17 @@ internal class DiagnosticsViewModel(
         }
     }
 
-    override fun changeFile(value: String) { mutable.update { it.copy(file = value) } }
-    override fun changeInfinity(value: Boolean) { mutable.update { it.copy(infinity = value) } }
-    override fun changeSearch(value: String) { mutable.update { it.copy(search = value) } }
-    override fun select(id: String) { mutable.update { it.copy(selectedId = id) } }
-    override fun confirmRefreshAll(value: Boolean) { mutable.update { it.copy(confirmRefreshAll = value) } }
+    override fun edit(edit: DiagnosticsEdit) {
+        mutable.update { state ->
+            when (edit) {
+                is DiagnosticsEdit.File -> state.copy(file = edit.value)
+                is DiagnosticsEdit.Infinity -> state.copy(infinity = edit.value)
+                is DiagnosticsEdit.Search -> state.copy(search = edit.value)
+                is DiagnosticsEdit.Selection -> state.copy(selectedId = edit.id)
+                is DiagnosticsEdit.RefreshAll -> state.copy(confirmRefreshAll = edit.value)
+            }
+        }
+    }
 
     override fun inspect() = execute(R.string.diagnostic_failed) { login, _ ->
         DiagnosticReportSanitizer.sanitize(gateway.inspect(login, mutable.value.file, mutable.value.infinity))
@@ -117,7 +124,7 @@ internal class DiagnosticsViewModel(
         val work = session.begin() ?: return
         val login = requireNotNull(work.login)
         mutable.update { it.copy(pilotRunning = pilot, message = if (audit) "" else it.message) }
-        job = viewModelScope.launch {
+        job = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
                 val report = action(login, work.revision)
                 if (audit) mutable.update { it.copy(message = report) } else session.report(report, work.revision)

@@ -22,11 +22,11 @@ internal fun SettingsTagToolsSection(state: DiagnosticsUiState, actions: Diagnos
             Text(stringResource(R.string.pilot_check_offline))
         }
         Button(enabled = !state.busy && state.hasLogin,
-            onClick = { actions.pilot(10) }) {
+            onClick = { actions.pilot(PILOT_SMALL) }) {
             Text(stringResource(R.string.pilot_ten))
         }
         Button(enabled = !state.busy && state.hasLogin,
-            onClick = { actions.pilot(20) }) {
+            onClick = { actions.pilot(PILOT_LARGE) }) {
             Text(stringResource(R.string.pilot_twenty))
         }
         // Explicit, bounded foreground-only resume: ≤100 candidates,
@@ -34,7 +34,7 @@ internal fun SettingsTagToolsSection(state: DiagnosticsUiState, actions: Diagnos
         // Checkpoints already committed in Room are never re-downloaded.
         Button(enabled = !state.busy && state.hasLogin,
             modifier = Modifier.fillMaxWidth(),
-            onClick = { actions.pilot(100) }) {
+            onClick = { actions.pilot(PILOT_RESUME) }) {
             Text(stringResource(R.string.pilot_resume_bounded))
         }
         Text(stringResource(R.string.pilot_resume_explanation),
@@ -42,18 +42,22 @@ internal fun SettingsTagToolsSection(state: DiagnosticsUiState, actions: Diagnos
         Button(enabled = state.pilotRunning, onClick = { actions.cancelPilot() }) {
             Text(stringResource(R.string.pilot_cancel))
         }
-
-
 }
 
 @Preview
 @Composable
-private fun SettingsTagToolsSectionPreview() {
-    MaterialTheme { Column { SettingsTagToolsSection(DiagnosticsUiState(hasLogin = true), object : DiagnosticsActions {}) } }
+internal fun SettingsTagToolsSectionPreview() {
+    MaterialTheme { Column { SettingsTagToolsSection(DiagnosticsUiState(hasLogin = true),
+        object : DiagnosticsActions {}) } }
 }
 
 @Preview
 @Composable
-private fun SettingsTagToolsSectionStatePreview() {
-    MaterialTheme { Column { SettingsTagToolsSection(DiagnosticsUiState(pilotRunning = true, busy = true), object : DiagnosticsActions {}) } }
+internal fun SettingsTagToolsSectionStatePreview() {
+    MaterialTheme { Column { SettingsTagToolsSection(DiagnosticsUiState(pilotRunning = true, busy = true),
+        object : DiagnosticsActions {}) } }
 }
+
+private const val PILOT_SMALL = 10
+private const val PILOT_LARGE = 20
+private const val PILOT_RESUME = 100

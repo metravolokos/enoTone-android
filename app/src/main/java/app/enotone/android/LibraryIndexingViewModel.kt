@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.enotone.library.ManagedIndexMode
 import app.enotone.network.FlatWebDavHttpError
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +34,7 @@ internal class LibraryIndexingViewModel(
     private val mutable = MutableStateFlow(LibraryIndexingUiState())
     val state = mutable.asStateFlow()
     private var operation: Job? = null
+    private var operationLogin: StoredWebDavLogin? = null
     private var activeLogin: StoredWebDavLogin? = null
     private var pendingMode: ManagedIndexMode? = null
     private var pendingLogin: StoredWebDavLogin? = null
@@ -44,9 +46,9 @@ internal class LibraryIndexingViewModel(
         viewModelScope.launch {
             session.state.collect { work ->
                 if (work.login != activeLogin) {
-                    operation?.cancel()
+                    if (operationLogin != work.login) operation?.cancel()
                     activeLogin = work.login
-                    cancelReindex()
+                    showReindex(false)
                 }
                 mutable.update { it.copy(busy = work.busy, hasLogin = work.login != null, report = work.report) }
                 if (pendingLogin != null && work.login != pendingLogin) clearPending()
@@ -63,15 +65,13 @@ internal class LibraryIndexingViewModel(
         }
     }
 
-    override fun requestReindex() {
-        if (allowed()) mutable.update { it.copy(confirmReindex = true) }
+    override fun showReindex(value: Boolean) {
+        if (!value || allowed()) mutable.update { it.copy(confirmReindex = value) }
     }
-
-    override fun cancelReindex() { mutable.update { it.copy(confirmReindex = false) } }
 
     override fun confirmReindex() {
         if (!mutable.value.confirmReindex || !allowed()) return
-        cancelReindex()
+        showReindex(false)
         perform(R.string.library_reindex_failed) { login ->
             val queued = gateway.reindex(login)
             session.report(if (queued > 0) text.get(R.string.library_reindex_queued, queued)
@@ -92,7 +92,9 @@ internal class LibraryIndexingViewModel(
         val login = pendingLogin
         clearPending()
         mutable.update { it.copy(permissionDenied = !granted) }
-        if (!granted || login == null || login != session.state.value.login || launcher.indexing.value.active) return
+        val available = !launcher.indexing.value.active && !session.state.value.busy
+        if (!granted || login != session.state.value.login || !available) return
+        requireNotNull(login)
         try {
             launcher.startIndexing(login, mode)
         } catch (_: RuntimeException) {
@@ -100,10 +102,7 @@ internal class LibraryIndexingViewModel(
         }
     }
 
-    override fun pause() = control(WorkAction.PAUSE)
-    override fun stop() = control(WorkAction.STOP)
-
-    private fun control(action: WorkAction) {
+    override fun control(action: WorkAction) {
         try {
             launcher.indexingAction(action)
         } catch (_: RuntimeException) {
@@ -133,7 +132,8 @@ internal class LibraryIndexingViewModel(
     private fun perform(failure: Int, action: suspend (StoredWebDavLogin) -> Unit) {
         val work = session.begin() ?: return
         val login = work.login ?: return
-        operation = viewModelScope.launch {
+        operationLogin = login
+        operation = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
                 action(login)
             } catch (cancelled: CancellationException) {

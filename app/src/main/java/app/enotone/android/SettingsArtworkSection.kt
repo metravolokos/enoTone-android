@@ -18,18 +18,18 @@ internal fun SettingsArtworkSection(
 
 @Preview
 @Composable
-private fun ArtworkDataPreview() {
+internal fun ArtworkDataPreview() {
     MaterialTheme { SettingsArtworkSection(ArtworkSettingsUiState(storedBytes = 0), {}, {}, {}, {}) }
 }
 
 @Preview
 @Composable
-private fun ArtworkLoadingPreview() {
+internal fun ArtworkLoadingPreview() {
     MaterialTheme { SettingsArtworkSection(ArtworkSettingsUiState(clearBusy = true), {}, {}, {}, {}) }
 }
 
 @Preview
 @Composable
-private fun ArtworkErrorPreview() {
+internal fun ArtworkErrorPreview() {
     MaterialTheme { SettingsArtworkSection(ArtworkSettingsUiState(feedback = "Ошибка очистки"), {}, {}, {}, {}) }
 }

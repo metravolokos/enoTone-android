@@ -19,9 +19,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -31,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.enotone.library.LibraryPage
-import app.enotone.library.LibraryPageVisibility
 
 @Composable
 internal fun DiagnosticScreen() {
@@ -48,40 +49,21 @@ internal fun DiagnosticScreen() {
     val indexing by indexingModel.state.collectAsStateWithLifecycle()
     val artwork by artworkModel.state.collectAsStateWithLifecycle()
     val diagnostics by diagnosticsModel.state.collectAsStateWithLifecycle()
-    val email = account.email
-    val password = account.password
     var showingLibrary by remember { mutableStateOf(false) }
     var showingSettings by remember { mutableStateOf(false) }
     var initialLibraryPage by remember { mutableStateOf(LibraryPage.TRACKS) }
     var showConnection by remember { mutableStateOf(true) }
+    var showIndexDetails by remember { mutableStateOf(false) }
     var showTechnicalTools by remember { mutableStateOf(false) }
     val playerModel: PlayerViewModel = viewModel(factory = remember(appContext) {
         PlayerViewModel.factory(container)
     })
     val player by playerModel.state.collectAsStateWithLifecycle()
     val libraryStateHolder = rememberSaveableStateHolder()
-    LaunchedEffect(account.loggedIn, account.busy, email, password) {
-        container.settingsWorkSession.updateLogin(
-            if (account.loggedIn && !account.busy) StoredWebDavLogin(email, password) else null)
-    }
-    LaunchedEffect(showingSettings) { artworkModel.setVisible(showingSettings) }
-    LaunchedEffect(showingLibrary, account.loggedIn, email, password) {
-        if (showingLibrary && account.loggedIn) playerModel.onCredentialsPersisted(email, password)
-    }
-    LaunchedEffect(account.verifiedVersion) {
-        if (account.verifiedVersion > 0) {
-            playerModel.onCredentialsPersisted(email, password)
-            showConnection = false
-        }
-    }
-    LaunchedEffect(account.signedOutVersion) {
-        if (account.signedOutVersion > 0) {
-            showingLibrary = false
-            showConnection = true
-        }
-    }
-    LaunchedEffect(account.loggedIn) { if (account.loggedIn) showConnection = false }
-    SettingsNotificationPermission(if (indexing.permissionPending) indexing.permissionRequest else 0, indexingModel::onNotificationPermission)
+    SettingsAccountEffects(account, showingLibrary, showingSettings, container, playerModel, artworkModel,
+        onConnected = { showConnection = false }, onSignedOut = { showingLibrary = false; showConnection = true })
+    SettingsNotificationPermission(if (indexing.permissionPending) indexing.permissionRequest else 0,
+        indexingModel::onNotificationPermission)
     BackHandler(enabled = player.nowPlaying || showingLibrary || showingSettings) {
         when {
             player.nowPlaying -> playerModel.onNowPlaying(false)
@@ -89,76 +71,12 @@ internal fun DiagnosticScreen() {
             showingSettings -> showingSettings = false
         }
     }
-    // Full player is app-scoped: navigation to Home never clears it.
-    if (player.nowPlaying && player.playback.queueTotal > 0) {
-        val playback = player.playback
-        NowPlayingScreen(
-            trackId = playback.currentTrackId.orEmpty(),
-            title = playback.title ?: stringResource(R.string.ui_songs_title),
-            artist = playback.artist,
-            album = player.album,
-            artwork = player.largeArtwork ?: player.artwork,
-            playbackState = playback.playbackState,
-            errorCode = playback.errorCode,
-            positionMs = playback.positionMs,
-            durationMs = playback.durationMs,
-            canSeek = playback.canSeek,
-            controlsEnabled = playback.connected,
-            hasPrevious = playback.hasPrevious,
-            hasNext = playback.hasNext,
-            queuePosition = playback.queuePosition,
-            queueTotal = playback.queueTotal,
-            repeatMode = playback.repeatMode,
-            shuffleEnabled = playback.shuffleEnabled,
-            onClose = { playerModel.onNowPlaying(false) },
-            onSeekFraction = playerModel::onSeek,
-            onPlayPause = playerModel::onPlayPause,
-            onPrevious = playerModel::onPrevious,
-            onNext = playerModel::onNext,
-            onCycleRepeat = playerModel::onRepeat,
-            onToggleShuffle = playerModel::onShuffle,
-        )
-        return
-    }
-    if (showingLibrary) {
-        libraryStateHolder.SaveableStateProvider(LIBRARY_STATE_KEY) {
-            OfflineLibraryScreen(
-                accountEmail = email, appPassword = password,
-                initialPage = initialLibraryPage,
-                onBack = { showingLibrary = false },
-                player = player,
-                onPlayerOpen = { playerModel.onNowPlaying(true) },
-                onPlayerPlayPause = playerModel::onPlayPause,
-                onPlayerNext = playerModel::onNext,
-            )
-        }
-        return
-    }
-
-    // The previous initial diagnostic screen is now a separate Settings route.
-    // Read the existing preferences; no Room query or WebDAV request is needed.
-    if (!showingSettings) {
-        val pages = LibraryPageVisibility.visible(
-            LibraryPagePreferences(appContext).hiddenPages())
-        EnoToneHomeScreen(
-            visiblePages = pages,
-            connectedAccount = account.loggedIn,
-            onSettings = { showingSettings = true },
-            onOpenPage = { page ->
-                initialLibraryPage = page
-                showingLibrary = true
-            },
-            miniPlayer = {
-                EnoToneMiniPlayer(
-                    player = player,
-                    onOpen = { playerModel.onNowPlaying(true) },
-                    onPlayPause = playerModel::onPlayPause,
-                    onNext = playerModel::onNext,
-                )
-            },
-        )
-        return
-    }
+    if (SettingsMusicDestination(player, playerModel, account, showingLibrary, showingSettings,
+        initialLibraryPage, libraryStateHolder, appContext, onLibraryBack = { showingLibrary = false },
+        onSettings = { showingSettings = true }, onOpenPage = { page ->
+            initialLibraryPage = page
+            showingLibrary = true
+        })) return
 
     Box(modifier = Modifier.fillMaxSize()) {
     Column(
@@ -218,7 +136,8 @@ internal fun DiagnosticScreen() {
             SettingsAuditSection(diagnostics, diagnosticsModel)
             SettingsTagToolsSection(diagnostics, diagnosticsModel)
         }
-        SettingsIndexingStatusSection(indexing, indexingModel, showTechnicalTools)
+        SettingsIndexingStatusSection(indexing, indexingModel, showTechnicalTools,
+            showIndexDetails) { showIndexDetails = !showIndexDetails }
         if (indexing.report.isNotEmpty()) Text(indexing.report, style = MaterialTheme.typography.bodyMedium)
     }
     Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
@@ -233,4 +152,37 @@ internal fun DiagnosticScreen() {
     }
 }
 
-private const val LIBRARY_STATE_KEY = "library"
+@Composable
+private fun SettingsAccountEffects(
+    account: AccountUiState,
+    showingLibrary: Boolean,
+    showingSettings: Boolean,
+    container: AppContainer,
+    playerModel: PlayerViewModel,
+    artworkModel: ArtworkSettingsViewModel,
+    onConnected: () -> Unit,
+    onSignedOut: () -> Unit,
+) {
+    val email = account.email
+    val password = account.password
+    LaunchedEffect(account.loggedIn, account.busy, email, password) {
+        container.settingsWorkSession.updateLogin(
+            if (account.loggedIn && !account.busy) StoredWebDavLogin(email, password) else null)
+    }
+    LaunchedEffect(showingSettings) { artworkModel.setVisible(showingSettings) }
+    LaunchedEffect(showingLibrary, account.loggedIn, email, password) {
+        if (showingLibrary && account.loggedIn) playerModel.onCredentialsPersisted(email, password)
+    }
+    LaunchedEffect(account.verifiedVersion) {
+        if (account.verifiedVersion > 0) {
+            playerModel.onCredentialsPersisted(email, password)
+            onConnected()
+        }
+    }
+    LaunchedEffect(account.signedOutVersion) {
+        if (account.signedOutVersion > 0) {
+            onSignedOut()
+        }
+    }
+    LaunchedEffect(account.loggedIn) { if (account.loggedIn) onConnected() }
+}
