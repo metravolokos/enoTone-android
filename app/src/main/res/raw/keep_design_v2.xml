@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ресурсы дизайна Android v2 (ADR-0079) пока не используются кодом: экраны переходят на них на шагах D2–D6
+     (docs/DESIGN_PLAN.md). tools:keep не даёт shrinkResources их удалить. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_eno_*,@drawable/enotone_wordmark,@drawable/bandit_*,@color/eno_*,@color/wordmark_*,@font/onest,@font/unbounded" />

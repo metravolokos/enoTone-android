@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- enoTone UI Icons v1 — генерируется tools/build_ui_icons.py в enotone-design, не править вручную -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M7.9 4.8h0.8a1.9 1.9 0 0 1 1.9 1.9v10.6a1.9 1.9 0 0 1 -1.9 1.9h-0.8a1.9 1.9 0 0 1 -1.9 -1.9v-10.6a1.9 1.9 0 0 1 1.9 -1.9z"
+        android:fillColor="#FF000000" />
+    <path android:pathData="M15.3 4.8h0.8a1.9 1.9 0 0 1 1.9 1.9v10.6a1.9 1.9 0 0 1 -1.9 1.9h-0.8a1.9 1.9 0 0 1 -1.9 -1.9v-10.6a1.9 1.9 0 0 1 1.9 -1.9z"
+        android:fillColor="#FF000000" />
+</vector>

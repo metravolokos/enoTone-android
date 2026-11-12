@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## Unreleased — M6-0/R (D1): ресурсы дизайна Android v2 (2026-11-12)
+
+- Иконка приложения v2.0 (adaptive: Бандит на «Графите» + legacy PNG), `android:icon`/`android:roundIcon` в манифесте — единственное видимое изменение.
+- Неиспользуемые пока ресурсы для шагов D2–D6: 19 значков `ic_eno_*` (UI Icons v1), `enotone_wordmark` с цветами темы, 12 поз Бандита (`drawable-nodpi/bandit_*.webp`, `tools/convert_bandit.py`), палитра `eno_*`, шрифты Onest/Unbounded (OFL); `tools:keep`. Источник — `enotone-design` `ea2931c`.
+- `docs/DESIGN_PLAN.md` — порядок переноса дизайна; [ADR-0079](docs/DECISIONS/ADR-0079-design-resources-v2.md); AGENTS, ROADMAP, CURRENT_DECISIONS, REQUIREMENTS (O-08, O-14), TESTING (п. 13), THIRD_PARTY_LICENSES.
+
 ## Unreleased — исправления по Huawei 2026-11-12
 
 - Восстановленный трек до первого Play показывал шкалу на нуле и «--:--»: длительность теперь сохраняется в файле позиции (необязательное поле `durationMs`, старые файлы читаются) и показывается до подготовки плеера.

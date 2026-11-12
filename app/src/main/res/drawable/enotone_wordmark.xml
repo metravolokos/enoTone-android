@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- enoTone Wordmark v2.0 — генерируется tools/build_wordmark.py в enotone-design, не править вручную.
+     Цвета берутся из @color/wordmark_letters и @color/wordmark_accent (values = «Фарфор», values-night = «Графит»). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="298.08dp" android:height="79.6dp"
+    android:viewportWidth="745.2" android:viewportHeight="199">
+    <group android:translateX="18" android:translateY="161">
+        <path android:pathData="M12 -54.56H87.73A38 38 0 1 0 59.84 -13.29 M122 0V-88M122 -50A38 38 0 0 1 198 -50V0 M232 -50A38 38 0 1 1 308 -50A38 38 0 1 1 232 -50Z M697.2 -54.56H621.47A38 38 0 1 1 649.36 -13.29 M587.2 0V-88M587.2 -50A38 38 0 0 0 511.2 -50V0 M477.2 -50A38 38 0 1 0 401.2 -50A38 38 0 1 0 477.2 -50Z"
+            android:strokeColor="@color/wordmark_letters" android:strokeWidth="24"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M354.6 -155H354.6A18.6 18.6 0 0 1 373.2 -136.4V13.4A18.6 18.6 0 0 1 354.6 32H354.6A18.6 18.6 0 0 1 336 13.4V-136.4A18.6 18.6 0 0 1 354.6 -155Z M292.11 -155H417.09A17.11 17.11 0 0 1 434.2 -137.89V-137.89A17.11 17.11 0 0 1 417.09 -120.78H292.11A17.11 17.11 0 0 1 275 -137.89V-137.89A17.11 17.11 0 0 1 292.11 -155Z" android:fillColor="@color/wordmark_accent" />
+    </group>
+</vector>
