@@ -68,3 +68,4 @@
 | 0075 | Сохранение очереди, позиции, shuffle/repeat (M6-0/3) | Действует | В `main` (#82); Huawei-проверка ожидается |
 | 0076 | Gradle Wrapper, detekt + ktlint, lint всех модулей, Dependabot | Действует | M6-0/8; detekt пока report-only |
 | 0077 | Слой представления: AppContainer / ViewModel / PlaybackConnection | Предложено | M6-0/4a, Draft #92; развитие ADR-0008 и ADR-0074 |
+| 0079 | Ресурсы дизайна Android v2 в приложении (шаг D1) | Предложено | PR `feature/m6-0-design-resources`; план — [DESIGN_PLAN](../DESIGN_PLAN.md) |

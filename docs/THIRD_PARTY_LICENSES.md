@@ -6,3 +6,5 @@
 
 - **AndroidX Lifecycle 2.9.4** — `lifecycle-viewmodel-compose` и `lifecycle-runtime-compose` (`collectAsStateWithLifecycle`), Apache License 2.0; использование в M6-0/4a.
 - **kotlinx-coroutines-test 1.10.2** — JetBrains, Apache License 2.0, только JUnit/Gradle test-зависимость M6-0/4a; не включается в runtime APK.
+- **Onest** (The Onest Project Authors) и **Unbounded** (The Unbounded Project Authors) — SIL Open Font License 1.1; вариативные TTF из `github.com/google/fonts` вшиты в APK (`res/font`), не загружаются из сети. Тексты лицензий — [`docs/licenses/`](licenses/). ADR-0079.
+- Иконка, значки, логотип и изображения Бандита — собственные ресурсы проекта из `metravolokos/enotone-design`.

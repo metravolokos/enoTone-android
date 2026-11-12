@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- enoTone Wordmark v2.0, тема «Графит» -->
+    <color name="wordmark_letters">#F4ECE4</color>
+    <color name="wordmark_accent">#EBAE9F</color>
+</resources>

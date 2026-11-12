@@ -8,7 +8,8 @@
 2. [docs/STATUS.md](docs/STATUS.md) — текущее состояние и следующий шаг.
 3. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) — **матрица требований** ТЗ и решений владельца со статусами и доказательствами.
 4. [docs/DECISIONS/README.md](docs/DECISIONS/README.md) — индекс ADR с **фактическими** статусами.
-5. [docs/ROADMAP.md](docs/ROADMAP.md), [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md), [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+5. [docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md) — **перед любой работой с внешним видом**: целевой дизайн Android v2, шаги D1–D6, источники ресурсов.
+6. [docs/ROADMAP.md](docs/ROADMAP.md), [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md), [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 Исторические журналы лежат в `docs/archive/` и **не** описывают текущее состояние. Исходное ТЗ (`docs/ORIGINAL_PROMPT_AllMusic_Player.md`) уступает более поздним решениям владельца.
 
@@ -18,7 +19,8 @@
 
 - **визуальное направление заморожено на [ADR-0073](docs/DECISIONS/ADR-0073-graphite-material3.md)** (Graphite Material 3, без цветных акцентов и кнопок-заглушек). ADR-0068…0072 заменены;
 - новых пользовательских функций не добавлять; исключение — дефекты, найденные на Huawei;
-- шаги выполнять по порядку из ADR-0074, один шаг — один PR.
+- шаги выполнять по порядку из ADR-0074, один шаг — один PR;
+- **целевой дизайн — Android v2** ([DESIGN_PLAN](docs/DESIGN_PLAN.md)); экраны переводятся на него шагами D2–D6 после M6-0/5. Ресурсы дизайна (иконка, значки, логотип, Бандит, цвета) — **только копией из `enotone-design/main`**, не перерисовывать и не перегенерировать в этом репозитории.
 
 ## 3. Жёсткие ограничения (нарушать нельзя)
 
