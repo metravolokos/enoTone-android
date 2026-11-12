@@ -8,6 +8,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +29,14 @@ internal fun LibraryVisibilitySettings() {
     var hiddenPages by remember(context) {
         mutableStateOf(preferences.hiddenPages())
     }
+    LibraryVisibilitySettingsContent(hiddenPages) { next ->
+        hiddenPages = next
+        preferences.saveHiddenPages(next)
+    }
+}
+
+@Composable
+internal fun LibraryVisibilitySettingsContent(hiddenPages: Set<LibraryPage>, onHidden: (Set<LibraryPage>) -> Unit) {
     val visible = LibraryPageVisibility.visible(hiddenPages)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(R.string.library_pages_settings_title),
@@ -52,8 +61,7 @@ internal fun LibraryVisibilitySettings() {
                             hiddenPages, page, shouldShow,
                         )
                         if (next != hiddenPages) {
-                            hiddenPages = next
-                            preferences.saveHiddenPages(next)
+                            onHidden(next)
                         }
                     },
                 )
@@ -61,4 +69,10 @@ internal fun LibraryVisibilitySettings() {
             }
         }
     }
+}
+
+@Preview
+@Composable
+private fun LibraryVisibilitySettingsPreview() {
+    MaterialTheme { LibraryVisibilitySettingsContent(emptySet()) {} }
 }
