@@ -1,8 +1,12 @@
 # CHANGELOG
 
-- **Draft PR #92 (ревью 2026-11-12; не слито):** общий Activity-scoped PlayerViewModel восстанавливает очередь на Home и ведёт мини-плеер на Home/Library/Settings; техническая строка диагностики checkpoint; JVM regression-тесты атомарной пары и rollback. Huawei smoke остаётся открытым.
+## Unreleased — матрица требований (#93, 2026-11-12)
 
-## Unreleased — M6-0/4a: слой представления медиатеки (Draft PR #92, 2026-11-12)
+- `docs/REQUIREMENTS.md`: все требования ТЗ и решения владельца O-01…O-11 со статусом и доказательством; правило в AGENTS.md — каждый PR обновляет затронутые строки. После слияния #92 строки O-10, R-3.9, R-4.3, R-6.6d обновлены.
+
+## Unreleased — M6-0/4a: слой представления медиатеки (#92, слит 2026-11-12)
+
+- Общий Activity-scoped `PlayerViewModel` восстанавливает очередь при запуске на любом экране и ведёт мини-плеер на Home / Library / Settings; строка диагностики checkpoint; JVM-тесты атомарной пары и отката. Проверка на Huawei открыта.
 
 - [ADR-0077](docs/DECISIONS/ADR-0077-presentation-layer.md): `EnoToneApplication`, ручной `AppContainer` с общей Room v4, `LibraryRepository` с IO, `PlaybackConnection` со снимками Media3 и `LibraryViewModel` + одним `StateFlow`.
 - `OfflineLibraryScreen.kt` сокращён до 118 строк; неизменённая Graphite Material 3-разметка находится в `LibraryScreenContent.kt`. Добавлены четыре фиктивных @Preview, JVM-тесты состояний/поиска/очереди/восстановления и чистого преобразования каталога.
