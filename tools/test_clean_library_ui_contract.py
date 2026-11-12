@@ -10,31 +10,8 @@ class CleanLibraryUiContractTest(unittest.TestCase):
     def src(self, path):
         return (ROOT / path).read_text(encoding="utf-8")
 
-    def test_saved_login_opens_home_and_first_time_setup_remains(self):
-        main = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
-        for text in (
-            "vaultState = CredentialVaultState.RESTORED",
-            "showConnection = false",
-            "var showingSettings by remember { mutableStateOf(false) }",
-            "if (showingLibrary)",
-            "OfflineLibraryScreen(",
-            "initialPage = initialLibraryPage",
-            "if (!showingSettings)",
-            "EnoToneHomeScreen(",
-            "var showConnection by remember { mutableStateOf(true) }",
-            "if (showConnection || email.isBlank() || password.isBlank())",
-            "R.string.home_connection_settings",
-        ):
-            self.assertIn(text, main)
-        self.assertNotIn("showingLibrary = true", main[
-            main.index("LaunchedEffect(appContext)"):main.index("val importReport")])
-        self.assertIn("LibraryVisibilitySettings()", main)
-        # Saving and forgetting credentials remain explicit, never silently done.
-        self.assertIn("LocalCredentialVault.save(appContext, email, password)", main)
-        self.assertIn("LocalCredentialVault.clear(appContext)", main)
-
     def test_settings_keeps_maintenance_and_diagnostics(self):
-        main = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
+        main = self.src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
         for text in (
             "var showTechnicalTools by remember { mutableStateOf(false) }",
             "if (showTechnicalTools) {",

@@ -34,7 +34,7 @@ class ArtworkCrossPageCacheContractTest(unittest.TestCase):
         self.assertIn('File(directory, "ref-$sourceHash.txt")', cache)
 
     def test_auto_mode_resumes_after_tag_index_and_not_on_boot(self):
-        main = read("app/src/main/java/app/enotone/android/MainActivity.kt")
+        main = read("app/src/main/java/app/enotone/android/SettingsScreen.kt")
         planner = read("app/src/main/java/app/enotone/android/ArtworkIndexPlanner.kt")
         worker = read("app/src/main/java/app/enotone/android/ArtworkIndexingForegroundService.kt")
         preferences = read("app/src/main/java/app/enotone/android/ArtworkPreferences.kt")
@@ -59,7 +59,7 @@ class ArtworkCrossPageCacheContractTest(unittest.TestCase):
 
     def test_settings_and_signing_are_stable(self):
         settings = read("app/src/main/java/app/enotone/android/ArtworkSettingsPanel.kt")
-        main = read("app/src/main/java/app/enotone/android/MainActivity.kt")
+        main = read("app/src/main/java/app/enotone/android/SettingsScreen.kt")
         db = read("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         gradle = read("app/build.gradle.kts")
         self.assertIn("ArtworkSettingsPanel(", main)

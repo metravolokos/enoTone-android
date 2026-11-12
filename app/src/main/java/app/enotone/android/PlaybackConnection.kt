@@ -64,6 +64,8 @@ internal interface PlaybackConnection {
                   selectedId: String, useCache: Boolean, sourceKey: String)
     fun restoreQueue(email: String, password: String, queue: List<QueueTrack>,
                      saved: PersistedQueueState, useCache: Boolean, filtered: Boolean): Boolean
+    /** Returns false when the local MediaSession binder is unavailable. */
+    fun stopPlayback(): Boolean
     fun playPause()
     fun playNext()
     fun playPrevious()
@@ -195,6 +197,13 @@ internal class AndroidPlaybackConnection(
             ?: false
         publish()
         return restored
+    }
+
+    override fun stopPlayback(): Boolean {
+        val active = service ?: return false
+        active.stopPlayback()
+        publish()
+        return true
     }
 
     override fun playPause() {

@@ -10,7 +10,7 @@ class UnifiedImportGenreContractTest(unittest.TestCase):
         return (ROOT / path).read_text(encoding="utf-8")
 
     def test_one_click_import_commits_room_before_resumable_scan(self):
-        ui = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
+        ui = self.src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
         start = ui.index("// One explicit action: quick listing + background metadata completion.")
         end = ui.index("// Explicit full reindex is a DIFFERENT action", start)
         section = ui[start:end]

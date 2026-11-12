@@ -12,7 +12,7 @@ def src(path):
 
 class IndexingFinalizationContractTest(unittest.TestCase):
     def test_incremental_button_never_forces_all_tags(self):
-        ui = src("app/src/main/java/app/enotone/android/MainActivity.kt")
+        ui = src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
         start = ui.index("// One explicit action: quick listing + background metadata completion.")
         end = ui.index("// Explicit full reindex is a DIFFERENT action", start)
         part = ui[start:end]
@@ -28,7 +28,7 @@ class IndexingFinalizationContractTest(unittest.TestCase):
         self.assertEqual(1, part.count("startManagedSession(true)"))
 
     def test_one_confirmed_full_action_starts_background_reader_after_queue(self):
-        ui = src("app/src/main/java/app/enotone/android/MainActivity.kt")
+        ui = src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
         code = ui[ui.index("// Explicit full reindex is a DIFFERENT action"):
                   ui.index("if (showTechnicalTools) {", ui.index(
                       "// Explicit full reindex is a DIFFERENT action"))]

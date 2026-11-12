@@ -8,7 +8,7 @@ DAO = ROOT / "core/database/src/main/java/app/enotone/database/RemoteTrackDao.kt
 STORE = ROOT / "data/library/src/main/java/app/enotone/library/LibraryTagStore.kt"
 PLANNER = ROOT / "data/library/src/main/java/app/enotone/library/LibrarySnapshotPlanner.kt"
 PILOT = ROOT / "data/library/src/main/java/app/enotone/library/PilotTagIndexer.kt"
-SCREEN = ROOT / "app/src/main/java/app/enotone/android/MainActivity.kt"
+SCREEN = ROOT / "app/src/main/java/app/enotone/android/SettingsScreen.kt"
 LANGS = [
     ROOT / "app/src/main/res/values/strings.xml",
     ROOT / "app/src/main/res/values-en/strings.xml",

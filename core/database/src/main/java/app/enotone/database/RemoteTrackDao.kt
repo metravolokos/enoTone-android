@@ -22,6 +22,14 @@ interface RemoteTrackDao {
     @Query("SELECT * FROM remote_tracks WHERE sourceKey = :sourceKey")
     suspend fun allForSource(sourceKey: String): List<RemoteTrackEntity>
 
+    /** Explicit account sign-out only. Never use for listing/refresh errors. */
+    @Query("DELETE FROM remote_tracks WHERE sourceKey = :sourceKey")
+    suspend fun deleteAllForSource(sourceKey: String): Int
+
+    /** Preserve artwork shared with other account sources on sign-out. */
+    @Query("SELECT COUNT(*) FROM remote_tracks WHERE sourceKey != :sourceKey")
+    suspend fun countOtherSources(sourceKey: String): Int
+
     /** Resolve a local track ID only within its active account/snapshot. */
     @Query("""
         SELECT * FROM remote_tracks
