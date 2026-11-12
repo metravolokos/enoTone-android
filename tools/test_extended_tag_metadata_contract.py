@@ -12,7 +12,7 @@ class ExtendedTagMetadataContractTest(unittest.TestCase):
     def test_nondestructive_room_v3_and_existing_base_migrations(self):
         db = self.src("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         entity = self.src("core/database/src/main/java/app/enotone/database/RemoteTrackEntity.kt")
-        main = self.src("app/src/main/java/app/enotone/android/MainActivity.kt")
+        main = self.src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
         for token in ('version = 4', 'AutoMigration(from = 1, to = 2)',
                       'AutoMigration(from = 2, to = 3)',
                       'AutoMigration(from = 3, to = 4)', 'exportSchema = true'):

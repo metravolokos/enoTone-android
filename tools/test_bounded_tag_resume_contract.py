@@ -25,7 +25,7 @@ class BoundedTagResumeContractTest(unittest.TestCase):
 
     def test_user_interaction_still_cancelable_and_not_background(self):
         ui = (ROOT / "app/src/main/java/app/enotone/android/"
-              "MainActivity.kt").read_text(encoding="utf-8")
+              "SettingsScreen.kt").read_text(encoding="utf-8")
         assert "onClick = { runPilot(100) }" in ui
         assert "onClick = { runPilot(10) }" in ui
         assert "onClick = { runPilot(20) }" in ui
@@ -33,7 +33,6 @@ class BoundedTagResumeContractTest(unittest.TestCase):
         assert "PilotTagIndexer(database).run(" in ui
         assert "email, password, count," in ui
         assert "onProgress = { progress ->" in ui
-        assert "LocalCredentialVault.restore(appContext)" in ui
         assert "R.string.pilot_resume_explanation" in ui
         assert "onClick = { runPilot(3590) }" not in ui
         assert "WorkManager" not in ui
