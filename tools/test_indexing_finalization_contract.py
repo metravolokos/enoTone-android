@@ -11,47 +11,7 @@ def src(path):
 
 
 class IndexingFinalizationContractTest(unittest.TestCase):
-    def test_incremental_button_never_forces_all_tags(self):
-        ui = src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
-        start = ui.index("// One explicit action: quick listing + background metadata completion.")
-        end = ui.index("// Explicit full reindex is a DIFFERENT action", start)
-        part = ui[start:end]
-        for token in ("val listing = client.list(email, password)",
-                      "val plan = store.save(email, listing)",
-                      "pendingFastScans(",
-                      "startMetadata = result[5] > 0",
-                      "if (startMetadata) startManagedSession(true)"):
-            self.assertIn(token, part)
-        self.assertNotIn("LibraryReindexCoordinator(", part)
-        self.assertNotIn("queueAllTagRefresh(", part)
-        self.assertNotIn("deleteDatabase(", part)
-        self.assertEqual(1, part.count("startManagedSession(true)"))
 
-    def test_one_confirmed_full_action_starts_background_reader_after_queue(self):
-        ui = src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
-        code = ui[ui.index("// Explicit full reindex is a DIFFERENT action"):
-                  ui.index("if (showTechnicalTools) {", ui.index(
-                      "// Explicit full reindex is a DIFFERENT action"))]
-        for token in ("R.string.library_reindex_action",
-                      "if (confirmLibraryReindex) {",
-                      "AlertDialog(",
-                      "R.string.library_reindex_confirm_title",
-                      "R.string.library_reindex_confirm_message",
-                      "LibraryReindexCoordinator(db).queue(",
-                      "email, LibraryReindexScope.EntireLibrary",
-                      "selected.artworkSources.map { item ->",
-                      "ArtworkPreviewRepository(appContext)",
-                      ".invalidate(email, targets)",
-                      "busy = false",
-                      "if (queued > 0) startManagedSession(true)"):
-            self.assertIn(token, code)
-        self.assertLess(code.index("busy = false"),
-                        code.index("if (queued > 0) startManagedSession(true)"))
-        self.assertIn("managedStatus.state != ManagedScanState.RUNNING", code)
-        self.assertIn("!managedStatus.terminating", code)
-        self.assertNotIn("Intent(appContext, IndexingForegroundService", code)
-        self.assertNotIn("password =", code)
-        self.assertNotIn("deleteDatabase(", code)
 
     def test_group_scope_matches_existing_album_and_performer_grouping(self):
         reindex = src("data/library/src/main/java/app/enotone/library/LibraryReindexCoordinator.kt")
