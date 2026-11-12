@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun AccountSettingsSection(
     account: AccountUiState,
-    showFields: Boolean,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onVerify: () -> Unit,
@@ -30,7 +29,8 @@ internal fun AccountSettingsSection(
     onCancelSignOut: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (showFields || !account.loggedIn) {
+        // Вход сохраняется всегда (O-09): поля нужны только до входа; смена аккаунта — через «Выйти».
+        if (!account.loggedIn) {
             OutlinedTextField(
                 value = account.email, onValueChange = onEmailChange,
                 label = { Text(stringResource(R.string.email)) },
@@ -57,6 +57,8 @@ internal fun AccountSettingsSection(
             }
         }
         if (account.loggedIn) {
+            Text(stringResource(R.string.account_signed_in_as, account.email),
+                style = MaterialTheme.typography.bodyMedium)
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !account.busy, onClick = onRequestSignOut,
@@ -66,8 +68,6 @@ internal fun AccountSettingsSection(
             Text(stringResource(R.string.account_restoring))
         } else if (account.signingOut) {
             Text(stringResource(R.string.account_signing_out))
-        } else if (account.loggedIn && account.error == null) {
-            Text(stringResource(R.string.credential_vault_restored))
         }
         when (account.error) {
             AccountError.RESTORE -> Text(stringResource(R.string.credential_vault_failed))
@@ -140,5 +140,5 @@ private fun AccountErrorPreview() {
 
 @Composable
 private fun PreviewAccount(account: AccountUiState) {
-    AccountSettingsSection(account, true, {}, {}, {}, {}, {}, {})
+    AccountSettingsSection(account, {}, {}, {}, {}, {}, {})
 }

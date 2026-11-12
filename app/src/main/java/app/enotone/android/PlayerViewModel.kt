@@ -312,7 +312,7 @@ internal class PlayerViewModel(
                         credentialsProvider = container.credentialsProvider,
                         artworkLoader = RepositoryArtworkLoader(container.artworkPreviewRepository),
                         io = container.io,
-                        useCache = { PlaybackDiagnosticsRuntime.useCacheOnNextPlay },
+                        useCache = { true },
                         accountEvents = container.accountSession.state,
                     ) as T
                 }

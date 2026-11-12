@@ -12,14 +12,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -54,22 +55,21 @@ internal fun DiagnosticScreen() {
     var showingLibrary by remember { mutableStateOf(false) }
     var showingSettings by remember { mutableStateOf(false) }
     var initialLibraryPage by remember { mutableStateOf(LibraryPage.TRACKS) }
-    var showConnection by remember { mutableStateOf(true) }
-    var showIndexDetails by remember { mutableStateOf(false) }
-    var showTechnicalTools by remember { mutableStateOf(false) }
+    var showingDiagnostics by remember { mutableStateOf(false) }
     val playerModel: PlayerViewModel = viewModel(factory = remember(appContext) {
         PlayerViewModel.factory(container)
     })
     val player by playerModel.state.collectAsStateWithLifecycle()
     val libraryStateHolder = rememberSaveableStateHolder()
     SettingsAccountEffects(account, showingLibrary, showingSettings, session, playerModel, artworkModel,
-        onConnected = { showConnection = false }, onSignedOut = { showingLibrary = false; showConnection = true })
+        onSignedOut = { showingLibrary = false; showingDiagnostics = false })
     SettingsNotificationPermission(if (indexing.permissionPending) indexing.permissionRequest else 0,
         indexingModel::onNotificationPermission)
     BackHandler(enabled = player.nowPlaying || showingLibrary || showingSettings) {
         when {
             player.nowPlaying -> playerModel.onNowPlaying(false)
             showingLibrary -> showingLibrary = false
+            showingDiagnostics -> showingDiagnostics = false
             showingSettings -> showingSettings = false
         }
     }
@@ -81,47 +81,45 @@ internal fun DiagnosticScreen() {
         })) return
 
     Box(modifier = Modifier.fillMaxSize()) {
+    // Отдельная прокрутка для основного экрана и подэкрана «Диагностика».
+    key(showingDiagnostics) {
     Column(
         modifier = Modifier.fillMaxSize().systemBarsPadding()
             .verticalScroll(rememberScrollState()).padding(16.dp)
             .padding(bottom = if (player.playback.queueTotal > 0) 88.dp else 0.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        val version = remember(appContext) { appVersionName(appContext) }
-        SettingsHeader(version) { showingSettings = false }
-        AppearanceSettings()
-        LibraryVisibilitySettings()
-        SettingsArtworkSection(artwork, artworkModel::changeMode, artworkModel::clear,
-            artworkModel::pause, artworkModel::stop)
-        OutlinedButton(onClick = { showConnection = !showConnection }) {
-            Text(stringResource(R.string.home_connection_settings))
+        if (showingDiagnostics) {
+            SettingsHeader(stringResource(R.string.diagnostics_title), "") { showingDiagnostics = false }
+            SettingsDiagnosticsContent(diagnostics, indexing.status, diagnosticsModel)
+        } else {
+            val version = remember(appContext) { appVersionName(appContext) }
+            SettingsHeader(stringResource(R.string.settings_title), version) {
+                showingSettings = false
+            }
+            SettingsGroup(stringResource(R.string.settings_group_cloud)) {
+                AccountSettingsSection(
+                    account = account,
+                    onEmailChange = accountModel::onEmailChanged,
+                    onPasswordChange = accountModel::onPasswordChanged,
+                    onVerify = accountModel::verifyConnection,
+                    onRequestSignOut = accountModel::requestSignOut,
+                    onConfirmSignOut = accountModel::confirmSignOut,
+                    onCancelSignOut = accountModel::cancelSignOut,
+                )
+            }
+            SettingsGroup(stringResource(R.string.settings_group_library)) {
+                SettingsIndexingSection(indexing, indexingModel)
+            }
+            SettingsGroup { LibraryVisibilitySettings() }
+            SettingsGroup { AppearanceSettings() }
+            SettingsGroup {
+                SettingsArtworkSection(artwork, artworkModel::changeMode, artworkModel::clear,
+                    artworkModel::pause, artworkModel::stop)
+            }
+            SettingsDiagnosticsEntry { showingDiagnostics = true }
         }
-        AccountSettingsSection(
-            account = account,
-            showFields = showConnection || !account.loggedIn,
-            onEmailChange = accountModel::onEmailChanged,
-            onPasswordChange = accountModel::onPasswordChanged,
-            onVerify = accountModel::verifyConnection,
-            onRequestSignOut = accountModel::requestSignOut,
-            onConfirmSignOut = accountModel::confirmSignOut,
-            onCancelSignOut = accountModel::cancelSignOut,
-        )
-        OutlinedButton(onClick = { showTechnicalTools = !showTechnicalTools }) {
-            Text(stringResource(if (showTechnicalTools)
-                R.string.home_hide_technical else R.string.home_show_technical))
-        }
-        if (showTechnicalTools) {
-            PlaybackDiagnosticsPanel()
-            SettingsDiagnosticsSection(diagnostics, diagnosticsModel)
-        }
-        SettingsIndexingSection(indexing, indexingModel)
-        if (showTechnicalTools) {
-            SettingsAuditSection(diagnostics, diagnosticsModel)
-            SettingsTagToolsSection(diagnostics, diagnosticsModel)
-        }
-        SettingsIndexingStatusSection(indexing, indexingModel, showTechnicalTools,
-            showIndexDetails) { showIndexDetails = !showIndexDetails }
-        if (indexing.report.isNotEmpty()) Text(indexing.report, style = MaterialTheme.typography.bodyMedium)
+    }
     }
     Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
         .navigationBarsPadding()) {
@@ -143,7 +141,6 @@ private fun SettingsAccountEffects(
     session: SettingsWorkSession,
     playerModel: PlayerViewModel,
     artworkModel: ArtworkSettingsViewModel,
-    onConnected: () -> Unit,
     onSignedOut: () -> Unit,
 ) {
     val email = account.email
@@ -157,21 +154,17 @@ private fun SettingsAccountEffects(
         if (showingLibrary && account.loggedIn) playerModel.onCredentialsPersisted(email, password)
     }
     LaunchedEffect(account.verifiedVersion) {
-        if (account.verifiedVersion > 0) {
-            playerModel.onCredentialsPersisted(email, password)
-            onConnected()
-        }
+        if (account.verifiedVersion > 0) playerModel.onCredentialsPersisted(email, password)
     }
     LaunchedEffect(account.signedOutVersion) {
         if (account.signedOutVersion > 0) {
             onSignedOut()
         }
     }
-    LaunchedEffect(account.loggedIn) { if (account.loggedIn) onConnected() }
 }
 
 @Composable
-private fun SettingsHeader(version: String, onBack: () -> Unit) {
+private fun SettingsHeader(title: String, version: String, onBack: () -> Unit) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -183,8 +176,7 @@ private fun SettingsHeader(version: String, onBack: () -> Unit) {
                     contentDescription = stringResource(R.string.library_back),
                 )
             }
-            Text(stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.titleLarge)
+            Text(title, style = MaterialTheme.typography.titleLarge)
         }
         // Version first: owner reports from Huawei must name the exact build.
         if (version.isNotBlank()) {
@@ -192,4 +184,16 @@ private fun SettingsHeader(version: String, onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+}
+
+/** Вход в подэкран «Диагностика»: технические сведения убраны с основного экрана. */
+@Composable
+private fun SettingsDiagnosticsEntry(onOpen: () -> Unit) {
+    Card(onClick = onOpen, modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.diagnostics_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.diagnostics_entry_summary), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }

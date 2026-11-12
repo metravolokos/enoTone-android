@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -16,112 +17,95 @@ import org.junit.Test
 class DiagnosticsViewModelTest {
     private class Gateway : DiagnosticsGateway {
         var calls = 0
-        var queues = 0
         var wait: CompletableDeferred<Unit>? = null
-        override suspend fun inspect(login: StoredWebDavLogin, file: String, infinity: Boolean): ProbeReport {
+        var rows: List<RemoteTrackEntity> = emptyList()
+        override suspend fun inspect(login: StoredWebDavLogin): ProbeReport {
             calls++
+            wait?.await()
             return ProbeReport(listOf(
-                ProbeStep("${login.email} ${login.password} $file", 207, 10, true, false,
-                    "Authorization: ${login.password} $file ${login.email}"),
-                ProbeStep("PROPFIND /AllMusic", 207, 12, false, true, "Multi-Status получен")))
+                ProbeStep("${login.email} ${login.password}", 207, 10, true, false,
+                    "Authorization: ${login.password} ${login.email}"),
+                ProbeStep("PROPFIND /AllMusic", 207, 12, false, true, "Multi-Status получен"),
+                ProbeStep("PROPFIND Depth infinity", null, 0, false, false, "Не запрошено")))
         }
-        override suspend fun run(command: DiagnosticCommand, login: StoredWebDavLogin, file: String): String {
+        override suspend fun audit(query: AuditQuery, email: String): List<RemoteTrackEntity> {
             calls++
-            wait?.await()
-            return command.name
-        }
-        override suspend fun audit(query: AuditQuery, email: String,
-            search: String): List<RemoteTrackEntity> = emptyList()
-        override suspend fun queue(email: String, id: String?): Int { queues++; return 3 }
-        override suspend fun pilot(login: StoredWebDavLogin, count: Int, progress: (String) -> Unit): String {
-            progress("PROGRESS")
-            wait?.await()
-            return "DONE"
+            return rows
         }
     }
 
-    @Test fun `fake webdav response cannot leak credentials paths or arbitrary notes`() = settingsTest {
-        val session = SettingsWorkSession()
-        val gateway = Gateway()
-        val model = DiagnosticsViewModel(gateway, FakeBackgroundWorkLauncher(), session, testSettingsText)
-        session.updateLogin(testLogin)
-        advanceUntilIdle()
-        model.edit(DiagnosticsEdit.File("/AllMusic/private-track.flac"))
-        model.inspect()
-        advanceUntilIdle()
-        val report = model.state.value.report
-        assertFalse(report.contains(testLogin.email))
-        assertFalse(report.contains(testLogin.password))
-        assertFalse(report.contains("/AllMusic/private-track.flac"))
-        assertFalse(report.contains("Authorization"))
-        assertTrue(report.contains("HTTP 207"))
-        assertTrue(report.contains("PROPFIND /AllMusic"))
-        assertTrue(report.contains("Multi-Status получен"))
-    }
+    private val row = RemoteTrackEntity("1", "source", "/AllMusic/a.flac", "a.flac", null, 1L, null,
+        lastSeenEpoch = 0)
 
-    @Test fun `shared busy gate rejects overlapping tools and no login prevents probe`() = settingsTest {
+    @Test fun `fake webdav response cannot leak credentials or arbitrary notes and skipped steps are hidden`() =
+        settingsTest {
+            val session = SettingsWorkSession()
+            val model = DiagnosticsViewModel(Gateway(), session, testSettingsText)
+            session.updateLogin(testLogin)
+            advanceUntilIdle()
+            model.inspect()
+            advanceUntilIdle()
+            val report = model.state.value.probe
+            assertFalse(report.contains(testLogin.email))
+            assertFalse(report.contains(testLogin.password))
+            assertFalse(report.contains("Authorization"))
+            assertFalse(report.contains("Depth infinity"))
+            assertTrue(report.contains("HTTP 207"))
+            assertTrue(report.contains("PROPFIND /AllMusic"))
+            assertTrue(report.contains("Multi-Status получен"))
+            assertEquals("", session.state.value.report)
+        }
+
+    @Test fun `shared busy gate rejects overlapping work and no login prevents probe`() = settingsTest {
         val session = SettingsWorkSession()
         val gateway = Gateway()
-        val model = DiagnosticsViewModel(gateway, FakeBackgroundWorkLauncher(), session, testSettingsText)
+        val model = DiagnosticsViewModel(gateway, session, testSettingsText)
         model.inspect()
         advanceUntilIdle()
         assertEquals(0, gateway.calls)
+        assertEquals(testSettingsText.get(R.string.missing_credentials), model.state.value.message)
         session.updateLogin(testLogin)
         advanceUntilIdle()
         gateway.wait = CompletableDeferred()
-        model.run(DiagnosticCommand.COVERAGE)
-        runCurrent()
         model.inspect()
+        runCurrent()
+        model.audit(AuditQuery.MISSING_ALBUM)
         assertEquals(1, gateway.calls)
         gateway.wait?.complete(Unit)
         advanceUntilIdle()
-        assertEquals("COVERAGE", model.state.value.report)
         assertFalse(model.state.value.busy)
     }
 
-    @Test fun `audit queue requires confirmation and respects active service`() = settingsTest {
+    @Test fun `audit is view only and reports empty result`() = settingsTest {
         val session = SettingsWorkSession()
         val gateway = Gateway()
-        val launcher = FakeBackgroundWorkLauncher()
-        val model = DiagnosticsViewModel(gateway, launcher, session, testSettingsText)
+        val model = DiagnosticsViewModel(gateway, session, testSettingsText)
         session.updateLogin(testLogin)
         advanceUntilIdle()
-        model.queueAll()
-        assertEquals(0, gateway.queues)
-        model.edit(DiagnosticsEdit.RefreshAll(true))
-        launcher.indexing.value = ManagedScanStatus(ManagedScanState.RUNNING)
-        model.queueAll()
-        assertEquals(0, gateway.queues)
-        launcher.indexing.value = ManagedScanStatus(ManagedScanState.COMPLETE)
-        model.queueAll()
-        advanceUntilIdle()
-        assertEquals(1, gateway.queues)
-        assertFalse(model.state.value.confirmRefreshAll)
         model.audit(AuditQuery.MISSING_ALBUM)
         advanceUntilIdle()
         assertEquals(testSettingsText.get(R.string.tag_audit_no_missing), model.state.value.message)
+        gateway.rows = listOf(row)
+        model.audit(AuditQuery.MISSING_ALBUM_ARTIST)
+        advanceUntilIdle()
+        assertEquals(AuditQuery.MISSING_ALBUM_ARTIST, model.state.value.auditQuery)
+        assertEquals(listOf(row), model.state.value.rows)
+        assertEquals("", model.state.value.message)
     }
 
-    @Test fun `pilot cancellation releases busy gate and sign out clears private input`() = settingsTest {
+    @Test fun `sign out clears private rows and report`() = settingsTest {
         val session = SettingsWorkSession()
-        val gateway = Gateway()
-        val model = DiagnosticsViewModel(gateway, FakeBackgroundWorkLauncher(), session, testSettingsText)
+        val gateway = Gateway().apply { rows = listOf(row) }
+        val model = DiagnosticsViewModel(gateway, session, testSettingsText)
         session.updateLogin(testLogin)
         advanceUntilIdle()
-        gateway.wait = CompletableDeferred()
-        model.pilot(10)
-        runCurrent()
-        assertTrue(model.state.value.pilotRunning)
-        model.cancelPilot()
+        model.inspect()
+        model.audit(AuditQuery.MISSING_ALBUM)
         advanceUntilIdle()
-        assertFalse(model.state.value.busy)
-        assertFalse(model.state.value.pilotRunning)
-        model.edit(DiagnosticsEdit.Search("private track"))
-        model.edit(DiagnosticsEdit.File("/AllMusic/private.flac"))
         session.updateLogin(null)
         advanceUntilIdle()
-        assertEquals("", model.state.value.search)
-        assertEquals("", model.state.value.file)
-        assertEquals("", model.state.value.report)
+        assertEquals("", model.state.value.probe)
+        assertTrue(model.state.value.rows.isEmpty())
+        assertNull(model.state.value.auditQuery)
     }
 }

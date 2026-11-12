@@ -1,6 +1,7 @@
 package app.enotone.android
 
 import app.enotone.library.ManagedIndexMode
+import app.enotone.network.FlatWebDavHttpError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -18,10 +19,12 @@ class LibraryIndexingViewModelTest {
         var pending = 3
         var wait: CompletableDeferred<Unit>? = null
         var fail = false
+        var httpFail = false
         override suspend fun update(login: StoredWebDavLogin): LibraryImportResult {
             updates++
             wait?.await()
             if (fail) error("private exception")
+            if (httpFail) throw FlatWebDavHttpError(503)
             return LibraryImportResult("IMPORTED", pending)
         }
         override suspend fun reindex(login: StoredWebDavLogin): Int {
@@ -99,7 +102,7 @@ class LibraryIndexingViewModelTest {
         fixture.model.updateLibrary()
         advanceUntilIdle()
         assertFalse(fixture.model.state.value.permissionPending)
-        fixture.model.start(false)
+        fixture.model.resume()
         fixture.model.onNotificationPermission(false)
         assertTrue(fixture.model.state.value.permissionDenied)
         assertEquals(0, fixture.launcher.indexingStarts)
@@ -109,7 +112,7 @@ class LibraryIndexingViewModelTest {
         val fixture = Fixture()
         fixture.signIn()
         advanceUntilIdle()
-        fixture.model.start(true)
+        fixture.model.resume()
         fixture.session.updateLogin(null)
         fixture.model.onNotificationPermission(true)
         advanceUntilIdle()
@@ -140,5 +143,32 @@ class LibraryIndexingViewModelTest {
         fixture.model.control(WorkAction.PAUSE)
         fixture.model.control(WorkAction.STOP)
         assertEquals(listOf(WorkAction.PAUSE, WorkAction.STOP), fixture.launcher.indexingActions)
+    }
+
+    @Test fun `resume continues in continuous mode and is blocked while running`() = settingsTest {
+        val fixture = Fixture()
+        fixture.signIn()
+        advanceUntilIdle()
+        fixture.launcher.indexing.value = ManagedScanStatus(ManagedScanState.RUNNING)
+        fixture.model.resume()
+        assertFalse(fixture.model.state.value.permissionPending)
+        fixture.launcher.indexing.value = ManagedScanStatus(ManagedScanState.ERROR)
+        fixture.model.resume()
+        fixture.model.onNotificationPermission(true)
+        assertEquals(1, fixture.launcher.indexingStarts)
+        assertEquals(ManagedIndexMode.CONTINUOUS, fixture.launcher.mode)
+    }
+
+    @Test fun `network failure shows plain text without http code on the main screen`() = settingsTest {
+        val fixture = Fixture()
+        fixture.signIn()
+        fixture.gateway.httpFail = true
+        advanceUntilIdle()
+        fixture.model.updateLibrary()
+        advanceUntilIdle()
+        val report = fixture.model.state.value.report
+        assertEquals(testSettingsText.get(R.string.library_update_network_failed), report)
+        assertFalse(report.contains("503"))
+        assertFalse(fixture.model.state.value.busy)
     }
 }

@@ -40,7 +40,7 @@ class AppContainer(
     internal val artworkSettingsGateway: ArtworkSettingsGateway by lazy {
         AndroidArtworkSettingsGateway(appContext, this)
     }
-    internal val diagnosticsGateway: DiagnosticsGateway by lazy { AndroidDiagnosticsGateway(this, settingsText) }
+    internal val diagnosticsGateway: DiagnosticsGateway by lazy { AndroidDiagnosticsGateway(this) }
 
     internal fun accountSignOut(email: String): AccountSignOut = AccountSignOut(
         AndroidAccountSignOutPort(appContext, this, email),
