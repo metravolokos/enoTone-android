@@ -75,7 +75,6 @@ class PlayerViewModelTest {
             )
             return true
         }
-        override fun stopPlayback(): Boolean = true
         override fun playPause() = Unit
         override fun playNext() = Unit
         override fun playPrevious() = Unit
@@ -125,7 +124,7 @@ class PlayerViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun manualRamCredentialsCannotRestoreWithoutVaultConsent() = runTest {
+    @Test fun verifiedAndPersistedLoginAllowsQueueRestore() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val repo = Repo(catalog())
@@ -135,12 +134,11 @@ class PlayerViewModelTest {
                 CredentialsProvider { null }, NoArtwork,
                 StandardTestDispatcher(testScheduler), { true })
             advanceUntilIdle()
-            model.onCredentialsChanged(email, "ram-only")
-            advanceUntilIdle()
             assertEquals(0, connection.restores)
-            assertEquals(0, repo.reads)
+            model.onCredentialsPersisted(email, "stored-password")
+            advanceUntilIdle()
+            assertEquals(1, connection.restores)
             assertEquals(0, connection.plays)
-            assertFalse(model.state.value.playback.queueTotal > 0)
         } finally { Dispatchers.resetMain() }
     }
 

@@ -65,8 +65,7 @@ internal class PlayerViewModel(
     private var artworkJob: Job? = null
     private var restoredAccount: String? = null
 
-    // Only a login returned by the vault grants automatic queue restoration.
-    // Manually typed credentials remain RAM-only until explicitly persisted.
+    // Verified and encrypted logins are the only restoration credentials.
     private var restoreAllowed = false
     private var loadingAccount: String? = null
 
@@ -96,17 +95,43 @@ internal class PlayerViewModel(
         }
     }
 
-    /** For regular RAM-only playback; persisted login is always via CredentialsProvider. */
-    fun onCredentialsChanged(email: String, password: String) {
+    /** Called only after WebDAV verification AND a successful vault write. */
+    fun onCredentialsPersisted(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) return
-        if (login?.email == email && login?.password == password) return
-        login = StoredWebDavLogin(email, password)
+        val verified = StoredWebDavLogin(email, password)
+        if (login != verified) {
+            login = verified
+            catalog = null
+            covers = null
+            loadingAccount = null
+            restoredAccount = null
+        }
+        restoreAllowed = true
+        ensureCatalog(verified)
+        maybeRestore()
+        loadArtwork()
+    }
+
+    /** Blocks the bind/queue-restoration race while ordered cleanup runs. */
+    fun onSignOutStarted() {
         restoreAllowed = false
-        restoredAccount = null
+    }
+
+    fun onSignOutFailed() {
+        restoreAllowed = login != null
+        login?.let { ensureCatalog(it) }
+        maybeRestore()
+    }
+
+    fun onSignedOut() {
+        restoreAllowed = false
+        login = null
         catalog = null
         covers = null
+        restoredAccount = null
         loadingAccount = null
-        loadArtwork()
+        artworkJob?.cancel()
+        mutable.value = SharedPlayerUiState(playback = connection.state.value)
     }
 
     private fun ensureCatalog(saved: StoredWebDavLogin) {
