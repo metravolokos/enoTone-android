@@ -10,12 +10,19 @@ import java.io.IOException
  * layout-before-position writes, so queue revision mismatch catches torn pairs.
  * All methods must be called off the main thread.
  */
-class QueueStateFileStore private constructor(private val directory: File) {
+class QueueStateFileStore private constructor(
+    private val directory: File,
+    // Deterministic JVM fault injection; production uses the no-op default.
+    private val beforePositionWrite: () -> Unit = {},
+) {
     constructor(context: Context) : this(context.noBackupFilesDir) {
         QueuePersistenceDiagnostics.initialize(context)
     }
     /** JVM/Robolectric tests use an isolated directory; no Android storage or network. */
-    companion object { fun inDirectory(directory: File) = QueueStateFileStore(directory) }
+    companion object {
+        fun inDirectory(directory: File, beforePositionWrite: () -> Unit = {}) =
+            QueueStateFileStore(directory, beforePositionWrite)
+    }
     private val queueFile = File(directory, "enotone-queue-v1.json")
     private val positionFile = File(directory, "enotone-position-v1.json")
 
@@ -52,6 +59,7 @@ class QueueStateFileStore private constructor(private val directory: File) {
 
     fun writePosition(position: PersistedPositionState) {
         try {
+            beforePositionWrite()
             atomicWrite(positionFile, QueueStateCodec.encodePosition(position))
             QueuePersistenceDiagnostics.positionWritten()
         } catch (error: Exception) {
