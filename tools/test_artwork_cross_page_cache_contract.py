@@ -34,14 +34,17 @@ class ArtworkCrossPageCacheContractTest(unittest.TestCase):
         self.assertIn('File(directory, "ref-$sourceHash.txt")', cache)
 
     def test_auto_mode_resumes_after_tag_index_and_not_on_boot(self):
-        main = read("app/src/main/java/app/enotone/android/SettingsScreen.kt")
+        main = (
+            read("app/src/main/java/app/enotone/android/SettingsScreen.kt")
+            + read("app/src/main/java/app/enotone/android/ArtworkSettingsViewModel.kt")
+        )
         planner = read("app/src/main/java/app/enotone/android/ArtworkIndexPlanner.kt")
         worker = read("app/src/main/java/app/enotone/android/ArtworkIndexingForegroundService.kt")
         preferences = read("app/src/main/java/app/enotone/android/ArtworkPreferences.kt")
         self.assertIn("ArtworkLoadMode.ON_DEMAND", preferences)
         self.assertIn("AUTO_AFTER_IMPORT", preferences)
         self.assertIn("pendingFastScans(", main)
-        self.assertIn("ArtworkIndexPlanner.needsPreparation(appContext, email)", main)
+        self.assertIn("ArtworkIndexPlanner.needsPreparation(context, email)", main)
         self.assertIn("ArtworkScanRuntime.prepare(email, password)", main)
         self.assertIn("ArtworkIndexingForegroundService.ACTION_START", main)
         self.assertIn("ArtworkIndexPlanner.fromStoredLibrary(", worker)
@@ -59,7 +62,10 @@ class ArtworkCrossPageCacheContractTest(unittest.TestCase):
 
     def test_settings_and_signing_are_stable(self):
         settings = read("app/src/main/java/app/enotone/android/ArtworkSettingsPanel.kt")
-        main = read("app/src/main/java/app/enotone/android/SettingsScreen.kt")
+        main = (
+            read("app/src/main/java/app/enotone/android/SettingsScreen.kt")
+            + read("app/src/main/java/app/enotone/android/ArtworkSettingsViewModel.kt")
+        )
         db = read("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         gradle = read("app/build.gradle.kts")
         self.assertIn("ArtworkSettingsPanel(", main)
@@ -69,7 +75,7 @@ class ArtworkCrossPageCacheContractTest(unittest.TestCase):
             "R.string.artwork_index_progress",
         ):
             self.assertIn(token, settings)
-        self.assertIn("ArtworkPreviewRepository(appContext).clearAll()", main)
+        self.assertIn("container.artworkPreviewRepository.clearAll()", main)
         self.assertIn("version = 4", db)
         self.assertIn('applicationIdSuffix = ".preview"', gradle)
 

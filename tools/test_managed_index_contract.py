@@ -64,7 +64,7 @@ class ManagedIndexContractTest(unittest.TestCase):
         service = (ROOT / "app/src/main/java/app/enotone/android/"
                    "IndexingForegroundService.kt").read_text(encoding="utf-8")
         ui = (ROOT / "app/src/main/java/app/enotone/android/"
-              "SettingsScreen.kt").read_text(encoding="utf-8")
+              "ManagedIndexSettingsSection.kt").read_text(encoding="utf-8")
         for needle in (
             'stopCode = "FAILED_INTERNAL"',
             'lastErrorStage = location',
@@ -75,7 +75,7 @@ class ManagedIndexContractTest(unittest.TestCase):
         ):
             self.assertIn(needle, service)
         for needle in (
-            "managedStatus.failureStage?.let { stage ->",
+            "status.failureStage?.let { stage ->",
             "R.string.managed_index_internal_failure",
         ):
             self.assertIn(needle, ui)
@@ -115,8 +115,14 @@ class ManagedIndexContractTest(unittest.TestCase):
                   "ManagedTagIndexSession.kt").read_text(encoding="utf-8")
         service = (ROOT / "app/src/main/java/app/enotone/android/"
                    "IndexingForegroundService.kt").read_text(encoding="utf-8")
-        main = (ROOT / "app/src/main/java/app/enotone/android/"
-                "SettingsScreen.kt").read_text(encoding="utf-8")
+        main = (
+            (ROOT / "app/src/main/java/app/enotone/android/"
+             "SettingsScreen.kt").read_text(encoding="utf-8")
+            + (ROOT / "app/src/main/java/app/enotone/android/"
+               "ManagedIndexSettingsViewModel.kt").read_text(encoding="utf-8")
+            + (ROOT / "app/src/main/java/app/enotone/android/"
+               "ManagedIndexSettingsSection.kt").read_text(encoding="utf-8")
+        )
         for needle in (
             "enum class ManagedIndexMode { BOUNDED, CONTINUOUS }",
             "const val MAX_CONTINUOUS_BATCHES = 80",
@@ -139,8 +145,8 @@ class ManagedIndexContractTest(unittest.TestCase):
         for needle in (
             "ManagedIndexMode.CONTINUOUS",
             "ManagedScanRuntime.prepare(email, password, mode)",
-            "startManagedSession(true)",
-            "startManagedSession(false)",
+            "onStart(true)",
+            "onStart(false)",
             "R.string.managed_index_all",
         ):
             self.assertIn(needle, main)
@@ -152,8 +158,14 @@ class ManagedIndexContractTest(unittest.TestCase):
         self.assertNotIn("PROPFIND", runner)
 
     def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
-        main = (ROOT / "app/src/main/java/app/enotone/android/"
-                "SettingsScreen.kt").read_text(encoding="utf-8")
+        main = (
+            (ROOT / "app/src/main/java/app/enotone/android/"
+             "SettingsScreen.kt").read_text(encoding="utf-8")
+            + (ROOT / "app/src/main/java/app/enotone/android/"
+               "ManagedIndexSettingsViewModel.kt").read_text(encoding="utf-8")
+            + (ROOT / "app/src/main/java/app/enotone/android/"
+               "ManagedIndexSettingsSection.kt").read_text(encoding="utf-8")
+        )
         service = (ROOT / "app/src/main/java/app/enotone/android/"
                    "IndexingForegroundService.kt").read_text(encoding="utf-8")
         xml = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
@@ -166,13 +178,13 @@ class ManagedIndexContractTest(unittest.TestCase):
                             s.attrib.get(f"{ANDROID}foregroundServiceType") == "dataSync" and
                             s.attrib.get(f"{ANDROID}exported") == "false" for s in services))
         for needle in (
-            "appContext.startForegroundService(",
+            "context.startForegroundService(",
             "IndexingForegroundService.ACTION_START",
             "ManagedScanRuntime.status.collectAsState()",
             "IndexingForegroundService.ACTION_PAUSE",
             "IndexingForegroundService.ACTION_STOP",
-            "onClick = { startManagedSession(false) }",
-            "onClick = { startManagedSession(true) }",
+            "onStart(false)",
+            "onStart(true)",
         ):
             self.assertIn(needle, main)
         for needle in (
