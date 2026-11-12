@@ -4,7 +4,7 @@
 
 ## Unreleased
 
-- M6-0/4b-2 (Draft): первый этап выделения `ArtworkSettingsViewModel`, `TechnicalProbeViewModel`, `ManagedIndexSettingsViewModel` с Gateway-фейками и JVM-тестами; новая секция `ManagedIndexSettingsSection` с 2 `@Preview`. В `SettingsScreen.kt` осталось 1067 строк; импорт, переиндексация, аудит тегов и одноканальные диагностические чтения ещё в Composable — **не отмечено завершённым**.
+- M6-0/4b-2 (Draft #102): первый этап выделения `ArtworkSettingsViewModel`, `TechnicalProbeViewModel`, `ManagedIndexSettingsViewModel` с Gateway-фейками и JVM-тестами; новая секция `ManagedIndexSettingsSection` с 2 `@Preview`. В `SettingsScreen.kt` осталось 1067 строк; импорт, переиндексация, аудит тегов и одноканальные диагностические чтения ещё в Composable — **не отмечено завершённым**.
 
 - M6-0/4b-1 (PR #100, 2026-11-12): `AccountSettingsViewModel` + 4 `@Preview`, проверка WebDAV с автоматическим сохранением входа в AES-GCM Keystore, подтверждаемый многоэтапный `AccountSignOut` с удалением записей текущего `sourceKey`, очереди и обложек без затрагивания общих WebP. DAO без изменения схемы Room v4, фейковые JUnit и файловый тест сохранения общих мастеров, `MainActivity` 20 строк; ADR-0080 вместо добровольного ADR-0043. Исправлено замечание ревью: необязательная привязка MediaSession при выходе, общий `AccountSession`/StateFlow очищает медиатеку и плеер без перезапуска; JVM-тесты поведения. Остаток технического экрана выделен в 4b-2, Huawei Б-1/Б-2 не проверены, точный HEAD CI ожидает.
 - Разработка версии 0.6.1.

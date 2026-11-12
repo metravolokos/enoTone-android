@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
 /** Separate user controls, not mixed with technical tag indexing tools. */
@@ -115,5 +116,29 @@ internal fun ArtworkSettingsPanel(
                 }
             },
         )
+    }
+}
+
+@Preview(name = "Обложки — по запросу", showBackground = true)
+@Composable
+private fun PreviewArtworkOnDemand() {
+    EnoToneTheme {
+        ArtworkSettingsPanel(
+            mode = ArtworkLoadMode.ON_DEMAND, onModeChange = {},
+            status = ArtworkScanStatus(), storedBytes = 0L,
+            clearBusy = false, clearFeedback = "", onClear = {}, onPause = {}, onStop = {})
+    }
+}
+
+@Preview(name = "Обложки — фоновая подготовка", showBackground = true)
+@Composable
+private fun PreviewArtworkAutoProgress() {
+    EnoToneTheme {
+        ArtworkSettingsPanel(
+            mode = ArtworkLoadMode.AUTO_AFTER_IMPORT, onModeChange = {},
+            status = ArtworkScanStatus(state = ArtworkScanState.RUNNING,
+                completed = 2, total = 5),
+            storedBytes = 1048576L, clearBusy = false, clearFeedback = "",
+            onClear = {}, onPause = {}, onStop = {})
     }
 }
