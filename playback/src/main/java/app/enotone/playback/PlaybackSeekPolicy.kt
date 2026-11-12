@@ -1,5 +1,6 @@
 package app.enotone.playback
 
+import androidx.media3.common.Player
 import kotlin.math.roundToLong
 
 /**
@@ -10,6 +11,11 @@ import kotlin.math.roundToLong
  */
 object PlaybackSeekPolicy {
     fun isKnownDuration(durationMs: Long): Boolean = durationMs > 0L
+
+    /** Перемотка пользователем или по команде MediaSession — повод сохранить позицию сразу. */
+    fun isUserSeek(discontinuityReason: Int): Boolean =
+        discontinuityReason == Player.DISCONTINUITY_REASON_SEEK ||
+            discontinuityReason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
 
     fun fraction(positionMs: Long, durationMs: Long): Float {
         if (!isKnownDuration(durationMs)) return 0f

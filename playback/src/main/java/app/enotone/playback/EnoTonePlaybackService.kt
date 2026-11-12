@@ -53,6 +53,15 @@ class EnoTonePlaybackService : MediaSessionService() {
             if (!queueMutation) savePosition(urgent = true)
         }
 
+        // Аудит п. 4: перемотка (с экрана, из уведомления или гарнитуры) сохраняется и на паузе;
+        // периодическое сохранение работает только во время воспроизведения.
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            if (!queueMutation && PlaybackSeekPolicy.isUserSeek(reason)) savePosition(urgent = true)
+        }
     }
 
     /** Snapshot only the small current-item fields on main; never scan 3590 IDs. */

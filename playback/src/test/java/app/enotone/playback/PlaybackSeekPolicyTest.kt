@@ -45,4 +45,11 @@ class PlaybackSeekPolicyTest {
         assertEquals("01:01:01", PlaybackSeekPolicy.formatTime(3_661_000L))
         assertEquals("27:00:00", PlaybackSeekPolicy.formatTime(27L * 3600L * 1000L))
     }
+
+    @Test fun seekDiscontinuitiesSavePositionButPlaybackProgressDoesNot() {
+        assertTrue(PlaybackSeekPolicy.isUserSeek(androidx.media3.common.Player.DISCONTINUITY_REASON_SEEK))
+        assertTrue(PlaybackSeekPolicy.isUserSeek(androidx.media3.common.Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT))
+        assertFalse(PlaybackSeekPolicy.isUserSeek(androidx.media3.common.Player.DISCONTINUITY_REASON_AUTO_TRANSITION))
+        assertFalse(PlaybackSeekPolicy.isUserSeek(androidx.media3.common.Player.DISCONTINUITY_REASON_REMOVE))
+    }
 }

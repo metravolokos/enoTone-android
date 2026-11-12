@@ -305,7 +305,7 @@ class PreviewAudioPlayback(
             .setMediaId(item.id)
             .setUri(WebDavPlaybackTarget.url(item.encodedPath))
             .setCustomCacheKey(TransientCachePolicy.key(item))
-            .setMediaMetadata(MediaMetadata.Builder().setTitle(item.title).build())
+            .setMediaMetadata(QueueMetadata.of(item))
             .build(),
     )
 
