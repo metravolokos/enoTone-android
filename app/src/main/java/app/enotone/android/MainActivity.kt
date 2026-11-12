@@ -14,6 +14,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -39,6 +41,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -63,7 +67,6 @@ import app.enotone.library.PilotIndexProgress
 import app.enotone.library.WebDavRangeReader
 import app.enotone.library.WebDavRangeMediaDataSource
 import app.enotone.database.RemoteTrackEntity
-import app.enotone.playback.QueueStateFileStore
 import java.text.Normalizer
 import app.enotone.network.FlatLibraryWebDavClient
 import app.enotone.network.FlatWebDavHttpError
@@ -116,6 +119,16 @@ private fun DiagnosticScreen() {
     var vaultBusy by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val appContext = LocalContext.current.applicationContext
+    // The default Compose owner here is MainActivity, not a navigation destination.
+    val playerModel: PlayerViewModel = viewModel(factory = remember(appContext) {
+        PlayerViewModel.factory((appContext as EnoToneApplication).container)
+    })
+    val player by playerModel.state.collectAsStateWithLifecycle()
+    // Unpersisted credentials are used only after opening the library; they
+    // do not grant the automatic queue restoration policy.
+    LaunchedEffect(showingLibrary, email, password) {
+        if (showingLibrary) playerModel.onCredentialsChanged(email, password)
+    }
     val artworkPreferences = remember(appContext) { ArtworkPreferences(appContext) }
     var artworkMode by remember { mutableStateOf(artworkPreferences.mode()) }
     val artworkStatus by ArtworkScanRuntime.status.collectAsState()
@@ -135,27 +148,6 @@ private fun DiagnosticScreen() {
                 password = restored.password
                 vaultState = CredentialVaultState.RESTORED
                 showConnection = false
-                // Restore the normal Home destination unless there is a
-                // resumable offline queue: that case opens the existing library
-                // so its mini-player is visible immediately, still paused.
-                val resumeExists = withContext(Dispatchers.IO) {
-                    runCatching {
-                        val state = QueueStateFileStore(appContext).read()
-                            ?: return@runCatching false
-                        val sourceKey = LibrarySnapshotPlanner.accountKey(restored.email)
-                        if (state.sourceKey != sourceKey) return@runCatching false
-                        val ids = state.trackIds.toSet()
-                        openLibraryDatabase(appContext).remoteTrackDao()
-                            .allForSource(sourceKey).any {
-                                it.id in ids && it.missingScans == 0 &&
-                                    (it.remoteSize ?: 0L) > 0L
-                            }
-                    }.getOrDefault(false)
-                }
-                if (resumeExists) {
-                    initialLibraryPage = LibraryPage.TRACKS
-                    showingLibrary = resumeExists
-                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -319,14 +311,53 @@ private fun DiagnosticScreen() {
         }
     }
 
-    BackHandler(enabled = showingLibrary || showingSettings) {
-        if (showingLibrary) showingLibrary = false else showingSettings = false
+    BackHandler(enabled = player.nowPlaying || showingLibrary || showingSettings) {
+        when {
+            player.nowPlaying -> playerModel.onNowPlaying(false)
+            showingLibrary -> showingLibrary = false
+            showingSettings -> showingSettings = false
+        }
+    }
+    // Full player is app-scoped: navigation to Home never clears it.
+    if (player.nowPlaying && player.playback.queueTotal > 0) {
+        val playback = player.playback
+        NowPlayingScreen(
+            trackId = playback.currentTrackId.orEmpty(),
+            title = playback.title ?: stringResource(R.string.ui_songs_title),
+            artist = playback.artist,
+            album = player.album,
+            artwork = player.largeArtwork ?: player.artwork,
+            playbackState = playback.playbackState,
+            errorCode = playback.errorCode,
+            positionMs = playback.positionMs,
+            durationMs = playback.durationMs,
+            canSeek = playback.canSeek,
+            controlsEnabled = playback.connected,
+            hasPrevious = playback.hasPrevious,
+            hasNext = playback.hasNext,
+            queuePosition = playback.queuePosition,
+            queueTotal = playback.queueTotal,
+            repeatMode = playback.repeatMode,
+            shuffleEnabled = playback.shuffleEnabled,
+            onClose = { playerModel.onNowPlaying(false) },
+            onSeekFraction = playerModel::onSeek,
+            onPlayPause = playerModel::onPlayPause,
+            onPrevious = playerModel::onPrevious,
+            onNext = playerModel::onNext,
+            onCycleRepeat = playerModel::onRepeat,
+            onToggleShuffle = playerModel::onShuffle,
+        )
+        return
     }
     if (showingLibrary) {
         OfflineLibraryScreen(
             accountEmail = email, appPassword = password,
             initialPage = initialLibraryPage,
             onBack = { showingLibrary = false },
+            player = player,
+            onPlayerOpen = { playerModel.onNowPlaying(true) },
+            onPlayerPlayPause = playerModel::onPlayPause,
+            onPlayerNext = playerModel::onNext,
         )
         return
     }
@@ -344,13 +375,23 @@ private fun DiagnosticScreen() {
                 initialLibraryPage = page
                 showingLibrary = true
             },
+            miniPlayer = {
+                EnoToneMiniPlayer(
+                    player = player,
+                    onOpen = { playerModel.onNowPlaying(true) },
+                    onPlayPause = playerModel::onPlayPause,
+                    onNext = playerModel::onNext,
+                )
+            },
         )
         return
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier.fillMaxSize().systemBarsPadding()
-            .verticalScroll(rememberScrollState()).padding(16.dp),
+            .verticalScroll(rememberScrollState()).padding(16.dp)
+            .padding(bottom = if (player.playback.queueTotal > 0) 88.dp else 0.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(
@@ -1232,6 +1273,16 @@ private fun DiagnosticScreen() {
             Text(managedMessage, style = MaterialTheme.typography.bodySmall)
         }
         if (report.isNotEmpty()) Text(report, style = MaterialTheme.typography.bodyMedium)
+    }
+    Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+        .navigationBarsPadding()) {
+        EnoToneMiniPlayer(
+            player = player,
+            onOpen = { playerModel.onNowPlaying(true) },
+            onPlayPause = playerModel::onPlayPause,
+            onNext = playerModel::onNext,
+        )
+    }
     }
 }
 

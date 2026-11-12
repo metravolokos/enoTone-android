@@ -18,6 +18,10 @@ internal fun OfflineLibraryScreen(
     appPassword: String,
     initialPage: LibraryPage = LibraryPage.TRACKS,
     onBack: () -> Unit,
+    player: SharedPlayerUiState = SharedPlayerUiState(),
+    onPlayerOpen: () -> Unit = {},
+    onPlayerPlayPause: () -> Unit = {},
+    onPlayerNext: () -> Unit = {},
 ) {
     val context = LocalContext.current.applicationContext
     val container = (context as EnoToneApplication).container
@@ -54,6 +58,10 @@ internal fun OfflineLibraryScreen(
         accountEmail = accountEmail,
         appPassword = appPassword,
         onBack = onBack,
+        player = player,
+        onPlayerOpen = onPlayerOpen,
+        onPlayerPlayPause = onPlayerPlayPause,
+        onPlayerNext = onPlayerNext,
     )
 }
 
