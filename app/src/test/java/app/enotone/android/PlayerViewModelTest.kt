@@ -75,6 +75,7 @@ class PlayerViewModelTest {
             )
             return true
         }
+        override fun stopPlayback(): Boolean = true
         override fun playPause() = Unit
         override fun playNext() = Unit
         override fun playPrevious() = Unit

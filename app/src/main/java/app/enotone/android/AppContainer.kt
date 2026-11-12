@@ -29,6 +29,9 @@ class AppContainer(
     internal val playbackConnection: PlaybackConnection by lazy {
         AndroidPlaybackConnection(appContext, main)
     }
+    internal fun accountSignOut(email: String): AccountSignOut = AccountSignOut(
+        AndroidAccountSignOutPort(appContext, this, email),
+    )
 }
 
 class EnoToneApplication : Application() {
