@@ -21,10 +21,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+// 500 ms preserves the existing position/seek polling cadence without a CPU spin.
+private const val POSITION_POLL_MS = 500L
 
 /** No service/binder reference escapes to the ViewModel or the composable. */
 internal data class PlaybackSnapshot(
@@ -52,6 +55,8 @@ internal data class PlaybackSnapshot(
 )
 
 /** Service connection is active only for the owning ViewModel's lifetime. */
+// Queue actions carry credentials, source and selection as one explicit call.
+@Suppress("LongParameterList")
 internal interface PlaybackConnection {
     val state: StateFlow<PlaybackSnapshot>
     fun connect()
@@ -82,6 +87,8 @@ private fun playbackLabel(player: Player): String {
  * Main-thread binder and Media3 listener, with the previous 500ms position
  * polling. Unbind never calls stopPlayback: audio stays in MediaSessionService.
  */
+// Intentionally implements the complete media transport contract in one binder adapter.
+@Suppress("TooManyFunctions")
 internal class AndroidPlaybackConnection(
     private val context: Context,
     main: CoroutineDispatcher,
@@ -124,7 +131,7 @@ internal class AndroidPlaybackConnection(
         ticker = scope.launch {
             while (isActive) {
                 publish()
-                delay(500L)
+                delay(POSITION_POLL_MS)
             }
         }
     }

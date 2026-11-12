@@ -26,11 +26,11 @@ object LibraryCatalogMapper {
         val catalogue = OfflineTrackCatalog.build(sourceKey, remote)
         val byId = remote.associateBy { it.id }
         val prepared = catalogue.mapNotNull { shown ->
-            val item = byId[shown.id]
-            val size = item?.remoteSize
-            if (item == null || item.missingScans != 0 || size == null || size <= 0L ||
-                runCatching { WebDavPlaybackTarget.url(item.encodedPath) }.isFailure
-            ) null else QueueTrack(
+            val item = byId[shown.id] ?: return@mapNotNull null
+            val size = item.remoteSize
+            if (item.missingScans != 0 || size == null || size <= 0L) null
+            else if (runCatching { WebDavPlaybackTarget.url(item.encodedPath) }.isFailure) null
+            else QueueTrack(
                 id = shown.id,
                 title = shown.title,
                 encodedPath = item.encodedPath,

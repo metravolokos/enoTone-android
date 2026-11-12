@@ -14,8 +14,8 @@ import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
-import app.enotone.playback.CachePhase
 import app.enotone.playback.PlaybackDataIssue
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
@@ -27,7 +27,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
+
+// Display sizes match the unchanged Graphite Material 3 design.
+private const val LIBRARY_THUMBNAIL_SIDE_PX = 512
+private const val LIBRARY_FULL_ARTWORK_SIDE_PX = 1200
+// System.nanoTime is measured in nanoseconds; UI telemetry uses milliseconds.
+private const val NANOS_PER_MILLISECOND = 1_000_000L
 
 /** Immutable input for Compose; the queue and credentials never enter this model. */
 internal data class LibraryUiState(
@@ -73,6 +78,8 @@ internal data class LibraryUiState(
     val errorReadIssue: PlaybackDataIssue = PlaybackDataIssue.UNKNOWN,
 )
 
+// One interface intentionally groups all screen events for Compose preview/test fakes.
+@Suppress("TooManyFunctions")
 internal interface LibraryScreenActions {
     fun onSearch(query: String)
     fun onPageSelected(page: LibraryPage)
@@ -125,6 +132,8 @@ internal class RepositoryArtworkLoader(private val repository: ArtworkPreviewRep
  * Loads one Room snapshot, derives searchable pages on IO, owns player
  * actions. The Activity-scoped PlayerViewModel alone restores queues.
  */
+// The manual DI constructor preserves test injection; screen operations remain cohesive.
+@Suppress("TooManyFunctions", "LongParameterList")
 internal class LibraryViewModel(
     private val accountEmail: String,
     private val password: String,
@@ -136,7 +145,7 @@ internal class LibraryViewModel(
     private val unknownAlbumName: String,
     private val messages: AlbumRefreshMessages,
     private val useCache: () -> Boolean = { true },
-    private val clockMs: () -> Long = { System.nanoTime() / 1_000_000L },
+    private val clockMs: () -> Long = { System.nanoTime() / NANOS_PER_MILLISECOND },
     visiblePages: List<LibraryPage> = LibraryPageVisibility.defaultOrder,
     private val managedStatus: StateFlow<ManagedScanStatus> = ManagedScanRuntime.status,
 ) : ViewModel(), LibraryScreenActions {
@@ -205,6 +214,8 @@ internal class LibraryViewModel(
         }
     }
 
+    // Page state is derived together to avoid divergent search/group filters.
+    @Suppress("CyclomaticComplexMethod")
     private fun derivePages() {
         filtersJob?.cancel()
         val generation = ++filterVersion
@@ -359,6 +370,8 @@ internal class LibraryViewModel(
         }
     }
 
+    // Translate one complete Media3 snapshot atomically for the UI.
+    @Suppress("CyclomaticComplexMethod")
     private fun applyPlayback(snapshot: PlaybackSnapshot) {
         val prior = mutable.value
         val playbackState = if (prior.selecting) prior.playbackState
@@ -378,8 +391,8 @@ internal class LibraryViewModel(
                 currentTrackId = nextId,
                 selectedTitle = snapshot.title ?: old.selectedTitle,
                 selectedArtist = if (snapshot.currentTrackId == null) old.selectedArtist
-                    else snapshot.artist ?:
-                        old.tracks.firstOrNull { it.id == snapshot.currentTrackId }?.artist,
+                    else snapshot.artist
+                        ?: old.tracks.firstOrNull { it.id == snapshot.currentTrackId }?.artist,
                 positionMs = snapshot.positionMs,
                 durationMs = snapshot.durationMs,
                 canSeek = snapshot.canSeek,
@@ -427,17 +440,17 @@ internal class LibraryViewModel(
         artworkJob = viewModelScope.launch {
             mutable.update { it.copy(currentArtwork = null) }
             if (group == null) return@launch
-            artwork.peek(accountEmail, group, 512)?.let { picture ->
+            artwork.peek(accountEmail, group, LIBRARY_THUMBNAIL_SIDE_PX)?.let { picture ->
                 mutable.update { it.copy(currentArtwork = picture) }
             }
-            artwork.cached(accountEmail, group, 512)?.let { picture ->
+            artwork.cached(accountEmail, group, LIBRARY_THUMBNAIL_SIDE_PX)?.let { picture ->
                 mutable.update { it.copy(currentArtwork = picture) }
             }
             if (password.isBlank()) return@launch
             state.map { it.playbackState }.first {
                 it == "PLAYING" || it == "PAUSED"
             }
-            val picture = artwork.fetch(accountEmail, password, group, 512)
+            val picture = artwork.fetch(accountEmail, password, group, LIBRARY_THUMBNAIL_SIDE_PX)
             if (picture != null) mutable.update { it.copy(currentArtwork = picture) }
         }
         if (value.showPlayerDetails) loadFullArtwork()
@@ -450,17 +463,17 @@ internal class LibraryViewModel(
         fullArtworkJob = viewModelScope.launch {
             mutable.update { it.copy(fullArtwork = null) }
             if (group == null) return@launch
-            artwork.peek(accountEmail, group, 1200)?.let { picture ->
+            artwork.peek(accountEmail, group, LIBRARY_FULL_ARTWORK_SIDE_PX)?.let { picture ->
                 mutable.update { it.copy(fullArtwork = picture) }
             }
-            artwork.cached(accountEmail, group, 1200)?.let { picture ->
+            artwork.cached(accountEmail, group, LIBRARY_FULL_ARTWORK_SIDE_PX)?.let { picture ->
                 mutable.update { it.copy(fullArtwork = picture) }
             }
             if (password.isBlank()) return@launch
             state.map { it.playbackState }.first {
                 it == "PLAYING" || it == "PAUSED"
             }
-            val picture = artwork.fetch(accountEmail, password, group, 1200)
+            val picture = artwork.fetch(accountEmail, password, group, LIBRARY_FULL_ARTWORK_SIDE_PX)
             if (picture != null) mutable.update { it.copy(fullArtwork = picture) }
         }
     }
@@ -471,6 +484,8 @@ internal class LibraryViewModel(
     override fun onDismissAlbumRefresh() {
         mutable.update { it.copy(confirmAlbumRefresh = null) }
     }
+    // Guard conditions preserve the album-only refresh budget and selected group.
+    @Suppress("CyclomaticComplexMethod", "ComplexCondition")
     override fun onConfirmAlbumRefresh() {
         val request = mutable.value.confirmAlbumRefresh ?: return
         mutable.update { it.copy(confirmAlbumRefresh = null) }
@@ -531,6 +546,8 @@ internal class LibraryViewModel(
     override fun onSeekFraction(fraction: Float) = connection.seekToFraction(fraction)
 
     companion object {
+        // Factory keeps manual dependency injection explicit for JVM tests.
+        @Suppress("LongParameterList")
         fun factory(
             email: String,
             password: String,

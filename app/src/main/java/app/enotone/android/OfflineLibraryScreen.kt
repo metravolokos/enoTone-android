@@ -66,6 +66,8 @@ internal fun OfflineLibraryScreen(
 }
 
 /** Preview-only no-op actions. There is no binder, Room or WebDAV in previews. */
+// Preview dispatches all actions as no-ops; not production behavior.
+@Suppress("TooManyFunctions")
 private object PreviewLibraryActions : LibraryScreenActions {
     override fun onSearch(query: String) = Unit
     override fun onPageSelected(page: LibraryPage) = Unit
@@ -103,17 +105,25 @@ private fun PreviewLibrary(state: LibraryUiState) {
 }
 
 @Preview(name = "Медиатека: загрузка", showBackground = true)
-@Composable private fun PreviewLibraryLoading() = PreviewLibrary(LibraryUiState(loading = true))
+@Composable
+@Suppress("UnusedPrivateMember") // Invoked by Compose tooling, not from Kotlin.
+private fun PreviewLibraryLoading() = PreviewLibrary(LibraryUiState(loading = true))
 
 @Preview(name = "Медиатека: пусто", showBackground = true)
-@Composable private fun PreviewLibraryEmpty() = PreviewLibrary(LibraryUiState(loading = false))
+@Composable
+@Suppress("UnusedPrivateMember") // Invoked by Compose tooling, not from Kotlin.
+private fun PreviewLibraryEmpty() = PreviewLibrary(LibraryUiState(loading = false))
 
 @Preview(name = "Медиатека: ошибка", showBackground = true)
-@Composable private fun PreviewLibraryError() =
+@Composable
+@Suppress("UnusedPrivateMember") // Invoked by Compose tooling, not from Kotlin.
+private fun PreviewLibraryError() =
     PreviewLibrary(LibraryUiState(loading = false, failed = true))
 
 @Preview(name = "Медиатека: данные", showBackground = true)
-@Composable private fun PreviewLibraryData() {
+@Composable
+@Suppress("UnusedPrivateMember") // Invoked by Compose tooling, not from Kotlin.
+private fun PreviewLibraryData() {
     val row = OfflineTrackRow(id = "preview", title = "Sample track",
         artist = "Sample artist", album = "Sample album")
     PreviewLibrary(LibraryUiState(loading = false, tracks = listOf(row),
