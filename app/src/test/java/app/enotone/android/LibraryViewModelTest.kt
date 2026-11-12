@@ -115,6 +115,8 @@ class LibraryViewModelTest {
         repository: FakeRepository,
         player: FakeConnection = FakeConnection(),
         events: StateFlow<AccountState> = MutableStateFlow(AccountState()),
+        revision: StateFlow<Long> = MutableStateFlow(0L),
+        pages: List<LibraryPage> = LibraryPage.entries.toList(),
     ): LibraryViewModel = LibraryViewModel(
         accountEmail = email,
         password = "RAM-only",
@@ -128,6 +130,8 @@ class LibraryViewModelTest {
         clockMs = { 1234L },
         managedStatus = MutableStateFlow(ManagedScanStatus()),
         accountEvents = events,
+        dataRevision = revision,
+        visiblePages = pages,
     )
 
     @Test fun loadDataAndEmptyLibrary() = runTest {
@@ -275,4 +279,58 @@ class LibraryViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
+
+    @Test fun `data revision reloads an open library without recreating it`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val repository = FakeRepository(catalog(row(1, "Зима")))
+            val revision = MutableStateFlow(0L)
+            val library = model(this, repository, revision = revision)
+            advanceUntilIdle()
+            assertEquals(1, library.state.value.tracks.size)
+            repository.response = catalog(row(1, "Зима"), row(2, "Весна"))
+            revision.value = 1L
+            advanceUntilIdle()
+            assertEquals(2, library.state.value.tracks.size)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `new open request switches page but the same request keeps user choice`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val library = model(this, FakeRepository(catalog(row(1, "Зима"))))
+            advanceUntilIdle()
+            library.onOpenRequest(1, LibraryPage.TRACKS)
+            library.onPageSelected(LibraryPage.ARTISTS)
+            // Возврат из «Сейчас играет»: тот же запрос — выбор пользователя сохраняется (O-13).
+            library.onOpenRequest(1, LibraryPage.TRACKS)
+            assertEquals(LibraryPage.ARTISTS, library.state.value.section)
+            // «Домой → Альбомы»: новый запрос открывает выбранную страницу.
+            library.onOpenRequest(2, LibraryPage.ALBUMS)
+            assertEquals(LibraryPage.ALBUMS, library.state.value.section)
+            advanceUntilIdle()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `hiding the current page moves the open library to a visible one`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val library = model(this, FakeRepository(catalog(row(1, "Зима"))))
+            advanceUntilIdle()
+            library.onPageSelected(LibraryPage.ALBUMS)
+            library.onVisiblePagesChanged(listOf(LibraryPage.TRACKS, LibraryPage.ARTISTS))
+            assertEquals(listOf(LibraryPage.TRACKS, LibraryPage.ARTISTS), library.state.value.visiblePages)
+            assertEquals(LibraryPage.TRACKS, library.state.value.section)
+            library.onOpenRequest(1, LibraryPage.TRACKS)
+            library.onOpenRequest(2, LibraryPage.ALBUMS)
+            assertEquals(LibraryPage.TRACKS, library.state.value.section)
+            advanceUntilIdle()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 }

@@ -24,6 +24,8 @@ internal class AndroidLibraryIndexingGateway(
             val listing = client.list(login.email, login.password)
             val store = LibrarySnapshotStore(container.database)
             val plan = store.save(login.email, listing)
+            // Новые и изменённые треки видны открытым экранам сразу, ещё до чтения тегов.
+            LibraryDataRevision.bump()
             val pending = container.database.remoteTrackDao()
                 .pendingFastScans(LibrarySnapshotPlanner.accountKey(login.email)).size
             LibraryImportResult(text.get(R.string.local_import_report,

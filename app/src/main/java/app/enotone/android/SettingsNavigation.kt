@@ -15,6 +15,7 @@ internal fun SettingsMusicDestination(
     showingLibrary: Boolean,
     showingSettings: Boolean,
     initialLibraryPage: LibraryPage,
+    libraryOpenRequest: Int,
     libraryStateHolder: SaveableStateHolder,
     appContext: Context,
     onLibraryBack: () -> Unit,
@@ -59,6 +60,7 @@ internal fun SettingsMusicDestination(
             OfflineLibraryScreen(
                 accountEmail = login.email, appPassword = login.password,
                 initialPage = initialLibraryPage,
+                openRequest = libraryOpenRequest,
                 onBack = onLibraryBack,
                 player = player,
                 onPlayerOpen = { playerModel.onNowPlaying(true) },

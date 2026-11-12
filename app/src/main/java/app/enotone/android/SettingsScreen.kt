@@ -19,8 +19,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,7 +54,9 @@ internal fun DiagnosticScreen() {
     val diagnostics by diagnosticsModel.state.collectAsStateWithLifecycle()
     var showingLibrary by remember { mutableStateOf(false) }
     var showingSettings by remember { mutableStateOf(false) }
-    var initialLibraryPage by remember { mutableStateOf(LibraryPage.TRACKS) }
+    // Сохраняются при пересоздании Activity вместе с ViewModel: иначе поворот сбросил бы страницу.
+    var initialLibraryPage by rememberSaveable { mutableStateOf(LibraryPage.TRACKS) }
+    var libraryOpenRequest by rememberSaveable { mutableIntStateOf(0) }
     var showingDiagnostics by remember { mutableStateOf(false) }
     val playerModel: PlayerViewModel = viewModel(factory = remember(appContext) {
         PlayerViewModel.factory(container)
@@ -72,9 +76,11 @@ internal fun DiagnosticScreen() {
         }
     }
     if (SettingsMusicDestination(player, playerModel, account, showingLibrary, showingSettings,
-        initialLibraryPage, libraryStateHolder, appContext, onLibraryBack = { showingLibrary = false },
+        initialLibraryPage, libraryOpenRequest, libraryStateHolder, appContext,
+        onLibraryBack = { showingLibrary = false },
         onSettings = { showingSettings = true }, onOpenPage = { page ->
             initialLibraryPage = page
+            libraryOpenRequest++
             showingLibrary = true
         })) return
 
