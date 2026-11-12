@@ -35,11 +35,13 @@ internal fun AccountSettingsSection(
                 value = account.email, onValueChange = onEmailChange,
                 label = { Text(stringResource(R.string.email)) },
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
+                enabled = !account.busy,
             )
             OutlinedTextField(
                 value = account.password, onValueChange = onPasswordChange,
                 label = { Text(stringResource(R.string.app_password)) },
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
+                enabled = !account.busy,
                 visualTransformation = PasswordVisualTransformation(),
             )
             Text(stringResource(R.string.credential_vault_explanation),

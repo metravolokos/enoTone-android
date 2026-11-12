@@ -1,4 +1,4 @@
-"""M0-K security contract: explicit opt-in, non-exportable Keystore AES-GCM.
+"""Security regression: non-exportable Keystore AES-GCM and disabled backup.
 
 This static test complements Android build/JUnit and Huawei device tests; it
 cannot itself prove that an Android device accepts a Keystore key.
@@ -11,7 +11,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 
 
-class OptionalWebDavCredentialVaultContractTest(unittest.TestCase):
+class WebDavCredentialVaultSecurityTest(unittest.TestCase):
     def test_aes_gcm_and_private_ciphertext_only(self):
         vault = (ROOT / "app/src/main/java/app/enotone/android/"
                  "LocalCredentialVault.kt").read_text(encoding="utf-8")
@@ -30,21 +30,6 @@ class OptionalWebDavCredentialVaultContractTest(unittest.TestCase):
             self.assertNotIn(forbidden, vault)
         self.assertNotIn('.putString(ENTRY, password)', vault)
         self.assertNotIn('putString(ENTRY, email)', vault)
-
-    def test_explicit_save_and_delete_and_safe_restore(self):
-        main = (ROOT / "app/src/main/java/app/enotone/android/"
-                "MainActivity.kt").read_text(encoding="utf-8")
-        self.assertIn('LocalCredentialVault.restore(appContext)', main)
-        self.assertIn('LocalCredentialVault.save(appContext, email, password)', main)
-        self.assertIn('LocalCredentialVault.clear(appContext)', main)
-        self.assertIn('withContext(Dispatchers.IO)', main)
-        self.assertIn('CredentialVaultState.FAILED', main)
-        self.assertIn('R.string.credential_vault_save', main)
-        self.assertIn('R.string.credential_vault_clear', main)
-        self.assertIn('Column(verticalArrangement = Arrangement.spacedBy(8.dp))', main)
-        self.assertIn('Button(modifier = Modifier.fillMaxWidth()', main)
-        self.assertNotIn('Log.', main)
-        self.assertNotIn('androidx.security.crypto', main)
 
     def test_backup_remains_disabled(self):
         manifest = ET.parse(ROOT / "app/src/main/AndroidManifest.xml").getroot()

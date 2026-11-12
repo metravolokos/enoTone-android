@@ -130,7 +130,14 @@ internal class AccountSettingsViewModel(
                 if (!accepted) {
                     mutable.update { it.copy(error = AccountError.CONNECTION) }
                 } else {
-                    gateway.save(current.email, current.password)
+                    try {
+                        gateway.save(current.email, current.password)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        mutable.update { it.copy(error = AccountError.STORAGE) }
+                        return@launch
+                    }
                     activeEmail = current.email
                     mutable.update {
                         it.copy(loggedIn = true, error = null,

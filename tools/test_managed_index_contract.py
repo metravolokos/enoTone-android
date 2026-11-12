@@ -64,7 +64,7 @@ class ManagedIndexContractTest(unittest.TestCase):
         service = (ROOT / "app/src/main/java/app/enotone/android/"
                    "IndexingForegroundService.kt").read_text(encoding="utf-8")
         ui = (ROOT / "app/src/main/java/app/enotone/android/"
-              "MainActivity.kt").read_text(encoding="utf-8")
+              "SettingsScreen.kt").read_text(encoding="utf-8")
         for needle in (
             'stopCode = "FAILED_INTERNAL"',
             'lastErrorStage = location',
@@ -116,7 +116,7 @@ class ManagedIndexContractTest(unittest.TestCase):
         service = (ROOT / "app/src/main/java/app/enotone/android/"
                    "IndexingForegroundService.kt").read_text(encoding="utf-8")
         main = (ROOT / "app/src/main/java/app/enotone/android/"
-                "MainActivity.kt").read_text(encoding="utf-8")
+                "SettingsScreen.kt").read_text(encoding="utf-8")
         for needle in (
             "enum class ManagedIndexMode { BOUNDED, CONTINUOUS }",
             "const val MAX_CONTINUOUS_BATCHES = 80",
@@ -153,7 +153,7 @@ class ManagedIndexContractTest(unittest.TestCase):
 
     def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
         main = (ROOT / "app/src/main/java/app/enotone/android/"
-                "MainActivity.kt").read_text(encoding="utf-8")
+                "SettingsScreen.kt").read_text(encoding="utf-8")
         service = (ROOT / "app/src/main/java/app/enotone/android/"
                    "IndexingForegroundService.kt").read_text(encoding="utf-8")
         xml = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
