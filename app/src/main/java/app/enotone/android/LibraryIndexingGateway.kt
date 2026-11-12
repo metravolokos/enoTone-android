@@ -4,6 +4,7 @@ import app.enotone.library.LibraryReindexCoordinator
 import app.enotone.library.LibraryReindexScope
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.LibrarySnapshotStore
+import app.enotone.library.SnapshotPlan
 import app.enotone.network.FlatLibraryWebDavClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
@@ -24,6 +25,7 @@ internal class AndroidLibraryIndexingGateway(
             val listing = client.list(login.email, login.password)
             val store = LibrarySnapshotStore(container.database)
             val plan = store.save(login.email, listing)
+            invalidateChangedArtwork(login.email, plan)
             // Новые и изменённые треки видны открытым экранам сразу, ещё до чтения тегов.
             LibraryDataRevision.bump()
             val pending = container.database.remoteTrackDao()
@@ -31,6 +33,25 @@ internal class AndroidLibraryIndexingGateway(
             LibraryImportResult(text.get(R.string.local_import_report,
                 listing.tracks.size, store.presentCount(login.email),
                 plan.inserted, plan.changed, plan.unchanged), pending)
+        }
+    }
+
+    /**
+     * Аудит п. 5: ключ обложки — ETag и размер; файл, изменившийся только по mtime, сохранил бы
+     * старую обложку. Сбрасываем ссылки только изменённых файлов: ключи прежние, кэш не перекачивается.
+     */
+    private suspend fun invalidateChangedArtwork(email: String, plan: SnapshotPlan) {
+        if (plan.changedIds.isEmpty()) return
+        val changed = plan.changedIds.toHashSet()
+        val targets = plan.upserts.filter { it.id in changed }.mapNotNull { row ->
+            row.remoteSize?.let { size -> PlayingArtworkTarget(row.id, row.encodedPath, size, row.remoteEtag) }
+        }
+        try {
+            container.artworkPreviewRepository.invalidate(email, targets)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            // Список уже сохранён; обложка обновится при следующей переиндексации.
         }
     }
 
