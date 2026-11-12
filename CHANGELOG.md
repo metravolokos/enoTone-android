@@ -6,6 +6,7 @@
 
 - Разработка версии 0.6.2.
 - M6-0/4b-2 (#104): оставшиеся операции настроек перенесены в LibraryIndexingViewModel, ArtworkSettingsViewModel, DiagnosticsViewModel и gateway через AppContainer; BackgroundWorkLauncher изолирует службы и RAM-handoff. SettingsScreen разделён на небольшие разделы без изменения разметки, Preview, удалён openLibraryDatabase. Kotlin-тесты действий, подтверждения/отмены, повторных нажатий, автообложек/очистки и санитизации небезопасного фейкового ответа; удалены 5 строковых тестов UI, оставшиеся проверки безопасности перенесены на порт. Дизайн, версия, Room, playback и CI сохранены; Huawei smoke ещё не проведён, DESIGN_PLAN не открывает D2.
+- Документация после 4b-1: ADR-0080 «Действует», ADR-0043 «Заменено» в индексе; CURRENT_DECISIONS, AGENTS, README, KNOWN_ISSUES без упоминаний «до слияния 4b»; закрытые дефекты #92 убраны из KNOWN_ISSUES, TESTING п. 10–11 обновлены.
 
 ## 0.6.1 — 2026-11-12
 
