@@ -36,6 +36,8 @@ object LibraryCatalogMapper {
                 encodedPath = item.encodedPath,
                 remoteSize = size,
                 remoteEtag = item.remoteEtag,
+                artist = shown.artist,
+                album = shown.album,
             )
         }.associateBy { it.id }
         return LibrarySnapshot(catalogue, prepared)

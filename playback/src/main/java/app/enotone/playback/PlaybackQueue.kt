@@ -10,6 +10,10 @@ data class QueueTrack(
     val encodedPath: String,
     val remoteSize: Long,
     val remoteEtag: String?,
+    // Аудит п. 6: сохранённые теги для MediaMetadata (мини-плеер, уведомление, экран блокировки).
+    // В ключ кэша и чекпоинт очереди не входят.
+    val artist: String? = null,
+    val album: String? = null,
 )
 
 class PlaybackQueue private constructor(

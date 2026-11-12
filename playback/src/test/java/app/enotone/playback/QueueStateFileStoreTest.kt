@@ -103,4 +103,36 @@ class QueueStateFileStoreTest {
         assertEquals(QueueRestoreCode.RESTORED, result.code)
         assertEquals(rev1, result.state?.queueRevision)
     }
+
+    /** Error, а не Exception: откат в writeLayoutAndPosition не выполняется — как при гибели процесса. */
+    private class SimulatedProcessDeath : Error()
+
+    @Test fun processDeathBetweenLayoutAndPositionRestoresPreviousPair() {
+        var die = false
+        val store = QueueStateFileStore.inDirectory(folder.root) {
+            if (die) throw SimulatedProcessDeath()
+        }
+        store.writeLayoutAndPosition(layout(), position())
+        die = true
+        try {
+            store.writeLayoutAndPosition(layout(rev2).copy(trackIds = listOf(second, first)), position(rev2))
+        } catch (_: SimulatedProcessDeath) {
+            // Процесс «умер»: новая структура записана, позиция — старая.
+        }
+        val restarted = QueueStateFileStore.inDirectory(folder.root)
+        val result = restarted.readWithStatus()
+        assertEquals(QueueRestoreCode.RESTORED, result.code)
+        assertEquals(rev1, result.state?.queueRevision)
+        assertEquals(listOf(first, second), result.state?.trackIds)
+        assertEquals(42_000L, result.state?.positionMs)
+    }
+
+    @Test fun completedPairWinsOverPreviousLayout() {
+        val store = QueueStateFileStore.inDirectory(folder.root)
+        store.writeLayoutAndPosition(layout(), position())
+        store.writeLayoutAndPosition(layout(rev2), position(rev2))
+        assertEquals(rev2, store.readWithStatus().state?.queueRevision)
+        store.clear()
+        assertEquals(QueueRestoreCode.NO_LAYOUT_FILE, store.readWithStatus().code)
+    }
 }

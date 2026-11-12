@@ -28,4 +28,12 @@ class LibraryCatalogMapperTest {
         assertFalse("c" in result.preparedById)
         assertTrue(result.preparedById.values.all { it.remoteSize > 0L })
     }
+
+    @Test fun queueTrackCarriesStoredArtistAndAlbumForPlayerMetadata() {
+        val tagged = row("a", "one", 100L).copy(artist = "Исполнитель", album = "Альбом")
+        val result = LibraryCatalogMapper.map("one", listOf(tagged))
+        val queued = result.preparedById.getValue("a")
+        assertEquals("Исполнитель", queued.artist)
+        assertEquals("Альбом", queued.album)
+    }
 }

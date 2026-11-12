@@ -7,7 +7,8 @@ import java.io.IOException
 
 /**
  * Two separately atomic no-backup checkpoints. The I/O executor serializes
- * layout-before-position writes, so queue revision mismatch catches torn pairs.
+ * layout-before-position writes; a torn pair (process death in between) falls back
+ * to the previous layout kept on disk, whose revision still matches the old position.
  * All methods must be called off the main thread.
  */
 class QueueStateFileStore private constructor(
@@ -20,11 +21,17 @@ class QueueStateFileStore private constructor(
     }
     /** JVM/Robolectric tests use an isolated directory; no Android storage or network. */
     companion object {
+        private const val MAX_LAYOUT_BYTES = 2_000_000L
+
         fun inDirectory(directory: File, beforePositionWrite: () -> Unit = {}) =
             QueueStateFileStore(directory, beforePositionWrite)
     }
     private val queueFile = File(directory, "enotone-queue-v1.json")
     private val positionFile = File(directory, "enotone-position-v1.json")
+
+    // Предыдущая структура очереди: если процесс погиб между заменой структуры и позиции,
+    // старая позиция по-прежнему совпадает с ней по ревизии (внешний аудит 2026-11-13, п. 7).
+    private val previousQueueFile = File(directory, "enotone-queue-v1.prev.json")
 
     fun read(): PersistedQueueState? = readWithStatus().state
 
@@ -38,13 +45,22 @@ class QueueStateFileStore private constructor(
                     if (!positionFile.isFile || positionFile.length() > 8_192L) null
                     else positionFile.readText(Charsets.UTF_8)
                 }.getOrNull()
-                QueueStateCodec.inspect(queueFile.readText(Charsets.UTF_8), position)
+                val current = QueueStateCodec.inspect(queueFile.readText(Charsets.UTF_8), position)
+                if (current.code == QueueRestoreCode.REVISION_MISMATCH) previousPair(position) ?: current
+                else current
             }
         } catch (_: Exception) {
             QueueReadResult(null, QueueRestoreCode.LAYOUT_INVALID)
         }
         QueuePersistenceDiagnostics.read(result.code)
         return result
+    }
+
+    /** Оборванная пара: позиция старой ревизии + новая структура → восстанавливаем старую пару целиком. */
+    private fun previousPair(position: String?): QueueReadResult? {
+        if (position == null || !previousQueueFile.isFile || previousQueueFile.length() > MAX_LAYOUT_BYTES) return null
+        val previous = QueueStateCodec.inspect(previousQueueFile.readText(Charsets.UTF_8), position)
+        return previous.takeIf { it.code == QueueRestoreCode.RESTORED }
     }
 
     fun writeLayout(layout: PersistedQueueLayout) {
@@ -81,6 +97,7 @@ class QueueStateFileStore private constructor(
             layout.shuffleEnabled == position.shuffleEnabled)
         val oldLayout = if (queueFile.isFile) queueFile.readText(Charsets.UTF_8) else null
         val oldPosition = if (positionFile.isFile) positionFile.readText(Charsets.UTF_8) else null
+        if (oldLayout != null) atomicWrite(previousQueueFile, oldLayout) else previousQueueFile.delete()
         writeLayout(layout)
         try {
             writePosition(position)
@@ -112,6 +129,8 @@ class QueueStateFileStore private constructor(
     fun clear() {
         queueFile.delete()
         positionFile.delete()
+        previousQueueFile.delete()
+        File(directory, previousQueueFile.name + ".tmp").delete()
         File(directory, queueFile.name + ".tmp").delete()
         File(directory, positionFile.name + ".tmp").delete()
     }
