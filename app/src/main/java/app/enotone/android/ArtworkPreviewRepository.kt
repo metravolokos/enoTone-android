@@ -294,6 +294,44 @@ internal class ArtworkPreviewRepository(context: Context) {
         directory.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
     }
 
+    /** Hashed identifiers only: safe to put into a retry manifest, never raw media paths. */
+    fun keysForAccount(
+        email: String, sourceKey: String, tracks: List<app.enotone.database.RemoteTrackEntity>,
+    ): AccountArtworkKeys {
+        val candidates = tracks.asSequence()
+            .filter { it.sourceKey == sourceKey && (it.remoteSize ?: 0L) > 0L }
+            .map {
+                PlayingArtworkTarget(
+                    id = it.id, encodedPath = it.encodedPath,
+                    remoteSize = requireNotNull(it.remoteSize), remoteEtag = it.remoteEtag,
+                )
+            }.toList()
+        val sourceHashes = candidates.map { sourceKey(email, it) }.toSet()
+        val targets = candidates.associateBy { it.id }
+        val albums = AlbumArtworkCatalog.build(
+            app.enotone.library.OfflineTrackCatalog.build(sourceKey, tracks),
+            targets::get,
+        ).groups.map { albumKey(email, it) }.toSet()
+        return AccountArtworkKeys(sourceHashes, albums)
+    }
+
+    /** Scoped account removal; a WebP master survives while another ref points to it. */
+    suspend fun removeAccount(keys: AccountArtworkKeys) {
+        clearLock.lock()
+        try {
+            imageSlots.withPermit {
+                imageSlots.withPermit {
+                    withContext(Dispatchers.IO) {
+                        AccountArtworkFileCleanup(directory).removeScoped(keys)
+                        memoryCache.evictAll()
+                    }
+                }
+            }
+        } finally {
+            clearLock.unlock()
+        }
+    }
+
     /** Clear BOTH stores so the legacy temporary v2 cannot repopulate it. */
     suspend fun clearAll() {
         // Serialize concurrent clear requests before acquiring both permits.
