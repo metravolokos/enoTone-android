@@ -31,7 +31,8 @@ class UnifiedImportGenreContractTest(unittest.TestCase):
         self.assertEqual(1, section.count("startManagedSession(true)"))
         self.assertNotIn("queueAllTagRefresh(", section)
         self.assertNotIn("deleteDatabase(", section)
-        self.assertIn("onClick = { startManagedSession(true) }", ui)  # advanced tools
+        # UI start actions moved to ManagedIndexSettingsSection;
+        # behavior is covered by ManagedIndexSettingsViewModelTest (JVM).
 
     def test_metadata_uses_existing_fast_pass_with_genre_not_more_requests(self):
         parser = self.src(
