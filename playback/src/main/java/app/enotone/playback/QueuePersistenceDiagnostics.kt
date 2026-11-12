@@ -52,15 +52,19 @@ object QueuePersistenceDiagnostics {
     @Synchronized
     fun result(code: QueueRestoreCode) =
         publish(mutable.value.copy(result = code))
+
     @Synchronized
     fun read(code: QueueRestoreCode) =
         publish(mutable.value.copy(readResult = code, result = code))
+
     @Synchronized
     fun layoutWritten() =
         publish(mutable.value.copy(layoutWrites = mutable.value.layoutWrites + 1))
+
     @Synchronized
     fun positionWritten() =
         publish(mutable.value.copy(positionWrites = mutable.value.positionWrites + 1))
+
     @Synchronized
     fun writeFailed(error: Exception) =
         publish(mutable.value.copy(writeErrors = mutable.value.writeErrors + 1,

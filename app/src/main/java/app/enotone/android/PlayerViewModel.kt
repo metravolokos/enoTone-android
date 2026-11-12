@@ -64,6 +64,7 @@ internal class PlayerViewModel(
     private var covers: AlbumArtworkCatalog? = null
     private var artworkJob: Job? = null
     private var restoredAccount: String? = null
+
     // Only a login returned by the vault grants automatic queue restoration.
     // Manually typed credentials remain RAM-only until explicitly persisted.
     private var restoreAllowed = false
@@ -138,7 +139,7 @@ internal class PlayerViewModel(
     }
 
     // Guarded once per source to prevent repeated bind/restore races on Home.
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "ReturnCount")
     private fun maybeRestore() {
         if (!restoreAllowed) return
         val snapshot = mutable.value.playback
