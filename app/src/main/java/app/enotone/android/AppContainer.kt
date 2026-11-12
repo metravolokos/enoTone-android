@@ -30,6 +30,18 @@ class AppContainer(
     internal val playbackConnection: PlaybackConnection by lazy {
         AndroidPlaybackConnection(appContext, main)
     }
+    internal val backgroundWorkLauncher: BackgroundWorkLauncher by lazy { AndroidBackgroundWorkLauncher(appContext) }
+
+    @Suppress("SpreadOperator") // Android Resources.getString принимает varargs.
+    internal val settingsText = SettingsText { id, args -> appContext.getString(id, *args) }
+    internal val libraryIndexingGateway: LibraryIndexingGateway by lazy {
+        AndroidLibraryIndexingGateway(this, settingsText)
+    }
+    internal val artworkSettingsGateway: ArtworkSettingsGateway by lazy {
+        AndroidArtworkSettingsGateway(appContext, this)
+    }
+    internal val diagnosticsGateway: DiagnosticsGateway by lazy { AndroidDiagnosticsGateway(this, settingsText) }
+
     internal fun accountSignOut(email: String): AccountSignOut = AccountSignOut(
         AndroidAccountSignOutPort(appContext, this, email),
     )

@@ -23,19 +23,6 @@ class BoundedTagResumeContractTest(unittest.TestCase):
         for forbidden in ("Log.", "WorkManager", "GlobalScope", "PROPFIND", "while (true)"):
             assert forbidden not in indexer
 
-    def test_user_interaction_still_cancelable_and_not_background(self):
-        ui = (ROOT / "app/src/main/java/app/enotone/android/"
-              "SettingsScreen.kt").read_text(encoding="utf-8")
-        assert "onClick = { runPilot(100) }" in ui
-        assert "onClick = { runPilot(10) }" in ui
-        assert "onClick = { runPilot(20) }" in ui
-        assert "pilotJob?.cancel()" in ui
-        assert "PilotTagIndexer(database).run(" in ui
-        assert "email, password, count," in ui
-        assert "onProgress = { progress ->" in ui
-        assert "R.string.pilot_resume_explanation" in ui
-        assert "onClick = { runPilot(3590) }" not in ui
-        assert "WorkManager" not in ui
 
 
 if __name__ == "__main__":

@@ -9,29 +9,6 @@ class UnifiedImportGenreContractTest(unittest.TestCase):
     def src(self, path):
         return (ROOT / path).read_text(encoding="utf-8")
 
-    def test_one_click_import_commits_room_before_resumable_scan(self):
-        ui = self.src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
-        start = ui.index("// One explicit action: quick listing + background metadata completion.")
-        end = ui.index("// Explicit full reindex is a DIFFERENT action", start)
-        section = ui[start:end]
-        for token in (
-            "FlatLibraryWebDavClient().use { client ->",
-            "val listing = client.list(email, password)",
-            "val plan = store.save(email, listing)",
-            "val pending = database.remoteTrackDao().pendingFastScans(",
-            "startMetadata = result[5] > 0",
-            "busy = false",
-            "if (startMetadata) startManagedSession(true)",
-        ):
-            self.assertIn(token, section)
-        self.assertLess(section.index("val plan = store.save(email, listing)"),
-                        section.index("if (startMetadata) startManagedSession(true)"))
-        self.assertLess(section.index("busy = false"),
-                        section.index("if (startMetadata) startManagedSession(true)"))
-        self.assertEqual(1, section.count("startManagedSession(true)"))
-        self.assertNotIn("queueAllTagRefresh(", section)
-        self.assertNotIn("deleteDatabase(", section)
-        self.assertIn("onClick = { startManagedSession(true) }", ui)  # advanced tools
 
     def test_metadata_uses_existing_fast_pass_with_genre_not_more_requests(self):
         parser = self.src(

@@ -4,19 +4,21 @@
 
 Нативный Kotlin + Compose. **Media3 ExoPlayer и MediaSessionService уже работают** в `:playback` (M3–M5); источник WebDAV через строго проверяемый HTTPS/Range DataSource, локальная Room — источник истины перечня/тегов. Фактические транспорт и ограничения фиксируются в ADR и `docs/STATUS.md`; прежний список зависимостей был только архитектурным предложением. Бизнес-логику держим вне Composable, UI строится реактивно.
 
-## Фактическое состояние модулей (M6-0/4a, Draft PR #92, 2026-11-12)
+## Фактическое состояние модулей (M6-0/4b-2, PR #104, 2026-11-12)
 
-Целевая схема ниже реализована **не полностью**. В Draft #92 добавляются ручной DI и слой медиатеки; пока PR не слит, рабочее состояние `main` соответствует предыдущему аудиту. Код есть в пяти модулях:
+Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104). Перенос сервисов и заполнение модулей ещё не завершены.
 
 | Модуль | Содержимое |
 |---|---|
-| `:app` | UI (Compose), навигация, настройки (`SharedPreferences`), сервисы индексации и обложек, `ArtworkPreviewRepository`, хранилище входа; в Draft #92 также `AppContainer`, `LibraryViewModel`, `PlaybackConnection` |
+| `:app` | Compose и навигация; `AppContainer`; `LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`; `LibraryIndexingViewModel`, `ArtworkSettingsViewModel`, `DiagnosticsViewModel` с read-only StateFlow; gateway для I/O, `BackgroundWorkLauncher` для запуска/управления службами; сервисы, постоянные обложки и Keystore |
 | `:core:network` | плоский PROPFIND и диагностика (Ktor CIO), парсер multistatus |
-| `:core:database` | Room v4: одна таблица `remote_tracks` |
-| `:data:library` | Range-reader (HttpURLConnection), парсер тегов MP3/FLAC, индексаторы, группировка медиатеки; в Draft #92 также `LibraryRepository` |
-| `:playback` | MediaSessionService, ExoPlayer, WebDAV DataSource (HttpsURLConnection), временный кэш |
+| `:core:database` | Room v4: одна таблица `remote_tracks`, единый экземпляр через container.database |
+| `:data:library` | Range-reader, парсер MP3/FLAC, индексаторы, группировка и `LibraryRepository` |
+| `:playback` | MediaSessionService, ExoPlayer, WebDAV DataSource, временный кэш и checkpoint очереди |
 
-Пустые (только `build.gradle.kts`): `:core:common`, `:core:model`, `:core:datastore`, `:data:source`, `:data:cache`, `:data:playlist`, `:feature:library`, `:feature:player`, `:feature:settings`, `:feature:ai`. В `main` ещё нет завершённого слоя ViewModel/DI; Draft #92 отделяет только экран медиатеки, а `MainActivity` и индексаторы остаются до 4b/4c. Приведение к целевой схеме — этап M6-0 ([ADR-0074](DECISIONS/ADR-0074-m6-0-tech-debt-plan.md)).
+`SettingsScreen.kt` — каркас навигации и сбор состояний. Разделы настроек получают state/actions и имеют Preview; I/O перенесён в gateway. Activity-scoped `SettingsSessionViewModel` владеет только RAM-сеансом; `AppContainer` не удерживает пароль. `SettingsWorkSession` сохраняет взаимную исключительность импорта и технических действий, сбрасывает данные сеанса после выхода. Автоподготовка обложек ждёт готовности тегов и режима AUTO_AFTER_IMPORT, повторно проверяет состояние перед запуском. Пароль передаётся портом только в RAM-handoff, Intent содержит лишь действие. `openLibraryDatabase` удалён из `:app`; существующие службы/планировщик обращаются к `container.database` без изменения алгоритмов. Санитизация отчёта разрешает только фиксированные операции/метки и числа (Kotlin-тест с небезопасным фейковым ответом).
+
+Пустые (только `build.gradle.kts`): `:core:common`, `:core:model`, `:core:datastore`, `:data:source`, `:data:cache`, `:data:playlist`, `:feature:library`, `:feature:player`, `:feature:settings`, `:feature:ai`. Сервисы — M6-0/4c, модули — M6-0/5. Дизайн ADR-0073, Room, `:playback`, WebDAV-клиенты и CI в #104 не меняются.
 
 ## Целевая схема
 

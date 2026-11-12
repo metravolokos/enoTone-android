@@ -173,7 +173,7 @@ class IndexingForegroundService : Service() {
         indexJob = scope.launch(Dispatchers.IO) {
             var stage = "DATABASE_OPEN"
             try {
-                val database = openLibraryDatabase(applicationContext)
+                val database = (application as EnoToneApplication).container.database
                 run {
                     stage = "INDEX_BATCH"
                     val final = ManagedTagIndexSession(database).run(

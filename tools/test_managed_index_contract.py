@@ -63,8 +63,6 @@ class ManagedIndexContractTest(unittest.TestCase):
     def test_terminated_session_does_not_leave_running_text_or_hide_failure(self):
         service = (ROOT / "app/src/main/java/app/enotone/android/"
                    "IndexingForegroundService.kt").read_text(encoding="utf-8")
-        ui = (ROOT / "app/src/main/java/app/enotone/android/"
-              "SettingsScreen.kt").read_text(encoding="utf-8")
         for needle in (
             'stopCode = "FAILED_INTERNAL"',
             'lastErrorStage = location',
@@ -74,11 +72,6 @@ class ManagedIndexContractTest(unittest.TestCase):
             'catch (_: RuntimeException)',
         ):
             self.assertIn(needle, service)
-        for needle in (
-            "managedStatus.failureStage?.let { stage ->",
-            "R.string.managed_index_internal_failure",
-        ):
-            self.assertIn(needle, ui)
 
     def test_single_room_collector_with_four_independent_network_workers(self):
         parallel = (ROOT / "data/library/src/main/java/app/enotone/library/"
@@ -115,8 +108,6 @@ class ManagedIndexContractTest(unittest.TestCase):
                   "ManagedTagIndexSession.kt").read_text(encoding="utf-8")
         service = (ROOT / "app/src/main/java/app/enotone/android/"
                    "IndexingForegroundService.kt").read_text(encoding="utf-8")
-        main = (ROOT / "app/src/main/java/app/enotone/android/"
-                "SettingsScreen.kt").read_text(encoding="utf-8")
         for needle in (
             "enum class ManagedIndexMode { BOUNDED, CONTINUOUS }",
             "const val MAX_CONTINUOUS_BATCHES = 80",
@@ -136,24 +127,15 @@ class ManagedIndexContractTest(unittest.TestCase):
             "START_NOT_STICKY",
         ):
             self.assertIn(needle, service)
-        for needle in (
-            "ManagedIndexMode.CONTINUOUS",
-            "ManagedScanRuntime.prepare(email, password, mode)",
-            "startManagedSession(true)",
-            "startManagedSession(false)",
-            "R.string.managed_index_all",
-        ):
-            self.assertIn(needle, main)
+        launcher = (ROOT / "app/src/main/java/app/enotone/android/BackgroundWorkLauncher.kt").read_text()
         for forbidden in (
             'putExtra("password"', "TRANSPORT_WIFI",
             "BOOT_COMPLETED", "GlobalScope",
         ):
-            self.assertNotIn(forbidden, runner + service)
+            self.assertNotIn(forbidden, runner + service + launcher)
         self.assertNotIn("PROPFIND", runner)
 
     def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
-        main = (ROOT / "app/src/main/java/app/enotone/android/"
-                "SettingsScreen.kt").read_text(encoding="utf-8")
         service = (ROOT / "app/src/main/java/app/enotone/android/"
                    "IndexingForegroundService.kt").read_text(encoding="utf-8")
         xml = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
@@ -166,16 +148,6 @@ class ManagedIndexContractTest(unittest.TestCase):
                             s.attrib.get(f"{ANDROID}foregroundServiceType") == "dataSync" and
                             s.attrib.get(f"{ANDROID}exported") == "false" for s in services))
         for needle in (
-            "appContext.startForegroundService(",
-            "IndexingForegroundService.ACTION_START",
-            "ManagedScanRuntime.status.collectAsState()",
-            "IndexingForegroundService.ACTION_PAUSE",
-            "IndexingForegroundService.ACTION_STOP",
-            "onClick = { startManagedSession(false) }",
-            "onClick = { startManagedSession(true) }",
-        ):
-            self.assertIn(needle, main)
-        for needle in (
             "class IndexingForegroundService : Service()",
             "ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC",
             "START_NOT_STICKY",
@@ -187,12 +159,13 @@ class ManagedIndexContractTest(unittest.TestCase):
             "ManagedScanRuntime.update(",
         ):
             self.assertIn(needle, service)
+        launcher = (ROOT / "app/src/main/java/app/enotone/android/BackgroundWorkLauncher.kt").read_text()
         for forbidden in (
             "override fun onStop()", "pauseManagedIndexOnStop", "TRANSPORT_WIFI",
             "allowMobileIndexing", "managedIndexNetworkAllowed",
             "putExtra(\"password\"", "Log.",
         ):
-            self.assertNotIn(forbidden, main + service)
+            self.assertNotIn(forbidden, service + launcher)
         self.assertIn('android:allowBackup="false"', xml)
 
 

@@ -11,11 +11,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 
 /** Android system / Dark / Light. Color accent selection was deliberately removed. */
 @Composable
 internal fun AppearanceSettings() {
     val context = LocalContext.current
+    AppearanceSettingsContent(UiAppearance.mode) { mode -> UiAppearance.chooseMode(context, mode) }
+}
+
+@Composable
+internal fun AppearanceSettingsContent(selectedMode: UiMode, onMode: (UiMode) -> Unit) {
     Column {
         Text(stringResource(R.string.appearance_title),
             style = MaterialTheme.typography.titleMedium)
@@ -32,12 +38,12 @@ internal fun AppearanceSettings() {
                 headlineContent = { Text(stringResource(label)) },
                 trailingContent = {
                     RadioButton(
-                        selected = UiAppearance.mode == mode,
+                        selected = selectedMode == mode,
                         onClick = null,
                     )
                 },
                 modifier = Modifier.fillMaxWidth().clickable {
-                    UiAppearance.chooseMode(context, mode)
+                    onMode(mode)
                 },
                 colors = androidx.compose.material3.ListItemDefaults.colors(
                     containerColor = MaterialTheme.colorScheme.background,
@@ -45,4 +51,10 @@ internal fun AppearanceSettings() {
             )
         }
     }
+}
+
+@Preview
+@Composable
+internal fun AppearanceSettingsPreview() {
+    MaterialTheme { AppearanceSettingsContent(UiMode.SYSTEM) {} }
 }

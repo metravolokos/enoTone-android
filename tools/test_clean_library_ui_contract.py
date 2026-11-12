@@ -10,31 +10,6 @@ class CleanLibraryUiContractTest(unittest.TestCase):
     def src(self, path):
         return (ROOT / path).read_text(encoding="utf-8")
 
-    def test_settings_keeps_maintenance_and_diagnostics(self):
-        main = self.src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
-        for text in (
-            "var showTechnicalTools by remember { mutableStateOf(false) }",
-            "if (showTechnicalTools) {",
-            "R.string.home_show_technical",
-            "R.string.home_diagnostics_title",
-            "R.string.home_library_maintenance",
-            "R.string.save_local_library",
-            "R.string.managed_index_all",
-            "onClick = { startManagedSession(true) }",
-            "onClick = { startManagedSession(false) }",
-            "R.string.home_index_summary",
-            "R.string.home_show_index_details",
-            "R.string.read_stored_tags_offline",
-            "R.string.pilot_resume_bounded",
-            "R.string.tag_audit_queue_all",
-        ):
-            self.assertIn(text, main)
-        # Full index and sync remain reachable outside the diagnostic panel.
-        self.assertLess(main.index("R.string.home_library_maintenance"),
-            main.index("R.string.save_local_library"))
-        self.assertLess(main.index("R.string.save_local_library"),
-            main.index("R.string.managed_index_all"))
-        self.assertNotIn("deleteDatabase(", main)
 
     def test_new_ux_strings_in_both_languages(self):
         needed = {

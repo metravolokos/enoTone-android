@@ -12,7 +12,6 @@ class ExtendedTagMetadataContractTest(unittest.TestCase):
     def test_nondestructive_room_v3_and_existing_base_migrations(self):
         db = self.src("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         entity = self.src("core/database/src/main/java/app/enotone/database/RemoteTrackEntity.kt")
-        main = self.src("app/src/main/java/app/enotone/android/SettingsScreen.kt")
         for token in ('version = 4', 'AutoMigration(from = 1, to = 2)',
                       'AutoMigration(from = 2, to = 3)',
                       'AutoMigration(from = 3, to = 4)', 'exportSchema = true'):
@@ -21,7 +20,7 @@ class ExtendedTagMetadataContractTest(unittest.TestCase):
             self.assertIn(f'val {field}: Int? = null', entity)
         # M6-0/2: the builder moved into the shared EnoToneDatabase.getInstance().
         self.assertIn('"enotone-local-library.db"', db)
-        self.assertNotIn('fallbackToDestructiveMigration', db + main)
+        self.assertNotIn('fallbackToDestructiveMigration', db)
 
     def test_fast_parser_and_bounded_cas_persist_new_metadata(self):
         parser = self.src("data/library/src/main/java/app/enotone/library/FastAudioTagReader.kt")

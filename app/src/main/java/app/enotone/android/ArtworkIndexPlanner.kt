@@ -14,7 +14,7 @@ internal object ArtworkIndexPlanner {
     suspend fun fromStoredLibrary(
         context: Context, accountEmail: String,
     ): List<AlbumArtworkGroup> = withContext(Dispatchers.IO) {
-        val db = openLibraryDatabase(context.applicationContext)
+        val db = (context.applicationContext as EnoToneApplication).container.database
         run {
             val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
             val rows = db.remoteTrackDao().allForSource(sourceKey)
