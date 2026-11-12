@@ -80,10 +80,9 @@ internal class LibraryIndexingViewModel(
         }
     }
 
-    override fun start(continuous: Boolean) {
+    override fun resume() {
         if (!allowed()) return
-        requestStart(requireNotNull(session.state.value.login),
-            if (continuous) ManagedIndexMode.CONTINUOUS else ManagedIndexMode.BOUNDED)
+        requestStart(requireNotNull(session.state.value.login), ManagedIndexMode.CONTINUOUS)
     }
 
     /** Разрешение запрашивает Activity; Intent и секреты остаются вне Compose. */
@@ -138,8 +137,9 @@ internal class LibraryIndexingViewModel(
                 action(login)
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (http: FlatWebDavHttpError) {
-                session.report(text.get(R.string.webdav_http_failed, http.statusCode), work.revision)
+            } catch (_: FlatWebDavHttpError) {
+                // Код ответа виден в «Диагностике» → «Проверить соединение»; на основном экране — человеческий текст.
+                session.report(text.get(R.string.library_update_network_failed), work.revision)
             } catch (_: Exception) {
                 session.report(text.get(failure), work.revision)
             } finally {

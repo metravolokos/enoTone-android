@@ -15,7 +15,7 @@ internal class SettingsViewModelFactory(
             ArtworkSettingsViewModel::class.java -> ArtworkSettingsViewModel(
                 artworkSettingsGateway, backgroundWorkLauncher, session, settingsText)
             DiagnosticsViewModel::class.java -> DiagnosticsViewModel(
-                diagnosticsGateway, backgroundWorkLauncher, session, settingsText)
+                diagnosticsGateway, session, settingsText)
             else -> error("Unknown settings ViewModel")
         }
         model as T

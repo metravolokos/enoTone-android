@@ -67,9 +67,8 @@ class AuditRefreshContractTest(unittest.TestCase):
         for p in LANGS:
             xml = p.read_text()
             for key in ("tag_audit_title", "tag_audit_missing_album",
-                        "tag_audit_missing_album_artist", "tag_audit_search_action",
-                        "tag_audit_queue_all", "tag_audit_queue_selected",
-                        "tag_audit_all_queued"):
+                        "tag_audit_missing_album_artist", "library_reindex_action",
+                        "library_reindex_confirm_title"):
                 self.assertIn(f'name="{key}"', xml)
         launcher = (ROOT / 'app/src/main/java/app/enotone/android/BackgroundWorkLauncher.kt').read_text()
         self.assertNotIn('putExtra("password"', launcher)

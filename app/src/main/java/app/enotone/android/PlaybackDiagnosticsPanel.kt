@@ -5,13 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -50,34 +47,21 @@ internal data class PlaybackDiagnosticSnapshot(
 internal object PlaybackDiagnosticsRuntime {
     val status = MutableStateFlow(PlaybackDiagnosticSnapshot())
 
-    // Advanced Settings owns the A/B toggle; normal listening defaults to the
-    // accepted temporary audio cache. Never expose this on Now Playing.
-    var useCacheOnNextPlay by mutableStateOf(true)
-
     fun publish(snapshot: PlaybackDiagnosticSnapshot) {
         status.value = snapshot
     }
 }
 
-/** Only rendered inside the Settings' collapsed technical section. */
+/** Только на подэкране «Настройки → Диагностика»; коды и числа, без имён и путей. */
 @Composable
 internal fun PlaybackDiagnosticsPanel() {
     val status by PlaybackDiagnosticsRuntime.status.collectAsState()
     val queue by QueuePersistenceDiagnostics.state.collectAsState()
-    val temporaryCache = PlaybackDiagnosticsRuntime.useCacheOnNextPlay
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.playback_settings_diagnostics),
             style = MaterialTheme.typography.titleMedium,
         )
-        OutlinedButton(onClick = {
-            PlaybackDiagnosticsRuntime.useCacheOnNextPlay = !temporaryCache
-        }) {
-            Text(stringResource(
-                if (temporaryCache) R.string.playback_mode_cache
-                else R.string.playback_mode_baseline,
-            ))
-        }
         Text(
             text = stringResource(R.string.playback_queue_restore_summary,
                 queue.result.name, queue.readResult.name, queue.layoutWrites,

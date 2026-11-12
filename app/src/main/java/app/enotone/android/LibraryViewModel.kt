@@ -613,7 +613,6 @@ internal class LibraryViewModel(
                     container.libraryRepository, container.playbackConnection,
                     RepositoryArtworkLoader(container.artworkPreviewRepository),
                     container.io, unknownAlbumName, messages,
-                    useCache = { PlaybackDiagnosticsRuntime.useCacheOnNextPlay },
                     visiblePages = visiblePages,
                     accountEvents = container.accountSession.state) as T
             }

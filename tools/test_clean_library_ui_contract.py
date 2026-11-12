@@ -13,11 +13,8 @@ class CleanLibraryUiContractTest(unittest.TestCase):
 
     def test_new_ux_strings_in_both_languages(self):
         needed = {
-            "home_title", "home_hint", "home_connection_settings",
-            "home_show_technical", "home_hide_technical",
-            "home_diagnostics_title", "home_library_maintenance",
-            "home_index_summary", "home_show_index_details",
-            "home_hide_index_details", "library_pages_short",
+            "home_title", "home_hint",
+            "home_index_summary", "library_pages_short",
             "library_player_title", "library_player_open",
             "library_player_close", "library_open_search",
             "library_close_search", "library_search_short",
