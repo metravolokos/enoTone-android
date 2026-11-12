@@ -62,4 +62,41 @@ class AccountSignOutTest {
         assertFalse(fake.credentials)
         assertEquals(9, fake.catalog["other"])
     }
+
+    @Test fun `unbound MediaSession still removes all queue checkpoint files`() = runTest {
+        val root = java.nio.file.Files.createTempDirectory("sign-out-unbound").toFile()
+        try {
+            val queue = app.enotone.playback.QueueStateFileStore.inDirectory(root)
+            val filenames = listOf(
+                "enotone-queue-v1.json", "enotone-position-v1.json",
+                "enotone-queue-v1.json.tmp", "enotone-position-v1.json.tmp",
+            )
+            filenames.forEach { root.resolve(it).writeText("saved") }
+            var attempts = 0
+            val stop = AccountPlaybackStop(
+                stopBoundService = { attempts++; false },
+                clearQueue = { queue.clear() },
+            )
+            stop.run()
+            assertEquals(1, attempts)
+            assertTrue(filenames.none { root.resolve(it).exists() })
+            stop.run() // no binder and no files is idempotent
+            assertEquals(2, attempts)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test fun `unbound service does not prevent later sign-out stages`() = runTest {
+        val fake = Fake()
+        val stop = AccountPlaybackStop(
+            stopBoundService = { false },
+            clearQueue = { Unit },
+        )
+        stop.run()
+        AccountSignOut(fake).run("mine")
+        assertFalse(fake.credentials)
+        assertEquals(9, fake.catalog["other"])
+    }
+
 }

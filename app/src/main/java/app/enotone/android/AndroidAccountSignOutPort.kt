@@ -29,14 +29,16 @@ internal class AndroidAccountSignOutPort(
     )
 
     override suspend fun stopPlayback() {
-        withContext(main) {
-            check(container.playbackConnection.stopPlayback()) {
-                "Playback service not connected"
-            }
-        }
-        // The service's serialized writer already schedules its own clear,
-        // but a second clear covers a checkpoint left by a dead service.
-        withContext(io) { QueueStateFileStore(context).clear() }
+        AccountPlaybackStop(
+            stopBoundService = {
+                withContext(main) { container.playbackConnection.stopPlayback() }
+            },
+            clearQueue = {
+                // A service may never have been bound. These files still exist
+                // after process death; always erase them before Room/Keystore.
+                withContext(io) { QueueStateFileStore(context).clear() }
+            },
+        ).run()
     }
 
     override suspend fun stopIndexers() {

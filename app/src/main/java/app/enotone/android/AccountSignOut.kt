@@ -45,3 +45,18 @@ internal class AccountSignOut(private val port: AccountSignOutPort) {
         }
     }
 }
+
+/**
+ * No bound MediaSession means no playback to stop. It must NEVER block
+ * sign-out: disk checkpoints still need clearing before Room/Keystore.
+ * A real stop exception or queue-file failure is not swallowed.
+ */
+internal class AccountPlaybackStop(
+    private val stopBoundService: suspend () -> Boolean,
+    private val clearQueue: suspend () -> Unit,
+) {
+    suspend fun run() {
+        stopBoundService() // false = service absent, not an error
+        clearQueue()
+    }
+}
