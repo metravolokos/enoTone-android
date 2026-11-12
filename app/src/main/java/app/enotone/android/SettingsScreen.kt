@@ -106,7 +106,7 @@ internal fun DiagnosticScreen() {
     // but are collapsed instead of occupying the full first screen.
     var showConnection by remember { mutableStateOf(true) }
     var showTechnicalTools by remember { mutableStateOf(false) }
-    var showIndexDetails by remember { mutableStateOf(false) }
+
     val scope = rememberCoroutineScope()
     // The default Compose owner here is MainActivity, not a navigation destination.
     val playerModel: PlayerViewModel = viewModel(factory = remember(appContext) {
@@ -185,9 +185,6 @@ internal fun DiagnosticScreen() {
     val auditFailed = stringResource(R.string.tag_audit_failed)
     val auditQueued = stringResource(R.string.tag_audit_queued)
     val auditQueuedAll = stringResource(R.string.tag_audit_all_queued)
-    val managedPaused = stringResource(R.string.managed_index_paused)
-    val managedStopped = stringResource(R.string.managed_index_stopped)
-    val managedError = stringResource(R.string.managed_index_failed)
     val missingCredentials = stringResource(R.string.missing_credentials)
     val diagnosticFailed = stringResource(R.string.diagnostic_failed)
     val countReport = stringResource(R.string.file_count_report)
@@ -251,24 +248,15 @@ internal fun DiagnosticScreen() {
         }
     }
 
+    val managedModel: ManagedIndexSettingsViewModel = viewModel(factory = remember(appContext) {
+        ManagedIndexSettingsViewModel.factory(appContext)
+    })
     // Notification controls are part of the manual background-indexing UX.
     // Android 13+ asks for that permission only after the user presses Start.
     var notificationPermissionDenied by remember { mutableStateOf(false) }
     var requestedContinuousIndex by remember { mutableStateOf(false) }
     val launchManagedForegroundService: (Boolean) -> Unit = { continuous ->
-        val mode = if (continuous) ManagedIndexMode.CONTINUOUS else ManagedIndexMode.BOUNDED
-        if (!busy && managedStatus.state != ManagedScanState.RUNNING &&
-            !managedStatus.terminating && email.isNotBlank() && password.isNotBlank() &&
-            ManagedScanRuntime.prepare(email, password, mode)) {
-            try {
-                appContext.startForegroundService(
-                    Intent(appContext, IndexingForegroundService::class.java)
-                        .setAction(IndexingForegroundService.ACTION_START)
-                )
-            } catch (_: RuntimeException) {
-                ManagedScanRuntime.update(ManagedScanState.ERROR)
-            }
-        }
+        if (!busy) managedModel.start(email, password, continuous)
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -1032,96 +1020,17 @@ internal fun DiagnosticScreen() {
         }
 
         }
-        Text(stringResource(R.string.managed_index_title),
-            style = MaterialTheme.typography.titleMedium)
-        if (showTechnicalTools) {
-            Text(stringResource(R.string.managed_index_explanation),
-                style = MaterialTheme.typography.bodySmall)
-        }
-        if (notificationPermissionDenied) {
-            Text(stringResource(R.string.managed_notification_permission_denied),
-                style = MaterialTheme.typography.bodySmall)
-        }
-        if (showTechnicalTools) {
-        Button(modifier = Modifier.fillMaxWidth(),
-            enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
-                !managedStatus.terminating &&
-                email.isNotBlank() && password.isNotBlank(),
-            onClick = { startManagedSession(false) }) {
-            Text(stringResource(if (managedStatus.state in setOf(ManagedScanState.PAUSED,
-                    ManagedScanState.STOPPED, ManagedScanState.COMPLETE,
-                    ManagedScanState.ERROR))
-                R.string.managed_index_resume else R.string.managed_index_start))
-        }
-        }
-        if (showTechnicalTools) {
-            Button(modifier = Modifier.fillMaxWidth(),
-                enabled = !busy && managedStatus.state != ManagedScanState.RUNNING &&
-                    !managedStatus.terminating &&
-                    email.isNotBlank() && password.isNotBlank(),
-                onClick = { startManagedSession(true) }) {
-                Text(stringResource(R.string.managed_index_all))
-            }
-            Text(stringResource(R.string.managed_index_all_explanation),
-                style = MaterialTheme.typography.bodySmall)
-        }
-        if (managedStatus.state == ManagedScanState.RUNNING) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = managedStatus.state == ManagedScanState.RUNNING,
-                onClick = {
-                    appContext.startService(
-                        Intent(appContext, IndexingForegroundService::class.java)
-                            .setAction(IndexingForegroundService.ACTION_PAUSE)
-                    )
-                }) { Text(stringResource(R.string.managed_index_pause)) }
-            Button(enabled = managedStatus.state == ManagedScanState.RUNNING,
-                onClick = {
-                    appContext.startService(
-                        Intent(appContext, IndexingForegroundService::class.java)
-                            .setAction(IndexingForegroundService.ACTION_STOP)
-                    )
-                }) { Text(stringResource(R.string.managed_index_stop)) }
-        }
-        }
-        managedStatus.progress?.let { current ->
-            Text(stringResource(R.string.home_index_summary,
-                current.savedWithTags, current.remaining))
-            OutlinedButton(onClick = { showIndexDetails = !showIndexDetails }) {
-                Text(stringResource(if (showIndexDetails)
-                    R.string.home_hide_index_details else R.string.home_show_index_details))
-            }
-            if (showIndexDetails || showTechnicalTools) {
-            Text(stringResource(R.string.managed_index_report,
-                current.completedBatches, current.attempted, current.savedWithTags,
-                current.retryableErrors, current.permanentErrors, current.getRequests,
-                current.downloadedBytes, current.remaining, current.stopCode),
-                style = MaterialTheme.typography.bodyMedium)
-            if (current.lastErrorStage != "NONE" &&
-                managedStatus.failureStage == null) {
-                Text(stringResource(R.string.managed_index_last_error,
-                    current.lastErrorStage, current.lastErrorReason,
-                    current.lastErrorHttpStatus),
-                    style = MaterialTheme.typography.bodySmall)
-            }
-            }
-        }
-        if (showIndexDetails || showTechnicalTools) {
-        managedStatus.failureStage?.let { stage ->
-            Text(stringResource(R.string.managed_index_internal_failure,
-                stage, managedStatus.failureReason ?: "UNEXPECTED"),
-                style = MaterialTheme.typography.bodySmall)
-        }
-        }
-        val managedMessage = when (managedStatus.state) {
-            ManagedScanState.PAUSED -> managedPaused
-            ManagedScanState.STOPPED -> managedStopped
-            ManagedScanState.ERROR -> managedError
-            else -> ""
-        }
-        if (managedMessage.isNotEmpty()) {
-            Text(managedMessage, style = MaterialTheme.typography.bodySmall)
-        }
-        if (report.isNotEmpty()) Text(report, style = MaterialTheme.typography.bodyMedium)
+        ManagedIndexSettingsSection(
+            status = managedStatus,
+            showTechnicalTools = showTechnicalTools,
+            notificationPermissionDenied = notificationPermissionDenied,
+            busy = busy,
+            connected = email.isNotBlank() && password.isNotBlank(),
+            report = report,
+            onStart = startManagedSession,
+            onPause = managedModel::pause,
+            onStop = managedModel::stop,
+        )
     }
     Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
         .navigationBarsPadding()) {
