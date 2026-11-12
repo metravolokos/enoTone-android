@@ -1,5 +1,13 @@
 # Релиз и тестовый канал enoTone Android
 
+## Версии ([ADR-0078](DECISIONS/ADR-0078-versioning.md))
+
+- Формат: `0.<этап>.<исправление>-preview.<номер прогона CI>`, например `0.6.0-preview.425`. Версия видна в Настройках приложения.
+- **Когда владелец принял сборку на Huawei:**
+  1. В отдельном PR повысить `PATCH` в `app/build.gradle.kts` (`versionName`) и переименовать секцию `Unreleased` в CHANGELOG в принятый номер (`## 0.6.1 — 2026-11-13`).
+  2. Поставить метку на коммит `main`, из которого собрана **принятая** сборка: `git tag -a v0.6.1 <sha> -m "Принято на Huawei: <пункты TESTING>"` и `git push origin v0.6.1`.
+- Начало нового этапа роадмапа: `0.7.0`. Первый публичный выпуск: `1.0.0`.
+
 **Состояние 2026-11-11:** полноценного публичного production release по тегу ещё нет. Однако **подписанная Stable Preview уже есть**, её нельзя называть неподписанным debug APK или незавершённой настройкой: пакет `app.enotone.android.preview` подписывается постоянным ключом из GitHub Actions Secrets и обновляется поверх установленной версии с сохранением Room.
 
 - Последняя подтверждённая на Huawei — **Stable Preview #301** после [PR #71](https://github.com/metravolokos/enoTone-android/pull/71), `main` SHA `a5c8962be704af1657ac5eb6346c36ee945a4640`. CI [#301](https://github.com/metravolokos/enoTone-android/actions/runs/42971807110) **success, 23/23 этапа**; [прямая ссылка на подписанный артефакт](https://github.com/metravolokos/enoTone-android/actions/runs/42971807110/artifacts/13833891904) (`enotone-stable-preview-apk`). После установки владелец сообщил «Работает», это базовая аппаратная приёмка.

@@ -243,4 +243,5 @@
     <string name="ui_search_artists">Поиск в исполнителях</string>
     <string name="playback_restore_seed_ms">Восстановление Media3 (главный поток): %1$d мс</string>
     <string name="playback_queue_restore_summary">Очередь: %1$s · чтение %2$s · layout %3$d · position %4$d · ошибок %5$d (%6$s)</string>
+    <string name="settings_app_version">Версия %1$s</string>
 </resources>
