@@ -5,7 +5,6 @@ import app.enotone.library.AlbumTagRefreshReport
 import app.enotone.library.LibraryPage
 import app.enotone.library.LibraryRepository
 import app.enotone.library.LibrarySnapshot
-import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.PersistedQueueState
 import app.enotone.playback.QueueTrack
@@ -113,7 +112,6 @@ class LibraryViewModelTest {
         scope: TestScope,
         repository: FakeRepository,
         player: FakeConnection = FakeConnection(),
-        savedLogin: Boolean = false,
     ): LibraryViewModel = LibraryViewModel(
         accountEmail = email,
         password = "RAM-only",
@@ -124,7 +122,6 @@ class LibraryViewModelTest {
         io = StandardTestDispatcher(scope.testScheduler),
         unknownAlbumName = "Неизвестный альбом",
         messages = AlbumRefreshMessages(),
-        credentialsSaved = { _, _ -> savedLogin },
         clockMs = { 1234L },
         managedStatus = MutableStateFlow(ManagedScanStatus()),
     )
@@ -211,51 +208,19 @@ class LibraryViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
-    private fun saved(ids: List<String>, source: String) = PersistedQueueState(
-        trackIds = ids,
-        selectedTrackId = ids[1],
-        positionMs = 12_000L,
-        repeatMode = 2,
-        shuffleEnabled = false,
-        shuffledIndices = null,
-        sourceKey = source,
-        savedAtEpochMs = 123_456L,
-        queueRevision = "01234567-89ab-cdef-0123-456789abcdef",
-    )
-
-    @Test fun queueRequiresOptInCredentialsAndMatchingSource() = runTest {
+    @Test fun libraryNeverInitiatesQueueRestoration() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
-            val ids = listOf(id(1), id(2))
             val repo = FakeRepository(catalog(row(1, "А"), row(2, "Б")))
-            repo.saved = saved(ids, LibrarySnapshotPlanner.accountKey(email))
-            val disconnected = FakeConnection()
-            model(this, repo, disconnected, savedLogin = false)
-            advanceUntilIdle()
-            assertNull(disconnected.restored)
-            val foreign = FakeConnection()
-            repo.saved = saved(ids, id(99))
-            model(this, repo, foreign, savedLogin = true)
-            advanceUntilIdle()
-            assertNull(foreign.restored)
-        } finally { Dispatchers.resetMain() }
-    }
-
-    @Test fun missingTracksAreRemovedBeforeRestoreAndDoNotTriggerPlay() = runTest {
-        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
-        try {
-            val ids = listOf(id(1), id(2), id(3))
-            val repo = FakeRepository(catalog(row(1, "А"), row(2, "Б")))
-            repo.saved = saved(ids, LibrarySnapshotPlanner.accountKey(email))
             val player = FakeConnection()
-            val vm = model(this, repo, player, savedLogin = true)
+            val vm = model(this, repo, player)
             advanceUntilIdle()
-            assertEquals(listOf(id(1), id(2)), player.restored?.trackIds)
-            assertEquals(listOf(id(1), id(2)), player.queue.map { it.id })
-            assertTrue(player.filtered == true)
-            assertNull(player.selected) // Restoration never starts a network stream.
-            assertEquals(id(2), vm.state.value.currentTrackId)
-            assertEquals(12_000L, vm.state.value.positionMs)
+            assertFalse(vm.state.value.loading)
+            assertEquals(0, repo.reads)
+            assertNull(player.restored)
+            // The Activity-scoped PlayerViewModel is the only service binder.
+            assertEquals(0, player.connectedCount)
+            assertEquals(0, player.disconnectedCount)
         } finally { Dispatchers.resetMain() }
     }
 }

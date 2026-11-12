@@ -16,7 +16,6 @@ import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.CachePhase
 import app.enotone.playback.PlaybackDataIssue
-import app.enotone.playback.QueueStateRestorer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
@@ -124,7 +123,7 @@ internal class RepositoryArtworkLoader(private val repository: ArtworkPreviewRep
 
 /**
  * Loads one Room snapshot, derives searchable pages on IO, owns player
- * actions and queue restoration. Media3 remains the queue source of truth.
+ * actions. The Activity-scoped PlayerViewModel alone restores queues.
  */
 internal class LibraryViewModel(
     private val accountEmail: String,
@@ -136,7 +135,6 @@ internal class LibraryViewModel(
     private val io: CoroutineDispatcher,
     private val unknownAlbumName: String,
     private val messages: AlbumRefreshMessages,
-    private val credentialsSaved: suspend (String, String) -> Boolean,
     private val useCache: () -> Boolean = { true },
     private val clockMs: () -> Long = { System.nanoTime() / 1_000_000L },
     visiblePages: List<LibraryPage> = LibraryPageVisibility.defaultOrder,
@@ -154,8 +152,6 @@ internal class LibraryViewModel(
     private var filtersJob: Job? = null
     private var artworkJob: Job? = null
     private var fullArtworkJob: Job? = null
-    private var restoreJob: Job? = null
-    private var restoreAttempted = false
     private var filterVersion = 0
     private var artworkEpoch = 0
     private var selectionStartedAt = 0L
@@ -170,7 +166,6 @@ internal class LibraryViewModel(
         viewModelScope.launch {
             connection.state.collect { snapshot ->
                 applyPlayback(snapshot)
-                maybeRestore()
             }
         }
         viewModelScope.launch {
@@ -178,7 +173,7 @@ internal class LibraryViewModel(
                 mutable.update { it.copy(managedScanStatus = status) }
             }
         }
-        connection.connect()
+        // App-scoped PlayerViewModel owns binding/unbinding and restoration.
         reload()
     }
 
@@ -202,7 +197,6 @@ internal class LibraryViewModel(
                 }
                 derivePages()
                 refreshArtwork()
-                maybeRestore()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -424,55 +418,6 @@ internal class LibraryViewModel(
         ))
     }
 
-    /** PR #82 policy: vault opt-in + matching source + filtered local IDs, no GET. */
-    private fun maybeRestore() {
-        val current = mutable.value
-        if (restoreAttempted || restoreJob?.isActive == true || !current.playbackConnected ||
-            current.loading || current.failed || catalogue.preparedById.isEmpty() ||
-            accountEmail.isBlank() || password.isBlank() ||
-            connection.state.value.queueTotal > 0) return
-        restoreAttempted = true
-        restoreJob = viewModelScope.launch {
-            try {
-                if (!withContext(io) { credentialsSaved(accountEmail, password) })
-                    return@launch
-                val saved = repository.readSavedQueue() ?: return@launch
-                if (saved.sourceKey != sourceKey) return@launch
-                val filtered = withContext(io) {
-                    QueueStateRestorer.filter(saved, catalogue.preparedById.keys)
-                } ?: return@launch
-                val queue = filtered.trackIds.mapNotNull(catalogue.preparedById::get)
-                if (queue.size != filtered.trackIds.size ||
-                    connection.state.value.queueTotal > 0) return@launch
-                val restored = connection.restoreQueue(accountEmail, password, queue,
-                    filtered, useCache(),
-                    filtered.trackIds.size != saved.trackIds.size)
-                if (!restored) return@launch
-                val row = catalogue.tracks.firstOrNull { it.id == filtered.selectedTrackId }
-                mutable.update {
-                    it.copy(currentTrackId = filtered.selectedTrackId,
-                        selectedTitle = row?.title ?: queue.first {
-                            track -> track.id == filtered.selectedTrackId
-                        }.title,
-                        selectedArtist = row?.artist,
-                        queuePosition = filtered.trackIds.indexOf(filtered.selectedTrackId) + 1,
-                        queueTotal = filtered.trackIds.size,
-                        positionMs = filtered.positionMs,
-                        repeatMode = filtered.repeatMode,
-                        shuffleEnabled = filtered.shuffleEnabled,
-                        playbackState = connection.state.value.playbackState)
-                }
-                setupTimings = connection.state.value.setupTimings
-                media3DurationMs = setupTimings?.restoreSeedMs
-                refreshArtwork()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                // Corrupt/absent optional state is intentionally silent.
-            }
-        }
-    }
-
     private fun refreshArtwork() {
         artworkJob?.cancel()
         fullArtworkJob?.cancel()
@@ -585,11 +530,6 @@ internal class LibraryViewModel(
     override fun onShuffle() = connection.toggleShuffle()
     override fun onSeekFraction(fraction: Float) = connection.seekToFraction(fraction)
 
-    override fun onCleared() {
-        connection.disconnect() // MediaSessionService keeps playing after unbind.
-        super.onCleared()
-    }
-
     companion object {
         fun factory(
             email: String,
@@ -599,7 +539,6 @@ internal class LibraryViewModel(
             unknownAlbumName: String,
             messages: AlbumRefreshMessages,
             visiblePages: List<LibraryPage>,
-            savedCredentials: suspend (String, String) -> Boolean,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -607,7 +546,7 @@ internal class LibraryViewModel(
                 return LibraryViewModel(email, password, initialPage,
                     container.libraryRepository, container.playbackConnection,
                     RepositoryArtworkLoader(container.artworkPreviewRepository),
-                    container.io, unknownAlbumName, messages, savedCredentials,
+                    container.io, unknownAlbumName, messages,
                     useCache = { PlaybackDiagnosticsRuntime.useCacheOnNextPlay },
                     visiblePages = visiblePages) as T
             }

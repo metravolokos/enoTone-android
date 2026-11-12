@@ -39,10 +39,6 @@ internal fun OfflineLibraryScreen(
                 failed = context.getString(R.string.album_refresh_failed),
             ),
             visiblePages = pages,
-            savedCredentials = { email, password ->
-                runCatching { LocalCredentialVault.restore(context) }.getOrNull()
-                    ?.let { it.email == email && it.password == password } == true
-            },
         )
     }
     // A key only contains hashes, not the credential itself.

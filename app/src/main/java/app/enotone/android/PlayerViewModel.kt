@@ -58,6 +58,9 @@ internal class PlayerViewModel(
     private var covers: AlbumArtworkCatalog? = null
     private var artworkJob: Job? = null
     private var restoredAccount: String? = null
+    // Only a login returned by the vault grants automatic queue restoration.
+    // Manually typed credentials remain RAM-only until explicitly persisted.
+    private var restoreAllowed = false
     private var loadingAccount: String? = null
 
     init {
@@ -79,6 +82,7 @@ internal class PlayerViewModel(
                 QueuePersistenceDiagnostics.result(QueueRestoreCode.NO_CREDENTIALS)
             } else {
                 login = stored
+                restoreAllowed = true
                 ensureCatalog(stored)
                 maybeRestore()
             }
@@ -90,6 +94,8 @@ internal class PlayerViewModel(
         if (email.isBlank() || password.isBlank()) return
         if (login?.email == email && login?.password == password) return
         login = StoredWebDavLogin(email, password)
+        restoreAllowed = false
+        restoredAccount = null
         catalog = null
         covers = null
         loadingAccount = null
@@ -126,6 +132,7 @@ internal class PlayerViewModel(
     }
 
     private fun maybeRestore() {
+        if (!restoreAllowed) return
         val snapshot = mutable.value.playback
         if (!snapshot.connected) return
         if (snapshot.queueTotal > 0) return
