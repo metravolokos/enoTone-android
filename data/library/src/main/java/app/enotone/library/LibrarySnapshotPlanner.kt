@@ -15,6 +15,8 @@ data class SnapshotPlan(
     val unchanged: Int,
     val previouslyMissing: Int,
     val completeForAbsenceTracking: Boolean,
+    /** Идентификаторы с новой версией файла (без новых): по ним сбрасываются ссылки на обложки. */
+    val changedIds: List<String> = emptyList(),
 )
 
 object LibrarySnapshotPlanner {
@@ -51,6 +53,7 @@ object LibrarySnapshotPlanner {
         var inserted = 0
         var changed = 0
         var unchanged = 0
+        val changedIds = ArrayList<String>()
         val updated = unique.values.map { file ->
             val id = trackId(sourceKey, file.encodedPath)
             val old = byId[id]
@@ -58,7 +61,10 @@ object LibrarySnapshotPlanner {
             when {
                 old == null -> inserted++
                 sameVersion -> unchanged++
-                else -> changed++
+                else -> {
+                    changed++
+                    changedIds += id
+                }
             }
             RemoteTrackEntity(
                 id = id,
@@ -88,6 +94,7 @@ object LibrarySnapshotPlanner {
             updated, inserted, changed, unchanged,
             previous.count { it.sourceKey == sourceKey && it.id !in seenIds },
             complete,
+            changedIds,
         )
     }
 

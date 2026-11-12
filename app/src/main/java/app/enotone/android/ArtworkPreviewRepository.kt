@@ -167,6 +167,13 @@ internal class ArtworkPreviewRepository(context: Context) {
 
     private fun albumReference(key: String) = File(directory, "album-$key.txt")
 
+    /**
+     * Аудит п. 5: RAM-запись альбома действительна только для того же набора источников
+     * (версии, эпоха переиндексации): иначе после изменения альбома вернулась бы старая картинка.
+     */
+    private fun albumMemoryKey(key: String, group: AlbumArtworkGroup, side: Int) =
+        "album-$key-${group.targets.hashCode()}|$side"
+
     private fun selectedSource(
         email: String, group: AlbumArtworkGroup,
     ): String? {
@@ -194,7 +201,7 @@ internal class ArtworkPreviewRepository(context: Context) {
         if (email.isBlank()) return null
         val side = requestedSide.coerceIn(1, MAX_SIDE)
         val key = albumKey(email, group)
-        memoryCache.get("album-$key|$side")?.let { return it }
+        memoryCache.get(albumMemoryKey(key, group, side))?.let { return it }
         return group.targets.asSequence().mapNotNull { peek(email, it, side) }.firstOrNull()
     }
 
@@ -205,14 +212,14 @@ internal class ArtworkPreviewRepository(context: Context) {
         if (email.isBlank() || group.targets.isEmpty()) return null
         val side = requestedSide.coerceIn(1, MAX_SIDE)
         val key = albumKey(email, group)
-        memoryCache.get("album-$key|$side")?.let { return it }
+        memoryCache.get(albumMemoryKey(key, group, side))?.let { return it }
         val choice = withContext(Dispatchers.IO) { selectedSource(email, group) }
             ?: return null
         if (choice == NO_ART_DIGEST) return null
         val target = group.targets.firstOrNull { sourceKey(email, it) == choice }
             ?: return null
         return cachedCover(email, target, side)?.also {
-            memoryCache.put("album-$key|$side", it)
+            memoryCache.put(albumMemoryKey(key, group, side), it)
         }
     }
 
@@ -267,7 +274,7 @@ internal class ArtworkPreviewRepository(context: Context) {
                             saveAlbumSelection(email, group, choice)
                         }
                     }
-                    memoryCache.put("album-$albumHash|$side", loaded)
+                    memoryCache.put(albumMemoryKey(albumHash, group, side), loaded)
                     return loaded
                 }
                 // A genuine no-art file can be skipped. A failed HTTP read,

@@ -156,4 +156,18 @@ class LibrarySnapshotPlannerTest {
             assertFalse(e.message.orEmpty().contains("bad.flac"))
         }
     }
+
+    @Test fun changedIdsListOnlyNewVersionsIncludingMtimeOnlyChange() {
+        val old = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("stable", 50L, "a"))), emptyList(), 1).upserts.single()
+        val touched = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("stable", 50L, "b"))), listOf(old), 2)
+        // Тот же ETag и размер, новое mtime: ключ обложки прежний, поэтому её ссылку надо сбросить.
+        assertEquals(listOf(old.id), touched.changedIds)
+        val same = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("stable", 50L, "a"))), listOf(old), 2)
+        assertTrue(same.changedIds.isEmpty())
+        val fresh = LibrarySnapshotPlanner.plan(account, listing(listOf(audio("v1"))), emptyList(), 1)
+        assertTrue(fresh.changedIds.isEmpty())
+    }
 }
