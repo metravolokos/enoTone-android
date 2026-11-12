@@ -18,13 +18,15 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
     def test_player_has_only_real_controls(self):
         p = source(BASE+"NowPlayingScreen.kt")
         for token in ("Brush.verticalGradient(", "Slider(", "FilledIconButton(",
-                      "FilledTonalIconButton(", "AudioManager.STREAM_MUSIC",
+                      "FilledTonalIconButton(",
                       "onCycleRepeat", "onToggleShuffle", "onPlayPause",
                       'playbackState == "PAUSED"', "0.84f", "coverScale"):
             self.assertIn(token,p)
         for token in ("artworkColors(", "Brush.radialGradient(", "Lossless",
                       "ic_music_star", "ic_music_lyrics", "ic_music_cast",
-                      "ic_music_queue"):
+                      "ic_music_queue",
+                      # Владелец 2026-11-12 (REQUIREMENTS O-12): регулятора громкости нет.
+                      "AudioManager", "ic_volume_"):
             self.assertNotIn(token,p)
     def test_room_and_signing_unchanged(self):
         self.assertIn("version = 4",source("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt"))
