@@ -21,6 +21,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+// Match the approved 512px mini artwork and 1200px full cover masters.
+private const val PLAYER_COMPACT_COVER_PX = 512
+private const val PLAYER_FULL_COVER_PX = 1200
+
 /** The credential storage policy is replaceable in M6-0/4b without changing player code. */
 internal fun interface CredentialsProvider {
     suspend fun credentials(): StoredWebDavLogin?
@@ -43,6 +47,8 @@ internal data class SharedPlayerUiState(
  * Activity-scoped MediaSession observer. Unlike LibraryViewModel it survives
  * Home/Library/Settings transitions and attempts restore even on Home.
  */
+// All transport commands stay together in one Activity-scoped owner.
+@Suppress("TooManyFunctions")
 internal class PlayerViewModel(
     private val connection: PlaybackConnection,
     private val repository: LibraryRepository,
@@ -131,6 +137,8 @@ internal class PlayerViewModel(
         }
     }
 
+    // Guarded once per source to prevent repeated bind/restore races on Home.
+    @Suppress("CyclomaticComplexMethod")
     private fun maybeRestore() {
         if (!restoreAllowed) return
         val snapshot = mutable.value.playback
@@ -194,25 +202,25 @@ internal class PlayerViewModel(
         mutable.update { it.copy(artwork = null, largeArtwork = null, album = album) }
         if (group == null) return
         artworkJob = viewModelScope.launch {
-            artworkLoader.peek(saved.email, group, 512)?.let { picture ->
+            artworkLoader.peek(saved.email, group, PLAYER_COMPACT_COVER_PX)?.let { picture ->
                 mutable.update { it.copy(artwork = picture) }
             }
-            artworkLoader.cached(saved.email, group, 512)?.let { picture ->
+            artworkLoader.cached(saved.email, group, PLAYER_COMPACT_COVER_PX)?.let { picture ->
                 mutable.update { it.copy(artwork = picture) }
             }
             // Respect the existing no-GET-until-Play rule for restored queues.
             val current = connection.state.value.playbackState
             if (current == "PLAYING" || current == "PAUSED") {
-                artworkLoader.fetch(saved.email, saved.password, group, 512)?.let { picture ->
+                artworkLoader.fetch(saved.email, saved.password, group, PLAYER_COMPACT_COVER_PX)?.let { picture ->
                     mutable.update { it.copy(artwork = picture) }
                 }
             }
             if (mutable.value.nowPlaying) {
-                artworkLoader.cached(saved.email, group, 1200)?.let { picture ->
+                artworkLoader.cached(saved.email, group, PLAYER_FULL_COVER_PX)?.let { picture ->
                     mutable.update { it.copy(largeArtwork = picture) }
                 }
                 if (current == "PLAYING" || current == "PAUSED") {
-                    artworkLoader.fetch(saved.email, saved.password, group, 1200)?.let { picture ->
+                    artworkLoader.fetch(saved.email, saved.password, group, PLAYER_FULL_COVER_PX)?.let { picture ->
                         mutable.update { it.copy(largeArtwork = picture) }
                     }
                 }

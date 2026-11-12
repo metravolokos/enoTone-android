@@ -16,11 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
@@ -47,6 +47,8 @@ import app.enotone.library.LibraryPage
  * Draw-only Material 3 subtree, migrated without layout or dimension changes.
  * Scroll state belongs to Compose; data and actions belong to LibraryViewModel.
  */
+// This draw-only Material 3 tree remains together to preserve ADR-0073 parity.
+@Suppress("CyclomaticComplexMethod", "ComplexCondition")
 @Composable
 internal fun LibraryScreenContent(
     state: LibraryUiState,
