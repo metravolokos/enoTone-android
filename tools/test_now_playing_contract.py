@@ -12,7 +12,8 @@ class NowPlayingContractTest(unittest.TestCase):
         return (ROOT / path).read_text(encoding="utf-8")
 
     def test_track_sensitive_seek_and_transport_buttons_have_accessible_labels(self):
-        player = self.src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
+        player = (self.src("app/src/main/java/app/enotone/android/NowPlayingScreen.kt")
+                  + self.src("feature/player/src/main/java/app/enotone/android/NowPlayingScreen.kt"))
         for token in (
             "remember(trackId) { mutableStateOf(false) }",
             "remember(trackId) { mutableFloatStateOf(0f) }",
