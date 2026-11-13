@@ -58,8 +58,9 @@ fun EnoWordmark(
     // Android resources, so scope the resource context to the painter only.
     val dark = EnoColors.text.luminance() > 0.5f
     val baseContext = LocalContext.current
-    val configuration = remember(baseContext, dark) {
-        Configuration(baseContext.resources.configuration).apply {
+    val baseConfiguration = LocalConfiguration.current
+    val configuration = remember(baseContext, baseConfiguration, dark) {
+        Configuration(baseConfiguration).apply {
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
                 (if (dark) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO)
         }
