@@ -3,6 +3,7 @@ package app.enotone.database
 import androidx.room.testing.MigrationTestHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -18,7 +19,7 @@ class EnoToneMigrationTest {
         InstrumentationRegistry.getInstrumentation(), EnoToneDatabase::class.java,
     )
 
-    private fun insertLegacy(name: String) {
+    private fun insertLegacyV1(name: String) {
         helper.createDatabase(name, 1).apply {
             execSQL(
                 "INSERT INTO remote_tracks " +
@@ -32,30 +33,101 @@ class EnoToneMigrationTest {
         }
     }
 
-    private fun assertPreserved(name: String, version: Int) {
-        helper.runMigrationsAndValidate(name, version, true).use { db ->
-            db.query("SELECT title, albumArtist, genre, sourceKey FROM remote_tracks WHERE id = 'id1'")
+    private fun insertVersionFourRows(name: String, count: Int) {
+        helper.createDatabase(name, 4).use { db ->
+            for (index in 1..count) {
+                db.execSQL(
+                    "INSERT INTO remote_tracks " +
+                        "(id, sourceKey, encodedPath, fileName, remoteEtag, remoteSize, " +
+                        "remoteModified, title, artist, album, albumArtist, year, trackNumber, " +
+                        "discNumber, genre, lastSeenEpoch, missingScans, tagScanCode) " +
+                        "VALUES ('id$index', 'source-a', '/fixture/$index.mp3', 'file$index.mp3', " +
+                        "'etag-$index', ${index + 1000}, 'modified-$index', 'title-$index', " +
+                        "'artist-$index', 'album-$index', 'album-artist-$index', ${2000 + index % 25}, " +
+                        "${index % 99 + 1}, ${index % 2 + 1}, 'genre-$index', $index, " +
+                        "${index % 2}, 'MP3_ID3V24')",
+                )
+            }
+        }
+    }
+
+    private fun assertV1DataPreserved(name: String) {
+        helper.runMigrationsAndValidate(name, 5, true).use { db ->
+            db.query("SELECT title, albumArtist, genre, sourceKey, durationMs FROM remote_tracks WHERE id = 'id1'")
                 .use { cursor ->
                     assertTrue(cursor.moveToFirst())
                     assertEquals("Legacy title", cursor.getString(0))
                     assertEquals("Legacy album artist", cursor.getString(1))
-                    assertTrue(cursor.isNull(2)) // v4 genre is nullable for old installations
+                    assertNull(cursor.getString(2)) // v1 had no genre field
                     assertEquals("source-a", cursor.getString(3))
+                    assertNull(cursor.getString(4))
                 }
+            assertEquals(0, count(db, "playlists"))
+            assertEquals(0, count(db, "playlist_items"))
         }
     }
 
-    @Test fun sequentialMigrationFromOneThroughFourPreservesRows() {
+    @Test fun sequentialMigrationFromOneThroughFivePreservesRows() {
         val name = "test-migrate-sequential"
-        insertLegacy(name)
+        insertLegacyV1(name)
         helper.runMigrationsAndValidate(name, 2, true).close()
         helper.runMigrationsAndValidate(name, 3, true).close()
-        assertPreserved(name, 4)
+        helper.runMigrationsAndValidate(name, 4, true).close()
+        assertV1DataPreserved(name)
     }
 
-    @Test fun directUpgradeFromOneToFourPreservesRows() {
+    @Test fun directUpgradeFromOneToFivePreservesRows() {
         val name = "test-migrate-direct"
-        insertLegacy(name)
-        assertPreserved(name, 4)
+        insertLegacyV1(name)
+        assertV1DataPreserved(name)
     }
+
+    @Test fun migrationFromFourKeepsAllHundredRowsAndFieldsAndCreatesEmptyPlaylistTables() {
+        val name = "test-migrate-four-to-five"
+        val rows = 120
+        insertVersionFourRows(name, rows)
+        helper.runMigrationsAndValidate(name, 5, true).use { db ->
+            assertEquals(rows, count(db, "remote_tracks"))
+            assertEquals(0, count(db, "playlists"))
+            assertEquals(0, count(db, "playlist_items"))
+            db.query("""
+                SELECT id, sourceKey, encodedPath, fileName, remoteEtag, remoteSize,
+                    remoteModified, title, artist, album, albumArtist, year,
+                    trackNumber, discNumber, genre, lastSeenEpoch, missingScans,
+                    tagScanCode, durationMs
+                FROM remote_tracks ORDER BY CAST(SUBSTR(id, 3) AS INTEGER)
+            """).use { cursor ->
+                var index = 0
+                while (cursor.moveToNext()) {
+                    index++
+                    assertEquals("id$index", cursor.getString(0))
+                    assertEquals("source-a", cursor.getString(1))
+                    assertEquals("/fixture/$index.mp3", cursor.getString(2))
+                    assertEquals("file$index.mp3", cursor.getString(3))
+                    assertEquals("etag-$index", cursor.getString(4))
+                    assertEquals(index + 1000L, cursor.getLong(5))
+                    assertEquals("modified-$index", cursor.getString(6))
+                    assertEquals("title-$index", cursor.getString(7))
+                    assertEquals("artist-$index", cursor.getString(8))
+                    assertEquals("album-$index", cursor.getString(9))
+                    assertEquals("album-artist-$index", cursor.getString(10))
+                    assertEquals(2000 + index % 25, cursor.getInt(11))
+                    assertEquals(index % 99 + 1, cursor.getInt(12))
+                    assertEquals(index % 2 + 1, cursor.getInt(13))
+                    assertEquals("genre-$index", cursor.getString(14))
+                    assertEquals(index.toLong(), cursor.getLong(15))
+                    assertEquals(index % 2, cursor.getInt(16))
+                    assertEquals("MP3_ID3V24", cursor.getString(17))
+                    assertTrue(cursor.isNull(18))
+                }
+                assertEquals(rows, index)
+            }
+        }
+    }
+
+    private fun count(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Int =
+        db.query("SELECT COUNT(*) FROM $table").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            cursor.getInt(0)
+        }
 }

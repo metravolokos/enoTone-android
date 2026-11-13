@@ -82,6 +82,7 @@ object LibrarySnapshotPlanner {
                 trackNumber = if (sameVersion) old?.trackNumber else null,
                 discNumber = if (sameVersion) old?.discNumber else null,
                 genre = if (sameVersion) old?.genre else null,
+                durationMs = if (sameVersion) old?.durationMs else null,
                 lastSeenEpoch = epoch,
                 missingScans = 0,
                 tagScanCode = if (sameVersion) old?.tagScanCode else null,

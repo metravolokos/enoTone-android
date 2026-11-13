@@ -165,6 +165,30 @@ class WebDavRangeReader(
         return n
     }
 
+    /** Copy only from blocks already downloaded; this method never opens a Range request. */
+    @Synchronized
+    @Suppress("ReturnCount")
+    fun readCachedAt(position: Long, buffer: ByteArray, offset: Int, length: Int): Int {
+        if (closed) throw IOException("Range source closed")
+        require(offset >= 0 && length >= 0 && offset <= buffer.size &&
+            length <= buffer.size - offset) { "Invalid buffer" }
+        if (length == 0) return 0
+        if (position < 0L || position >= fileSize || length.toLong() > fileSize - position) return -1
+        var remaining = length
+        var cursor = position
+        while (remaining > 0) {
+            val blockStart = (cursor / BLOCK) * BLOCK
+            val block = cacheBlocks[blockStart] ?: return -1
+            val inBlock = (cursor - blockStart).toInt()
+            val count = minOf(remaining, block.size - inBlock)
+            if (count <= 0) return -1
+            System.arraycopy(block, inBlock, buffer, offset + length - remaining, count)
+            cursor += count
+            remaining -= count
+        }
+        return length
+    }
+
     @Synchronized fun stats(): RangeReadStats =
         RangeReadStats(calls, bytesFetched, lastHttpStatus, lastIssue,
             lastRangeMismatch, unknownTotalResponses, cacheHits, cacheRevisitHits, cacheEvictions)

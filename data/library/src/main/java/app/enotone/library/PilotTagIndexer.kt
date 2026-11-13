@@ -193,7 +193,9 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                 )
                 reader.use { range ->
                     stage = "PARSER"
-                    result = FastAudioTagReader().read(item.fileName, range.fileSize, range::readAt)
+                    result = FastAudioTagReader().read(
+                        item.fileName, range.fileSize, range::readAt, range::readCachedAt,
+                    )
                     val parsed = requireNotNull(result)
                     recordCode = parsed.code.name
                     PilotFailures.fromParserResult(parsed.code, range.stats())?.let { failure ->
@@ -231,6 +233,7 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                 year = tags?.year, trackNumber = tags?.trackNumber,
                 discNumber = tags?.discNumber,
                 genre = tags?.genre,
+                durationMs = result?.durationMs,
             ) == 1
             attempted++
             // Opaque local ID only. Allows an album refresh button to advance

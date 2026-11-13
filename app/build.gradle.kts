@@ -95,6 +95,7 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:database"))
     implementation(project(":data:library"))
+    implementation(project(":data:playlist"))
     implementation(project(":feature:library"))
     implementation(project(":feature:player"))
     implementation(project(":feature:settings"))

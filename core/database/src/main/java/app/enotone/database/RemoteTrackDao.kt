@@ -32,6 +32,15 @@ interface RemoteTrackDao {
     @Upsert
     suspend fun upsertAll(items: List<RemoteTrackEntity>)
 
+    /** Playback may fill only an unknown value and only with a positive duration. */
+    @Query("""
+        UPDATE remote_tracks
+        SET durationMs = :durationMs
+        WHERE id = :id AND sourceKey = :sourceKey
+          AND durationMs IS NULL AND :durationMs > 0
+    """)
+    suspend fun saveDurationIfUnknown(id: String, sourceKey: String, durationMs: Long): Int
+
     // No automatic deletion: a transient listing must never erase the local library.
     // The absence counter is incremented only for fully parsed, complete listings.
     @Query("""
@@ -85,6 +94,7 @@ interface RemoteTrackDao {
     @Query("""
         UPDATE remote_tracks
         SET tagScanCode = :code,
+            durationMs = COALESCE(durationMs, :durationMs),
             -- Refresh failures must not erase previously known good metadata.
             -- Only a successfully parsed ID3/Vorbis payload replaces old tags.
             title = CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24',
@@ -111,6 +121,7 @@ interface RemoteTrackDao {
               (title IS NULL AND artist IS NULL
                AND album IS NULL AND albumArtist IS NULL))
     """)
+    @Suppress("LongParameterList")
     suspend fun recordFastScanIfUnchanged(
         id: String, sourceKey: String, path: String,
         etag: String?, size: Long?, modified: String?,
@@ -118,6 +129,7 @@ interface RemoteTrackDao {
         album: String?, albumArtist: String?,
         year: Int? = null, trackNumber: Int? = null, discNumber: Int? = null,
         genre: String? = null,
+        durationMs: Long? = null,
     ): Int
 
     /** Only present files for this hashed account; deterministic ordering is app side. */

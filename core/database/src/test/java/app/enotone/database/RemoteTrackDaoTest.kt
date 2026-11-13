@@ -111,6 +111,29 @@ class RemoteTrackDaoTest {
         assertEquals("Old title", dao.allForSource("account-b").single().title)
     }
 
+    @Test fun durationWritesOnceAndTagPathsNeverEraseAnExistingValue() = runBlocking {
+        val knownDuration = 214_000L
+        dao.upsertAll(listOf(track("a1").copy(
+            durationMs = knownDuration, tagScanCode = "RETRY_REFRESH")))
+        assertEquals(1, dao.saveTagsIfSnapshotMatches(
+            "a1", "account-a", "/fixture/a1.mp3", "v1", 1024, "date-1",
+            "New title", "New artist", "New album", "New album artist",
+        ))
+        assertEquals(1, dao.recordFastScanIfUnchanged(
+            "a1", "account-a", "/fixture/a1.mp3", "v1", 1024, "date-1",
+            "MP3_ID3V24", "Fresh title", "Fresh artist", "Fresh album", "Fresh album artist",
+            durationMs = 180_000L,
+        ))
+        assertEquals(knownDuration, dao.allForSource("account-a").single().durationMs)
+
+        dao.upsertAll(listOf(track("a2")))
+        assertEquals(1, dao.saveDurationIfUnknown("a2", "account-a", 93_000L))
+        assertEquals(0, dao.saveDurationIfUnknown("a2", "account-a", 94_000L))
+        assertEquals(0, dao.saveDurationIfUnknown("a2", "account-b", 95_000L))
+        assertEquals(0, dao.saveDurationIfUnknown("a2", "account-a", 0L))
+        assertEquals(93_000L, dao.allForSource("account-a").first { it.id == "a2" }.durationMs)
+    }
+
     @Test fun tagAuditsHaveDefaultLimitThirtyAndExcludeOtherAccounts() = runBlocking {
         val records = (1..35).map { index ->
             track("a-" + index.toString().padStart(2, '0'), artist = null)

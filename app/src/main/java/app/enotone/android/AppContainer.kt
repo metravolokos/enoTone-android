@@ -6,6 +6,7 @@ import app.enotone.database.EnoToneDatabase
 import app.enotone.library.LibraryRepository
 import app.enotone.library.RoomLibraryRepository
 import app.enotone.playback.QueueStateFileStore
+import app.enotone.playlist.PlaylistRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -22,6 +23,7 @@ class AppContainer(
     val libraryRepository: LibraryRepository by lazy {
         RoomLibraryRepository(database, io, QueueStateFileStore(appContext)::read)
     }
+    val playlistRepository: PlaylistRepository by lazy { PlaylistRepository(database, io) }
     internal val artworkPreviewRepository: ArtworkPreviewRepository by lazy {
         ArtworkPreviewRepository(appContext)
     }
