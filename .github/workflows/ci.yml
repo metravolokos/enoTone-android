@@ -112,18 +112,6 @@ jobs:
         uses: gradle/actions/wrapper-validation@v6
       # Root tasks run in EVERY module, so new modules are tested and linted
       # without editing this file (ADR-0074, M6-0/8).
-      # D2 bootstrap: one-off recording in the exact CI renderer. Remove after committing PNG.
-      - name: D2 bootstrap golden PNG (temporary; synthetic gallery only)
-        if: github.head_ref == 'feature/d2a-design-system-theme'
-        shell: bash
-        run: |
-          set -euo pipefail
-          gradle --no-daemon :core:ui:recordRoborazziDebug
-          for f in core/ui/src/test/screenshots/*.png; do
-            echo "ENOTONE_PNG_BEGIN:${f}"
-            base64 -w0 "$f" | fold -w 3000
-            echo "ENOTONE_PNG_END:${f}"
-          done
       - name: Build, JUnit and Lint (all modules)
         run: gradle --no-daemon :app:assembleDebug testDebugUnitTest lintDebug
       # Blocking since 2026-11-13: old findings are in detekt-baseline.xml,
