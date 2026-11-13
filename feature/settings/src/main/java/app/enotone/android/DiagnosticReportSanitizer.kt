@@ -3,7 +3,7 @@ package app.enotone.android
 import app.enotone.network.ProbeReport
 
 /** Не доверяем произвольному тексту ответа: наружу выходят только известные метки и числа. */
-internal object DiagnosticReportSanitizer {
+object DiagnosticReportSanitizer {
     private val operations = setOf("PROPFIND /", "PROPFIND /AllMusic")
     private val notes = setOf("Частичный ответ подтверждён", "Range не подтверждён", "Multi-Status получен",
         "Проверить HTTP-код", "Сетевая ошибка или TLS")

@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
  * approximated by blurring text or icons themselves.
  */
 @Composable
-internal fun FloatingControlsIsland(
+fun FloatingControlsIsland(
     modifier: Modifier = Modifier,
     compact: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,

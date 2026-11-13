@@ -11,7 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 
 /** Только UI разрешения Android; запуск работы выполняет ViewModel. */
 @Composable
-internal fun SettingsNotificationPermission(request: Int, onResult: (Boolean) -> Unit) {
+fun SettingsNotificationPermission(request: Int, onResult: (Boolean) -> Unit) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), onResult)
     LaunchedEffect(request) {
