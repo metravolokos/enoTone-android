@@ -8,7 +8,7 @@
 |---|---|
 | `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`) и «контрактные» тесты исходников (см. ниже) |
 | Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
-| `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; в Draft #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
+| `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; в PR #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
 | `gradle detekt` | статический анализ Kotlin + правила ktlint; **пока только отчёт** (артефакт `detekt-reports`), CI не блокирует — [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md) |
 | `:app:compileStablePreviewKotlin` | компиляция варианта Stable Preview без секретов |
 | Room schema | экспортированные схемы v1–v4 совпадают с закоммиченными |
@@ -26,7 +26,7 @@ python3 -m unittest discover -s tools -p 'test_*.py' -v
 
 Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopback, только для тестов); синтетические WAV с кириллическими NFC/NFD-именами — `python3 tools/generate_fixtures.py <каталог>`.
 
-### Robolectric и Compose UI (Draft PR #118, M6-0/5a)
+### Robolectric и Compose UI (PR #118, M6-0/5a)
 
 - JVM под Robolectric 4.17 (SDK 35), **без эмулятора**: `./gradlew :core:database:testDebugUnitTest :app:testDebugUnitTest`. Экспортированные схемы Room v1–v4 читаются из `core/database/schemas` как debug assets.
 - `EnoToneMigrationTest`: последовательная v1→v2→v3→v4 и прямая v1→v4, реальные строки переживают миграцию, новые nullable-поля остаются NULL.
@@ -39,7 +39,7 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 ### Известный долг тестов
 
 - M6-0/5a (PR #118): из 24 строковых контрактных файлов (64 метода) удалены **6 полностью заменённых** (13 методов): `test_clean_library_ui`, `test_extended_tag_metadata`, `test_library_page_settings`, `test_screenshot_parity`, `test_tag_audit_refresh`, `test_unified_import_genre` (суффикс `_contract.py`). Остались **18 файлов (51 метод)**. Действительные поведенческие замены и непокрытые аспекты каждого файла перечислены в таблице PR #118; неполное покрытие означает сохранение файла до следующих тестов. `test_mock_webdav.py`, политика подписи и GMS-гейт остаются. Новых проверок исходного текста не добавляли.
-- С #92 и #100 есть поведенческие JVM/JUnit-тесты `:app` (`LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`, `AccountSignOut`) и чистого преобразования `:data:library`. В Draft #118 добавлены Room DAO/миграции (`MigrationTestHelper`) и Compose UI-тесты; полный набор проверяется на обновлённом HEAD.
+- С #92 и #100 есть поведенческие JVM/JUnit-тесты `:app` (`LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`, `AccountSignOut`) и чистого преобразования `:data:library`. В PR #118 добавлены Room DAO/миграции (`MigrationTestHelper`) и Compose UI-тесты; полный набор проверяется на обновлённом HEAD.
 
 ## 2. Ручная проверка на Huawei
 

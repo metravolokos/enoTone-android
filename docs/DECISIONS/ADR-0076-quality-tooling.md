@@ -38,7 +38,7 @@
 
 `./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt` локально. Пересмотреть после M6-0/5: отключить `ignoreFailures`, решить по косметическим правилам (автоформат всего проекта отдельным PR или оставить выключенными).
 
-## Дополнение: JVM-поведенческие тесты M6-0/5a (Draft #118, 2026-11-13)
+## Дополнение: JVM-поведенческие тесты M6-0/5a (PR #118, 2026-11-13)
 
 - Принята инфраструктура Robolectric 4.17 (SDK 35, JVM), `androidx.test:core` / `ext:junit`, `room-testing` той же версии, что Room, и Compose UI Test из действующего Compose BOM. Эмулятор в CI не требуется.
 - Тестовые зависимости подключены через version catalog к `testImplementation` и `debugImplementation` (`ui-test-manifest`). `release` / `stablePreview`, исходники Room, приложение и ресурсы дизайна не меняются.
