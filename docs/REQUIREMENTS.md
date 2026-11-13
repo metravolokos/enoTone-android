@@ -66,7 +66,7 @@
 
 | ID | Требование | Статус | Примечание |
 |---|---|---|---|
-| R-4.1 | Модули `:core:*`, `:data:*`, `:playback`, `:feature:*` | 🟡 | Draft M6-0/5b, ADR-0083: `AccountSession`, `AccountSignOut`, `PlayingArtworkTarget` → `:core:model`; библиотечные модели/настройки → `:feature:library`, UI-хелперы → `:feature:player`, sanitizer/permission UI → `:feature:settings`. Полный перенос экранов/VM не закончен, R-bound UI в `:app` |
+| R-4.1 | Модули `:core:*`, `:data:*`, `:playback`, `:feature:*` | 🟡 | Draft M6-0/5b, ADR-0083: `AccountSession`, `AccountSignOut`, `PlayingArtworkTarget` → `:core:model`; библиотечные модели/настройки → `:feature:library`, UI-хелперы и полный Now Playing → `:feature:player` (старый app-фасад и ID ресурсов), sanitizer/permission UI → `:feature:settings`. Полный перенос остальных экранов/VM не закончен, R-bound UI в `:app` |
 | R-4.2 | Абстракция `MusicSource` | ❌ | |
 | R-4.3 | UDF: MVVM/MVI + StateFlow, логика не в Composable | 🟡 | #92: медиатека/плеер; #100: аккаунт; #104 (M6-0/4b-2): `LibraryIndexingViewModel`, `ArtworkSettingsViewModel`, `DiagnosticsViewModel`, immutable StateFlow, gateway и `BackgroundWorkLauncher` через AppContainer; T: одноимённые JUnit с фейками, подтверждение/повтор/авторизация/автообложки. M6-0/4c (в PR): runner-ы служб с фейк-портами/JUnit; Huawei регрессия ожидается |
 | R-4.4 | Room — единственный источник истины для UI | 🟡 | медиатека — да; часть состояния в UI |

@@ -1,6 +1,8 @@
 package app.enotone.android
 
 /** UI resource IDs come from :app; no feature module may depend on application R. */
+/** Ресурсные идентификаторы перечислены явно: дизайн остаётся в :app. */
+@Suppress("LongParameterList")
 data class NowPlayingIds(
     val playbackSeekSlider: Int,
     val playbackError: Int,

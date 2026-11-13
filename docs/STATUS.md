@@ -38,7 +38,7 @@
 - **Дизайн Android v2** утверждён владельцем 2026-11-12; ресурсы подключены — M6-0/R = D1 слит (#98, [ADR-0079](DECISIONS/ADR-0079-design-resources-v2.md)), экраны не изменены; перевод экранов — шаги D2–D6 после M6-0/5 ([DESIGN_PLAN](DESIGN_PLAN.md)).
 
 - **M6-0/5a:** слит [#118](https://github.com/metravolokos/enoTone-android/pull/118), `main` `2c3468c`, CI #508 зелёный: Room/JVM/Compose UI; 6 заменённых Python-контрактов удалены, 18 policy/частичных сохранены.
-- **M6-0/5b:** Draft: [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md). Модели аккаунта и идентичность обложек — `:core:model`, автономные компоненты — `:feature:library/player/settings`; удалены 5 пустых Gradle-модулей. **Ресурсозависимые экраны и ViewModel остаются в `:app`**, до D2 и согласования контрактов ресурсов; не заявлено завершение полного переноса. Тесты и CI Draft — проверяются.
+- **M6-0/5b:** Draft: [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md). Модели аккаунта и идентичность обложек — `:core:model`, автономные компоненты — `:feature:library/player/settings`; реализация Now Playing целиком — в `:feature:player` через прежний `:app`-фасад с ID ресурсов; удалены 5 пустых Gradle-модулей. **Остальные ресурсозависимые экраны и ViewModel остаются в `:app`**, до D2 и согласования контрактов ресурсов; не заявлено завершение полного переноса. Тесты и CI Draft — проверяются.
 
 ## Следующий конкретный шаг
 

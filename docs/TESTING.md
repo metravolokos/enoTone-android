@@ -43,8 +43,8 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 
 ### M6-0/5b — модули (Draft)
 
-- `./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt :app:compileStablePreviewKotlin` — запускает тесты 5a и анализ всех оставшихся модулей. Дополнительно: `python3 -m unittest discover -s tools -p 'test_*.py' -v`; две существующие policy-проверки обновлены только по пути перемещённого `ArtworkPreferences.kt`, не добавлялись новые строковые проверки.
-- Карта перемещения, альтернативы архитектуры и явно не перенесённые R-bound экраны — [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) и Draft PR. Exact-HEAD CI обязателен перед слиянием.
+- `./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt :app:compileStablePreviewKotlin` — запускает тесты 5a и анализ всех оставшихся модулей. Дополнительно: `python3 -m unittest discover -s tools -p 'test_*.py' -v`; существующие Python policy-проверки обновлены лишь по путям перенесённых типов и по разделению Now Playing на фасад и реализацию, не добавлялись новые строковые проверки.
+- Карта перемещения, альтернативы архитектуры и явно не перенесённые R-bound экраны — [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) и Draft PR. Compose UI-тесты 5a вызывают прежнюю сигнатуру `:app/NowPlayingScreen`. Exact-HEAD CI обязателен перед слиянием.
 - **Huawei после отдельного merge и сборки подписанной Stable Preview:** установить `app.enotone.android.preview` поверх текущей, без удаления данных; проверить вход, сохранённую медиатеку и обложки, запуск/фон музыки, «Сейчас играет», мини-плеер, «Настройки» и «Диагностику». Без полного импорта или переиндексации ради проверки. Пока владелец отдельно не сообщит PASS/FAIL, не отмечать Huawei PASS.
 
 ## 2. Ручная проверка на Huawei
