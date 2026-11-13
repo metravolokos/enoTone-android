@@ -20,6 +20,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":playback"))
+    implementation(libs.media3.exoplayer)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.material3)
 }
