@@ -124,7 +124,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.record_roborazzi == true
         run: |
           for f in $(find . -path '*/src/test/screenshots/*.png' | sort); do
-            echo "ROBORAZZI_PNG $f $(sha256sum "$f" | cut -d' ' -f1) $(base64 -w0 "$f")"
+            echo "ROBORAZZI_PNG $f $(sha256sum "$f" | cut -d' ' -f1)"
+            base64 -w 3000 "$f" | sed "s|^|ROBORAZZI_B64 $f |"
           done
       - name: Verify Android v2 screenshots against committed golden PNG
         if: github.event_name != 'workflow_dispatch' || inputs.record_roborazzi != true
