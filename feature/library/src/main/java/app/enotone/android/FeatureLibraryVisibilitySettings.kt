@@ -35,7 +35,11 @@ fun FeatureLibraryVisibilitySettings(ids: LibraryVisibilityIds) {
 }
 
 @Composable
-fun FeatureLibraryVisibilitySettingsContent(hiddenPages: Set<LibraryPage>, ids: LibraryVisibilityIds, onHidden: (Set<LibraryPage>) -> Unit) {
+fun FeatureLibraryVisibilitySettingsContent(
+    hiddenPages: Set<LibraryPage>,
+    ids: LibraryVisibilityIds,
+    onHidden: (Set<LibraryPage>) -> Unit,
+) {
     val visible = LibraryPageVisibility.visible(hiddenPages)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(stringResource(ids.libraryPagesSettingsTitle),
@@ -69,4 +73,3 @@ fun FeatureLibraryVisibilitySettingsContent(hiddenPages: Set<LibraryPage>, ids: 
         }
     }
 }
-
