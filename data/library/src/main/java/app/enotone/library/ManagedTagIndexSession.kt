@@ -108,7 +108,7 @@ class ManagedTagIndexSession(
         var gets = 0
         var bytes = 0L
         var remaining = 0
-        var stop = "SESSION_LIMIT"
+        var stop = "SESSION_BATCH_LIMIT"
         var lastStage = "NONE"
         var lastReason = "NONE"
         var lastHttp = 0
