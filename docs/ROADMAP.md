@@ -1,6 +1,6 @@
 # ROADMAP — enoTone Android
 
-**Актуально на 2026-11-11, после Stable Preview #301.** Действующая база — [CURRENT_DECISIONS](CURRENT_DECISIONS.md); принятые [ADR-0066](DECISIONS/ADR-0066-indexing-finalization.md) и [ADR-0067](DECISIONS/ADR-0067-permanent-album-artwork.md). [REVISION_2026-11-10](REVISION_2026-11-10.md), нижние разделы о #235 и ранние Draft — **исторические этапы**, не текущее описание. Журнал аппаратных сообщений — [STATUS](STATUS.md). Не смешивать успешный CI, базовое «Работает» на Huawei и подробные непроведённые тесты.
+**Актуально на 2026-11-13 (таблица M6-0); разделы ниже — исторические, после Stable Preview #301.** Действующая база — [CURRENT_DECISIONS](CURRENT_DECISIONS.md); принятые [ADR-0066](DECISIONS/ADR-0066-indexing-finalization.md) и [ADR-0067](DECISIONS/ADR-0067-permanent-album-artwork.md). [REVISION_2026-11-10](REVISION_2026-11-10.md), нижние разделы о #235 и ранние Draft — **исторические этапы**, не текущее описание. Журнал аппаратных сообщений — [STATUS](STATUS.md). Не смешивать успешный CI, базовое «Работает» на Huawei и подробные непроведённые тесты.
 
 ## Текущий этап — M6-0: технический долг (с 2026-11-11)
 
@@ -14,7 +14,7 @@
 | M6-0/4a | `AppContainer`, `LibraryRepository`, `PlaybackConnection`, `LibraryViewModel` медиатеки | слит (#92), ждёт Huawei |
 | M6-0/4b-1 | Постоянный вход и полный выход (ADR-0080), `AccountSettingsViewModel`, перенос текущего экрана без изменения вёрстки | слит (#100); Б-1 PASS 0.6.1 |
 | M6-0/4b-2 | ViewModel индексации, обложек и диагностики, gateway/AppContainer, единый BackgroundWorkLauncher, разделение экрана ≤400 строк/файл, Preview и Kotlin-тесты | слит (#104); следующий M6-0/4c |
-| M6-0/4c | Тонкие foreground-службы; runner-ы и поведенческие JUnit; удаление мёртвого кода тегов | **в Draft PR, не слито**; CI и Huawei ожидаются; необходимо для **D6** |
+| M6-0/4c | Тонкие foreground-службы; runner-ы и поведенческие JUnit; удаление мёртвого кода тегов | слит (#114); Huawei: обновление PASS 0.6.2-preview.487, пауза/остановка — только JUnit |
 | M6-0/5 | Перенос в `:feature:*`/`:core:model`; поведенческие тесты вместо строковых | — ; по завершении открывается **D2** (тема и компоненты дизайна, новый ADR вместо ADR-0073) — [DESIGN_PLAN](DESIGN_PLAN.md) |
 | M6-0/6 | Room v5: длительность, модель плейлистов | — ; нужно для **D4** (длительность на экране альбома) |
 | M6-0/7 | FTS, `Collator`, ё/е, Paging | — ; нужно для **D4** (поиск, русская сортировка) |
