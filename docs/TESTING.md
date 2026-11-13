@@ -44,6 +44,8 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 
 Только `:core:ui` и `testImplementation`, не в APK. Robolectric 4.17, `@GraphicsMode(NATIVE)`, Roborazzi 1.76.0. `ThemeScreenshotTest`: синтетический specimen с палитрой, Onest 400/500/600, Unbounded, радиусами; два эталона: `core/ui/src/test/screenshots/theme_graphite.png`, `theme_porcelain.png`. Для начальной записи **в том же CI-окружении**: Actions → Android M0 → Run workflow на ветке D2a с `record_roborazzi=true`; скачать артефакт `roborazzi-results` (или восстановить PNG из строк `ROBORAZZI_PNG <путь> <sha256>` и `ROBORAZZI_B64 <путь> <часть base64>` журнала этого запуска), коммитить PNG; обычный PR запускает `:core:ui:verifyRoborazziDebug` и загружает diff. Пока golden не зафиксированы, проверка не считается завершённой. Ресурсы `tools:keep` проверяются на подписанном Stable Preview (`:app:assembleStablePreview` + `aapt2 dump resources` / `apkanalyzer`); не заявлять PASS без выполнения.
 
+D2b добавляет `ComponentsScreenshotTest` (две галереи компонентов в обеих темах), `EnoLetterAvatarTest` (Unicode/grapheme/детерминированность), dual-Preview у каждого компонента. PNG-эталоны D2b: `core/ui/src/test/screenshots/components_graphite.png`, `components_porcelain.png`, записываются тем же `record_roborazzi=true` на stacked-ветке после D2a.
+
 Старый строковой `tools/test_m6_theme_contract.py` удалён: он жёстко требовал исторические значения Graphite. Режимы темы и их сохранение проверяет `UiAppearancePersistenceTest` (Robolectric), внешний вид — `ThemeScreenshotTest`. Другие исходные/политические проверки не менялись.
 
 ### Известный долг тестов

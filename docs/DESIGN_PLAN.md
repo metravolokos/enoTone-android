@@ -40,5 +40,5 @@ D4–D6 после D3 — параллельно, отдельными PR. Сл�
 
 | Дата | Событие |
 | --- | --- |
-| 2026-11-13 | D2a — Draft PR #122 от `main` `89545ea`; палитра v1.4 скопирована из `enotone-design` `907a01c`, D2b — отдельный stacked PR. |
+| 2026-11-13 | D2a — Draft PR #122 от `main` `89545ea`; палитра v1.4 скопирована из `enotone-design` `907a01c`, D2b — stacked Draft от ветки D2a, без подключения компонентов к экранам. |
 | 2026-11-12 | D0 выполнен: `enotone-design` `main` = `ea2931c`. D1 — PR `feature/m6-0-design-resources`. |
