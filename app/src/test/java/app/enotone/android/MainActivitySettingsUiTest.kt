@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -42,7 +43,7 @@ class MainActivitySettingsUiTest {
         assertTrue("Settings groups must remain in their accepted order",
             offsets.all { it >= 0 } &&
                 offsets.zipWithNext().all { (before, after) -> before < after })
-        rule.onNodeWithText(label(R.string.diagnostics_title)).performClick()
+        rule.onNodeWithText(label(R.string.diagnostics_title)).performScrollTo().performClick()
         rule.onNodeWithText(label(R.string.diagnostics_intro)).assertExists()
         rule.onNodeWithContentDescription(label(R.string.library_back)).performClick()
         rule.onNodeWithText(label(R.string.settings_group_cloud)).assertExists()

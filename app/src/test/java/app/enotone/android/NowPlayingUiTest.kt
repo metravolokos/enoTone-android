@@ -18,7 +18,7 @@ import org.robolectric.annotation.Config
 
 /** Uses transport callbacks, not Media3/network, to verify the rendered controls. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35])
+@Config(sdk = [35], qualifiers = "w393dp-h852dp")
 class NowPlayingUiTest {
     @get:Rule val rule = createComposeRule()
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
