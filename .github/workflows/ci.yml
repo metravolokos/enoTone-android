@@ -15,6 +15,9 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history: the detekt baseline is compared with the base commit.
+          fetch-depth: 0
       - name: JDK 17
         uses: actions/setup-java@v6
         with:
@@ -105,9 +108,17 @@ jobs:
       # without editing this file (ADR-0074, M6-0/8).
       - name: Build, JUnit and Lint (all modules)
         run: gradle --no-daemon :app:assembleDebug testDebugUnitTest lintDebug
-      # Report-only until findings are fixed (ignoreFailures in build.gradle.kts).
-      - name: detekt + ktlint rules (report-only)
+      # Blocking since 2026-11-13: old findings are in detekt-baseline.xml,
+      # any new finding fails (ADR-0076, AUDIT_PROTOCOL §4.1).
+      - name: detekt + ktlint rules (blocking, with baseline)
         run: gradle --no-daemon detekt
+      - name: detekt baseline only shrinks
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then base="HEAD~1"; fi
+          python3 tools/check_detekt_baseline.py "$base"
+      - name: ADR index covers every ADR
+        run: python3 tools/check_adr_index.py
       - name: Upload detekt reports
         if: always()
         uses: actions/upload-artifact@v7

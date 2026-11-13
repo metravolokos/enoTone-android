@@ -10,7 +10,7 @@ junit = "4.13.2"
 room = "2.8.5"
 media3 = "1.11.1"
 ksp = "2.3.13"
-gson = "2.15.0"
+orgJson = "20250517"
 detekt = "1.23.8"
 lifecycle = "2.9.4"
 robolectric = "4.17"
@@ -45,7 +45,8 @@ room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
 lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
-gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+# Реализация org.json для JVM-тестов; в приложении используется встроенная в Android.
+org-json = { module = "org.json:json", version.ref = "orgJson" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }

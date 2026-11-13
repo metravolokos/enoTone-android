@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:FlatWebDavListingParser.kt$FlatWebDavListingParser.Handler$!uri.scheme.equals(root.scheme, ignoreCase = true) || !uri.host.equals(root.host, ignoreCase = true) || effectivePort(uri) != effectivePort(root) || uri.userInfo != null || uri.query != null || uri.fragment != null</ID>
+    <ID>ComplexCondition:FlatWebDavListingParser.kt$FlatWebDavListingParser.Handler$(name == "href" &amp;&amp; response != null &amp;&amp; propstat == null) || (name in PROPERTY_FIELDS &amp;&amp; propstat != null)</ID>
+    <ID>ComplexCondition:FlatWebDavListingParser.kt$FlatWebDavListingParser.Handler$filename in setOf(".", "..") || filename.any { it == '/' || it == '\\' || it.code &lt; 32 }</ID>
+    <ID>ComplexCondition:WebDavDiagnostics.kt$WebDavDiagnostics$parts.size &gt;= 2 &amp;&amp; parts.first() == "AllMusic" &amp;&amp; parts.none { it == "." || it == ".." }</ID>
+    <ID>CyclomaticComplexMethod:FlatWebDavListingParser.kt$FlatWebDavListingParser.Handler$override fun endElement(uri: String?, localName: String?, qName: String?)</ID>
+    <ID>CyclomaticComplexMethod:FlatWebDavListingParser.kt$FlatWebDavListingParser.Handler$private fun consume(item: MutableResponse)</ID>
+    <ID>LongParameterList:WebDavDiagnostics.kt$WebDavDiagnostics$( client: HttpClient, name: String, url: String, auth: String, depth: String? = null, ranged: Boolean = false, )</ID>
+    <ID>LoopWithTooManyJumpStatements:FlatLibraryWebDavClient.kt$FlatLibraryWebDavClient$while</ID>
+    <ID>MagicNumber:FlatLibraryWebDavClient.kt$FlatLibraryWebDavClient$1024</ID>
+    <ID>MagicNumber:FlatLibraryWebDavClient.kt$FlatLibraryWebDavClient$10_000</ID>
+    <ID>MagicNumber:FlatLibraryWebDavClient.kt$FlatLibraryWebDavClient$16</ID>
+    <ID>MagicNumber:FlatLibraryWebDavClient.kt$FlatLibraryWebDavClient$207</ID>
+    <ID>MagicNumber:FlatLibraryWebDavClient.kt$FlatLibraryWebDavClient$30_000</ID>
+    <ID>MagicNumber:FlatLibraryWebDavClient.kt$FlatLibraryWebDavClient$40_000</ID>
+    <ID>MagicNumber:FlatWebDavListingParser.kt$FlatWebDavListingParser$443</ID>
+    <ID>MagicNumber:FlatWebDavListingParser.kt$FlatWebDavListingParser$80</ID>
+    <ID>MagicNumber:FlatWebDavListingParser.kt$FlatWebDavListingParser.Handler$32</ID>
+    <ID>MagicNumber:WebDavDiagnostics.kt$WebDavDiagnostics$10_000</ID>
+    <ID>MagicNumber:WebDavDiagnostics.kt$WebDavDiagnostics$15_000</ID>
+    <ID>MagicNumber:WebDavDiagnostics.kt$WebDavDiagnostics$206</ID>
+    <ID>MagicNumber:WebDavDiagnostics.kt$WebDavDiagnostics$207</ID>
+    <ID>MaxLineLength:FlatLibraryWebDavClient.kt$FlatLibraryWebDavClient$val xml = """&lt;?xml version="1.0"?&gt;&lt;d:propfind xmlns:d="DAV:"&gt;&lt;d:prop&gt;&lt;d:resourcetype/&gt;&lt;d:getetag/&gt;&lt;d:getcontentlength/&gt;&lt;d:getlastmodified/&gt;&lt;/d:prop&gt;&lt;/d:propfind&gt;"""</ID>
+    <ID>MaxLineLength:FlatWebDavListingParserTest.kt$FlatWebDavListingParserTest$"&lt;d:getetag&gt;another-private&lt;/d:getetag&gt;&lt;d:getlastmodified&gt;Sun, 08 Nov 2026 08:00:00 GMT&lt;/d:getlastmodified&gt;"</ID>
+    <ID>MaxLineLength:WebDavDiagnostics.kt$WebDavDiagnostics$steps += request(client, "PROPFIND Depth infinity", endpoint(listOf("AllMusic")), auth, depth = "infinity")</ID>
+    <ID>MaxLineLength:WebDavDiagnostics.kt$WebDavDiagnostics$val body = """&lt;?xml version="1.0"?&gt;&lt;d:propfind xmlns:d="DAV:"&gt;&lt;d:prop&gt;&lt;d:getetag/&gt;&lt;d:getcontentlength/&gt;&lt;/d:prop&gt;&lt;/d:propfind&gt;"""</ID>
+    <ID>MaximumLineLength:FlatLibraryWebDavClient.kt$FlatLibraryWebDavClient$ </ID>
+    <ID>MaximumLineLength:FlatWebDavListingParserTest.kt$FlatWebDavListingParserTest$ </ID>
+    <ID>MaximumLineLength:WebDavDiagnostics.kt$WebDavDiagnostics$ </ID>
+    <ID>NestedBlockDepth:FlatWebDavListingParser.kt$FlatWebDavListingParser.Handler$override fun endElement(uri: String?, localName: String?, qName: String?)</ID>
+    <ID>ReturnCount:FlatWebDavListingParser.kt$FlatWebDavListingParser.Handler$private fun consume(item: MutableResponse)</ID>
+    <ID>SpacingAroundKeyword:FlatWebDavListingParser.kt$FlatWebDavListingParser.Handler$catch</ID>
+  </CurrentIssues>
+</SmellBaseline>

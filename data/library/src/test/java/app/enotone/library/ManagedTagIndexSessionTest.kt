@@ -24,8 +24,7 @@ class ManagedTagIndexSessionTest {
                 batch(remaining = 100)
             },
         )
-        val result = session.run("synthetic@example.test", "password", { true },
-            mode = ManagedIndexMode.CONTINUOUS)
+        val result = session.run("synthetic@example.test", "password", { true })
         assertEquals(80, calls)
         assertEquals(80, result.completedBatches)
         assertEquals(80 * 60, result.getRequests)
@@ -44,8 +43,7 @@ class ManagedTagIndexSessionTest {
                 batch(remaining = if (calls == 3) 0 else 250)
             },
         )
-        val result = session.run("synthetic@example.test", "password", { true },
-            mode = ManagedIndexMode.CONTINUOUS)
+        val result = session.run("synthetic@example.test", "password", { true })
         assertEquals(3, calls)
         assertEquals(156, result.savedWithTags)
         assertEquals("NO_ELIGIBLE_FILES", result.stopCode)
@@ -66,8 +64,7 @@ class ManagedTagIndexSessionTest {
             },
         )
         val result = session.run("synthetic@example.test", "password", { true },
-            onProgress = { states.add(it.stopCode) },
-            mode = ManagedIndexMode.CONTINUOUS)
+            onProgress = { states.add(it.stopCode) })
         assertEquals(2, calls)
         assertEquals("NO_ELIGIBLE_FILES", result.stopCode)
         assertTrue(states.contains("COOLDOWN"))
@@ -85,8 +82,7 @@ class ManagedTagIndexSessionTest {
                     remaining = 3000, stop = "RETRY_BACKOFF")
             },
         )
-        val result = session.run("synthetic@example.test", "password", { true },
-            mode = ManagedIndexMode.CONTINUOUS)
+        val result = session.run("synthetic@example.test", "password", { true })
         assertEquals(3, calls)
         assertEquals("RETRY_BACKOFF", result.stopCode)
         assertEquals(listOf(30_000L, 1500L, 60_000L, 1500L), waits)
@@ -104,8 +100,7 @@ class ManagedTagIndexSessionTest {
                 batch(remaining = 3000)
             },
         )
-        val result = session.run("synthetic@example.test", "password", { true },
-            mode = ManagedIndexMode.CONTINUOUS)
+        val result = session.run("synthetic@example.test", "password", { true })
         assertEquals(1, calls)
         assertEquals("SESSION_TIME_BUDGET", result.stopCode)
     }
@@ -120,8 +115,7 @@ class ManagedTagIndexSessionTest {
                     remaining = 3274, stop = "NETWORK_BUDGET")
             },
         )
-        val result = session.run("synthetic@example.test", "password", { true },
-            mode = ManagedIndexMode.CONTINUOUS)
+        val result = session.run("synthetic@example.test", "password", { true })
         assertEquals(3, calls)
         assertEquals("NO_PROGRESS", result.stopCode)
         assertEquals(180, result.getRequests)
@@ -137,8 +131,7 @@ class ManagedTagIndexSessionTest {
                     remaining = 3000, stop = "AUTH_REJECTED")
             },
         )
-        val result = session.run("synthetic@example.test", "password", { true },
-            mode = ManagedIndexMode.CONTINUOUS)
+        val result = session.run("synthetic@example.test", "password", { true })
         assertEquals(1, calls)
         assertEquals("AUTH_REJECTED", result.stopCode)
     }

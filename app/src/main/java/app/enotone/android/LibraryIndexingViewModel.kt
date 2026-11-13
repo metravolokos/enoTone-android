@@ -2,7 +2,6 @@ package app.enotone.android
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.enotone.library.ManagedIndexMode
 import app.enotone.network.FlatWebDavHttpError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
@@ -36,7 +35,6 @@ internal class LibraryIndexingViewModel(
     private var operation: Job? = null
     private var operationLogin: StoredWebDavLogin? = null
     private var activeLogin: StoredWebDavLogin? = null
-    private var pendingMode: ManagedIndexMode? = null
     private var pendingLogin: StoredWebDavLogin? = null
 
     init {
@@ -61,7 +59,7 @@ internal class LibraryIndexingViewModel(
         perform(R.string.local_store_failed) { login ->
             val result = gateway.update(login)
             session.report(result.report)
-            if (result.pendingTags > 0) requestStart(login, ManagedIndexMode.CONTINUOUS)
+            if (result.pendingTags > 0) requestStart(login)
         }
     }
 
@@ -76,26 +74,24 @@ internal class LibraryIndexingViewModel(
             val queued = gateway.reindex(login)
             session.report(if (queued > 0) text.get(R.string.library_reindex_queued, queued)
                 else text.get(R.string.library_reindex_empty))
-            if (queued > 0) requestStart(login, ManagedIndexMode.CONTINUOUS)
+            if (queued > 0) requestStart(login)
         }
     }
 
     override fun resume() {
         if (!allowed()) return
-        requestStart(requireNotNull(session.state.value.login), ManagedIndexMode.CONTINUOUS)
+        requestStart(requireNotNull(session.state.value.login))
     }
 
     /** Разрешение запрашивает Activity; Intent и секреты остаются вне Compose. */
     fun onNotificationPermission(granted: Boolean) {
-        val mode = pendingMode ?: return
-        val login = pendingLogin
+        val login = pendingLogin ?: return
         clearPending()
         mutable.update { it.copy(permissionDenied = !granted) }
         val available = !launcher.indexing.value.active && !session.state.value.busy
         if (!granted || login != session.state.value.login || !available) return
-        requireNotNull(login)
         try {
-            launcher.startIndexing(login, mode)
+            launcher.startIndexing(login)
         } catch (_: RuntimeException) {
             session.report(text.get(R.string.managed_index_failed))
         }
@@ -111,20 +107,18 @@ internal class LibraryIndexingViewModel(
 
     private fun clearPending() {
         mutable.update { it.copy(permissionPending = false) }
-        pendingMode = null
         pendingLogin = null
     }
 
     private fun allowed(): Boolean {
         if (session.state.value.login == null) session.report(text.get(R.string.missing_credentials))
         return session.state.value.login != null && !session.state.value.busy &&
-            !launcher.indexing.value.active && pendingMode == null
+            !launcher.indexing.value.active && pendingLogin == null
     }
 
-    private fun requestStart(login: StoredWebDavLogin, mode: ManagedIndexMode) {
+    private fun requestStart(login: StoredWebDavLogin) {
         if (login != session.state.value.login) return
         pendingLogin = login
-        pendingMode = mode
         mutable.update { it.copy(permissionRequest = it.permissionRequest + 1, permissionPending = true) }
     }
 

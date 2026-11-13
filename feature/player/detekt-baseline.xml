@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>CyclomaticComplexMethod:ArtworkBackdrop.kt$fun artworkColors(artwork: Bitmap?): Pair&lt;Color, Color&gt;</ID>
+    <ID>CyclomaticComplexMethod:FeatureNowPlayingScreen.kt$@Composable fun FeatureNowPlayingScreen( trackId: String, title: String, artist: String?, album: String?, artwork: Bitmap?, playbackState: String, errorCode: Int, positionMs: Long, durationMs: Long, canSeek: Boolean, controlsEnabled: Boolean, hasPrevious: Boolean, hasNext: Boolean, queuePosition: Int, queueTotal: Int, repeatMode: Int, shuffleEnabled: Boolean, onClose: () -&gt; Unit, onSeekFraction: (Float) -&gt; Unit, onPlayPause: () -&gt; Unit, onPrevious: () -&gt; Unit, onNext: () -&gt; Unit, onCycleRepeat: () -&gt; Unit, onToggleShuffle: () -&gt; Unit, ids: NowPlayingIds, )</ID>
+    <ID>ImportOrdering:ArtworkBackdrop.kt$import android.graphics.Bitmap import android.graphics.Color as AndroidColor import androidx.compose.ui.graphics.Color import kotlin.math.abs import kotlin.math.max</ID>
+    <ID>ImportOrdering:FeatureNowPlayingScreen.kt$import android.graphics.Bitmap import androidx.compose.animation.core.animateFloatAsState import androidx.compose.animation.core.tween import androidx.compose.foundation.Image import androidx.compose.foundation.background import androidx.compose.foundation.layout.Arrangement import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.BoxWithConstraints import androidx.compose.foundation.layout.Column import androidx.compose.foundation.layout.Row import androidx.compose.foundation.layout.Spacer import androidx.compose.foundation.layout.WindowInsets import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.foundation.layout.fillMaxWidth import androidx.compose.foundation.layout.height import androidx.compose.foundation.layout.padding import androidx.compose.foundation.layout.size import androidx.compose.foundation.layout.systemBars import androidx.compose.foundation.layout.windowInsetsPadding import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.material3.FilledIconButton import androidx.compose.material3.FilledTonalIconButton import androidx.compose.material3.Icon import androidx.compose.material3.IconButton import androidx.compose.material3.MaterialTheme import androidx.compose.material3.Slider import androidx.compose.material3.Text import androidx.compose.runtime.Composable import androidx.compose.runtime.getValue import androidx.compose.runtime.mutableFloatStateOf import androidx.compose.runtime.mutableStateOf import androidx.compose.runtime.remember import androidx.compose.runtime.setValue import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.draw.shadow import androidx.compose.ui.graphics.Brush import androidx.compose.ui.graphics.asImageBitmap import androidx.compose.ui.graphics.graphicsLayer import androidx.compose.ui.layout.ContentScale import androidx.compose.ui.res.painterResource import androidx.compose.ui.res.stringResource import androidx.compose.ui.semantics.contentDescription import androidx.compose.ui.semantics.stateDescription import androidx.compose.ui.semantics.semantics import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.text.style.TextOverflow import androidx.compose.ui.unit.dp import androidx.media3.common.Player import app.enotone.playback.PlaybackSeekPolicy</ID>
+    <ID>LoopWithTooManyJumpStatements:ArtworkBackdrop.kt$for</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.0001f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.10f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.13f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.17f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.20f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.21f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.24f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.25f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.28f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.31f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.35f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.38f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.43f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.46f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.49f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.64f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.70f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.72f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.74f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.90f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.92f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$.975f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$0xFF36363B</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$0xFF535358</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$1.30f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$15f</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$180</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$23</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$24</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$3</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$32</ID>
+    <ID>MagicNumber:ArtworkBackdrop.kt$360f</ID>
+    <ID>MagicNumber:FeatureNowPlayingScreen.kt$.22f</ID>
+    <ID>MagicNumber:FeatureNowPlayingScreen.kt$.25f</ID>
+    <ID>MagicNumber:FeatureNowPlayingScreen.kt$.2f</ID>
+    <ID>MagicNumber:FeatureNowPlayingScreen.kt$.32f</ID>
+    <ID>MagicNumber:FeatureNowPlayingScreen.kt$0.38f</ID>
+    <ID>MagicNumber:FeatureNowPlayingScreen.kt$260</ID>
+    <ID>NoUnusedImports:FeatureNowPlayingScreen.kt$app.enotone.android.FeatureNowPlayingScreen.kt</ID>
+  </CurrentIssues>
+</SmellBaseline>

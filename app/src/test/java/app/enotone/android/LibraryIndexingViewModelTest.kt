@@ -1,6 +1,5 @@
 package app.enotone.android
 
-import app.enotone.library.ManagedIndexMode
 import app.enotone.network.FlatWebDavHttpError
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -69,7 +68,6 @@ class LibraryIndexingViewModelTest {
         advanceUntilIdle()
         fixture.model.updateLibrary()
         assertEquals(1, fixture.launcher.indexingStarts)
-        assertEquals(ManagedIndexMode.CONTINUOUS, fixture.launcher.mode)
         assertEquals(1, fixture.gateway.updates)
         assertEquals("IMPORTED", fixture.model.state.value.report)
     }
@@ -145,7 +143,7 @@ class LibraryIndexingViewModelTest {
         assertEquals(listOf(WorkAction.PAUSE, WorkAction.STOP), fixture.launcher.indexingActions)
     }
 
-    @Test fun `resume continues in continuous mode and is blocked while running`() = settingsTest {
+    @Test fun `resume starts indexing again and is blocked while running`() = settingsTest {
         val fixture = Fixture()
         fixture.signIn()
         advanceUntilIdle()
@@ -156,7 +154,6 @@ class LibraryIndexingViewModelTest {
         fixture.model.resume()
         fixture.model.onNotificationPermission(true)
         assertEquals(1, fixture.launcher.indexingStarts)
-        assertEquals(ManagedIndexMode.CONTINUOUS, fixture.launcher.mode)
     }
 
     @Test fun `network failure shows plain text without http code on the main screen`() = settingsTest {

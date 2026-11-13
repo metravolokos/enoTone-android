@@ -9,7 +9,9 @@
 | `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`) и «контрактные» тесты исходников (см. ниже) |
 | Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
 | `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; после слитого #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
-| `gradle detekt` | статический анализ Kotlin + правила ktlint; **пока только отчёт** (артефакт `detekt-reports`), CI не блокирует — [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md) |
+| `gradle detekt` | статический анализ Kotlin + правила ktlint; **блокирующий** с базовой линией `detekt-baseline.xml` в каждом модуле — [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md) |
+| `tools/check_detekt_baseline.py <база>` | базовая линия detekt не выросла относительно базового коммита |
+| `tools/check_adr_index.py` | у каждого ADR есть строка в индексе |
 | `:app:compileStablePreviewKotlin` | компиляция варианта Stable Preview без секретов |
 | Room schema | экспортированные схемы v1–v4 совпадают с закоммиченными |
 | `tools/check_no_gms.py` | дерево зависимостей и байты APK не содержат `com.google.android.gms`, `com.google.firebase`, `com.google.android.play` |
@@ -33,7 +35,8 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 - `RemoteTrackDaoTest`: изоляция аккаунтов, CAS тегов, fast-scan, очередь выборочной/полной переиндексации без потери тегов, аудит с лимитом 30, удаление по sourceKey.
 - `NowPlayingUiTest`, `SettingsActionsUiTest`, `HomeNavigationUiTest`, `LibraryVisibilityUiTest`, `MainActivitySettingsUiTest`: Compose-семантика и нажатия через фейковые действия, без WebDAV и реальной переиндексации.
 - `LibraryPagePreferencesTest` проверяет реальную запись и восстановление SharedPreferences, `LocalizedUiResourcesTest` — разрешение RU/EN ресурсов через Android, без чтения XML строками; `MiniPlayerUiTest` — появление и открытие мини-плеера.
-- `SignOutMarkerTest`, `MainActivityIntentTest`: флаг незавершённого выхода и одноразовое потребление EXTRA_OPEN_NOW_PLAYING. **Реальный Android Keystore не эмулируется**; сценарий восстановления входа с pending-флагом покрыт `AccountSettingsViewModelTest` с фейковым gateway. Проверка интента сама по себе не подтверждает показ Now Playing при восстановленной очереди.
+- `CredentialEnvelopeTest` (ACC-06): формат зашифрованного входа с программным AES-ключом вместо Keystore — повреждение, усечение, чужой ключ и версия отвергаются, IV новый при каждом шифровании.
+- `SignOutMarkerTest`, `MainActivityIntentTest`: флаг незавершённого выхода и одноразовое потребление EXTRA_OPEN_NOW_PLAYING. **Реальный Android Keystore не эмулируется** (формат проверяет `CredentialEnvelopeTest`); сценарий восстановления входа с pending-флагом покрыт `AccountSettingsViewModelTest` с фейковым gateway. Проверка интента сама по себе не подтверждает показ Now Playing при восстановленной очереди.
 - UI-тесты проверяют доступность элементов и действия, но **не заменяют** визуальное сравнение экрана с эталоном D2. После merge #118 зелёный CI #508 на `main`; новые тесты наследуются в 5b без изменения алгоритмов.
 
 ### Известный долг тестов

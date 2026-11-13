@@ -1,7 +1,6 @@
 package app.enotone.android
 
 import android.database.sqlite.SQLiteException
-import app.enotone.library.ManagedIndexMode
 import app.enotone.library.ManagedIndexProgress
 import app.enotone.library.TagBatchStageException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,7 +35,6 @@ internal data class ManagedScanStatus(
  */
 internal data class PendingIndexRun(
     val login: StoredWebDavLogin,
-    val mode: ManagedIndexMode,
 )
 
 internal object ManagedScanRuntime : ManagedScanStatusPort {
@@ -45,13 +43,10 @@ internal object ManagedScanRuntime : ManagedScanStatusPort {
     // One-shot RAM handoff, never an Intent extra or persisted secret.
     private var pending: PendingIndexRun? = null
 
-    @Synchronized fun prepare(
-        email: String, password: String,
-        mode: ManagedIndexMode = ManagedIndexMode.CONTINUOUS,
-    ): Boolean {
+    @Synchronized fun prepare(email: String, password: String): Boolean {
         require(email.isNotBlank() && password.isNotBlank())
         if (status.value.state == ManagedScanState.RUNNING || status.value.terminating) return false
-        pending = PendingIndexRun(StoredWebDavLogin(email, password), mode)
+        pending = PendingIndexRun(StoredWebDavLogin(email, password))
         status.value = ManagedScanStatus(ManagedScanState.RUNNING)
         return true
     }

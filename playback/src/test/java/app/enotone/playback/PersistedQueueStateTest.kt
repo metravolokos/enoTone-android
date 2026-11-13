@@ -185,4 +185,35 @@ class PersistedQueueStateTest {
         }
         assertEquals(tracks.map { it.id }, ordered.map { it.id })
     }
+
+    /**
+     * Файлы, записанные прежней реализацией на Gson (до 2026-11-13), читаются без потерь:
+     * на устройстве владельца лежит чекпоинт старого формата.
+     */
+    @Test fun checkpointsWrittenByGsonVersionStayReadable() {
+        val v = QueueStateCodec.VERSION
+        val layout = """{"version":$v,"trackIds":["${id(1)}","${id(2)}","${id(3)}","${id(4)}"],""" +
+            """"shuffleEnabled":true,"shuffledIndices":[2,0,3,1],"sourceKey":"${id(99)}",""" +
+            """"queueRevision":"$revision","savedAtEpochMs":12345678}"""
+        val position = """{"version":$v,"selectedTrackId":"${id(3)}","positionMs":12345,""" +
+            """"repeatMode":2,"shuffleEnabled":true,"savedAtEpochMs":12345678,""" +
+            """"queueRevision":"$revision","durationMs":240000}"""
+        val restored = QueueStateCodec.assemble(layout, position)!!
+        assertEquals(listOf(id(1), id(2), id(3), id(4)), restored.trackIds)
+        assertArrayEquals(intArrayOf(2, 0, 3, 1), restored.shuffledIndices)
+        assertEquals(id(3), restored.selectedTrackId)
+        assertEquals(12_345L, restored.positionMs)
+        assertEquals(240_000L, restored.durationMs)
+        assertEquals(QueueRestoreCode.RESTORED, QueueStateCodec.inspect(layout, position).code)
+        // Без необязательного durationMs (чекпоинты до #96) — тоже читается.
+        val legacy = position.replace(""","durationMs":240000""", "")
+        assertEquals(0L, QueueStateCodec.assemble(layout, legacy)!!.durationMs)
+    }
+
+    @Test fun unknownFieldsAndMalformedJsonAreRejectedWithoutExceptions() {
+        val good = QueueStateCodec.encodePosition(state().position())
+        assertNull(QueueStateCodec.decodePosition(good.replace("}", ""","extra":1}""")))
+        assertNull(QueueStateCodec.decodePosition("{not json"))
+        assertNull(QueueStateCodec.decodeLayout("""{"version":"x"}"""))
+    }
 }

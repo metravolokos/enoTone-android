@@ -13,15 +13,18 @@ ANDROID = "{http://schemas.android.com/apk/res/android}"
 
 class WebDavCredentialVaultSecurityTest(unittest.TestCase):
     def test_aes_gcm_and_private_ciphertext_only(self):
-        vault = (ROOT / "app/src/main/java/app/enotone/android/"
-                 "LocalCredentialVault.kt").read_text(encoding="utf-8")
+        # Keystore and storage live in LocalCredentialVault; the AES-GCM envelope
+        # format moved to CredentialEnvelope (behaviour: CredentialEnvelopeTest).
+        vault = "".join((ROOT / "app/src/main/java/app/enotone/android" / name)
+                        .read_text(encoding="utf-8")
+                        for name in ("LocalCredentialVault.kt", "CredentialEnvelope.kt"))
         for requirement in (
             'KeyStore.getInstance(KEYSTORE)', '"AndroidKeyStore"',
             'KeyProperties.KEY_ALGORITHM_AES', '.setKeySize(256)',
             'KeyProperties.BLOCK_MODE_GCM', 'AES/GCM/NoPadding',
             'GCMParameterSpec(TAG_BITS', 'cipher.updateAAD(associatedData)',
             'Cipher.ENCRYPT_MODE', 'Cipher.DECRYPT_MODE',
-            'Context.MODE_PRIVATE', 'Base64.encodeToString(blob',
+            'Context.MODE_PRIVATE', 'Base64.encodeToString(',
             '.putString(ENTRY, encoded)', '.remove(ENTRY)', 'deleteEntry(KEY_ALIAS)',
         ):
             self.assertIn(requirement, vault)

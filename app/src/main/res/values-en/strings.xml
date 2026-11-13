@@ -31,15 +31,11 @@
     <string name="save_local_library">Update library</string>
     <string name="local_import_report">Found in cloud: %1$d. Saved locally: %2$d. New: %3$d, changed: %4$d, unchanged: %5$d.</string>
     <string name="local_store_failed">Could not update or read the local library. Private data is not included in this report.</string>
-    <string name="library_open">Open offline library</string>
     <string name="library_back">Back</string>
-    <string name="library_title">Tracks</string>
-    <string name="library_search">Search tracks, artists, albums</string>
     <string name="library_count">Showing %1$d of %2$d tracks</string>
     <string name="library_loading">Reading local library…</string>
     <string name="library_failed">Unable to read local library.</string>
     <string name="library_empty">No tracks yet. First save the /AllMusic file list on this device.</string>
-    <string name="playback_hint">Tap a track to play. Cloud.Mail.ru app password is required. Music continues in the background; control it from the media notification.</string>
     <string name="playback_loading">Connecting to track…</string>
     <string name="playback_buffering">Buffering…</string>
     <string name="playback_playing">Playing</string>
@@ -50,10 +46,8 @@
     <string name="playback_missing_track">Track not found in local library.</string>
     <string name="playback_pause">Pause</string>
     <string name="playback_resume">Resume</string>
-    <string name="playback_stop">Stop</string>
     <string name="playback_previous">Previous</string>
     <string name="playback_next">Next</string>
-    <string name="playback_queue_position">Track %1$d of %2$d in queue</string>
     <string name="playback_repeat_control">Repeat: %1$s</string>
     <string name="playback_repeat_off">off</string>
     <string name="playback_repeat_one">track</string>
@@ -103,8 +97,6 @@
     <string name="library_unknown_album">Unknown Album</string>
     <string name="library_group_back">Back to groups</string>
     <string name="library_group_count">Groups: %1$d</string>
-    <string name="library_group_tags_only">Groups use saved tags: Artists means track performers; Album Artists uses the separate album-artist tag. Tracks with saved metadata but no album appear under Unknown Album.</string>
-    <string name="library_group_tracks">Tracks: %1$d</string>
     <string name="library_groups_empty">No recognized groups yet. Tags can be indexed later in small batches.</string>
     <string name="managed_index_title">Library processing progress</string>
     <string name="managed_notification_started">Indexing music tags in background</string>
@@ -152,7 +144,6 @@
     <string name="home_connect_account">Set up connection</string>
     <string name="artwork_description">Current track cover</string>
     <string name="album_cover_description">Album cover</string>
-    <string name="album_play_all">Play album</string>
     <string name="album_refresh_tags">Refresh album tags (up to 10)</string>
     <string name="album_refresh_busy">Refreshing tags…</string>
     <string name="album_refresh_confirm_title">Refresh tags in this album?</string>
@@ -172,12 +163,6 @@
     <string name="appearance_system">Follow system</string>
     <string name="appearance_dark">Dark</string>
     <string name="appearance_light">Light</string>
-    <string name="appearance_accent">Control accent</string>
-    <string name="appearance_red">Red</string>
-    <string name="appearance_blue">Blue</string>
-    <string name="appearance_green">Green</string>
-    <string name="appearance_orange">Orange</string>
-    <string name="appearance_purple">Purple</string>
     <string name="library_shuffle_all">Shuffle</string>
     <string name="home_library_sections">Library sections</string>
     <string name="ui_play">Play</string>

@@ -1,0 +1,200 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$length !in 1L..MAX_IMAGE_BYTES || offset &lt; 0L || offset &gt; size || length &gt; size - offset</ID>
+    <ID>ComplexCondition:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$length &lt; 0L || start &lt; 0L || start &gt; boundary || length &gt; boundary - start</ID>
+    <ID>ComplexCondition:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$width &gt; 8192L || height &gt; 8192L || (width &gt; 0L &amp;&amp; height &gt; 0L &amp;&amp; width * height &gt; 40_000_000L)</ID>
+    <ID>ComplexCondition:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator.BoundedSource$position &lt; 0L || length &lt; 0 || position &gt; size || length.toLong() &gt; size - position</ID>
+    <ID>ComplexCondition:EmbeddedArtworkPayloadReader.kt$EmbeddedArtworkPayloadReader$located.code != ArtworkLookupCode.FOUND || image.length !in 1..MAX_PAYLOAD_BYTES || image.offset &lt; 0L || image.offset &gt; fileSize || image.length.toLong() &gt; fileSize - image.offset</ID>
+    <ID>ComplexCondition:FastAudioTagReader.kt$FastAudioTagReader.BoundedBytes$count &lt; 0 || position &lt; 0 || position &gt; size || count.toLong() &gt; size - position</ID>
+    <ID>ComplexCondition:OfflineLibraryGrouping.kt$OfflineLibraryGrouping$album == null &amp;&amp; !row.hasStoredTagData &amp;&amp; known(row.artist) == null &amp;&amp; known(row.albumArtist) == null</ID>
+    <ID>ComplexCondition:WebDavRangeReader.kt$WebDavRangeReader$gotStart == null || gotEnd == null || (!unknownTotal &amp;&amp; gotTotal == null) || gotEnd &lt; gotStart || (!unknownTotal &amp;&amp; gotTotal!! &lt;= gotEnd)</ID>
+    <ID>ComplexCondition:WebDavRangeReader.kt$WebDavRangeReader$gotStart == null || gotEnd == null || (!unknownTotal &amp;&amp; gotTotal == null) || gotEnd &lt; gotStart || (!unknownTotal &amp;&amp; gotTotal!! &lt;= gotEnd) || gotStart != start || gotEnd != end || (!unknownTotal &amp;&amp; gotTotal != fileSize)</ID>
+    <ID>CyclomaticComplexMethod:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$private fun locateMp3(src: BoundedSource): EmbeddedArtwork?</ID>
+    <ID>CyclomaticComplexMethod:FastAudioTagReader.kt$FastAudioTagReader$private fun readMp3(source: BoundedBytes, name: String): FastTagRead</ID>
+    <ID>CyclomaticComplexMethod:LibrarySnapshotPlanner.kt$LibrarySnapshotPlanner$fun plan( sourceKey: String, listing: FlatWebDavListing, previous: List&lt;RemoteTrackEntity&gt;, epoch: Long, ): SnapshotPlan</ID>
+    <ID>CyclomaticComplexMethod:ManagedTagIndexSession.kt$ManagedTagIndexSession$suspend fun run( email: String, password: String, networkAllowed: () -&gt; Boolean, onProgress: suspend (ManagedIndexProgress) -&gt; Unit = {}, ): ManagedIndexProgress</ID>
+    <ID>CyclomaticComplexMethod:ParallelTagIndexer.kt$ParallelTagIndexer$suspend fun run( email: String, password: String, count: Int, onProgress: suspend (PilotIndexProgress) -&gt; Unit = {}, beforeFile: suspend () -&gt; String? = { null }, ): PilotIndexProgress</ID>
+    <ID>CyclomaticComplexMethod:PilotTagIndexer.kt$PilotFailures$fun classify(stage: String, stats: RangeReadStats?): PilotFailure</ID>
+    <ID>CyclomaticComplexMethod:PilotTagIndexer.kt$PilotTagIndexer$suspend fun run( email: String, password: String, count: Int, onProgress: suspend (PilotIndexProgress) -&gt; Unit = {}, // Optional policy gate for managed sessions; old 10/20/100 pilots // retain their previously accepted behavior. beforeFile: suspend () -&gt; String? = { null }, stopOnRetryableFailure: Boolean = false, // Null keeps the legacy pilot behavior. Non-null restricts ALL GETs // to explicit local track IDs, even if unrelated scans are pending. targetIds: Set&lt;String&gt;? = null, onFileCompleted: suspend (String) -&gt; Unit = {}, // True means the same-version Room row was updated with a terminal // result. Transient/failed/stale attempts must stay eligible to retry. onFileOutcome: suspend (String, Boolean) -&gt; Unit = { _, _ -&gt; }, ): PilotIndexProgress</ID>
+    <ID>CyclomaticComplexMethod:WebDavRangeReader.kt$WebDavRangeReader$private fun loadBlock(start: Long): ByteArray</ID>
+    <ID>ImportOrdering:EmbeddedArtworkLocatorTest.kt$import java.io.ByteArrayOutputStream import org.junit.Assert.* import org.junit.Test</ID>
+    <ID>ImportOrdering:EmbeddedArtworkPayloadReaderTest.kt$import java.io.IOException import okhttp3.mockwebserver.Dispatcher import okhttp3.mockwebserver.MockResponse import okhttp3.mockwebserver.MockWebServer import okhttp3.mockwebserver.RecordedRequest import okio.Buffer import org.junit.Assert.* import org.junit.Test</ID>
+    <ID>ImportOrdering:FastAudioTagReaderTest.kt$import java.io.ByteArrayOutputStream import java.nio.charset.StandardCharsets import okhttp3.mockwebserver.Dispatcher import okhttp3.mockwebserver.MockResponse import okhttp3.mockwebserver.MockWebServer import okhttp3.mockwebserver.RecordedRequest import okio.Buffer import org.junit.Assert.* import org.junit.Test</ID>
+    <ID>ImportOrdering:WebDavRangeReader.kt$import java.io.Closeable import java.io.IOException import java.net.HttpURLConnection import java.net.URI import java.net.URLDecoder import java.util.LinkedHashMap import java.nio.charset.StandardCharsets import java.util.Base64</ID>
+    <ID>InstanceOfCheckForException:ParallelTagIndexer.kt$failure is TagBatchStageException</ID>
+    <ID>LongMethod:LibrarySnapshotPlanner.kt$LibrarySnapshotPlanner$fun plan( sourceKey: String, listing: FlatWebDavListing, previous: List&lt;RemoteTrackEntity&gt;, epoch: Long, ): SnapshotPlan</ID>
+    <ID>LongMethod:ManagedTagIndexSession.kt$ManagedTagIndexSession$suspend fun run( email: String, password: String, networkAllowed: () -&gt; Boolean, onProgress: suspend (ManagedIndexProgress) -&gt; Unit = {}, ): ManagedIndexProgress</ID>
+    <ID>LongMethod:ParallelTagIndexer.kt$ParallelTagIndexer$suspend fun run( email: String, password: String, count: Int, onProgress: suspend (PilotIndexProgress) -&gt; Unit = {}, beforeFile: suspend () -&gt; String? = { null }, ): PilotIndexProgress</ID>
+    <ID>LongMethod:PilotTagIndexer.kt$PilotTagIndexer$suspend fun run( email: String, password: String, count: Int, onProgress: suspend (PilotIndexProgress) -&gt; Unit = {}, // Optional policy gate for managed sessions; old 10/20/100 pilots // retain their previously accepted behavior. beforeFile: suspend () -&gt; String? = { null }, stopOnRetryableFailure: Boolean = false, // Null keeps the legacy pilot behavior. Non-null restricts ALL GETs // to explicit local track IDs, even if unrelated scans are pending. targetIds: Set&lt;String&gt;? = null, onFileCompleted: suspend (String) -&gt; Unit = {}, // True means the same-version Room row was updated with a terminal // result. Transient/failed/stale attempts must stay eligible to retry. onFileOutcome: suspend (String, Boolean) -&gt; Unit = { _, _ -&gt; }, ): PilotIndexProgress</ID>
+    <ID>LongMethod:WebDavRangeReader.kt$WebDavRangeReader$private fun loadBlock(start: Long): ByteArray</ID>
+    <ID>LongParameterList:AudioTagFields.kt$AudioTagFields.Companion$( title: String?, artist: String?, album: String?, albumArtist: String?, fallbackFileName: String, rawYear: String? = null, rawTrackNumber: String? = null, rawDiscNumber: String? = null, rawGenre: String? = null, )</ID>
+    <ID>LongParameterList:FastAudioTagReader.kt$FastAudioTagReader$( code: FastTagCode, fileName: String, title: String?, artist: String?, album: String?, albumArtist: String?, rawYear: String? = null, rawTrackNumber: String? = null, rawDiscNumber: String? = null, rawGenre: String? = null, )</ID>
+    <ID>LongParameterList:LibraryReindexSelectionTest.kt$LibraryReindexSelectionTest$( n: Int, title: String = "Track", album: String? = "Collaboration", artist: String? = "Singer", albumArtist: String? = "Ensemble", accountKey: String = source, )</ID>
+    <ID>LongParameterList:OfflineTrackCatalogTest.kt$OfflineTrackCatalogTest$( id: Int, name: String, title: String? = null, artist: String? = null, album: String? = null, source: String = key, missing: Int = 0, )</ID>
+    <ID>LongParameterList:PilotTagIndexer.kt$PilotTagIndexer$( email: String, password: String, count: Int, onProgress: suspend (PilotIndexProgress) -&gt; Unit = {}, // Optional policy gate for managed sessions; old 10/20/100 pilots // retain their previously accepted behavior. beforeFile: suspend () -&gt; String? = { null }, stopOnRetryableFailure: Boolean = false, // Null keeps the legacy pilot behavior. Non-null restricts ALL GETs // to explicit local track IDs, even if unrelated scans are pending. targetIds: Set&lt;String&gt;? = null, onFileCompleted: suspend (String) -&gt; Unit = {}, // True means the same-version Room row was updated with a terminal // result. Transient/failed/stale attempts must stay eligible to retry. onFileOutcome: suspend (String, Boolean) -&gt; Unit = { _, _ -&gt; }, )</ID>
+    <ID>LongParameterList:WebDavRangeReader.kt$WebDavRangeReader$( libraryRoot: String = "https://webdav.cloud.mail.ru/AllMusic/", encodedPath: String, val fileSize: Long, email: String, appPassword: String, etag: String? = null, allowLoopbackHttpForTests: Boolean = false, /** Optional tighter per-invocation limits for a multi-file manual pilot. */ maxRequests: Int = 128, maxDownloadedBytes: Long = 8L * 1024 * 1024, private val sharedBudget: SharedRangeBudget? = null, )</ID>
+    <ID>LoopWithTooManyJumpStatements:ManagedTagIndexSession.kt$ManagedTagIndexSession$while</ID>
+    <ID>LoopWithTooManyJumpStatements:ParallelTagIndexer.kt$ParallelTagIndexer$for</ID>
+    <ID>LoopWithTooManyJumpStatements:ParallelTagIndexer.kt$ParallelTagIndexer$while</ID>
+    <ID>LoopWithTooManyJumpStatements:PilotTagIndexer.kt$PilotTagIndexer$for</ID>
+    <ID>MagicNumber:AudioTagFields.kt$AudioTagFields.Companion$10</ID>
+    <ID>MagicNumber:AudioTagFields.kt$AudioTagFields.Companion$1000</ID>
+    <ID>MagicNumber:AudioTagFields.kt$AudioTagFields.Companion$12</ID>
+    <ID>MagicNumber:AudioTagFields.kt$AudioTagFields.Companion$2999</ID>
+    <ID>MagicNumber:AudioTagFields.kt$AudioTagFields.Companion$4</ID>
+    <ID>MagicNumber:AudioTagFields.kt$AudioTagFields.Companion$99</ID>
+    <ID>MagicNumber:AudioTagFields.kt$AudioTagFields.Companion$999</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$0x7F</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$0x80</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$0xF0</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$0xFF</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$10</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$10L</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$127</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$16</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$24</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$3</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$34</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$4</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$4096L</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$40_000_000L</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$4L</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$5</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$6</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$7</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$7L</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$8</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$8192L</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$9</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$96</ID>
+    <ID>MagicNumber:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$96L</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$0x7F</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$0x80</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$0xF0</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$0xFF</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$10</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$10L</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$127</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$128</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$128L</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$16</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$24</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$256</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$3</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$30</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$33</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$34</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$4</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$4L</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$5</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$512</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$6</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$63</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$65536</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$7</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$8</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$8192L</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader$9</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader.BoundedBytes$6</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader.BoundedBytes$65536</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader.BoundedBytes$65536L</ID>
+    <ID>MagicNumber:FastAudioTagReader.kt$FastAudioTagReader.BoundedBytes$98304</ID>
+    <ID>MagicNumber:Id3Genres.kt$Id3Genres$512</ID>
+    <ID>MagicNumber:LibrarySnapshotPlanner.kt$LibrarySnapshotPlanner$0xff</ID>
+    <ID>MagicNumber:LibrarySnapshotPlanner.kt$LibrarySnapshotPlanner$4</ID>
+    <ID>MagicNumber:LibrarySnapshotPlanner.kt$LibrarySnapshotPlanner$64</ID>
+    <ID>MagicNumber:ManagedTagIndexSession.kt$ManagedIndexLimits$30_000L</ID>
+    <ID>MagicNumber:ManagedTagIndexSession.kt$ManagedIndexLimits$60_000L</ID>
+    <ID>MagicNumber:ManagedTagIndexSession.kt$ManagedTagIndexSession$3</ID>
+    <ID>MagicNumber:ParallelTagIndexer.kt$ParallelTagIndexer$1_000_000L</ID>
+    <ID>MagicNumber:ParallelTagIndexer.kt$ParallelTagPolicy$16_000L</ID>
+    <ID>MagicNumber:ParallelTagIndexer.kt$ParallelTagPolicy$1_000L</ID>
+    <ID>MagicNumber:ParallelTagIndexer.kt$ParallelTagPolicy$3_000L</ID>
+    <ID>MagicNumber:ParallelTagIndexer.kt$ParallelTagPolicy$8_000L</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotBudget$10</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotBudget$1024</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotBudget$20</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotBudget$256L</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotBudget$3</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotFailures$401</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotFailures$403</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotFailures$408</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotFailures$425</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotFailures$429</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotFailures$500</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotFailures$599</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotTagIndexer$6</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotTagIndexer$65536</ID>
+    <ID>MagicNumber:PilotTagIndexer.kt$PilotTagIndexer$6L</ID>
+    <ID>MagicNumber:WebDavRangeReader.kt$SharedRangeBudget$65536L</ID>
+    <ID>MagicNumber:WebDavRangeReader.kt$WebDavRangeReader$1024</ID>
+    <ID>MagicNumber:WebDavRangeReader.kt$WebDavRangeReader$10_000</ID>
+    <ID>MagicNumber:WebDavRangeReader.kt$WebDavRangeReader$128</ID>
+    <ID>MagicNumber:WebDavRangeReader.kt$WebDavRangeReader$3</ID>
+    <ID>MagicNumber:WebDavRangeReader.kt$WebDavRangeReader$32</ID>
+    <ID>MagicNumber:WebDavRangeReader.kt$WebDavRangeReader$8L</ID>
+    <ID>MagicNumber:WebDavRangeReader.kt$WebDavRangeReader$8_000</ID>
+    <ID>NestedBlockDepth:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$private fun locateMp3(src: BoundedSource): EmbeddedArtwork?</ID>
+    <ID>NestedBlockDepth:PilotTagIndexer.kt$PilotTagIndexer$suspend fun run( email: String, password: String, count: Int, onProgress: suspend (PilotIndexProgress) -&gt; Unit = {}, // Optional policy gate for managed sessions; old 10/20/100 pilots // retain their previously accepted behavior. beforeFile: suspend () -&gt; String? = { null }, stopOnRetryableFailure: Boolean = false, // Null keeps the legacy pilot behavior. Non-null restricts ALL GETs // to explicit local track IDs, even if unrelated scans are pending. targetIds: Set&lt;String&gt;? = null, onFileCompleted: suspend (String) -&gt; Unit = {}, // True means the same-version Room row was updated with a terminal // result. Transient/failed/stale attempts must stay eligible to retry. onFileOutcome: suspend (String, Boolean) -&gt; Unit = { _, _ -&gt; }, ): PilotIndexProgress</ID>
+    <ID>NestedBlockDepth:WebDavRangeReader.kt$WebDavRangeReader$private fun loadBlock(start: Long): ByteArray</ID>
+    <ID>NestedBlockDepth:WebDavRangeReaderTest.kt$WebDavRangeReaderTest$@Test fun classifiesContentRangeDifferencesWithoutExposingRawHeaders()</ID>
+    <ID>NestedBlockDepth:WebDavRangeReaderTest.kt$WebDavRangeReaderTest$@Test fun equalsSeparatorStillRejectsIncorrectNumericRangeOrTotal()</ID>
+    <ID>NestedBlockDepth:WebDavRangeReaderTest.kt$WebDavRangeReaderTest$@Test fun refuses200And302WithoutFollowingRedirects()</ID>
+    <ID>NestedBlockDepth:WebDavRangeReaderTest.kt$WebDavRangeReaderTest$@Test fun rejectsMismatchedContentRangeAndEtag()</ID>
+    <ID>NoBlankLineBeforeRbrace:WebDavRangeReaderTest.kt$WebDavRangeReaderTest$ </ID>
+    <ID>NoConsecutiveBlankLines:WebDavRangeReaderTest.kt$WebDavRangeReaderTest$ </ID>
+    <ID>NoUnusedImports:AudioTagFieldsTest.kt$app.enotone.library.AudioTagFieldsTest.kt</ID>
+    <ID>NoUnusedImports:LibrarySnapshotPlannerTest.kt$app.enotone.library.LibrarySnapshotPlannerTest.kt</ID>
+    <ID>NoUnusedImports:ParallelTagPolicyTest.kt$app.enotone.library.ParallelTagPolicyTest.kt</ID>
+    <ID>NoUnusedImports:PilotTagIndexer.kt$app.enotone.library.PilotTagIndexer.kt</ID>
+    <ID>NoWildcardImports:EmbeddedArtworkLocatorTest.kt$import org.junit.Assert.*</ID>
+    <ID>NoWildcardImports:EmbeddedArtworkPayloadReaderTest.kt$import org.junit.Assert.*</ID>
+    <ID>NoWildcardImports:FastAudioTagReaderTest.kt$import org.junit.Assert.*</ID>
+    <ID>NoWildcardImports:ParallelTagPolicyTest.kt$import org.junit.Assert.*</ID>
+    <ID>NoWildcardImports:WebDavRangeReaderTest.kt$import org.junit.Assert.*</ID>
+    <ID>ReturnCount:AudioTagFields.kt$AudioTagFields.Companion$private fun clean(raw: String?): String?</ID>
+    <ID>ReturnCount:AudioTagFields.kt$AudioTagFields.Companion$private fun parseOrdinal(raw: String?, max: Int): Int?</ID>
+    <ID>ReturnCount:AudioTagFields.kt$AudioTagFields.Companion$private fun parseYear(raw: String?): Int?</ID>
+    <ID>ReturnCount:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$fun locate( fileName: String, fileSize: Long, readAt: (Long, ByteArray, Int, Int) -&gt; Int, ): ArtworkLookup</ID>
+    <ID>ReturnCount:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$private fun locateMp3(src: BoundedSource): EmbeddedArtwork?</ID>
+    <ID>ReturnCount:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$private fun parseApic(src: BoundedSource, start: Long, frameSize: Long): EmbeddedArtwork?</ID>
+    <ID>ReturnCount:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$private fun parsePicture(src: BoundedSource, start: Long, end: Long): EmbeddedArtwork?</ID>
+    <ID>ReturnCount:EmbeddedArtworkPayloadReader.kt$EmbeddedArtworkPayloadReader$fun read( fileName: String, fileSize: Long, onLookup: (ArtworkLookupCode) -&gt; Unit = {}, readAt: (Long, ByteArray, Int, Int) -&gt; Int, ): ByteArray?</ID>
+    <ID>ReturnCount:EmbeddedArtworkPayloadReaderTest.kt$EmbeddedArtworkPayloadReaderTest.&lt;no name provided&gt;$override fun dispatch(req: RecordedRequest): MockResponse</ID>
+    <ID>ReturnCount:FastAudioTagReader.kt$FastAudioTagReader$fun read( fileName: String, fileSize: Long, readAt: (Long, ByteArray, Int, Int) -&gt; Int, ): FastTagRead</ID>
+    <ID>ReturnCount:FastAudioTagReader.kt$FastAudioTagReader$private fun decodeId3Text(payload: ByteArray, version: Int): String?</ID>
+    <ID>ReturnCount:FastAudioTagReader.kt$FastAudioTagReader$private fun readFlac(source: BoundedBytes, name: String): FastTagRead</ID>
+    <ID>ReturnCount:FastAudioTagReader.kt$FastAudioTagReader$private fun readMp3(source: BoundedBytes, name: String): FastTagRead</ID>
+    <ID>ReturnCount:FastAudioTagReaderTest.kt$FastAudioTagReaderTest.&lt;no name provided&gt;$override fun dispatch(req: RecordedRequest): MockResponse</ID>
+    <ID>ReturnCount:Id3Genres.kt$Id3Genres$fun normalize(raw: String?): String?</ID>
+    <ID>ReturnCount:LibrarySnapshotPlanner.kt$LibrarySnapshotPlanner$private fun sameRemoteVersion(old: RemoteTrackEntity, new: RemoteAudioFile): Boolean</ID>
+    <ID>ReturnCount:WebDavRangeReader.kt$WebDavRangeReader$@Synchronized fun readAt(position: Long, buffer: ByteArray, offset: Int, length: Int): Int</ID>
+    <ID>SpacingAroundKeyword:WebDavRangeReader.kt$WebDavRangeReader$finally</ID>
+    <ID>SpacingAroundKeyword:WebDavRangeReaderTest.kt$WebDavRangeReaderTest$catch</ID>
+    <ID>SpacingBetweenDeclarationsWithAnnotations:WebDavRangeReader.kt$SharedRangeBudget$@Synchronized fun reservedBytes(): Long</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:ManagedTagIndexSession.kt$ManagedIndexLimits$// 80 * 60 GET covers ~3,274 remaining tracks at the observed ~1.16 GET</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:PilotTagIndexer.kt$PilotBudget$// The 100-file mode is a candidate ceiling, NEVER a promise of 100 GETs.</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:WebDavRangeReader.kt$WebDavRangeReader$// Access-order LRU: a reused distant block must not trigger a second HTTP GET.</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:WebDavRangeReader.kt$WebDavRangeReader.Companion$// Cloud.Mail.ru sends non-standard "bytes=..." in Content-Range.</ID>
+    <ID>StringTemplate:LibraryReindexSelectionTest.kt$LibraryReindexSelectionTest$${n}</ID>
+    <ID>StringTemplate:OfflineTrackCatalogTest.kt$OfflineTrackCatalogTest$${id}</ID>
+    <ID>StringTemplate:SelectedAlbumTagRefreshPolicyTest.kt$SelectedAlbumTagRefreshPolicyTest$${number}</ID>
+    <ID>ThrowsCount:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$private fun locateFlac(src: BoundedSource): EmbeddedArtwork?</ID>
+    <ID>ThrowsCount:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator$private fun locateMp3(src: BoundedSource): EmbeddedArtwork?</ID>
+    <ID>ThrowsCount:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator.BoundedSource$fun read(position: Long, length: Int): ByteArray</ID>
+    <ID>ThrowsCount:FastAudioTagReader.kt$FastAudioTagReader$fun count(): Int</ID>
+    <ID>ThrowsCount:FastAudioTagReader.kt$FastAudioTagReader$private fun parseVorbis(data: ByteArray): Map&lt;String, String&gt;</ID>
+    <ID>ThrowsCount:FastAudioTagReader.kt$FastAudioTagReader.BoundedBytes$fun bytes(position: Long, count: Int): ByteArray</ID>
+    <ID>ThrowsCount:WebDavRangeReader.kt$WebDavRangeReader$@Synchronized fun readAt(position: Long, buffer: ByteArray, offset: Int, length: Int): Int</ID>
+    <ID>TooGenericExceptionCaught:ParallelTagIndexer.kt$failure: Exception</ID>
+    <ID>TooManyFunctions:EmbeddedArtworkLocator.kt$EmbeddedArtworkLocator</ID>
+    <ID>TooManyFunctions:FastAudioTagReader.kt$FastAudioTagReader</ID>
+    <ID>WildcardImport:EmbeddedArtworkLocatorTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:EmbeddedArtworkPayloadReaderTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:FastAudioTagReaderTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:ParallelTagPolicyTest.kt$import org.junit.Assert.*</ID>
+    <ID>WildcardImport:WebDavRangeReaderTest.kt$import org.junit.Assert.*</ID>
+  </CurrentIssues>
+</SmellBaseline>
