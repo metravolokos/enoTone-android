@@ -23,7 +23,7 @@ class UiEdgeToEdgeContractTest(unittest.TestCase):
 
     def test_neutral_player_has_fixed_transport_and_no_fake_elements(self):
         player=(read(BASE+"NowPlayingScreen.kt")
-                + read("feature/player/src/main/java/app/enotone/android/NowPlayingScreen.kt"))
+                + read("feature/player/src/main/java/app/enotone/android/FeatureNowPlayingScreen.kt"))
         for token in ("color.surfaceContainerHigh", "color.background",
                       "animateFloatAsState(", 'playbackState == "PAUSED"',
                       "0.84f", "FilledIconButton(", "Slider(",
