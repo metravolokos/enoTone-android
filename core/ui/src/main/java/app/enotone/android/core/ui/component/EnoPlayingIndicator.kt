@@ -21,7 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalMotionDurationScale
+import androidx.compose.ui.platform.LocalContext
+import android.provider.Settings
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -47,7 +48,10 @@ fun EnoPlayingIndicator(
     animated: Boolean = true,
 ) {
     val isArtwork = variant == PlayingIndicatorVariant.ARTWORK
-    val motionScale = LocalMotionDurationScale.current.scaleFactor
+    val context = LocalContext.current
+    val motionScale = Settings.Global.getFloat(
+        context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f,
+    )
     val animate = animated && playing && motionScale > 0f && !LocalInspectionMode.current
     val barColor = if (isArtwork) EnoColors.playingBar else EnoColors.accentText
     val bg = EnoColors.playingOverlay
