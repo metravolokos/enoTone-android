@@ -37,7 +37,7 @@ class ArtworkCrossPageCacheContractTest(unittest.TestCase):
         planner = read("app/src/main/java/app/enotone/android/ArtworkIndexPlanner.kt")
         worker = read("app/src/main/java/app/enotone/android/ArtworkIndexingForegroundService.kt")
         worker += read("app/src/main/java/app/enotone/android/ArtworkPreparationRunner.kt")
-        preferences = read("app/src/main/java/app/enotone/android/ArtworkPreferences.kt")
+        preferences = read("feature/library/src/main/java/app/enotone/android/ArtworkPreferences.kt")
         self.assertIn("ArtworkLoadMode.ON_DEMAND", preferences)
         self.assertIn("AUTO_AFTER_IMPORT", preferences)
         self.assertIn("ArtworkIndexPlanner.fromStoredLibrary(", worker)
