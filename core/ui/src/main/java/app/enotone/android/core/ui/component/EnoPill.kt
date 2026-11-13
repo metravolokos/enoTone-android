@@ -47,7 +47,8 @@ fun EnoPill(
         contentColor = foreground,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp),
+            // 10 dp: «Перемешать» без обрезки в двух пилюлях на 360–377 dp (полоска, макет 10_songs_scrolled).
+            modifier = Modifier.padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
