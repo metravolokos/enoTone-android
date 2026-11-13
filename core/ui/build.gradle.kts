@@ -23,6 +23,8 @@ kotlin {
 dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.material3)
+    // Размытие под полоской прокрутки (ADR-0086, решение владельца 2026-11-14); наружу не экспортируется.
+    implementation(libs.haze)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)

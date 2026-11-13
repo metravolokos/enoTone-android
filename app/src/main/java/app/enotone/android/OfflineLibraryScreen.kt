@@ -1,5 +1,6 @@
 package app.enotone.android
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -12,29 +13,22 @@ import app.enotone.library.LibraryPage
 import app.enotone.library.LibraryPageVisibility
 import app.enotone.library.OfflineTrackRow
 
-/** A thin screen entry point; the application container is never recreated by recomposition. */
+/**
+ * ViewModel медиатеки уровня Activity: общий для «Домой» (число песен, «Перемешать всё») и вкладок.
+ * Ключ содержит только хеши, не сами данные входа; контейнер не пересоздаётся рекомпозицией.
+ */
 @Composable
-internal fun OfflineLibraryScreen(
-    accountEmail: String,
-    appPassword: String,
-    initialPage: LibraryPage = LibraryPage.TRACKS,
-    openRequest: Int = 0,
-    onBack: () -> Unit,
-    player: SharedPlayerUiState = SharedPlayerUiState(),
-    onPlayerOpen: () -> Unit = {},
-    onPlayerPlayPause: () -> Unit = {},
-    onPlayerNext: () -> Unit = {},
-) {
+internal fun rememberLibraryViewModel(accountEmail: String, appPassword: String): LibraryViewModel {
     val context = LocalContext.current.applicationContext
     val container = (context as EnoToneApplication).container
     val pages = remember(context) {
         LibraryPageVisibility.visible(LibraryPagePreferences(context).hiddenPages())
     }
-    val factory = remember(accountEmail, appPassword, initialPage, pages) {
+    val factory = remember(accountEmail, appPassword) {
         LibraryViewModel.factory(
             email = accountEmail,
             password = appPassword,
-            initialPage = initialPage,
+            initialPage = pages.firstOrNull() ?: LibraryPage.TRACKS,
             container = container,
             unknownAlbumName = context.getString(R.string.library_unknown_album),
             messages = AlbumRefreshMessages(
@@ -47,14 +41,28 @@ internal fun OfflineLibraryScreen(
             visiblePages = pages,
         )
     }
-    // A key only contains hashes, not the credential itself.
-    val model: LibraryViewModel = viewModel(
+    return viewModel(
         key = "library:${accountEmail.hashCode()}:${appPassword.hashCode()}",
         factory = factory,
     )
-    // Аудит п. 3: ViewModel живёт дольше экрана — выбор страницы и видимость передаются событиями.
-    LaunchedEffect(model, openRequest) { model.onOpenRequest(openRequest, initialPage) }
-    LaunchedEffect(model, pages) { model.onVisiblePagesChanged(pages) }
+}
+
+/** Вкладка медиатеки в каркасе D3: страница выбирается вкладкой, видимость — из «Настроек». */
+@Composable
+internal fun OfflineLibraryScreen(
+    model: LibraryViewModel,
+    page: LibraryPage,
+    visiblePages: List<LibraryPage>,
+    accountEmail: String,
+    appPassword: String,
+    contentPadding: PaddingValues,
+    scrollToTop: Int,
+) {
+    val context = LocalContext.current.applicationContext
+    val container = (context as EnoToneApplication).container
+    // Аудит п. 3: ViewModel живёт дольше экрана — страница и видимость передаются событиями.
+    LaunchedEffect(model, visiblePages) { model.onVisiblePagesChanged(visiblePages) }
+    LaunchedEffect(model, page) { model.onPageSelected(page) }
     val state by model.state.collectAsStateWithLifecycle()
     LibraryScreenContent(
         state = state,
@@ -62,11 +70,8 @@ internal fun OfflineLibraryScreen(
         artworkRepository = container.artworkPreviewRepository,
         accountEmail = accountEmail,
         appPassword = appPassword,
-        onBack = onBack,
-        player = player,
-        onPlayerOpen = onPlayerOpen,
-        onPlayerPlayPause = onPlayerPlayPause,
-        onPlayerNext = onPlayerNext,
+        contentPadding = contentPadding,
+        scrollToTop = scrollToTop,
     )
 }
 
@@ -104,7 +109,6 @@ private fun PreviewLibrary(state: LibraryUiState) {
             artworkRepository = remember(context) { ArtworkPreviewRepository(context) },
             accountEmail = "",
             appPassword = "",
-            onBack = {},
         )
     }
 }

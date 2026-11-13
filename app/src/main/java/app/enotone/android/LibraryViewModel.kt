@@ -389,6 +389,13 @@ internal class LibraryViewModel(
             else value.tracks).shuffled()
         all.firstOrNull()?.let { onTrackClicked(it, all) }
     }
+
+    /** «Перемешать всё» на «Домой» (D3): вся медиатека, независимо от страницы и поиска. */
+    fun onShuffleLibrary() {
+        val all = mutable.value.tracks.shuffled()
+        all.firstOrNull()?.let { onTrackClicked(it, all) }
+    }
+
     override fun onAlbumPlayAll() {
         val items = mutable.value.albumTracks
         items.firstOrNull()?.let { onTrackClicked(it, items) }

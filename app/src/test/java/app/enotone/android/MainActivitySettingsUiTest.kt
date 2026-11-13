@@ -48,6 +48,7 @@ class MainActivitySettingsUiTest {
         rule.onNodeWithContentDescription(label(R.string.library_back)).performClick()
         rule.onNodeWithText(label(R.string.settings_group_cloud)).assertExists()
         rule.onNodeWithContentDescription(label(R.string.library_back)).performClick()
-        rule.onNodeWithText(label(R.string.home_music_title)).assertExists()
+        // D3: «Домой» C2 без заголовка «Моя музыка»; признак «Домой» — вход в «Настройки» в заголовке.
+        rule.onNodeWithContentDescription(label(R.string.settings_title)).assertExists()
     }
 }

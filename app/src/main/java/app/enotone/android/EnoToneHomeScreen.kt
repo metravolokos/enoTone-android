@@ -1,50 +1,34 @@
 package app.enotone.android
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
-import app.enotone.library.LibraryPage
 
-/** The Home UI remains resource-identical; navigation is composed in :app. */
+/** Строки и значок настроек «Домой» принадлежат :app; экран живёт в :feature:library (ADR-0083). */
 private val homeScreenIds = HomeScreenIds(
     navHome = R.string.nav_home,
     icActionSettings = R.drawable.ic_action_settings,
     settingsTitle = R.string.settings_title,
-    homeMusicTitle = R.string.home_music_title,
-    icNavAlbums = R.drawable.ic_nav_albums,
-    homeOpenLibrary = R.string.home_open_library,
     homeConnectAccount = R.string.home_connect_account,
-    homeLibrarySections = R.string.home_library_sections,
-    libraryTabTracks = R.string.library_tab_tracks,
-    icNavTracks = R.drawable.ic_nav_tracks,
-    libraryTabAlbums = R.string.library_tab_albums,
-    libraryTabArtists = R.string.library_tab_artists,
-    icNavArtists = R.drawable.ic_nav_artists,
-    libraryTabAlbumArtists = R.string.library_tab_album_artists,
-    icNavAlbumArtists = R.drawable.ic_nav_album_artists,
+    homeShuffleAll = R.string.home_shuffle_all,
+    homeSongCount = R.plurals.home_song_count,
 )
 
 @Composable
 internal fun EnoToneHomeScreen(
-    visiblePages: List<LibraryPage>,
     connectedAccount: Boolean,
+    songCount: Int?,
     onSettings: () -> Unit,
-    onOpenPage: (LibraryPage) -> Unit,
-    miniPlayer: @Composable () -> Unit = {},
+    onShuffleAll: () -> Unit,
+    contentPadding: PaddingValues = PaddingValues(),
+    shuffleEnabled: Boolean = true,
 ) {
     FeatureEnoToneHomeScreen(
-        visiblePages = visiblePages,
         connectedAccount = connectedAccount,
+        songCount = songCount,
         onSettings = onSettings,
-        onOpenPage = onOpenPage,
-        miniPlayer = miniPlayer,
+        onShuffleAll = onShuffleAll,
         ids = homeScreenIds,
-        navigation = {
-            CompactLibraryNavigation(
-                selectedPage = null,
-                visiblePages = visiblePages,
-                onHome = {},
-                onPageSelected = onOpenPage,
-                enabled = connectedAccount,
-            )
-        },
+        contentPadding = contentPadding,
+        shuffleEnabled = shuffleEnabled,
     )
 }
