@@ -4,19 +4,6 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 
-/**
- * Aggregated local coverage for one account only. Never expose tag values,
- * file names, paths or ETags to the diagnostic screen.
- */
-data class SavedTagCoverage(
-    val presentTracks: Int,
-    val tracksWithAnyTag: Int,
-    val tracksWithTitle: Int,
-    val tracksWithArtist: Int,
-    val tracksWithAlbum: Int,
-    val tracksWithAlbumArtist: Int,
-)
-
 @Dao
 interface RemoteTrackDao {
     @Query("SELECT * FROM remote_tracks WHERE sourceKey = :sourceKey")
@@ -89,26 +76,6 @@ interface RemoteTrackDao {
         discNumber: Int? = null,
         genre: String? = null,
     ): Int
-
-    /** One local SQLite query; no network, no tag values, no per-track data returned. */
-    @Query("""
-        SELECT
-          COUNT(*) AS presentTracks,
-          COALESCE(SUM(CASE WHEN title IS NOT NULL OR artist IS NOT NULL
-              OR album IS NOT NULL OR albumArtist IS NOT NULL THEN 1 ELSE 0 END), 0)
-              AS tracksWithAnyTag,
-          COALESCE(SUM(CASE WHEN title IS NOT NULL THEN 1 ELSE 0 END), 0)
-              AS tracksWithTitle,
-          COALESCE(SUM(CASE WHEN artist IS NOT NULL THEN 1 ELSE 0 END), 0)
-              AS tracksWithArtist,
-          COALESCE(SUM(CASE WHEN album IS NOT NULL THEN 1 ELSE 0 END), 0)
-              AS tracksWithAlbum,
-          COALESCE(SUM(CASE WHEN albumArtist IS NOT NULL THEN 1 ELSE 0 END), 0)
-              AS tracksWithAlbumArtist
-        FROM remote_tracks
-        WHERE sourceKey = :sourceKey AND missingScans = 0
-    """)
-    suspend fun storedTagCoverage(sourceKey: String): SavedTagCoverage
 
     /**
      * Record a terminal fast-parser result atomically, only for the same source,
@@ -186,17 +153,6 @@ interface RemoteTrackDao {
         LIMIT :limit
     """)
     suspend fun tracksWithoutAlbumArtist(sourceKey: String, limit: Int = 30): List<RemoteTrackEntity>
-
-    @Query("""
-        SELECT * FROM remote_tracks
-        WHERE sourceKey = :sourceKey AND missingScans = 0
-          AND (fileName LIKE :pattern OR title LIKE :pattern)
-        ORDER BY fileName COLLATE NOCASE, id
-        LIMIT :limit
-    """)
-    suspend fun findTracksForReindex(
-        sourceKey: String, pattern: String, limit: Int = 30,
-    ): List<RemoteTrackEntity>
 
     /**
      * Explicit local queue request. Does not erase tag values; a later

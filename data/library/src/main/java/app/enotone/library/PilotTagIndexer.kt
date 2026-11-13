@@ -77,13 +77,6 @@ internal object PilotFailures {
     }
 }
 
-data class PilotCheckpointSummary(
-    val successful: Int,
-    val retryableErrors: Int,
-    val permanentErrors: Int,
-    val notAttempted: Int,
-)
-
 internal object PilotBudget {
     const val MAX_BATCH_BYTES = 4L * 1024 * 1024
     const val MAX_BATCH_GETS = 60
@@ -119,19 +112,6 @@ internal object PilotBudget {
 }
 
 class PilotTagIndexer(private val database: EnoToneDatabase) {
-    /** Uses only local SQLite and the account's SHA key; no password or HTTP. */
-    suspend fun offlineCheckpoint(email: String): PilotCheckpointSummary {
-        val sourceKey = LibrarySnapshotPlanner.accountKey(email)
-        val dao = database.remoteTrackDao()
-        val retryable = dao.retryableFastScanCount(sourceKey)
-        return PilotCheckpointSummary(
-            successful = dao.finishedFastScanCount(sourceKey),
-            retryableErrors = retryable,
-            permanentErrors = dao.permanentFastScanCount(sourceKey),
-            notAttempted = (dao.pendingFastScans(sourceKey).size - retryable).coerceAtLeast(0),
-        )
-    }
-
     suspend fun run(
         email: String,
         password: String,
