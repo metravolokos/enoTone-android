@@ -8,7 +8,7 @@ import app.enotone.library.LibraryPageVisibility
  * Local, non-sensitive UI preferences. Never touches the music database,
  * credentials, WebDAV or MediaSession. Stable enum names survive app upgrades.
  */
-internal class LibraryPagePreferences(context: Context) {
+class LibraryPagePreferences(context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(
         "enotone_library_navigation", Context.MODE_PRIVATE,
     )

@@ -90,9 +90,13 @@ kotlin {
     }
 }
 dependencies {
+    implementation(project(":core:model"))
     implementation(project(":core:network"))
     implementation(project(":core:database"))
     implementation(project(":data:library"))
+    implementation(project(":feature:library"))
+    implementation(project(":feature:player"))
+    implementation(project(":feature:settings"))
     implementation(project(":playback"))
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)

@@ -8,7 +8,7 @@
 |---|---|
 | `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`) и «контрактные» тесты исходников (см. ниже) |
 | Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
-| `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; в PR #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
+| `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; после слитого #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
 | `gradle detekt` | статический анализ Kotlin + правила ktlint; **пока только отчёт** (артефакт `detekt-reports`), CI не блокирует — [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md) |
 | `:app:compileStablePreviewKotlin` | компиляция варианта Stable Preview без секретов |
 | Room schema | экспортированные схемы v1–v4 совпадают с закоммиченными |
@@ -26,7 +26,7 @@ python3 -m unittest discover -s tools -p 'test_*.py' -v
 
 Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopback, только для тестов); синтетические WAV с кириллическими NFC/NFD-именами — `python3 tools/generate_fixtures.py <каталог>`.
 
-### Robolectric и Compose UI (PR #118, M6-0/5a)
+### Robolectric и Compose UI (#118 слит, M6-0/5a)
 
 - JVM под Robolectric 4.17 (SDK 35), **без эмулятора**: `./gradlew :core:database:testDebugUnitTest :app:testDebugUnitTest`. Экспортированные схемы Room v1–v4 читаются из `core/database/schemas` как debug assets.
 - `EnoToneMigrationTest`: последовательная v1→v2→v3→v4 и прямая v1→v4, реальные строки переживают миграцию, новые nullable-поля остаются NULL.
@@ -34,12 +34,18 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 - `NowPlayingUiTest`, `SettingsActionsUiTest`, `HomeNavigationUiTest`, `LibraryVisibilityUiTest`, `MainActivitySettingsUiTest`: Compose-семантика и нажатия через фейковые действия, без WebDAV и реальной переиндексации.
 - `LibraryPagePreferencesTest` проверяет реальную запись и восстановление SharedPreferences, `LocalizedUiResourcesTest` — разрешение RU/EN ресурсов через Android, без чтения XML строками; `MiniPlayerUiTest` — появление и открытие мини-плеера.
 - `SignOutMarkerTest`, `MainActivityIntentTest`: флаг незавершённого выхода и одноразовое потребление EXTRA_OPEN_NOW_PLAYING. **Реальный Android Keystore не эмулируется**; сценарий восстановления входа с pending-флагом покрыт `AccountSettingsViewModelTest` с фейковым gateway. Проверка интента сама по себе не подтверждает показ Now Playing при восстановленной очереди.
-- UI-тесты проверяют доступность элементов и действия, но **не заменяют** визуальное сравнение экрана с эталоном D2. Предыдущий HEAD `73e2d49` прошёл CI #504, итог CI после удаления Python-проверок приводится в PR по завершении.
+- UI-тесты проверяют доступность элементов и действия, но **не заменяют** визуальное сравнение экрана с эталоном D2. После merge #118 зелёный CI #508 на `main`; новые тесты наследуются в 5b без изменения алгоритмов.
 
 ### Известный долг тестов
 
 - M6-0/5a (PR #118): из 24 строковых контрактных файлов (64 метода) удалены **6 полностью заменённых** (13 методов): `test_clean_library_ui`, `test_extended_tag_metadata`, `test_library_page_settings`, `test_screenshot_parity`, `test_tag_audit_refresh`, `test_unified_import_genre` (суффикс `_contract.py`). Остались **18 файлов (51 метод)**. Действительные поведенческие замены и непокрытые аспекты каждого файла перечислены в таблице PR #118; неполное покрытие означает сохранение файла до следующих тестов. `test_mock_webdav.py`, политика подписи и GMS-гейт остаются. Новых проверок исходного текста не добавляли.
 - С #92 и #100 есть поведенческие JVM/JUnit-тесты `:app` (`LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`, `AccountSignOut`) и чистого преобразования `:data:library`. В PR #118 добавлены Room DAO/миграции (`MigrationTestHelper`) и Compose UI-тесты; полный набор проверяется на обновлённом HEAD.
+
+### M6-0/5b — модули (Draft)
+
+- `./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt :app:compileStablePreviewKotlin` — запускает тесты 5a и анализ всех оставшихся модулей. Дополнительно: `python3 -m unittest discover -s tools -p 'test_*.py' -v`; существующие Python policy-проверки обновлены лишь по путям перенесённых типов и по разделению Now Playing на фасад и реализацию, не добавлялись новые строковые проверки.
+- Карта перемещения, альтернативы архитектуры и явно не перенесённые R-bound экраны — [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) и Draft PR. Compose UI-тесты 5a вызывают прежние сигнатуры `:app/NowPlayingScreen`, `:app/EnoToneHomeScreen` и `:app/LibraryVisibilitySettingsContent`; ресурсы не дублируются и не меняются. Exact-HEAD CI обязателен перед слиянием.
+- **Huawei после отдельного merge и сборки подписанной Stable Preview:** установить `app.enotone.android.preview` поверх текущей, без удаления данных; проверить вход, сохранённую медиатеку и обложки, запуск/фон музыки, «Сейчас играет», мини-плеер, «Настройки» и «Диагностику». Без полного импорта или переиндексации ради проверки. Пока владелец отдельно не сообщит PASS/FAIL, не отмечать Huawei PASS.
 
 ## 2. Ручная проверка на Huawei
 

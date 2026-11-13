@@ -1,74 +1,32 @@
 package app.enotone.android
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import app.enotone.library.LibraryPage
-import app.enotone.library.LibraryPageVisibility
 
-/** Persistent settings, never a control on the music browsing page. */
+/** All application R resources stay in :app, unchanged until D2. */
+private val visibilityIds = LibraryVisibilityIds(
+    libraryPagesSettingsTitle = R.string.library_pages_settings_title,
+    libraryTabTracks = R.string.library_tab_tracks,
+    libraryTabAlbums = R.string.library_tab_albums,
+    libraryTabArtists = R.string.library_tab_artists,
+    libraryTabAlbumArtists = R.string.library_tab_album_artists,
+)
+
+/** Preserves SettingsScreen's public-to-app entry point. */
 @Composable
 internal fun LibraryVisibilitySettings() {
-    val context = LocalContext.current.applicationContext
-    val preferences = remember(context) { LibraryPagePreferences(context) }
-    var hiddenPages by remember(context) {
-        mutableStateOf(preferences.hiddenPages())
-    }
-    LibraryVisibilitySettingsContent(hiddenPages) { next ->
-        hiddenPages = next
-        preferences.saveHiddenPages(next)
-    }
+    FeatureLibraryVisibilitySettings(visibilityIds)
 }
 
+/** Keeps the 5a Compose test entry point and callbacks unchanged. */
 @Composable
-internal fun LibraryVisibilitySettingsContent(hiddenPages: Set<LibraryPage>, onHidden: (Set<LibraryPage>) -> Unit) {
-    val visible = LibraryPageVisibility.visible(hiddenPages)
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(stringResource(R.string.library_pages_settings_title),
-            style = MaterialTheme.typography.titleMedium)
-        LibraryPageVisibility.defaultOrder.forEach { page ->
-            val title = when (page) {
-                LibraryPage.TRACKS -> R.string.library_tab_tracks
-                LibraryPage.ALBUMS -> R.string.library_tab_albums
-                LibraryPage.ARTISTS -> R.string.library_tab_artists
-                LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
-            }
-            val isVisible = page in visible
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked = isVisible,
-                    enabled = !isVisible || visible.size > 1,
-                    onCheckedChange = { shouldShow ->
-                        val next = LibraryPageVisibility.withVisibility(
-                            hiddenPages, page, shouldShow,
-                        )
-                        if (next != hiddenPages) {
-                            onHidden(next)
-                        }
-                    },
-                )
-                Text(stringResource(title))
-            }
-        }
-    }
+internal fun LibraryVisibilitySettingsContent(
+    hiddenPages: Set<LibraryPage>,
+    onHidden: (Set<LibraryPage>) -> Unit,
+) {
+    FeatureLibraryVisibilitySettingsContent(hiddenPages, visibilityIds, onHidden)
 }
 
 @Preview

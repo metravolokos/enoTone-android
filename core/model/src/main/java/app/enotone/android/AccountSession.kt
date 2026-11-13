@@ -6,9 +6,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /** SourceKey is a SHA-256 digest: no email, password, or remote path enters this bus. */
-internal enum class AccountPhase { ACTIVE, SIGNING_OUT, SIGNED_OUT, SIGN_OUT_FAILED }
+enum class AccountPhase { ACTIVE, SIGNING_OUT, SIGNED_OUT, SIGN_OUT_FAILED }
 
-internal data class AccountState(
+data class AccountState(
     val sourceKey: String? = null,
     val phase: AccountPhase = AccountPhase.ACTIVE,
     val revision: Long = 0L,
@@ -22,7 +22,7 @@ internal data class AccountState(
  * App-scope account lifecycle. StateFlow retains the last transition even when
  * a screen is not currently collected; sign-out never depends on navigation.
  */
-internal class AccountSession {
+class AccountSession {
     private val mutable = MutableStateFlow(AccountState())
     val state: StateFlow<AccountState> = mutable.asStateFlow()
 

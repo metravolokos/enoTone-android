@@ -17,7 +17,7 @@ class AcceptedDocumentationContractTest(unittest.TestCase):
     def test_current_decisions_match_shipped_1200px_persistent_repository(self):
         accepted = read("docs/CURRENT_DECISIONS.md")
         cache = read("app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt")
-        prefs = read("app/src/main/java/app/enotone/android/ArtworkPreferences.kt")
+        prefs = read("feature/library/src/main/java/app/enotone/android/ArtworkPreferences.kt")
         for token in ("2026-11-11", "1200 px", "filesDir/enotone-artwork-v2",
                       "ON_DEMAND", "AUTO_AFTER_IMPORT", "ADR-0067",
                       "Stable Preview #301", "Неизвестный альбом"):

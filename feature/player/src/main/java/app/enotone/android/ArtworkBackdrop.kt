@@ -13,7 +13,7 @@ import kotlin.math.max
  * We return muted but *chromatic* swatches for the two broad soft spotlights;
  * the caller supplies a darkening overlay for white foreground contrast.
  */
-internal fun artworkColors(artwork: Bitmap?): Pair<Color, Color> {
+fun artworkColors(artwork: Bitmap?): Pair<Color, Color> {
     val fallback = Color(0xFF535358) to Color(0xFF36363B)
     if (artwork == null || artwork.isRecycled) return fallback
     return runCatching {
