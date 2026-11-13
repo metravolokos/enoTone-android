@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Палитра enoTone v1.4, тема «Фарфор». Сгенерировано tools/build_tokens.py
+     из enotone-design/tokens/colors.json — не править руками. -->
+<resources>
+    <color name="eno_background">#EDE9E5</color>
+    <color name="eno_surface">#F8F5F1</color>
+    <color name="eno_surface2">#E2DCD6</color>
+    <color name="eno_text">#211E1C</color>
+    <color name="eno_text_secondary">#5C544E</color>
+    <color name="eno_accent">#EBAE9F</color>
+    <color name="eno_accent_text">#A24F3E</color>
+    <color name="eno_line">#CFC6BE</color>
+    <color name="eno_on_accent">#211E1C</color>
+    <color name="eno_shadow">#383C281E</color>
+    <color name="eno_scrim">#61211E1C</color>
+    <color name="eno_cover_outline">#2E80766E</color>
+    <color name="eno_playing_overlay">#4D000000</color>
+    <color name="eno_playing_bar">#FFFFFF</color>
+    <color name="eno_avatar_1">#EBAE9F</color>
+    <color name="eno_avatar_on_1">#1B1A19</color>
+    <color name="eno_avatar_2">#8FB0C2</color>
+    <color name="eno_avatar_on_2">#1B1A19</color>
+    <color name="eno_avatar_3">#4F7487</color>
+    <color name="eno_avatar_on_3">#F4ECE4</color>
+    <color name="eno_avatar_4">#D9C3AE</color>
+    <color name="eno_avatar_on_4">#1B1A19</color>
+    <color name="eno_avatar_5">#6E625A</color>
+    <color name="eno_avatar_on_5">#F4ECE4</color>
+    <color name="eno_avatar_6">#B9AEA4</color>
+    <color name="eno_avatar_on_6">#1B1A19</color>
+</resources>
