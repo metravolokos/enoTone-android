@@ -6,7 +6,7 @@
 
 ## Фактическое состояние модулей (M6-0/4b-2, PR #104, 2026-11-12)
 
-Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104). Перенос сервисов и заполнение модулей ещё не завершены.
+Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104). Разделение служб подготовлено в Draft PR M6-0/4c, заполнение модулей остаётся для M6-0/5.
 
 | Модуль | Содержимое |
 |---|---|
@@ -18,7 +18,13 @@
 
 `SettingsScreen.kt` — каркас навигации и сбор состояний: основной экран из групп-карточек и подэкран «Диагностика» (`SettingsDiagnosticsScreen.kt`, только чтение), [ADR-0081](DECISIONS/ADR-0081-settings-structure-diagnostics.md). Разделы настроек получают state/actions и имеют Preview; I/O перенесён в gateway. Activity-scoped `SettingsSessionViewModel` владеет только RAM-сеансом; `AppContainer` не удерживает пароль. `SettingsWorkSession` сохраняет взаимную исключительность импорта и действий диагностики, сбрасывает данные сеанса после выхода. Автоподготовка обложек ждёт готовности тегов и режима AUTO_AFTER_IMPORT, повторно проверяет состояние перед запуском. Пароль передаётся портом только в RAM-handoff, Intent содержит лишь действие. `openLibraryDatabase` удалён из `:app`; существующие службы/планировщик обращаются к `container.database` без изменения алгоритмов. Санитизация отчёта разрешает только фиксированные операции/метки и числа (Kotlin-тест с небезопасным фейковым ответом).
 
-Пустые (только `build.gradle.kts`): `:core:common`, `:core:model`, `:core:datastore`, `:data:source`, `:data:cache`, `:data:playlist`, `:feature:library`, `:feature:player`, `:feature:settings`, `:feature:ai`. Сервисы — M6-0/4c, модули — M6-0/5. Дизайн ADR-0073, Room, `:playback`, WebDAV-клиенты и CI в #104 не меняются.
+### Фоновые службы M6-0/4c — в Draft PR
+
+- `IndexingForegroundService` теперь отвечает за Android lifecycle, `dataSync`, канал, уведомление и Intent. `ManagedScanRuntime.kt` содержит RAM-handoff, состояние и фиксированные коды отказа. `IndexingRunner` с портами для БД/сети владеет прогоном, паузой, остановкой и `onTimeout` без `Context`/`Service`. Существующие 80 пакетов, 4 часа, сетевые бюджеты и сравнение версии перед записью в Room остаются в `:data:library`.
+- `ArtworkIndexingForegroundService` отвечает за lifecycle и уведомления; `ArtworkScanRuntime.kt` хранит RAM-состояние, `ArtworkPreparationRunner` — обход альбомов, паузу/остановку и приоритет индексации тегов. Android-адаптер использует прежние `ArtworkIndexPlanner` и `ArtworkPreviewRepository`: WebP-мастер до 1200 px, постоянные ссылки и `NO_ART` без повторного GET.
+- Во время `SignOutMarker.pending` запуск запрещён; `AndroidAccountSignOutPort` по-прежнему ждёт остановки перед удалением аккаунта. `LibraryDataRevision` продолжает наблюдать прежние `StateFlow`. JUnit с фейковыми портами проверяют переходы без Android/WebDAV. Room v4, режимы `ON_DEMAND` / `AUTO_AFTER_IMPORT`, оформление и сеть не менялись.
+
+Пустые (только `build.gradle.kts`): `:core:common`, `:core:model`, `:core:datastore`, `:data:source`, `:data:cache`, `:data:playlist`, `:feature:library`, `:feature:player`, `:feature:settings`, `:feature:ai`. Сервисы — в Draft PR M6-0/4c, модули — M6-0/5. Дизайн ADR-0073, Room, `:playback`, WebDAV-клиенты и CI в #104 не меняются.
 
 ## Целевая схема
 
