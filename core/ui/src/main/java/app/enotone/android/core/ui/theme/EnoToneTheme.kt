@@ -8,9 +8,13 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.TextStyle
@@ -163,6 +167,28 @@ private fun colorTokens(): EnoColorTokens = EnoColorTokens(
 /** Режим System/Dark/Light остаётся в :app — эта тема получает уже вычисленный флаг. */
 @Composable
 fun EnoToneTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
+    val baseContext = LocalContext.current
+    // User-selected DARK/LIGHT must override *resource* night qualifiers, not just M3 scheme.
+    // Otherwise a dark manual mode under a light phone would load values/eno_colors.xml.
+    val themedConfiguration = remember(baseContext, darkTheme) {
+        Configuration(baseContext.resources.configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                (if (darkTheme) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO)
+        }
+    }
+    val themedContext = remember(baseContext, themedConfiguration) {
+        baseContext.createConfigurationContext(themedConfiguration)
+    }
+    CompositionLocalProvider(
+        LocalContext provides themedContext,
+        LocalConfiguration provides themedConfiguration,
+    ) {
+        EnoToneThemeContents(darkTheme, content)
+    }
+}
+
+@Composable
+private fun EnoToneThemeContents(darkTheme: Boolean, content: @Composable () -> Unit) {
     val background = colorResource(R.color.eno_background)
     val surface = colorResource(R.color.eno_surface)
     val surface2 = colorResource(R.color.eno_surface2)
