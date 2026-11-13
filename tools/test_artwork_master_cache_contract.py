@@ -25,9 +25,11 @@ class ArtworkMasterCacheContractTest(unittest.TestCase):
             "val side = requestedSide.coerceIn(1, MAX_SIDE)",
             "private fun scaleToSide(bitmap: Bitmap, requestedSide: Int)",
             "LruCache<String, Bitmap>(24 * 1024)",
-            "refreshEpoch only triggers UI recomposition",
         ):
             self.assertIn(token, art)
+        # The source identity type moved to :core:model in M6-0/5b.
+        target = self.code("core/model/src/main/java/app/enotone/android/PlayingArtworkTarget.kt")
+        self.assertIn("refreshEpoch only triggers UI recomposition", target)
         self.assertNotIn("enotone-artwork-v1", art)
         self.assertNotIn('art-$contentHash-512.webp', art)
         self.assertNotIn('art-$contentHash-192.webp', art)
