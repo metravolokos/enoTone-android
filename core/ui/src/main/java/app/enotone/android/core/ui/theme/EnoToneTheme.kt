@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+
 package app.enotone.android.core.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
