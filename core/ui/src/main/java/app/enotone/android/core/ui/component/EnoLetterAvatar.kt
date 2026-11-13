@@ -10,6 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -18,8 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import app.enotone.android.core.ui.R
 import app.enotone.android.core.ui.theme.EnoColors
 import java.text.BreakIterator
@@ -30,18 +30,18 @@ fun avatarPaletteIndex(name: String): Int {
     val sum = name.codePoints().toArray().fold(0L) { acc, codePoint ->
         acc + codePoint.toLong()
     }
-    return (sum % 6L).toInt()
+    return (sum % AVATAR_PALETTE_SIZE).toInt()
 }
 
 /** Первый графемный кластер, включая emoji и составные буквы. */
 fun avatarInitial(name: String, locale: Locale = Locale.ROOT): String {
     val text = name.trim()
-    if (text.isEmpty()) return "?"
-    val breaker = BreakIterator.getCharacterInstance(locale)
-    breaker.setText(text)
-    val end = breaker.next()
-    if (end == BreakIterator.DONE || end <= 0) return "?"
-    return text.substring(0, end).uppercase(locale)
+    val end = if (text.isEmpty()) {
+        BreakIterator.DONE
+    } else {
+        BreakIterator.getCharacterInstance(locale).apply { setText(text) }.next()
+    }
+    return if (end == BreakIterator.DONE || end <= 0) "?" else text.substring(0, end).uppercase(locale)
 }
 
 private val avatarUnbounded = FontFamily(
@@ -78,3 +78,6 @@ fun EnoLetterAvatar(
         )
     }
 }
+
+/** Число пар фон/буква в палитре v1.4 (`eno_avatar_1..6`). */
+private const val AVATAR_PALETTE_SIZE = 6L

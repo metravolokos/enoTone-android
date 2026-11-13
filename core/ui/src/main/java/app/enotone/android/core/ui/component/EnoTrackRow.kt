@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,8 +24,6 @@ import androidx.compose.ui.unit.dp
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
 import app.enotone.android.core.ui.theme.EnoRadii
-
-enum class EnoTrackRowVariant { LIBRARY, ALBUM }
 
 /** Все загружаемые обложки — слот: собственный слой кэша/изображений в :app/:feature. */
 @Composable
@@ -71,10 +68,14 @@ fun EnoTrackRow(
             Box(
                 modifier = Modifier.size(44.dp)
                     .clip(RoundedCornerShape(EnoRadii.xs))
-                    .background(EnoColors.surface2)
-                    .border(EnoElevation.coverBorder, EnoColors.coverOutline, RoundedCornerShape(EnoRadii.xs)),
+                    .background(EnoColors.surface2),
             ) {
                 artwork?.invoke()
+                // Окантовка поверх обложки: светлые обложки не сливаются с фоном.
+                Box(
+                    Modifier.matchParentSize()
+                        .border(EnoElevation.coverBorder, EnoColors.coverOutline, RoundedCornerShape(EnoRadii.xs)),
+                )
                 if (isCurrent) {
                     EnoPlayingIndicator(
                         playing = isPlaying,
@@ -110,3 +111,5 @@ fun EnoTrackRow(
         )
     }
 }
+
+enum class EnoTrackRowVariant { LIBRARY, ALBUM }

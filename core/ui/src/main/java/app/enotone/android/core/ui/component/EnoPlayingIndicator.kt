@@ -1,5 +1,6 @@
 package app.enotone.android.core.ui.component
 
+import android.provider.Settings
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -22,17 +23,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import android.provider.Settings
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.enotone.android.core.ui.theme.EnoColors
 
-/** Индикатор играет поверх обложки или вместо номера трека в альбоме. */
-enum class PlayingIndicatorVariant { ARTWORK, TRACK_NUMBER }
-
 private val wavePeriodsMs = listOf(1600, 2600, 1900, 2200)
+
+/** На паузе столбики замирают низко; без анимации — средняя высота. */
+private const val PAUSED_SCALE = 0.25f
+private const val STATIC_SCALE = 0.62f
+private const val MIN_SCALE = 0.30f
+private const val MAX_SCALE = 0.95f
+
 private val waveEasing = CubicBezierEasing(0.45f, 0f, 0.55f, 1f)
 
 /**
@@ -71,8 +75,8 @@ fun EnoPlayingIndicator(
                 val scale = if (animate) {
                     val transition = rememberInfiniteTransition(label = "eno-wave-$index")
                     val value by transition.animateFloat(
-                        initialValue = 0.30f,
-                        targetValue = 0.95f,
+                        initialValue = MIN_SCALE,
+                        targetValue = MAX_SCALE,
                         animationSpec = infiniteRepeatable(
                             animation = tween(durationMillis = period, easing = waveEasing),
                             repeatMode = RepeatMode.Reverse,
@@ -80,12 +84,12 @@ fun EnoPlayingIndicator(
                         label = "bar-$index",
                     )
                     value
-                } else if (!playing) 0.25f else 0.62f
+                } else if (!playing) PAUSED_SCALE else STATIC_SCALE
                 Box(
                     Modifier.width(2.5.dp).height(14.dp)
                         .graphicsLayer {
                             scaleY = scale
-                            transformOrigin = TransformOrigin(0.5f, 1f)
+                            transformOrigin = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
                         }
                         .background(barColor, RoundedCornerShape(2.dp)),
                 )
@@ -93,3 +97,6 @@ fun EnoPlayingIndicator(
         }
     }
 }
+
+/** Индикатор играет поверх обложки или вместо номера трека в альбоме. */
+enum class PlayingIndicatorVariant { ARTWORK, TRACK_NUMBER }

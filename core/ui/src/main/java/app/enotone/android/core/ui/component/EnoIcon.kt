@@ -15,6 +15,26 @@ import androidx.compose.ui.unit.dp
 import app.enotone.android.core.ui.R
 import app.enotone.android.core.ui.theme.EnoColors
 
+@Composable
+fun EnoIcon(
+    icon: EnoIcons,
+    description: String?,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    enabled: Boolean = true,
+    size: Dp = 24.dp,
+) {
+    val paint: Painter = painterResource(if (selected) icon.selected else icon.outline)
+    val tint = if (selected) EnoColors.accentText else MaterialTheme.colorScheme.onSurface
+    val visualModifier = modifier.size(size).then(if (enabled) Modifier else Modifier.alpha(DISABLED_ALPHA))
+    Image(
+        painter = paint,
+        contentDescription = description,
+        modifier = visualModifier,
+        colorFilter = ColorFilter.tint(tint),
+    )
+}
+
 /** Значок UI Icons v1; выбранная вкладка использует отдельный fill-вектор. */
 enum class EnoIcons(@DrawableRes val outline: Int, @DrawableRes val selected: Int = outline) {
     HOME(R.drawable.ic_eno_home, R.drawable.ic_eno_home_fill),
@@ -33,22 +53,5 @@ enum class EnoIcons(@DrawableRes val outline: Int, @DrawableRes val selected: In
     QUEUE(R.drawable.ic_eno_queue),
 }
 
-@Composable
-fun EnoIcon(
-    icon: EnoIcons,
-    description: String?,
-    modifier: Modifier = Modifier,
-    selected: Boolean = false,
-    enabled: Boolean = true,
-    size: Dp = 24.dp,
-) {
-    val paint: Painter = painterResource(if (selected) icon.selected else icon.outline)
-    val tint = if (selected) EnoColors.accentText else MaterialTheme.colorScheme.onSurface
-    val visualModifier = modifier.size(size).then(if (enabled) Modifier else Modifier.alpha(0.38f))
-    Image(
-        painter = paint,
-        contentDescription = description,
-        modifier = visualModifier,
-        colorFilter = ColorFilter.tint(tint),
-    )
-}
+/** Прозрачность отключённого элемента по Material 3. */
+private const val DISABLED_ALPHA = 0.38f
