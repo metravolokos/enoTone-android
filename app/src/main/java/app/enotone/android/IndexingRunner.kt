@@ -6,8 +6,8 @@ import app.enotone.library.ManagedTagIndexSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 
 /** Data and network are provided through ports; no Android Service or Context. */
 internal fun interface IndexingSessionPort {
@@ -58,14 +58,29 @@ internal class IndexingRunner(
         publishProgress: suspend (ManagedIndexProgress) -> Unit = {},
     ): Boolean {
         if (!gate.tryLock()) return false
-        var stage = "DATABASE_OPEN"
-        try {
-            if (statusPort.status.value.state != ManagedScanState.RUNNING ||
-                statusPort.status.value.terminating) return false
-            if (signOutPending()) {
-                statusPort.update(ManagedScanState.PAUSED)
-                return false
+        return try {
+            when {
+                statusPort.status.value.state != ManagedScanState.RUNNING ||
+                    statusPort.status.value.terminating -> false
+                signOutPending() -> {
+                    statusPort.update(ManagedScanState.PAUSED)
+                    false
+                }
+                else -> execute(request, publishProgress)
             }
+        } finally {
+            gate.unlock()
+        }
+    }
+
+    /** All unexpected exceptions must be classified without leaking private paths. */
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun execute(
+        request: PendingIndexRun,
+        publishProgress: suspend (ManagedIndexProgress) -> Unit,
+    ): Boolean {
+        var stage = "DATABASE_OPEN"
+        return try {
             withContext(dispatcher) {
                 val session = sessions.open()
                 stage = "INDEX_BATCH"
@@ -87,20 +102,16 @@ internal class IndexingRunner(
                     )
                 }
             }
-            return true
+            true
         } catch (cancelled: CancellationException) {
-            // Pause/Stop published the terminal state before cancelling the Job.
             throw cancelled
         } catch (failure: Exception) {
             if (statusPort.status.value.state == ManagedScanState.RUNNING) {
                 statusPort.fail(stage, failure)
             }
-            return false
-        } finally {
-            gate.unlock()
+            false
         }
     }
-
     fun pause(jobActive: Boolean) =
         statusPort.update(ManagedScanState.PAUSED, terminating = jobActive)
 

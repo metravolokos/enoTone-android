@@ -41,6 +41,7 @@ internal data class PendingIndexRun(
 
 internal object ManagedScanRuntime : ManagedScanStatusPort {
     override val status = MutableStateFlow(ManagedScanStatus())
+
     // One-shot RAM handoff, never an Intent extra or persisted secret.
     private var pending: PendingIndexRun? = null
 

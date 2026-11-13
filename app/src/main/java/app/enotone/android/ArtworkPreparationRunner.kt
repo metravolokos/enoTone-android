@@ -34,15 +34,25 @@ internal class ArtworkPreparationRunner<Group>(
 
     suspend fun run(login: StoredWebDavLogin): Boolean {
         if (!gate.tryLock()) return false
+        return try {
+            when {
+                statusPort.status.value.state != ArtworkScanState.RUNNING ||
+                    statusPort.status.value.terminating -> false
+                signOutPending() -> {
+                    statusPort.update(ArtworkScanState.PAUSED, 0, 0)
+                    false
+                }
+                else -> execute(login)
+            }
+        } finally {
+            gate.unlock()
+        }
+    }
+
+    private suspend fun execute(login: StoredWebDavLogin): Boolean {
         var completed = 0
         var total = 0
-        try {
-            if (statusPort.status.value.state != ArtworkScanState.RUNNING ||
-                statusPort.status.value.terminating) return false
-            if (signOutPending()) {
-                statusPort.update(ArtworkScanState.PAUSED, 0, 0)
-                return false
-            }
+        return try {
             withContext(dispatcher) {
                 val groups = port.groups(login)
                 total = groups.size
@@ -50,16 +60,7 @@ internal class ArtworkPreparationRunner<Group>(
                 for (group in groups) {
                     coroutineContext.ensureActive()
                     if (nowNanos() - startedAt >= MAX_SESSION_NANOS) break
-                    // During a tag scan, no artwork GET may compete for bandwidth.
-                    while (port.tagsRunning()) {
-                        sleep(WAIT_FOR_TAGS_MS)
-                        coroutineContext.ensureActive()
-                    }
-                    if (!port.isIndexed(login, group)) {
-                        port.prepare(login, group)
-                        sleep(BETWEEN_ALBUM_MS)
-                    }
-                    if (port.isIndexed(login, group)) completed++
+                    if (prepareOne(login, group)) completed++
                     statusPort.update(ArtworkScanState.RUNNING, completed, total)
                     if (completed % NOTIFICATION_STEP == 0 || completed == total) {
                         port.publish(completed, total)
@@ -69,26 +70,34 @@ internal class ArtworkPreparationRunner<Group>(
                     statusPort.update(
                         if (completed == total) ArtworkScanState.COMPLETE
                         else ArtworkScanState.PAUSED,
-                        completed,
-                        total,
-                        terminating = true,
+                        completed, total, terminating = true,
                     )
                 }
             }
-            return true
+            true
         } catch (cancelled: CancellationException) {
-            // The service already recorded Pause/Stop before cancelling.
+            // Pause/Stop already published the terminal state before cancellation.
             throw cancelled
         } catch (_: Exception) {
             if (statusPort.status.value.state == ArtworkScanState.RUNNING) {
                 statusPort.update(ArtworkScanState.ERROR, completed, total, terminating = true)
             }
-            return false
-        } finally {
-            gate.unlock()
+            false
         }
     }
 
+    private suspend fun prepareOne(login: StoredWebDavLogin, group: Group): Boolean {
+        // Tag scans retain network priority even when artwork was queued first.
+        while (port.tagsRunning()) {
+            sleep(WAIT_FOR_TAGS_MS)
+            coroutineContext.ensureActive()
+        }
+        if (!port.isIndexed(login, group)) {
+            port.prepare(login, group)
+            sleep(BETWEEN_ALBUM_MS)
+        }
+        return port.isIndexed(login, group)
+    }
     fun pause(jobActive: Boolean) = finish(ArtworkScanState.PAUSED, jobActive)
     fun stop(jobActive: Boolean) = finish(ArtworkScanState.STOPPED, jobActive)
     fun onTimeout(jobActive: Boolean) = pause(jobActive)

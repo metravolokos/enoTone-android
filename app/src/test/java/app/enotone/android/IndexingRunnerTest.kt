@@ -2,7 +2,6 @@ package app.enotone.android
 
 import app.enotone.library.ManagedIndexMode
 import app.enotone.library.ManagedIndexProgress
-import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelAndJoin
@@ -124,7 +123,7 @@ class IndexingRunnerTest {
     }
 
     @Test fun errorCodesNeverExposeExceptionMessagesOrPaths() = runTest {
-        val openFailure = runner({ throw IOException("/AllMusic/private.mp3 password") })
+        val openFailure = runner({ throw java.io.IOException("/AllMusic/private.mp3 password") })
         assertFalse(openFailure.run(request))
         assertEquals("DATABASE_OPEN", ManagedScanRuntime.status.value.failureStage)
         assertEquals("IO", ManagedScanRuntime.status.value.failureReason)

@@ -31,9 +31,8 @@ internal object ArtworkScanRuntime : ArtworkScanStatusPort {
     private var pending: StoredWebDavLogin? = null
 
     @Synchronized fun prepare(email: String, password: String): Boolean {
-        if (email.isBlank() || password.isBlank() ||
-            status.value.state == ArtworkScanState.RUNNING ||
-            status.value.terminating) return false
+        if (email.isBlank() || password.isBlank()) return false
+        if (status.value.state == ArtworkScanState.RUNNING || status.value.terminating) return false
         pending = StoredWebDavLogin(email, password)
         status.value = ArtworkScanStatus(state = ArtworkScanState.RUNNING)
         return true
