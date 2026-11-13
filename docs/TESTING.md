@@ -32,13 +32,14 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 - `EnoToneMigrationTest`: последовательная v1→v2→v3→v4 и прямая v1→v4, реальные строки переживают миграцию, новые nullable-поля остаются NULL.
 - `RemoteTrackDaoTest`: изоляция аккаунтов, CAS тегов, fast-scan, очередь выборочной/полной переиндексации без потери тегов, аудит с лимитом 30, удаление по sourceKey.
 - `NowPlayingUiTest`, `SettingsActionsUiTest`, `HomeNavigationUiTest`, `LibraryVisibilityUiTest`, `MainActivitySettingsUiTest`: Compose-семантика и нажатия через фейковые действия, без WebDAV и реальной переиндексации.
+- `LibraryPagePreferencesTest` проверяет реальную запись и восстановление SharedPreferences, `LocalizedUiResourcesTest` — разрешение RU/EN ресурсов через Android, без чтения XML строками; `MiniPlayerUiTest` — появление и открытие мини-плеера.
 - `SignOutMarkerTest`, `MainActivityIntentTest`: флаг незавершённого выхода и одноразовое потребление EXTRA_OPEN_NOW_PLAYING. **Реальный Android Keystore не эмулируется**; сценарий восстановления входа с pending-флагом покрыт `AccountSettingsViewModelTest` с фейковым gateway. Проверка интента сама по себе не подтверждает показ Now Playing при восстановленной очереди.
-- UI-тесты проверяют доступность элементов и действия, но **не заменяют** визуальное сравнение экрана с эталоном D2. Итог CI точного HEAD будет указан в PR после запуска.
+- UI-тесты проверяют доступность элементов и действия, но **не заменяют** визуальное сравнение экрана с эталоном D2. Предыдущий HEAD `73e2d49` прошёл CI #504, итог CI после удаления Python-проверок приводится в PR по завершении.
 
 ### Известный долг тестов
 
-- 24 файла `tools/test_*_contract.py` (64 метода) читают `.kt`/`.md` и проверяют наличие строк. Они **не проверяют поведение** и ломаются при рефакторинге. Новые такие тесты **не добавлять**. В Draft #118 прежние Python-файлы пока сохранены: их удаление разрешено только после полного покрытия JUnit/Robolectric/Compose, с построчной картой замены в описании PR; тест политики подписания/GMS остаётся как политика.
-- С #92 и #100 есть поведенческие JVM/JUnit-тесты `:app` (`LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`, `AccountSignOut`) и чистого преобразования `:data:library`. В Draft #118 добавлены Room DAO/миграции (`MigrationTestHelper`) и Compose UI-тесты; CI ещё проверяется.
+- M6-0/5a (PR #118): из 24 строковых контрактных файлов (64 метода) удалены **6 полностью заменённых** (13 методов): `test_clean_library_ui`, `test_extended_tag_metadata`, `test_library_page_settings`, `test_screenshot_parity`, `test_tag_audit_refresh`, `test_unified_import_genre` (суффикс `_contract.py`). Остались **18 файлов (51 метод)**. Действительные поведенческие замены и непокрытые аспекты каждого файла перечислены в таблице PR #118; неполное покрытие означает сохранение файла до следующих тестов. `test_mock_webdav.py`, политика подписи и GMS-гейт остаются. Новых проверок исходного текста не добавляли.
+- С #92 и #100 есть поведенческие JVM/JUnit-тесты `:app` (`LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`, `AccountSignOut`) и чистого преобразования `:data:library`. В Draft #118 добавлены Room DAO/миграции (`MigrationTestHelper`) и Compose UI-тесты; полный набор проверяется на обновлённом HEAD.
 
 ## 2. Ручная проверка на Huawei
 

@@ -37,7 +37,7 @@
 - Слит M6-0/4b-2 (#104): индексация/обложки/диагностика в ViewModel и gateway, единый порт запуска служб, экран разделён на файлы с Preview.
 - **Дизайн Android v2** утверждён владельцем 2026-11-12; ресурсы подключены — M6-0/R = D1 слит (#98, [ADR-0079](DECISIONS/ADR-0079-design-resources-v2.md)), экраны не изменены; перевод экранов — шаги D2–D6 после M6-0/5 ([DESIGN_PLAN](DESIGN_PLAN.md)).
 
-- **M6-0/5a:** [Draft PR #118](https://github.com/metravolokos/enoTone-android/pull/118) — Robolectric, Room DAO/миграции и Compose UI-тесты; CI пока проверяется, Python contract-тесты без полного эквивалента не удалены. 5b не начат.
+- **M6-0/5a:** [PR #118](https://github.com/metravolokos/enoTone-android/pull/118) — Robolectric, Room DAO/миграции, Compose UI; 6 полностью заменённых Python-контрактов удалены, 18 policy/частичных сохранены с картой покрытия. CI #504 был зелёным до доработки; новый HEAD проверяется. 5b не начат.
 
 ## Следующий конкретный шаг
 
