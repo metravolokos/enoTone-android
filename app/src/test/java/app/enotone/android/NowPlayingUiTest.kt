@@ -3,6 +3,9 @@ package app.enotone.android
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.performClick
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
@@ -48,10 +51,10 @@ class NowPlayingUiTest {
         rule.onNodeWithContentDescription(context.getString(R.string.playback_resume)).performClick()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_previous)).performClick()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_next)).performClick()
-        rule.onNodeWithContentDescription(context.getString(R.string.playback_shuffle_off)).performClick()
-        rule.onNodeWithContentDescription(context.getString(R.string.library_player_close)).performClick()
+        rule.onNode(hasContentDescription(context.getString(R.string.playback_shuffle_off))
+            and hasClickAction()).performClick()
         rule.runOnIdle {
-            assertEquals(1, close)
+            assertEquals(0, close)
             assertEquals(1, play)
             assertEquals(1, previous)
             assertEquals(1, next)
@@ -62,6 +65,9 @@ class NowPlayingUiTest {
                 context.getString(R.string.playback_repeat_off)),
         ).performClick()
         rule.runOnIdle { assertEquals(1, repeat) }
+        rule.onNodeWithContentDescription(context.getString(R.string.library_player_close))
+            .performClick()
+        rule.runOnIdle { assertEquals(1, close) }
         rule.onNodeWithContentDescription("Громкость").assertDoesNotExist()
         rule.onNodeWithContentDescription("Volume").assertDoesNotExist()
     }
@@ -83,8 +89,8 @@ class NowPlayingUiTest {
                 )
             }
         }
-        rule.onNodeWithText("0:30").assertExists()
-        rule.onNodeWithText("-1:30").assertExists()
+        rule.onNodeWithText("00:30").assertExists()
+        rule.onNodeWithText("-01:30").assertExists()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_resume)).assertExists()
         rule.runOnIdle { assertEquals(0, play) }
     }

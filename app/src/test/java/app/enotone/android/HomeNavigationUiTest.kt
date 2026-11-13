@@ -38,7 +38,8 @@ class HomeNavigationUiTest {
         }
         rule.onNodeWithText("MINI_PLAYER_SENTINEL").assertExists()
         rule.onAllNodesWithText(context.getString(R.string.library_tab_artists)).assertCountEquals(0)
-        rule.onAllNodesWithText(context.getString(R.string.library_tab_albums))[0].performClick()
+        val albums = rule.onAllNodesWithText(context.getString(R.string.library_tab_albums))
+        albums[albums.fetchSemanticsNodes().lastIndex].performClick()
         rule.runOnIdle { assertEquals(LibraryPage.ALBUMS, selected) }
     }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertTrue
@@ -34,11 +35,12 @@ class MainActivitySettingsUiTest {
             R.string.artwork_settings_title,
             R.string.diagnostics_title,
         )
-        val y = titles.map { title ->
-            rule.onNodeWithText(label(title)).fetchSemanticsNode().boundsInRoot.top
-        }
+        // Off-screen coordinates can be clipped: use the rendered semantics order.
+        val screenSemantics = rule.onRoot(useUnmergedTree = true).printToString()
+        val offsets = titles.map { screenSemantics.indexOf(label(it)) }
         assertTrue("Settings groups must remain in their accepted order",
-            y.zipWithNext().all { (before, after) -> before < after })
+            offsets.all { it >= 0 } &&
+                offsets.zipWithNext().all { (before, after) -> before < after })
         rule.onNodeWithText(label(R.string.diagnostics_title)).performClick()
         rule.onNodeWithText(label(R.string.diagnostics_intro)).assertExists()
         rule.onNodeWithContentDescription(label(R.string.library_back)).performClick()
