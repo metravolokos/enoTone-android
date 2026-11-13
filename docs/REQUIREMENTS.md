@@ -66,8 +66,8 @@
 
 | ID | Требование | Статус | Примечание |
 |---|---|---|---|
-| R-4.1 | Модули `:core:*`, `:data:*`, `:playback`, `:feature:*` | 🟡 | Draft M6-0/5b, ADR-0083: `AccountSession`, `AccountSignOut`, `PlayingArtworkTarget` → `:core:model`; библиотечные модели/настройки, Home и видимость страниц → `:feature:library`, UI-хелперы и полный Now Playing → `:feature:player` (старый app-фасад и ID ресурсов), sanitizer/permission UI → `:feature:settings`. Полный перенос остальных экранов/VM не закончен, R-bound UI в `:app` |
-| R-4.2 | Абстракция `MusicSource` | ❌ | |
+| R-4.1 | Модули `:core:*`, `:data:*`, `:playback`, `:feature:*` | 🟡 | #119, ADR-0083: 10 модулей (5 пустых удалены), модели — `:core:model`, Home/видимость страниц — `:feature:library`, Now Playing — `:feature:player`; остальные экраны и ViewModel в `:app` до решения о ресурсах на D2. H 0.6.2-preview.522 (UPD-01) |
+| R-4.2 | Абстракция `MusicSource` | ❌ | Решение 2026-11-13: делать вместе с единым сетевым слоем после M6-0/6–7; одна реализация Cloud.Mail.ru, только реально поддержанные операции ([REDUCTION_REVIEWS](REDUCTION_REVIEWS.md)) |
 | R-4.3 | UDF: MVVM/MVI + StateFlow, логика не в Composable | 🟡 | #92: медиатека/плеер; #100: аккаунт; #104 (M6-0/4b-2): `LibraryIndexingViewModel`, `ArtworkSettingsViewModel`, `DiagnosticsViewModel`, immutable StateFlow, gateway и `BackgroundWorkLauncher` через AppContainer; T: одноимённые JUnit с фейками, подтверждение/повтор/авторизация/автообложки. M6-0/4c (в PR): runner-ы служб с фейк-портами/JUnit; Huawei регрессия ожидается |
 | R-4.4 | Room — единственный источник истины для UI | 🟡 | медиатека — да; часть состояния в UI |
 | R-4.5 | Стабильный ID трека | 🟡 | SHA от пути; нет канонизации кодирования |
@@ -148,8 +148,8 @@
 | R-9.1 | Сборка, тесты, lint, detekt/ktlint, GMS, debug APK | ✅ | CI; detekt пока не блокирует |
 | R-9.2 | **Release по тегу в GitHub Releases** | 🟡 | `v0.6.0` — релиз с APK, создан владельцем вручную по `RELEASE.md` (ADR-0078); **автоматической** сборки релиза по тегу в CI нет |
 | R-9.3 | Dependabot / Renovate | ✅ | #81 |
-| R-9.4 | Защищённый `main` | ❌ | правило ветки не включено (только владелец может) |
-| R-9.5 | Шаблоны PR / issue | ✅ | `.github/` |
+| R-9.4 | Защищённый `main` | ✅ | Включено владельцем 2026-11-13: только PR, обязательная проверка CI `android`, без force push и удаления |
+| R-9.5 | Шаблоны PR / issue | ✅ | `.github/`; PR-шаблон с ID сценариев и проверенным SHA (2026-11-13) |
 | R-10 | Документация §10 (AGENTS, ADR, STATUS, ROADMAP и т. д.) | ✅ | M6-0/1 |
 | R-11.1 | `@Preview` и состояния загрузка / пусто / ошибка / данные для каждого экрана | 🟡 | #92: 4 превью медиатеки; #100: 4 аккаунта; #104: индексация, прогресс/ошибка службы, WebDAV, аудит, пилоты, обложки (данные/очистка/ошибка), тема и видимые страницы имеют Preview с параметрами без I/O; ADR-0081: превью раздела «Медиатека» (данные/ошибка) и подэкрана «Диагностика», превью удалённых инструментов убраны. Полное покрытие остальных экранов и аппаратная регрессия ещё открыты |
 | R-11.2 | StrictMode в debug | ❌ | |
