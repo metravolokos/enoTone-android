@@ -5,7 +5,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.performClick
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
