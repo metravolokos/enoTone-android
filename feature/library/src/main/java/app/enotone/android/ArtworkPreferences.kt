@@ -3,9 +3,9 @@ package app.enotone.android
 import android.content.Context
 
 /** Separate from tag indexing; default preserves the existing lazy behavior. */
-internal enum class ArtworkLoadMode { ON_DEMAND, AUTO_AFTER_IMPORT }
+enum class ArtworkLoadMode { ON_DEMAND, AUTO_AFTER_IMPORT }
 
-internal class ArtworkPreferences(context: Context) {
+class ArtworkPreferences(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
         "enotone_artwork_preferences_v1", Context.MODE_PRIVATE)
 

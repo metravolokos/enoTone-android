@@ -9,12 +9,12 @@ import app.enotone.library.OfflineTrackRow
  * A virtual "Unknown Album" is NOT a real shared album: its unrelated tracks
  * retain independent picture identities. Everything is built from local tags.
  */
-internal data class AlbumArtworkGroup(
+data class AlbumArtworkGroup(
     val key: String,
     val targets: List<PlayingArtworkTarget>,
 )
 
-internal data class AlbumArtworkCatalog(
+data class AlbumArtworkCatalog(
     val groups: List<AlbumArtworkGroup>,
     val byGroupKey: Map<String, AlbumArtworkGroup>,
     val byTrackId: Map<String, AlbumArtworkGroup>,
