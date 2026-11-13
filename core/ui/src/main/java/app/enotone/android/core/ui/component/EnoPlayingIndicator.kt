@@ -13,18 +13,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalAccessibilityManager
+import androidx.compose.ui.platform.LocalMotionDurationScale
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -50,7 +47,8 @@ fun EnoPlayingIndicator(
     animated: Boolean = true,
 ) {
     val isArtwork = variant == PlayingIndicatorVariant.ARTWORK
-    val animate = animated && playing && !LocalInspectionMode.current
+    val motionScale = LocalMotionDurationScale.current.scaleFactor
+    val animate = animated && playing && motionScale > 0f && !LocalInspectionMode.current
     val barColor = if (isArtwork) EnoColors.playingBar else EnoColors.accentText
     val bg = EnoColors.playingOverlay
     Box(modifier = modifier.semantics { this.contentDescription = contentDescription }) {
@@ -66,20 +64,23 @@ fun EnoPlayingIndicator(
             verticalAlignment = Alignment.Bottom,
         ) {
             wavePeriodsMs.forEachIndexed { index, period ->
-                val transition = rememberInfiniteTransition(label = "eno-wave-$index")
-                val scale by transition.animateFloat(
-                    initialValue = 0.30f,
-                    targetValue = 0.95f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(durationMillis = period, easing = waveEasing),
-                        repeatMode = RepeatMode.Reverse,
-                    ),
-                    label = "bar-$index",
-                )
+                val scale = if (animate) {
+                    val transition = rememberInfiniteTransition(label = "eno-wave-$index")
+                    val value by transition.animateFloat(
+                        initialValue = 0.30f,
+                        targetValue = 0.95f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = period, easing = waveEasing),
+                            repeatMode = RepeatMode.Reverse,
+                        ),
+                        label = "bar-$index",
+                    )
+                    value
+                } else if (!playing) 0.25f else 0.62f
                 Box(
                     Modifier.width(2.5.dp).height(14.dp)
                         .graphicsLayer {
-                            scaleY = if (!playing) 0.25f else if (animate) scale else 0.62f
+                            scaleY = scale
                             transformOrigin = TransformOrigin(0.5f, 1f)
                         }
                         .background(barColor, RoundedCornerShape(2.dp)),

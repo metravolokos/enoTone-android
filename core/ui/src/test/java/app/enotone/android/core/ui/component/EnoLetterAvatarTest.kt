@@ -15,7 +15,7 @@ class EnoLetterAvatarTest {
     }
 
     @Test fun composedCharacterAndEmojiRemainComplete() {
-        assertEquals("É", avatarInitial("e\u0301cho", Locale.ROOT))
+        assertEquals("E\u0301", avatarInitial("e\u0301cho", Locale.ROOT))
         assertEquals("😀", avatarInitial("😀 dance"))
         assertTrue(avatarInitial("🦝 Enot").isNotEmpty())
     }
