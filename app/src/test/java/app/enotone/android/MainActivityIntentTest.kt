@@ -24,7 +24,7 @@ class MainActivityIntentTest {
         try {
             assertFalse(cold.hasExtra(PlayerLaunchIntent.EXTRA_OPEN_NOW_PLAYING))
             val warm = request()
-            controller.get().onNewIntent(warm)
+            controller.newIntent(warm)
             assertFalse(warm.hasExtra(PlayerLaunchIntent.EXTRA_OPEN_NOW_PLAYING))
         } finally {
             controller.pause().stop().destroy()
