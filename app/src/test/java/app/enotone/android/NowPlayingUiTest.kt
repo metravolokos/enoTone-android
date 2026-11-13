@@ -69,6 +69,12 @@ class NowPlayingUiTest {
         rule.runOnIdle { assertEquals(1, close) }
         rule.onNodeWithContentDescription("Громкость").assertDoesNotExist()
         rule.onNodeWithContentDescription("Volume").assertDoesNotExist()
+        // No invented quality labels or non-functional controls.
+        for (label in listOf("Lyrics", "Cast", "Favorites", "Queue", "Lossless",
+            "Текст песни", "Избранное", "Очередь", "Без потерь")) {
+            rule.onNodeWithContentDescription(label).assertDoesNotExist()
+            rule.onNodeWithText(label).assertDoesNotExist()
+        }
     }
 
     @Test fun disabledTransportIsNotClickableAndKeepsTimeVisible() {

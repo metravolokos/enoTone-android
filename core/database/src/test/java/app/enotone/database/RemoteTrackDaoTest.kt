@@ -68,6 +68,9 @@ class RemoteTrackDaoTest {
         val row = dao.allForSource("account-a").single()
         assertEquals("New title", row.title)
         assertEquals("Rock", row.genre)
+        assertEquals(2026, row.year)
+        assertEquals(2, row.trackNumber)
+        assertEquals(1, row.discNumber)
         assertEquals("Old title", dao.allForSource("account-b").single().title)
     }
 
@@ -85,6 +88,9 @@ class RemoteTrackDaoTest {
         val row = dao.allForSource("account-a").single()
         assertEquals("Fresh title", row.title)
         assertEquals("Jazz", row.genre)
+        assertEquals(2025, row.year)
+        assertEquals(3, row.trackNumber)
+        assertEquals(1, row.discNumber)
         assertEquals(0, scan("v1", "MP3_ID3V24"))
     }
 
