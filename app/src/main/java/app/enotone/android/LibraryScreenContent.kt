@@ -94,9 +94,11 @@ internal fun LibraryScreenContent(
     // Saveable: the app-level Now Playing screen removes the library from
     // composition; MainActivity keeps these states in a SaveableStateHolder so
     // Back returns to the same scroll position (Huawei regression after #92).
-    val libraryListState = rememberSaveable(section, selectedGroupKey, search,
+    // Без ключа по поиску: поле поиска теперь внутри списка (вариант B), новый state на каждую
+    // букву пересоздавал бы список вместе с полем.
+    val libraryListState = rememberSaveable(section, selectedGroupKey,
         saver = LazyListState.Saver) { LazyListState() }
-    val albumGridState = rememberSaveable(section, search,
+    val albumGridState = rememberSaveable(section,
         saver = LazyGridState.Saver) { LazyGridState() }
 
     val albumRequest = state.confirmAlbumRefresh
@@ -122,7 +124,7 @@ internal fun LibraryScreenContent(
     val blur = rememberEnoBlurState()
     val density = LocalDensity.current
     val stripAfterPx = with(density) { STRIP_AFTER.toPx() }
-    val stripVisible by remember(section, selectedGroupKey) {
+    val stripVisible by remember(libraryListState, albumGridState, section, selectedGroup) {
         derivedStateOf {
             val grid = section == LibraryPage.ALBUMS && selectedGroup == null
             if (grid) albumGridState.firstVisibleItemIndex > 0 ||
@@ -248,10 +250,9 @@ internal fun LibraryScreenContent(
             // Only the album page uses a cover grid; performers remain
             // readable lists until their detailed views are implemented.
             section == LibraryPage.ALBUMS && selectedGroup == null -> {
-                if (shownGroups.isEmpty()) {
-                    header()
-                    Text(stringResource(R.string.library_groups_empty))
-                } else {
+                // Пустой результат поиска — внутри того же списка: поле поиска не пересоздаётся
+                // и не теряет фокус, пока пользователь печатает.
+                run {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         state = albumGridState,
@@ -261,6 +262,11 @@ internal fun LibraryScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         item(key = HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) { header() }
+                        if (shownGroups.isEmpty()) {
+                            item(key = EMPTY_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                                Text(stringResource(R.string.library_groups_empty))
+                            }
+                        }
                         gridItems(shownGroups, key = { it.key }) { group ->
                             AlbumArtworkTile(
                                 group = group,
@@ -275,10 +281,7 @@ internal fun LibraryScreenContent(
                 }
             }
             section != LibraryPage.TRACKS && selectedGroup == null -> {
-                if (shownGroups.isEmpty()) {
-                    header()
-                    Text(stringResource(R.string.library_groups_empty))
-                } else {
+                run {
                     LazyColumn(
                         state = libraryListState,
                         contentPadding = contentPadding,
@@ -286,6 +289,9 @@ internal fun LibraryScreenContent(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         item(key = HEADER_KEY) { header() }
+                        if (shownGroups.isEmpty()) {
+                            item(key = EMPTY_KEY) { Text(stringResource(R.string.library_groups_empty)) }
+                        }
                         items(shownGroups, key = { it.key }) { group ->
                             Row(
                                 modifier = Modifier.fillMaxWidth().height(72.dp)
@@ -464,6 +470,7 @@ private fun sectionTitle(section: LibraryPage): Int = when (section) {
 }
 
 private const val HEADER_KEY = "library-header"
+private const val EMPTY_KEY = "library-empty"
 
 /** Полоска появляется, когда крупный заголовок (≈ 56 dp) ушёл под системную строку. */
 private val STRIP_AFTER = 56.dp
