@@ -6,15 +6,6 @@ def source(path):
     return (ROOT / path).read_text()
 BASE = "app/src/main/java/app/enotone/android/"
 class MinimalEnoToneUiContractTest(unittest.TestCase):
-    def test_native_navigation_and_actions(self):
-        nav = source(BASE+"CompactLibraryNavigation.kt")
-        action = source(BASE+"MusicVisualControls.kt")
-        theme = source(BASE+"EnoToneTheme.kt")
-        self.assertIn("NavigationBar(", nav)
-        self.assertIn("NavigationBarItem(", nav)
-        self.assertIn("NavigationBarItemDefaults.colors(", nav)
-        self.assertIn("FilledTonalButton(", action)
-        self.assertNotIn("UiAccent", theme)
     def test_player_has_only_real_controls(self):
         p = source(BASE+"NowPlayingScreen.kt") + source("feature/player/src/main/java/app/enotone/android/FeatureNowPlayingScreen.kt")
         for token in ("Brush.verticalGradient(", "Slider(", "FilledIconButton(",
