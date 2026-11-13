@@ -16,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
@@ -46,12 +45,14 @@ internal fun ThemeSpecimen(darkTheme: Boolean) {
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground,
             )
-            Text("Onest 400 — Пример", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Normal))
-            Text("Onest 500 — Пример", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-            Text(
-                "Onest 600 — Пример",
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-            )
+            // Цвет задаётся явно: вне Surface LocalContentColor чёрный и в «Графите» строки пропадают.
+            listOf(
+                "Onest 400 — Пример" to MaterialTheme.typography.bodyMedium,
+                "Onest 500 — Пример" to MaterialTheme.typography.bodyLarge,
+                "Onest 600 — Пример" to MaterialTheme.typography.titleSmall,
+            ).forEach { (label, style) ->
+                Text(label, style = style, color = MaterialTheme.colorScheme.onBackground)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ColorSwatch(MaterialTheme.colorScheme.surface, EnoRadii.s)
                 ColorSwatch(EnoColors.surface2, EnoRadii.m)
