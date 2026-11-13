@@ -12,7 +12,7 @@
 |---|---|
 | `:app` | Android Application, `AppContainer`, MediaSession/foreground адаптеры, Keystore, resource-bound Compose экраны и ViewModel до D2–D6 |
 | `:core:model` | `AccountSession`, `AccountSignOut`, `PlayingArtworkTarget`; прежние имена и пакеты |
-| `:feature:library` | `AlbumArtworkCatalog`, `ArtworkPreferences`, `LibraryPagePreferences` |
+| `:feature:library` | `AlbumArtworkCatalog`, `ArtworkPreferences`, `LibraryPagePreferences`, полная реализация Home и UI видимости страниц; `:app`-фасады с исходными сигнатурами, resource IDs и навигацией |
 | `:feature:player` | `ArtworkBackdrop`, `FloatingControlsIsland`, `FeatureNowPlayingScreen` (полная реализация) и `NowPlayingIds`; прежняя сигнатура и 28 app-owned R IDs — в `:app` |
 | `:feature:settings` | `DiagnosticReportSanitizer`, `SettingsNotificationPermission` |
 | `:core:database` | Room v4, DAOs/миграции/схемы неизменны |
@@ -21,7 +21,7 @@
 | `:playback` | MediaSessionService, ExoPlayer, WebDAV DataSource, временный кэш и очередь |
 | `:data:playlist` | Пустой, **явно зарезервирован для M6-0/6**; функциональность плейлистов не заявлена |
 
-В Draft удалены невостребованные каркасы `:core:common/datastore`, `:data:source/cache`, `:feature:ai`. Ресурсы строк, RU/EN, night и v2 полностью остаются в `:app`. Now Playing перенесён целиком без изменения вёрстки; перенос остальных полных экранов и ViewModel **не завершён** из-за границы Android `R`; решение о контракте ресурсов — D2. `AppContainer` остаётся в `:app`, циклических зависимостей feature→app нет.
+В Draft удалены невостребованные каркасы `:core:common/datastore`, `:data:source/cache`, `:feature:ai`. Ресурсы строк, RU/EN, night и v2 полностью остаются в `:app`. Home и Now Playing перенесены целиком, UI настройки видимости страниц тоже; перенос остальных полных экранов и ViewModel **не завершён** из-за границы Android `R`; решение о контракте ресурсов — D2. `AppContainer` остаётся в `:app`, циклических зависимостей feature→app нет.
 
 `SettingsScreen.kt` — каркас навигации и сбор состояний: основной экран из групп-карточек и подэкран «Диагностика» (`SettingsDiagnosticsScreen.kt`, только чтение), [ADR-0081](DECISIONS/ADR-0081-settings-structure-diagnostics.md). Разделы настроек получают state/actions и имеют Preview; I/O перенесён в gateway. Activity-scoped `SettingsSessionViewModel` владеет только RAM-сеансом; `AppContainer` не удерживает пароль. `SettingsWorkSession` сохраняет взаимную исключительность импорта и действий диагностики, сбрасывает данные сеанса после выхода. Автоподготовка обложек ждёт готовности тегов и режима AUTO_AFTER_IMPORT, повторно проверяет состояние перед запуском. Пароль передаётся портом только в RAM-handoff, Intent содержит лишь действие. `openLibraryDatabase` удалён из `:app`; существующие службы/планировщик обращаются к `container.database` без изменения алгоритмов. Санитизация отчёта разрешает только фиксированные операции/метки и числа (Kotlin-тест с небезопасным фейковым ответом).
 
