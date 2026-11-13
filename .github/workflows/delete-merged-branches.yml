@@ -1,0 +1,55 @@
+name: Delete merged branches
+
+# Ручной запуск: Actions → «Delete merged branches» → Run workflow.
+# Удаляет ветку, только если её PR слит и после слияния в ветку ничего не добавлялось.
+# Не трогает main/ветку по умолчанию, защищённые ветки и ветки с открытыми PR.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Только показать, что будет удалено (ничего не удалять)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const dryRun = process.env.DRY_RUN === 'true';
+            const { data: info } = await github.rest.repos.get({ owner, repo });
+            const branches = await github.paginate(github.rest.repos.listBranches, { owner, repo, per_page: 100 });
+            const pulls = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'all', per_page: 100 });
+            const own = pulls.filter(p => p.head.repo && p.head.repo.full_name === `${owner}/${repo}`);
+            const deleted = [], kept = [];
+            for (const b of branches) {
+              if (b.name === info.default_branch || b.protected) continue;
+              const prs = own.filter(p => p.head.ref === b.name);
+              const open = prs.filter(p => p.state === 'open');
+              const mergedSame = prs.some(p => p.merged_at && p.head.sha === b.commit.sha);
+              let reason = null;
+              if (open.length) reason = `открыт PR #${open.map(p => p.number).join(', #')}`;
+              else if (!prs.length) reason = 'нет PR';
+              else if (!mergedSame) reason = prs.some(p => p.merged_at) ? 'коммиты после слияния' : 'PR закрыт без слияния';
+              if (reason) { kept.push(`${b.name} — ${reason}`); continue; }
+              if (!dryRun) await github.rest.git.deleteRef({ owner, repo, ref: `heads/${b.name}` });
+              deleted.push(b.name);
+            }
+            const verb = dryRun ? 'Будет удалено' : 'Удалено';
+            await core.summary
+              .addHeading(`${verb}: ${deleted.length}`, 3)
+              .addList(deleted.length ? deleted : ['—'])
+              .addHeading(`Оставлено: ${kept.length}`, 3)
+              .addList(kept.length ? kept : ['—'])
+              .write();
+            core.info(`${verb}: ${deleted.length}, оставлено: ${kept.length}`);
