@@ -2,20 +2,20 @@
 
 package app.enotone.android.core.ui.theme
 
+import android.content.res.Configuration
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
-import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -118,10 +118,25 @@ private val enoTypography = Typography(
     displayLarge = TextStyle(fontFamily = onest, fontWeight = FontWeight.SemiBold, fontSize = 36.sp),
     displayMedium = TextStyle(fontFamily = onest, fontWeight = FontWeight.SemiBold, fontSize = 32.sp),
     displaySmall = TextStyle(fontFamily = onest, fontWeight = FontWeight.SemiBold, fontSize = 28.sp),
-    headlineLarge = TextStyle(fontFamily = unbounded, fontWeight = FontWeight.SemiBold, fontSize = 30.sp, lineHeight = 33.sp),
+    headlineLarge = TextStyle(
+        fontFamily = unbounded,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 30.sp,
+        lineHeight = 33.sp,
+    ),
     headlineMedium = TextStyle(fontFamily = onest, fontWeight = FontWeight.SemiBold, fontSize = 26.sp),
-    headlineSmall = TextStyle(fontFamily = unbounded, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 28.8.sp),
-    titleLarge = TextStyle(fontFamily = onest, fontWeight = FontWeight.SemiBold, fontSize = 23.sp, lineHeight = 28.75.sp),
+    headlineSmall = TextStyle(
+        fontFamily = unbounded,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp,
+        lineHeight = 28.8.sp,
+    ),
+    titleLarge = TextStyle(
+        fontFamily = onest,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 23.sp,
+        lineHeight = 28.75.sp,
+    ),
     titleMedium = TextStyle(fontFamily = onest, fontWeight = FontWeight.SemiBold, fontSize = 18.sp),
     titleSmall = TextStyle(fontFamily = onest, fontWeight = FontWeight.SemiBold, fontSize = 17.sp),
     bodyLarge = TextStyle(fontFamily = onest, fontWeight = FontWeight.Medium, fontSize = 16.sp),
@@ -171,7 +186,7 @@ fun EnoToneTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
     val baseConfiguration = LocalConfiguration.current
     // User-selected DARK/LIGHT must override *resource* night qualifiers, not just M3 scheme.
     // Otherwise a dark manual mode under a light phone would load values/eno_colors.xml.
-    val themedConfiguration = remember(baseContext, darkTheme) {
+    val themedConfiguration = remember(baseConfiguration, darkTheme) {
         Configuration(baseConfiguration).apply {
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
                 (if (darkTheme) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO)

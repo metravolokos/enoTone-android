@@ -31,12 +31,27 @@ internal fun ThemeSpecimen(darkTheme: Boolean) {
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Песни", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
-            Text("Нет композиций", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onBackground)
-            Text("Альбом — Пример", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                "Песни",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                "Нет композиций",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                "Альбом — Пример",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
             Text("Onest 400 — Пример", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Normal))
             Text("Onest 500 — Пример", style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium))
-            Text("Onest 600 — Пример", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold))
+            Text(
+                "Onest 600 — Пример",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ColorSwatch(MaterialTheme.colorScheme.surface, EnoRadii.s)
                 ColorSwatch(EnoColors.surface2, EnoRadii.m)
@@ -63,8 +78,8 @@ private fun ColorSwatch(color: androidx.compose.ui.graphics.Color, radius: andro
 
 @Preview(name = "Graphite", showBackground = true)
 @Composable
-private fun GraphiteThemePreview() = ThemeSpecimen(darkTheme = true)
+internal fun GraphiteThemePreview() = ThemeSpecimen(darkTheme = true)
 
 @Preview(name = "Porcelain", showBackground = true)
 @Composable
-private fun PorcelainThemePreview() = ThemeSpecimen(darkTheme = false)
+internal fun PorcelainThemePreview() = ThemeSpecimen(darkTheme = false)
