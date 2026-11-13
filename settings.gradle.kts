@@ -23,7 +23,7 @@ dependencyResolutionManagement {
 }
 rootProject.name = "enoTone-android"
 include(":app")
-include(":core:model", ":core:database", ":core:network")
+include(":core:model", ":core:database", ":core:network", ":core:ui")
 include(":data:library", ":data:playlist")
 include(":playback")
 include(":feature:library", ":feature:player", ":feature:settings")

@@ -9,6 +9,7 @@
 | `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`) и «контрактные» тесты исходников (см. ниже) |
 | Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
 | `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; после слитого #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
+| `gradle :core:ui:verifyRoborazziDebug` | сравнение эталонов Android v2 в обеих темах, diff — артефакт `roborazzi-results` |
 | `gradle detekt` | статический анализ Kotlin + правила ktlint; **блокирующий** с базовой линией `detekt-baseline.xml` в каждом модуле — [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md) |
 | `tools/check_detekt_baseline.py <база>` | базовая линия detekt не выросла относительно базового коммита |
 | `tools/check_adr_index.py` | у каждого ADR есть строка в индексе |
@@ -38,6 +39,12 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 - `CredentialEnvelopeTest` (ACC-06): формат зашифрованного входа с программным AES-ключом вместо Keystore — повреждение, усечение, чужой ключ и версия отвергаются, IV новый при каждом шифровании.
 - `SignOutMarkerTest`, `MainActivityIntentTest`: флаг незавершённого выхода и одноразовое потребление EXTRA_OPEN_NOW_PLAYING. **Реальный Android Keystore не эмулируется** (формат проверяет `CredentialEnvelopeTest`); сценарий восстановления входа с pending-флагом покрыт `AccountSettingsViewModelTest` с фейковым gateway. Проверка интента сама по себе не подтверждает показ Now Playing при восстановленной очереди.
 - UI-тесты проверяют доступность элементов и действия, но **не заменяют** визуальное сравнение экрана с эталоном D2. После merge #118 зелёный CI #508 на `main`; новые тесты наследуются в 5b без изменения алгоритмов.
+
+### Roborazzi (D2a)
+
+Только `:core:ui` и `testImplementation`, не в APK. Robolectric 4.17, `@GraphicsMode(NATIVE)`, Roborazzi 1.76.0. `ThemeScreenshotTest`: синтетический specimen с палитрой, Onest 400/500/600, Unbounded, радиусами; два эталона: `core/ui/src/test/screenshots/theme_graphite.png`, `theme_porcelain.png`. Для начальной записи **в том же CI-окружении**: Actions → Android M0 → Run workflow на ветке D2a с `record_roborazzi=true`; скачать артефакт `roborazzi-results` (или восстановить PNG из строк `ROBORAZZI_PNG <путь> <sha256>` и `ROBORAZZI_B64 <путь> <часть base64>` журнала этого запуска), коммитить PNG; обычный PR запускает `:core:ui:verifyRoborazziDebug` и загружает diff. Пока golden не зафиксированы, проверка не считается завершённой. Ресурсы `tools:keep` проверяются на подписанном Stable Preview (`:app:assembleStablePreview` + `aapt2 dump resources` / `apkanalyzer`); не заявлять PASS без выполнения.
+
+Старый строковой `tools/test_m6_theme_contract.py` удалён: он жёстко требовал исторические значения Graphite. Режимы темы и их сохранение проверяет `UiAppearancePersistenceTest` (Robolectric), внешний вид — `ThemeScreenshotTest`. Другие исходные/политические проверки не менялись.
 
 ### Известный долг тестов
 

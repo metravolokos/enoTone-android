@@ -5,6 +5,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      record_roborazzi:
+        description: "Record D2 golden PNG on this runner (upload artifact, no PR write)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -110,6 +116,30 @@ jobs:
         run: gradle --no-daemon :app:assembleDebug testDebugUnitTest lintDebug
       # Blocking since 2026-11-13: old findings are in detekt-baseline.xml,
       # any new finding fails (ADR-0076, AUDIT_PROTOCOL §4.1).
+      - name: Record Roborazzi snapshots (manual workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch' && inputs.record_roborazzi == true
+        run: gradle --no-daemon :core:ui:recordRoborazziDebug
+      - name: Print recorded golden PNG as base64 (manual record only)
+        # Для агентов без доступа к хранилищу артефактов: эталон восстанавливается из журнала.
+        if: github.event_name == 'workflow_dispatch' && inputs.record_roborazzi == true
+        run: |
+          for f in $(find . -path '*/src/test/screenshots/*.png' | sort); do
+            echo "ROBORAZZI_PNG $f $(sha256sum "$f" | cut -d' ' -f1)"
+            base64 -w 3000 "$f" | sed "s|^|ROBORAZZI_B64 $f |"
+          done
+      - name: Verify Android v2 screenshots against committed golden PNG
+        if: github.event_name != 'workflow_dispatch' || inputs.record_roborazzi != true
+        run: gradle --no-daemon :core:ui:verifyRoborazziDebug
+      - name: Upload Roborazzi golden candidates and visual diffs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: roborazzi-results
+          path: |
+            core/ui/src/test/screenshots/
+            core/ui/build/outputs/roborazzi/
+          if-no-files-found: ignore
+          retention-days: 14
       - name: detekt + ktlint rules (blocking, with baseline)
         run: gradle --no-daemon detekt
       - name: detekt baseline only shrinks
