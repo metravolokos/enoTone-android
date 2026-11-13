@@ -59,14 +59,14 @@
 | R-3.8 | Картинки: Coil или свой загрузчик + ADR | ✅ | свой (`ArtworkPreviewRepository`), ADR-0054/0067 |
 | R-3.9 | DI Hilt/Koin (или обоснование) | ✅ | ручной `AppContainer`, ADR-0074/0077, #92 |
 | R-3.10 | Теги: выбор через ADR | ✅ | собственный парсер, ADR-0027 |
-| R-3.11 | Gradle KTS, version catalog, многомодульность | 🟡 | catalog есть; 10 из 15 модулей пустые (M6-0/5) |
-| R-3.12 | ktlint/spotless, detekt, Lint, тесты, Compose UI-тесты | 🟡 | detekt + ktlint (только отчёт), lint всех модулей — ADR-0076; **Compose UI-тесты добавлены** (#118; CI #504 для исходного HEAD, перепроверка изменений) |
+| R-3.11 | Gradle KTS, version catalog, многомодульность | 🟡 | #118: тесты 5a слиты; Draft 5b (ADR-0083): 10 Gradle-модулей, 4 заполненных новых слоя, 5 пустых удалено; `:data:playlist` зарезервирован для M6-0/6. CI и ревью ожидаются |
+| R-3.12 | ktlint/spotless, detekt, Lint, тесты, Compose UI-тесты | 🟡 | detekt + ktlint (только отчёт), lint всех модулей — ADR-0076; **Compose UI-тесты добавлены** (#118 слит; `main` CI #508 зелёный) |
 
 ## 3. Архитектура (ТЗ §4)
 
 | ID | Требование | Статус | Примечание |
 |---|---|---|---|
-| R-4.1 | Модули `:core:*`, `:data:*`, `:playback`, `:feature:*` | 🟡 | M6-0/5 |
+| R-4.1 | Модули `:core:*`, `:data:*`, `:playback`, `:feature:*` | 🟡 | Draft M6-0/5b, ADR-0083: `AccountSession`, `AccountSignOut`, `PlayingArtworkTarget` → `:core:model`; библиотечные модели/настройки → `:feature:library`, UI-хелперы → `:feature:player`, sanitizer/permission UI → `:feature:settings`. Полный перенос экранов/VM не закончен, R-bound UI в `:app` |
 | R-4.2 | Абстракция `MusicSource` | ❌ | |
 | R-4.3 | UDF: MVVM/MVI + StateFlow, логика не в Composable | 🟡 | #92: медиатека/плеер; #100: аккаунт; #104 (M6-0/4b-2): `LibraryIndexingViewModel`, `ArtworkSettingsViewModel`, `DiagnosticsViewModel`, immutable StateFlow, gateway и `BackgroundWorkLauncher` через AppContainer; T: одноимённые JUnit с фейками, подтверждение/повтор/авторизация/автообложки. M6-0/4c (в PR): runner-ы служб с фейк-портами/JUnit; Huawei регрессия ожидается |
 | R-4.4 | Room — единственный источник истины для UI | 🟡 | медиатека — да; часть состояния в UI |
@@ -138,7 +138,7 @@
 | R-8.2 | Сценарии 401/403/404/429/5xx, обрыв, без Range / ETag, NFC/NFD, битые файлы | 🟡 | частично в JUnit |
 | R-8.3 | Тесты очереди | ✅ | T (`:playback`) |
 | R-8.4 | Тесты кэша | ✅ | T |
-| R-8.5 | Тесты БД: миграции (`MigrationTestHelper`), FTS, плейлисты | 🟡 | PR #118: Room/Robolectric DAO и миграции v1→v2→v3→v4 / v1→v4 (CI #504 до доработки). FTS и плейлисты — M6-0/6–7 |
+| R-8.5 | Тесты БД: миграции (`MigrationTestHelper`), FTS, плейлисты | 🟡 | #118 слит (CI #508): Room/Robolectric DAO и миграции v1→v2→v3→v4 / v1→v4. FTS и плейлисты — M6-0/6–7 |
 | R-8.6 | Без строковых «контрактных» тестов | 🟡 | #104: удалены 5 методов проверки SettingsScreen, смешанные проверки освобождены от привязки к UI; безопасность Intent сохранена на `BackgroundWorkLauncher`, санитизация проверяется Kotlin. В #118 удалены 6 заменённых файлов (13 методов), остались **18 файлов / 51 метод**: частичное покрытие и policy-проверки. Замены: Room DAO/миграции, FastAudioTagReader, SnapshotPlanner, Compose UI, реальный SharedPreferences, RU/EN Resources; карта по каждому файлу в PR |
 
 ## 8. CI/CD и процесс (ТЗ §9–11)

@@ -4,17 +4,24 @@
 
 Нативный Kotlin + Compose. **Media3 ExoPlayer и MediaSessionService уже работают** в `:playback` (M3–M5); источник WebDAV через строго проверяемый HTTPS/Range DataSource, локальная Room — источник истины перечня/тегов. Фактические транспорт и ограничения фиксируются в ADR и `docs/STATUS.md`; прежний список зависимостей был только архитектурным предложением. Бизнес-логику держим вне Composable, UI строится реактивно.
 
-## Фактическое состояние модулей (M6-0/4b-2, PR #104, 2026-11-12)
+## Фактическое состояние и Draft перенос M6-0/5b (2026-11-13)
 
-Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104). Разделение служб подготовлено в Draft PR M6-0/4c, заполнение модулей остаётся для M6-0/5.
+Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104), тонкие службы (#114). 5a (#118) слит. **5b находится в Draft, не в main**: по [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) перенесены самостоятельные классы без изменения поведения и ресурсов Android v2.
 
-| Модуль | Содержимое |
+| Модуль | Содержимое в Draft M6-0/5b |
 |---|---|
-| `:app` | Compose и навигация; `AppContainer`; `LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`; `LibraryIndexingViewModel`, `ArtworkSettingsViewModel`, `DiagnosticsViewModel` с read-only StateFlow; gateway для I/O, `BackgroundWorkLauncher` для запуска/управления службами; сервисы, постоянные обложки и Keystore |
-| `:core:network` | плоский PROPFIND и диагностика (Ktor CIO), парсер multistatus |
-| `:core:database` | Room v4: одна таблица `remote_tracks`, единый экземпляр через container.database |
-| `:data:library` | Range-reader, парсер MP3/FLAC, индексаторы, группировка и `LibraryRepository` |
-| `:playback` | MediaSessionService, ExoPlayer, WebDAV DataSource, временный кэш и checkpoint очереди |
+| `:app` | Android Application, `AppContainer`, MediaSession/foreground адаптеры, Keystore, resource-bound Compose экраны и ViewModel до D2–D6 |
+| `:core:model` | `AccountSession`, `AccountSignOut`, `PlayingArtworkTarget`; прежние имена и пакеты |
+| `:feature:library` | `AlbumArtworkCatalog`, `ArtworkPreferences`, `LibraryPagePreferences` |
+| `:feature:player` | `ArtworkBackdrop`, `FloatingControlsIsland` (независимые Compose-компоненты) |
+| `:feature:settings` | `DiagnosticReportSanitizer`, `SettingsNotificationPermission` |
+| `:core:database` | Room v4, DAOs/миграции/схемы неизменны |
+| `:core:network` | Плоский WebDAV PROPFIND/диагностика |
+| `:data:library` | Range-reader, MP3/FLAC, индексаторы, офлайн-группировка |
+| `:playback` | MediaSessionService, ExoPlayer, WebDAV DataSource, временный кэш и очередь |
+| `:data:playlist` | Пустой, **явно зарезервирован для M6-0/6**; функциональность плейлистов не заявлена |
+
+В Draft удалены невостребованные каркасы `:core:common/datastore`, `:data:source/cache`, `:feature:ai`. Ресурсы строк, RU/EN, night и v2 полностью остаются в `:app`. Перенос полных экранов и ViewModel намеренно **не завершён** из-за границы Android `R`; решение о контракте ресурсов — D2. `AppContainer` остаётся в `:app`, циклических зависимостей feature→app нет.
 
 `SettingsScreen.kt` — каркас навигации и сбор состояний: основной экран из групп-карточек и подэкран «Диагностика» (`SettingsDiagnosticsScreen.kt`, только чтение), [ADR-0081](DECISIONS/ADR-0081-settings-structure-diagnostics.md). Разделы настроек получают state/actions и имеют Preview; I/O перенесён в gateway. Activity-scoped `SettingsSessionViewModel` владеет только RAM-сеансом; `AppContainer` не удерживает пароль. `SettingsWorkSession` сохраняет взаимную исключительность импорта и действий диагностики, сбрасывает данные сеанса после выхода. Автоподготовка обложек ждёт готовности тегов и режима AUTO_AFTER_IMPORT, повторно проверяет состояние перед запуском. Пароль передаётся портом только в RAM-handoff, Intent содержит лишь действие. `openLibraryDatabase` удалён из `:app`; существующие службы/планировщик обращаются к `container.database` без изменения алгоритмов. Санитизация отчёта разрешает только фиксированные операции/метки и числа (Kotlin-тест с небезопасным фейковым ответом).
 
@@ -24,7 +31,7 @@
 - `ArtworkIndexingForegroundService` отвечает за lifecycle и уведомления; `ArtworkScanRuntime.kt` хранит RAM-состояние, `ArtworkPreparationRunner` — обход альбомов, паузу/остановку и приоритет индексации тегов. Android-адаптер использует прежние `ArtworkIndexPlanner` и `ArtworkPreviewRepository`: WebP-мастер до 1200 px, постоянные ссылки и `NO_ART` без повторного GET.
 - Во время `SignOutMarker.pending` запуск запрещён; `AndroidAccountSignOutPort` по-прежнему ждёт остановки перед удалением аккаунта. `LibraryDataRevision` продолжает наблюдать прежние `StateFlow`. JUnit с фейковыми портами проверяют переходы без Android/WebDAV. Room v4, режимы `ON_DEMAND` / `AUTO_AFTER_IMPORT`, оформление и сеть не менялись.
 
-Пустые (только `build.gradle.kts`): `:core:common`, `:core:model`, `:core:datastore`, `:data:source`, `:data:cache`, `:data:playlist`, `:feature:library`, `:feature:player`, `:feature:settings`, `:feature:ai`. Сервисы — в Draft PR M6-0/4c, модули — M6-0/5. Дизайн ADR-0073, Room, `:playback`, WebDAV-клиенты и CI в #104 не меняются.
+Пустой зарезервированный модуль в Draft 5b — только `:data:playlist` для непосредственно следующего M6-0/6. Историческая целевая схема ниже описывает первоначальный план, не текущий состав Gradle. Ветки `main` и Draft различаются.
 
 ## Целевая схема
 
