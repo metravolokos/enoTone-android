@@ -89,8 +89,9 @@ class IndexingFinalizationContractTest(unittest.TestCase):
             self.assertTrue(new_keys.issubset(names), names ^ new_keys)
         db = src("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         gradle = src("app/build.gradle.kts")
-        self.assertIn("version = 4", db)
+        self.assertIn("version = 5", db)
         self.assertIn("AutoMigration(from = 3, to = 4)", db)
+        self.assertIn("AutoMigration(from = 4, to = 5)", db)
         self.assertNotIn("fallbackToDestructiveMigration", db)
         self.assertIn('applicationIdSuffix = ".preview"', gradle)
 

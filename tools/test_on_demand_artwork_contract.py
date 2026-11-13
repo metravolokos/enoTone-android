@@ -38,7 +38,7 @@ class OnDemandArtworkContractTest(unittest.TestCase):
                           "getExternalFilesDir"):
             self.assertNotIn(forbidden, code)
 
-    def test_strings_and_stable_room(self):
+    def test_strings_and_room_v5_migration(self):
         for path in ("app/src/main/res/values/strings.xml",
                      "app/src/main/res/values-en/strings.xml"):
             root = ET.parse(ROOT / path).getroot()
@@ -46,7 +46,8 @@ class OnDemandArtworkContractTest(unittest.TestCase):
                 item.attrib["name"] for item in root.findall("string")
             })
         db = (ROOT / "core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt").read_text()
-        self.assertIn("version = 4", db)
+        self.assertIn("version = 5", db)
+        self.assertIn("AutoMigration(from = 4, to = 5)", db)
 
 
 if __name__ == "__main__":

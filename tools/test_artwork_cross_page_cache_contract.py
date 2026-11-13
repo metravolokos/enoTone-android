@@ -63,7 +63,8 @@ class ArtworkCrossPageCacheContractTest(unittest.TestCase):
             "R.string.artwork_index_progress",
         ):
             self.assertIn(token, settings)
-        self.assertIn("version = 4", db)
+        self.assertIn("version = 5", db)
+        self.assertIn("AutoMigration(from = 4, to = 5)", db)
         self.assertIn('applicationIdSuffix = ".preview"', gradle)
 
 

@@ -28,8 +28,10 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
                       # Владелец 2026-11-12 (REQUIREMENTS O-12): регулятора громкости нет.
                       "AudioManager", "ic_volume_"):
             self.assertNotIn(token,p)
-    def test_room_and_signing_unchanged(self):
-        self.assertIn("version = 4",source("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt"))
+    def test_room_v5_migration_and_signing(self):
+        database = source("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
+        self.assertIn("version = 5", database)
+        self.assertIn("AutoMigration(from = 4, to = 5)", database)
         self.assertIn('applicationIdSuffix = ".preview"',source("app/build.gradle.kts"))
         art=source(BASE+"ArtworkPreviewRepository.kt")
         self.assertIn("const val MAX_SIDE = 1200",art)

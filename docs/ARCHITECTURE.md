@@ -1,14 +1,14 @@
-> **Актуальность 2026-11-13:** `main` на `7213ccb` (#123) использует Room v4; D2a/D2b слиты (#122/#123). Draft M6-0/6 добавляет Room v5 по [ADR-0085](DECISIONS/ADR-0085-room-v5-duration-playlist-model.md); Huawei-миграция ещё не проверена. Исторические срезы ниже не описывают актуальную ветку.
+> **Актуальность 2026-11-14:** `main` на `f979991` (#124) использует Room v4; D2 закрыт (#122–#124). Draft PR #125 добавляет Room v5 по [ADR-0085](DECISIONS/ADR-0085-room-v5-duration-playlist-model.md); Huawei-миграция ещё не проверена. Исторические срезы ниже не описывают актуальную ветку.
 
 # Архитектура
 
-Нативный Kotlin + Compose. **Media3 ExoPlayer и MediaSessionService уже работают** в `:playback` (M3–M5); источник WebDAV через строго проверяемый HTTPS/Range DataSource, локальная Room — источник истины перечня/тегов. Фактические транспорт и ограничения фиксируются в ADR и `docs/STATUS.md`; прежний список зависимостей был только архитектурным предложением. Бизнес-логику держим вне Composable, UI строится реактивно.
+Нативный Kotlin + Compose. **Media3 ExoPlayer и MediaSessionService уже работают** в `:playback` (M3–M5); источник WebDAV через строго проверяемый HTTPS/Range DataSource, локальная Room — источник истины перечня/тегов. Фактические транспорт и ограничения фиксируются в ADR, [CURRENT_DECISIONS](CURRENT_DECISIONS.md) и `docs/STATUS.md`; прежний список зависимостей был только архитектурным предложением. Бизнес-логику держим вне Composable, UI строится реактивно.
 
-## Фактическое состояние main после #123 и Draft M6-0/6 (2026-11-13)
+## Фактическое состояние main после #124 и Draft M6-0/6 (#125)
 
-Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104), тонкие службы (#114). 5a (#118), 5b (#119), D2a (#122) и D2b (#123) слиты. **M6-0/6 в Draft**: по [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) самостоятельные классы перенесены без изменения поведения и ресурсов Android v2.
+Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104), тонкие службы (#114). 5a (#118), 5b (#119), D2a (#122), D2b (#123) и закрытие D2 (#124) слиты. **M6-0/6 в Draft PR #125**: по [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) самостоятельные классы перенесены без изменения поведения и ресурсов Android v2.
 
-| Модуль | Содержимое после #123 и в Draft M6-0/6 |
+| Модуль | Содержимое после #124 и в Draft M6-0/6 |
 |---|---|
 | `:app` | Android Application, `AppContainer`, MediaSession/foreground адаптеры, Keystore, resource-bound Compose экраны и ViewModel до D2–D6 |
 | `:core:model` | `AccountSession`, `AccountSignOut`, `PlayingArtworkTarget`; прежние имена и пакеты |

@@ -1,4 +1,4 @@
-"""Album-grid contract: visible-only artwork, bounded concurrency, no DB changes."""
+"""Album-grid contract: visible-only artwork, bounded concurrency, and stable app identity."""
 from pathlib import Path
 import unittest
 
@@ -26,11 +26,12 @@ class AlbumArtworkGridContractTest(unittest.TestCase):
             self.assertIn(needle, repo)
         self.assertNotIn("deleteDatabase(", repo)
 
-    def test_no_new_permissions_database_or_signing(self):
+    def test_no_new_permissions_or_preview_signing_change(self):
         db = self.text(
             "core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         gradle = self.text("app/build.gradle.kts")
-        self.assertIn("version = 4", db)
+        self.assertIn("version = 5", db)
+        self.assertIn("AutoMigration(from = 4, to = 5)", db)
         self.assertIn('applicationIdSuffix = ".preview"', gradle)
         self.assertIn('getByName("stablePreview")', gradle)
 
