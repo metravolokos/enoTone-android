@@ -112,6 +112,7 @@ internal class IndexingRunner(
             false
         }
     }
+
     fun pause(jobActive: Boolean) =
         statusPort.update(ManagedScanState.PAUSED, terminating = jobActive)
 

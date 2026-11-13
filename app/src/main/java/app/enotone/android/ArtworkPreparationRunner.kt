@@ -98,6 +98,7 @@ internal class ArtworkPreparationRunner<Group>(
         }
         return port.isIndexed(login, group)
     }
+
     fun pause(jobActive: Boolean) = finish(ArtworkScanState.PAUSED, jobActive)
     fun stop(jobActive: Boolean) = finish(ArtworkScanState.STOPPED, jobActive)
     fun onTimeout(jobActive: Boolean) = pause(jobActive)

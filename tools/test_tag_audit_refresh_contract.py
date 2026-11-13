@@ -35,10 +35,8 @@ class AuditRefreshContractTest(unittest.TestCase):
         pilot = PILOT.read_text()
         for needle in (
             "SET tagScanCode = 'RETRY_REFRESH'",
-            "suspend fun queueTagRefreshById(",
             "suspend fun queueAllTagRefresh(",
             "tagScanCode LIKE 'RETRY_%'",
-            "tagScanCode != 'RETRY_REFRESH'",
             "CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24'",
             "THEN :album ELSE album END",
             "THEN :albumArtist ELSE albumArtist END",

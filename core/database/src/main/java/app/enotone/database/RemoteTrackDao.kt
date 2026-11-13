@@ -155,19 +155,6 @@ interface RemoteTrackDao {
     suspend fun tracksWithoutAlbumArtist(sourceKey: String, limit: Int = 30): List<RemoteTrackEntity>
 
     /**
-     * Explicit local queue request. Does not erase tag values; a later
-     * managed scan will re-fetch this single version with bounded HTTP Range.
-     */
-    @Query("""
-        UPDATE remote_tracks
-        SET tagScanCode = 'RETRY_REFRESH'
-        WHERE sourceKey = :sourceKey AND id = :id AND missingScans = 0
-          AND remoteSize > 0
-          AND (LOWER(fileName) LIKE '%.mp3' OR LOWER(fileName) LIKE '%.flac')
-    """)
-    suspend fun queueTagRefreshById(sourceKey: String, id: String): Int
-
-    /**
      * Explicit, small selection of local IDs only. The source-key check
      * prevents cross-account writes; invalid or absent IDs are ignored.
      * A later targeted reader does the HTTP work. No tags are erased.
@@ -194,33 +181,6 @@ interface RemoteTrackDao {
           AND (LOWER(fileName) LIKE '%.mp3' OR LOWER(fileName) LIKE '%.flac')
     """)
     suspend fun queueAllTagRefresh(sourceKey: String): Int
-
-    /** All counts are local; text, paths and private tags are never selected. */
-    @Query("""
-        SELECT COUNT(*) FROM remote_tracks
-        WHERE sourceKey = :sourceKey AND missingScans = 0
-          AND tagScanCode IS NOT NULL AND tagScanCode NOT LIKE 'RETRY_%'
-          AND tagScanCode NOT LIKE 'FAILED_%'
-          AND tagScanCode NOT IN ('INVALID_METADATA', 'FAST_BUDGET_EXCEEDED')
-    """)
-    suspend fun finishedFastScanCount(sourceKey: String): Int
-
-    /** Distinguish files never attempted from temporary failures after app restart. */
-    @Query("""
-        SELECT COUNT(*) FROM remote_tracks
-        WHERE sourceKey = :sourceKey AND missingScans = 0
-          AND tagScanCode LIKE 'RETRY_%'
-          AND tagScanCode != 'RETRY_REFRESH'
-    """)
-    suspend fun retryableFastScanCount(sourceKey: String): Int
-
-    @Query("""
-        SELECT COUNT(*) FROM remote_tracks
-        WHERE sourceKey = :sourceKey AND missingScans = 0
-          AND (tagScanCode LIKE 'FAILED_%'
-            OR tagScanCode IN ('INVALID_METADATA', 'FAST_BUDGET_EXCEEDED'))
-    """)
-    suspend fun permanentFastScanCount(sourceKey: String): Int
 
     @Query("SELECT COUNT(*) FROM remote_tracks WHERE sourceKey = :sourceKey AND missingScans = 0")
     suspend fun presentCount(sourceKey: String): Int
