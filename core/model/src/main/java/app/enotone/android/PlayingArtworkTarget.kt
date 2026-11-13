@@ -13,4 +13,3 @@ data class PlayingArtworkTarget(
     val remoteEtag: String?,
     val refreshEpoch: Int = 0,
 )
-
