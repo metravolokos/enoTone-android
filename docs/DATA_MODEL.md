@@ -2,6 +2,7 @@
 
 ## Модель Room v5 в Draft M6-0/6
 
+- `remote_tracks.firstSeenEpochMs` (nullable) — когда трек впервые появился в медиатеке; `null` у строк до v5 и после первого импорта аккаунта; не меняется при новой версии файла (ADR-0085).
 - `remote_tracks` получает nullable `durationMs`; `null` значит неизвестно. При неизменённом ETag/size/mtime значение сохраняется, при новой версии сбрасывается. Длительность читается только из уже загруженных FLAC STREAMINFO или MP3 Xing/Info/VBRI блоков либо сохраняется при известной длительности Media3. CBR-MP3 без счётчика кадров остаётся с `null`.
 - `playlists`: `id` (UUID), `sourceKey`, `name`, `kind` (`USER`/`FAVORITES`), `createdEpochMs`, `updatedEpochMs`. Один FAVORITES на source обеспечивается DAO-транзакцией `getOrCreate`.
 - `playlist_items`: `playlistId`, `trackId`, `position`, `addedEpochMs`; составной ключ `(playlistId, trackId)` не допускает дубль. Оба внешних ключа используют `ON DELETE CASCADE`; индексы — `trackId` и `(playlistId, position)`.

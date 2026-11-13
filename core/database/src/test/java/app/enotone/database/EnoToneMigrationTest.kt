@@ -94,7 +94,7 @@ class EnoToneMigrationTest {
                 SELECT id, sourceKey, encodedPath, fileName, remoteEtag, remoteSize,
                     remoteModified, title, artist, album, albumArtist, year,
                     trackNumber, discNumber, genre, lastSeenEpoch, missingScans,
-                    tagScanCode, durationMs
+                    tagScanCode, durationMs, firstSeenEpochMs
                 FROM remote_tracks ORDER BY CAST(SUBSTR(id, 3) AS INTEGER)
             """).use { cursor ->
                 var index = 0
@@ -119,6 +119,8 @@ class EnoToneMigrationTest {
                     assertEquals(index % 2, cursor.getInt(16))
                     assertEquals("MP3_ID3V24", cursor.getString(17))
                     assertTrue(cursor.isNull(18))
+                    // Строки до v5 — «добавлены до учёта», не «недавно добавленные».
+                    assertTrue(cursor.isNull(19))
                 }
                 assertEquals(rows, index)
             }

@@ -144,4 +144,16 @@ class RemoteTrackDaoTest {
         assertEquals(35, dao.tracksWithoutAlbum("account-a", 100).size)
         assertFalse(dao.tracksWithoutAlbum("account-a").any { it.sourceKey == "account-b" })
     }
+
+    @Test fun recentlyAddedSkipsUnknownDatesMissingFilesAndOtherAccounts() = runBlocking {
+        dao.upsertAll(listOf(
+            track("old"),
+            track("new1").copy(firstSeenEpochMs = 100L),
+            track("new2").copy(firstSeenEpochMs = 200L),
+            track("gone").copy(firstSeenEpochMs = 300L, missingScans = 1),
+            track("other", source = "account-b").copy(firstSeenEpochMs = 400L),
+        ))
+        assertEquals(listOf("new2", "new1"), dao.recentlyAdded("account-a", limit = 5).map { it.id })
+        assertEquals(listOf("new2"), dao.recentlyAdded("account-a", limit = 1).map { it.id })
+    }
 }

@@ -67,10 +67,6 @@ class IndexingFinalizationContractTest(unittest.TestCase):
         self.assertIn("old.remoteSize != new.sizeBytes", planner)
         self.assertIn("old.remoteModified != new.lastModified", planner)
         self.assertIn("return old.remoteEtag == new.etag", planner)
-        self.assertIn("tagScanCode = if (sameVersion) old?.tagScanCode else null", planner)
-        self.assertIn("genre = if (sameVersion) old?.genre else null", planner)
-        self.assertIn("trackNumber = if (sameVersion) old?.trackNumber else null", planner)
-        self.assertIn("discNumber = if (sameVersion) old?.discNumber else null", planner)
 
     def test_new_action_is_localized_without_schema_or_signing_changes(self):
         new_keys = {

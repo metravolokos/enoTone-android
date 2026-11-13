@@ -132,6 +132,15 @@ interface RemoteTrackDao {
         durationMs: Long? = null,
     ): Int
 
+    /** «Недавно добавленные» (D4): только известная дата добавления и присутствующие файлы. */
+    @Query("""
+        SELECT * FROM remote_tracks
+        WHERE sourceKey = :sourceKey AND firstSeenEpochMs IS NOT NULL AND missingScans = 0
+        ORDER BY firstSeenEpochMs DESC, id
+        LIMIT :limit
+    """)
+    suspend fun recentlyAdded(sourceKey: String, limit: Int): List<RemoteTrackEntity>
+
     /** Only present files for this hashed account; deterministic ordering is app side. */
     @Query("""
         SELECT * FROM remote_tracks

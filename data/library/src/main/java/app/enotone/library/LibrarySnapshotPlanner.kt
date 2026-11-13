@@ -35,10 +35,13 @@ object LibrarySnapshotPlanner {
         listing: FlatWebDavListing,
         previous: List<RemoteTrackEntity>,
         epoch: Long,
+        nowEpochMs: Long = System.currentTimeMillis(),
     ): SnapshotPlan {
         require(sourceKey.length == 64 && sourceKey.all { it in "0123456789abcdef" })
         require(epoch > 0)
         val byId = previous.filter { it.sourceKey == sourceKey }.associateBy { it.id }
+        // Первый импорт аккаунта — вся медиатека «добавлена до учёта», а не «недавно добавлена».
+        val firstImport = byId.isEmpty()
         val unique = LinkedHashMap<String, RemoteAudioFile>()
         for (file in listing.tracks) {
             // The network parser has already checked origin and flat path.
@@ -66,27 +69,10 @@ object LibrarySnapshotPlanner {
                     changedIds += id
                 }
             }
-            RemoteTrackEntity(
-                id = id,
-                sourceKey = sourceKey,
-                encodedPath = file.encodedPath,
-                fileName = file.fileName,
-                remoteEtag = file.etag,
-                remoteSize = file.sizeBytes,
-                remoteModified = file.lastModified,
-                title = if (sameVersion) old?.title else null,
-                artist = if (sameVersion) old?.artist else null,
-                album = if (sameVersion) old?.album else null,
-                albumArtist = if (sameVersion) old?.albumArtist else null,
-                year = if (sameVersion) old?.year else null,
-                trackNumber = if (sameVersion) old?.trackNumber else null,
-                discNumber = if (sameVersion) old?.discNumber else null,
-                genre = if (sameVersion) old?.genre else null,
-                durationMs = if (sameVersion) old?.durationMs else null,
-                lastSeenEpoch = epoch,
-                missingScans = 0,
-                tagScanCode = if (sameVersion) old?.tagScanCode else null,
-            )
+            // Прежняя строка (даже с null после миграции v5) сохраняет свою дату: иначе после
+            // первого обновления вся старая медиатека стала бы «недавно добавленной».
+            val firstSeen = if (old != null) old.firstSeenEpochMs else nowEpochMs.takeUnless { firstImport }
+            entityFor(sourceKey, id, file, old.takeIf { sameVersion }, epoch, firstSeen)
         }
         val complete = listing.invalidEntries == 0 &&
             listing.skippedNested == 0 && listing.skippedDirectories == 0
@@ -98,6 +84,41 @@ object LibrarySnapshotPlanner {
             changedIds,
         )
     }
+
+    /**
+     * Строка Room для файла из листинга: теги, длительность и отметка разбора переносятся только
+     * с той же версии файла ([kept]); дату добавления [firstSeen] вычисляет [plan].
+     */
+    @Suppress("LongParameterList") // Все шесть — поля одной строки Room; объект-обёртка ничего не упростит.
+    private fun entityFor(
+        sourceKey: String,
+        id: String,
+        file: RemoteAudioFile,
+        kept: RemoteTrackEntity?,
+        epoch: Long,
+        firstSeen: Long?,
+    ) = RemoteTrackEntity(
+        id = id,
+        sourceKey = sourceKey,
+        encodedPath = file.encodedPath,
+        fileName = file.fileName,
+        remoteEtag = file.etag,
+        remoteSize = file.sizeBytes,
+        remoteModified = file.lastModified,
+        title = kept?.title,
+        artist = kept?.artist,
+        album = kept?.album,
+        albumArtist = kept?.albumArtist,
+        year = kept?.year,
+        trackNumber = kept?.trackNumber,
+        discNumber = kept?.discNumber,
+        genre = kept?.genre,
+        durationMs = kept?.durationMs,
+        lastSeenEpoch = epoch,
+        missingScans = 0,
+        tagScanCode = kept?.tagScanCode,
+        firstSeenEpochMs = firstSeen,
+    )
 
     private fun sameRemoteVersion(old: RemoteTrackEntity, new: RemoteAudioFile): Boolean {
         // A WebDAV ETag is useful, but not proof when the server accidentally

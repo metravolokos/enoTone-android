@@ -134,6 +134,7 @@
 | DUR-01 | Чтение длительности FLAC/MP3 без дополнительных Range GET | FLAC STREAMINFO и Xing/VBRI дают длительность только при наличии байтов в RAM-кэше; CBR без Xing/VBRI и повреждённые заголовки дают null | R-6.2e | JVM, MockWebServer | `FastAudioTagReaderTest` | — |
 | DUR-02 | Media3 узнаёт длительность текущего трека | Room заполняется один раз, только если поле null; сохранённая длительность восстановленной очереди не считается знанием плеера | R-6.2e | JVM | `PlayerViewModelTest`, `RemoteTrackDaoTest` | — |
 | DUR-03 | Повторный snapshot с той же/новой версией файла | значение сохранено для прежней версии и сброшено для изменённого ETag/size/mtime | R-6.2e | JVM, R | `LibrarySnapshotPlannerTest`, `RemoteTrackDaoTest` | — |
+| REC-01 | Добавить новые файлы в `/AllMusic` → «Обновить медиатеку» | только они получают дату добавления; старые треки и изменённые файлы — нет | ADR-0085 | JVM, R | `LibrarySnapshotPlannerTest`, `RemoteTrackDaoTest` | UI — D4 |
 
 ## PL — модель плейлистов
 

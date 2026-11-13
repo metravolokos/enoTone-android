@@ -68,7 +68,10 @@ internal class PlayerViewModel(
     private var covers: AlbumArtworkCatalog? = null
     private var artworkJob: Job? = null
     private var restoredAccount: String? = null
-    private val durationSaveAttempts = mutableSetOf<Pair<String, String>>()
+
+    // Ключ включает длительность: если файл заменили (импорт сбросил durationMs в null) и у новой
+    // версии другая длительность, запись повторится без пересоздания ViewModel (ревью #125).
+    private val durationSaveAttempts = mutableSetOf<Triple<String, String, Long>>()
 
     // Verified and encrypted logins are the only restoration credentials.
     private var restoreAllowed = false
@@ -317,7 +320,7 @@ internal class PlayerViewModel(
         if (restoreAllowed && saveRequest != null) {
             val (key, id, value) = saveRequest
             if (isDurationSourceAllowed(snapshot, key) &&
-                durationSaveAttempts.add(key to id)) {
+                durationSaveAttempts.add(Triple(key, id, value))) {
                 viewModelScope.launch {
                     try {
                         withContext(io) {

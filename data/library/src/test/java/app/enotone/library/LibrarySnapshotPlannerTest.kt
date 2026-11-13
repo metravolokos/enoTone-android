@@ -175,4 +175,20 @@ class LibrarySnapshotPlannerTest {
         val fresh = LibrarySnapshotPlanner.plan(account, listing(listOf(audio("v1"))), emptyList(), 1)
         assertTrue(fresh.changedIds.isEmpty())
     }
+
+    @Test fun firstSeenIsUnknownOnFirstImportSetForNewFilesAndKeptOnChange() {
+        val first = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("v1"))), emptyList(), 1, nowEpochMs = 111L)
+        assertNull(first.upserts.single().firstSeenEpochMs)
+        val other = RemoteAudioFile("new.flac", "/AllMusic/new.flac", "n1", 50L, null)
+        val second = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("v1"), other)), first.upserts, 2, nowEpochMs = 222L)
+        val byPath = second.upserts.associateBy { it.encodedPath }
+        assertNull(byPath.getValue("/AllMusic/song.flac").firstSeenEpochMs)
+        assertEquals(222L, byPath.getValue("/AllMusic/new.flac").firstSeenEpochMs)
+        val changed = LibrarySnapshotPlanner.plan(
+            account, listing(listOf(audio("v1"), other.copy(etag = "n2"))), second.upserts, 3,
+            nowEpochMs = 333L)
+        assertEquals(222L, changed.upserts.single { it.encodedPath == "/AllMusic/new.flac" }.firstSeenEpochMs)
+    }
 }
