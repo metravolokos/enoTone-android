@@ -8,7 +8,7 @@
 |---|---|
 | `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`) и «контрактные» тесты исходников (см. ниже) |
 | Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
-| `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях** |
+| `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; в Draft #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
 | `gradle detekt` | статический анализ Kotlin + правила ktlint; **пока только отчёт** (артефакт `detekt-reports`), CI не блокирует — [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md) |
 | `:app:compileStablePreviewKotlin` | компиляция варианта Stable Preview без секретов |
 | Room schema | экспортированные схемы v1–v4 совпадают с закоммиченными |
@@ -26,10 +26,19 @@ python3 -m unittest discover -s tools -p 'test_*.py' -v
 
 Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopback, только для тестов); синтетические WAV с кириллическими NFC/NFD-именами — `python3 tools/generate_fixtures.py <каталог>`.
 
+### Robolectric и Compose UI (Draft PR #118, M6-0/5a)
+
+- JVM под Robolectric 4.17 (SDK 35), **без эмулятора**: `./gradlew :core:database:testDebugUnitTest :app:testDebugUnitTest`. Экспортированные схемы Room v1–v4 читаются из `core/database/schemas` как debug assets.
+- `EnoToneMigrationTest`: последовательная v1→v2→v3→v4 и прямая v1→v4, реальные строки переживают миграцию, новые nullable-поля остаются NULL.
+- `RemoteTrackDaoTest`: изоляция аккаунтов, CAS тегов, fast-scan, очередь выборочной/полной переиндексации без потери тегов, аудит с лимитом 30, удаление по sourceKey.
+- `NowPlayingUiTest`, `SettingsActionsUiTest`, `HomeNavigationUiTest`, `LibraryVisibilityUiTest`, `MainActivitySettingsUiTest`: Compose-семантика и нажатия через фейковые действия, без WebDAV и реальной переиндексации.
+- `SignOutMarkerTest`, `MainActivityIntentTest`: флаг незавершённого выхода и одноразовое потребление EXTRA_OPEN_NOW_PLAYING. **Реальный Android Keystore не эмулируется**; сценарий восстановления входа с pending-флагом покрыт `AccountSettingsViewModelTest` с фейковым gateway. Проверка интента сама по себе не подтверждает показ Now Playing при восстановленной очереди.
+- UI-тесты проверяют доступность элементов и действия, но **не заменяют** визуальное сравнение экрана с эталоном D2. Итог CI точного HEAD будет указан в PR после запуска.
+
 ### Известный долг тестов
 
-- `tools/test_*_contract.py` (кроме `test_mock_webdav.py`) читают `.kt`/`.md` и проверяют наличие строк. Они **не проверяют поведение** и ломаются при любом рефакторинге. Новые такие тесты **не добавлять**; замена — M6-0/5 ([ADR-0074](DECISIONS/ADR-0074-m6-0-tech-debt-plan.md)).
-- С #92 и #100 есть поведенческие JVM/JUnit-тесты `:app` (`LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`, `AccountSignOut`) и чистого преобразования `:data:library`. Room DAO/миграции (`MigrationTestHelper`) и Compose UI-тесты пока отсутствуют.
+- 24 файла `tools/test_*_contract.py` (64 метода) читают `.kt`/`.md` и проверяют наличие строк. Они **не проверяют поведение** и ломаются при рефакторинге. Новые такие тесты **не добавлять**. В Draft #118 прежние Python-файлы пока сохранены: их удаление разрешено только после полного покрытия JUnit/Robolectric/Compose, с построчной картой замены в описании PR; тест политики подписания/GMS остаётся как политика.
+- С #92 и #100 есть поведенческие JVM/JUnit-тесты `:app` (`LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`, `AccountSignOut`) и чистого преобразования `:data:library`. В Draft #118 добавлены Room DAO/миграции (`MigrationTestHelper`) и Compose UI-тесты; CI ещё проверяется.
 
 ## 2. Ручная проверка на Huawei
 
@@ -133,11 +142,13 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 
 Автоматически: `LibraryIndexingViewModelTest`, `DiagnosticsViewModelTest`, `ArtworkSettingsViewModelTest` с фейками; Python contract-тесты обновлены только под удалённые строки.
 
-## Уведомление и смахивание (O-17) — НЕ PASS
+## Уведомление и смахивание (O-17) — PASS на `0.6.2-preview.493`, 2026-11-13
 
 1. Во время воспроизведения свернуть приложение, нажать на уведомление в шторке (не на кнопки): открывается приложение на «Сейчас играет»; «Назад» возвращает на прежний экран.
 2. То же из «Настроек» и из медиатеки, и после смахивания приложения из недавних (музыка играет): уведомление открывает «Сейчас играет».
 3. Смахивание во время воспроизведения: музыка продолжает играть, уведомление на месте (решение владельца).
+
+**Результат владельца, 2026-11-13:** сценарий O-17 — PASS на `0.6.2-preview.493`: уведомление открывает «Сейчас играет» также после смахивания, «Назад» работает, воспроизведение после смахивания продолжается.
 
 ## M6-0/4c — Huawei: частично (0.6.2-preview.487)
 

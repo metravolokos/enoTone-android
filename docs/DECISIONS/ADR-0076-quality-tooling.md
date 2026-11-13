@@ -37,3 +37,11 @@
 ## Как проверить / когда пересмотреть
 
 `./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt` локально. Пересмотреть после M6-0/5: отключить `ignoreFailures`, решить по косметическим правилам (автоформат всего проекта отдельным PR или оставить выключенными).
+
+## Дополнение: JVM-поведенческие тесты M6-0/5a (Draft #118, 2026-11-13)
+
+- Принята инфраструктура Robolectric 4.17 (SDK 35, JVM), `androidx.test:core` / `ext:junit`, `room-testing` той же версии, что Room, и Compose UI Test из действующего Compose BOM. Эмулятор в CI не требуется.
+- Тестовые зависимости подключены через version catalog к `testImplementation` и `debugImplementation` (`ui-test-manifest`). `release` / `stablePreview`, исходники Room, приложение и ресурсы дизайна не меняются.
+- `MigrationTestHelper` прогоняет существующие auto-migrations на JSON-схемах v1–v4; отдельные DAO-тесты создают in-memory Room; Compose тесты нажимают настоящие элементы с фейковыми действиями. Строковые Python-проверки можно удалять только после полной поведенческой замены, с таблицей доказательств.
+- Keystore не подменяется фиктивной защитой: сценарий pending sign-out тестируется через порт и фейк, а `SignOutMarker` — в настоящих SharedPreferences Robolectric. Huawei остаётся источником доказательств для реального Keystore и поведения уведомления с очередью.
+- Время CI и возможность перевести detekt в блокирующий режим оценить по результату точного HEAD PR; до завершения #118 статус — **проверяется**.
