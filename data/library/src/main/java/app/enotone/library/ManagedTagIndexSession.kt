@@ -6,17 +6,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 
 /**
- * BOUNDED keeps the approved four-batch smoke-test behavior. CONTINUOUS
- * chains the same capped four-reader batches until all eligible files are
- * indexed or a safety/time/network boundary is reached. A user explicitly
- * chooses the mode; there is no auto-start at boot/process restart.
+ * Continuous indexing chains bounded, four-reader HTTP batches until all
+ * eligible files are processed or a strict time/network budget is reached.
+ * There is no auto-start on boot or process restart.
  */
-enum class ManagedIndexMode { BOUNDED, CONTINUOUS }
+enum class ManagedIndexMode { CONTINUOUS }
 
 object ManagedIndexLimits {
-    const val MAX_BATCHES = 4
-    const val MAX_TOTAL_GETS = MAX_BATCHES * PilotBudget.MAX_BATCH_GETS
-    const val MAX_TOTAL_BYTES = MAX_BATCHES * PilotBudget.MAX_BATCH_BYTES
     const val BETWEEN_BATCH_DELAY_MS = 1500L
     // 80 * 60 GET covers ~3,274 remaining tracks at the observed ~1.16 GET
     // per track, with a small margin. A strict four-hour wall cap is still
@@ -28,11 +24,13 @@ object ManagedIndexLimits {
     const val MAX_BACKOFF_CYCLES = 3
 
     fun maxBatches(mode: ManagedIndexMode): Int =
-        if (mode == ManagedIndexMode.CONTINUOUS) MAX_CONTINUOUS_BATCHES else MAX_BATCHES
+        when (mode) {
+            ManagedIndexMode.CONTINUOUS -> MAX_CONTINUOUS_BATCHES
+        }
 
     fun underGlobalCaps(
         batches: Int, gets: Int, bytes: Long,
-        mode: ManagedIndexMode = ManagedIndexMode.BOUNDED,
+        mode: ManagedIndexMode = ManagedIndexMode.CONTINUOUS,
     ): Boolean {
         val limit = maxBatches(mode)
         return batches in 0 until limit &&
@@ -97,7 +95,7 @@ class ManagedTagIndexSession(
         password: String,
         networkAllowed: () -> Boolean,
         onProgress: suspend (ManagedIndexProgress) -> Unit = {},
-        mode: ManagedIndexMode = ManagedIndexMode.BOUNDED,
+        mode: ManagedIndexMode = ManagedIndexMode.CONTINUOUS,
     ): ManagedIndexProgress {
         require(email.isNotBlank() && password.isNotBlank())
         var batches = 0
@@ -110,7 +108,7 @@ class ManagedTagIndexSession(
         var gets = 0
         var bytes = 0L
         var remaining = 0
-        var stop = "SESSION_LIMIT"
+        var stop = "SESSION_BATCH_LIMIT"
         var lastStage = "NONE"
         var lastReason = "NONE"
         var lastHttp = 0
@@ -118,8 +116,7 @@ class ManagedTagIndexSession(
         var backoffCycles = 0
         var consecutiveEmptyBatches = 0
         fun timedOut(): Boolean =
-            mode == ManagedIndexMode.CONTINUOUS &&
-                nowNanos() - sessionStarted >= ManagedIndexLimits.MAX_CONTINUOUS_NANOS
+            nowNanos() - sessionStarted >= ManagedIndexLimits.MAX_CONTINUOUS_NANOS
 
         fun snapshot(partial: PilotIndexProgress? = null, code: String = stop) =
             ManagedIndexProgress(
@@ -194,26 +191,20 @@ class ManagedTagIndexSession(
             consecutiveEmptyBatches =
                 if (result.attempted == 0 && result.getRequests > 0) consecutiveEmptyBatches + 1
                 else 0
-            if (mode == ManagedIndexMode.CONTINUOUS &&
-                result.stopCode == "RETRY_BACKOFF") backoffCycles++
+            if (result.stopCode == "RETRY_BACKOFF") backoffCycles++
             else if (result.savedWithTags > 0) backoffCycles = 0
             stop = when {
                 result.stopCode in setOf("AUTH_REJECTED", "NETWORK_POLICY",
                     "SESSION_TIME_BUDGET") -> result.stopCode
                 remaining == 0 || (result.attempted == 0 && result.getRequests == 0) ->
                     "NO_ELIGIBLE_FILES"
-                mode == ManagedIndexMode.CONTINUOUS &&
-                    consecutiveEmptyBatches >= 3 -> "NO_PROGRESS"
-                result.stopCode == "RETRY_BACKOFF" -> when {
-                    mode == ManagedIndexMode.BOUNDED ||
-                        backoffCycles >= ManagedIndexLimits.MAX_BACKOFF_CYCLES -> "RETRY_BACKOFF"
-                    else -> "COOLDOWN"
-                }
+                consecutiveEmptyBatches >= 3 -> "NO_PROGRESS"
+                result.stopCode == "RETRY_BACKOFF" ->
+                    if (backoffCycles >= ManagedIndexLimits.MAX_BACKOFF_CYCLES)
+                        "RETRY_BACKOFF" else "COOLDOWN"
                 result.stopCode !in setOf("COMPLETED", "NETWORK_BUDGET", "TIME_BUDGET") ->
                     result.stopCode
-                batches >= ManagedIndexLimits.maxBatches(mode) ->
-                    if (mode == ManagedIndexMode.CONTINUOUS) "SESSION_BATCH_LIMIT"
-                    else "SESSION_LIMIT"
+                batches >= ManagedIndexLimits.maxBatches(mode) -> "SESSION_BATCH_LIMIT"
                 else -> "RUNNING"
             }
             onProgress(snapshot())
@@ -226,8 +217,7 @@ class ManagedTagIndexSession(
         }
         if (stop == "RUNNING" &&
             !ManagedIndexLimits.underGlobalCaps(batches, gets, bytes, mode)) {
-            stop = if (mode == ManagedIndexMode.CONTINUOUS) "SESSION_BATCH_LIMIT"
-                else "SESSION_LIMIT"
+            stop = "SESSION_BATCH_LIMIT"
         }
         return snapshot(code = stop)
     }

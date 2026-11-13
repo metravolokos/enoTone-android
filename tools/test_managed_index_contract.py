@@ -14,9 +14,6 @@ class ManagedIndexContractTest(unittest.TestCase):
         indexer = (ROOT / "data/library/src/main/java/app/enotone/library/"
                    "PilotTagIndexer.kt").read_text(encoding="utf-8")
         for needle in (
-            "const val MAX_BATCHES = 4",
-            "const val MAX_TOTAL_GETS = MAX_BATCHES * PilotBudget.MAX_BATCH_GETS",
-            "const val MAX_TOTAL_BYTES = MAX_BATCHES * PilotBudget.MAX_BATCH_BYTES",
             "PilotBudget.RESUME_LIMIT",
             "ParallelTagIndexer(database).run(",
             "waitBetweenBatches(ManagedIndexLimits.BETWEEN_BATCH_DELAY_MS)",
@@ -61,12 +58,16 @@ class ManagedIndexContractTest(unittest.TestCase):
                           "ManagedTagIndexSession.kt").read_text(encoding="utf-8"))
 
     def test_terminated_session_does_not_leave_running_text_or_hide_failure(self):
-        service = (ROOT / "app/src/main/java/app/enotone/android/"
-                   "IndexingForegroundService.kt").read_text(encoding="utf-8")
+        service = "".join(
+            (ROOT / "app/src/main/java/app/enotone/android/" / path)
+            .read_text(encoding="utf-8")
+            for path in ("IndexingForegroundService.kt", "IndexingRunner.kt",
+                         "ManagedScanRuntime.kt")
+        )
         for needle in (
             'stopCode = "FAILED_INTERNAL"',
             'lastErrorStage = location',
-            'ManagedScanRuntime.fail(stage, failure)',
+            'statusPort.fail(stage, failure)',
             'failureStage = if (state == last.state) last.failureStage else null',
             'status.value = ManagedScanStatus(',
             'catch (_: RuntimeException)',
@@ -76,8 +77,12 @@ class ManagedIndexContractTest(unittest.TestCase):
     def test_single_room_collector_with_four_independent_network_workers(self):
         parallel = (ROOT / "data/library/src/main/java/app/enotone/library/"
                     "ParallelTagIndexer.kt").read_text(encoding="utf-8")
-        service = (ROOT / "app/src/main/java/app/enotone/android/"
-                   "IndexingForegroundService.kt").read_text(encoding="utf-8")
+        service = "".join(
+            (ROOT / "app/src/main/java/app/enotone/android/" / path)
+            .read_text(encoding="utf-8")
+            for path in ("IndexingForegroundService.kt", "IndexingRunner.kt",
+                         "ManagedScanRuntime.kt")
+        )
         # The only CAS write and report callback occur in ONE collector.
         collector_start = parallel.index("val collector = launch(Dispatchers.IO)")
         worker_start = parallel.index("val workers = (0 until ParallelTagPolicy.WORKERS)")
@@ -106,10 +111,14 @@ class ManagedIndexContractTest(unittest.TestCase):
     def test_explicit_continuous_mode_has_global_caps_and_no_secret_intent(self):
         runner = (ROOT / "data/library/src/main/java/app/enotone/library/"
                   "ManagedTagIndexSession.kt").read_text(encoding="utf-8")
-        service = (ROOT / "app/src/main/java/app/enotone/android/"
-                   "IndexingForegroundService.kt").read_text(encoding="utf-8")
+        service = "".join(
+            (ROOT / "app/src/main/java/app/enotone/android/" / path)
+            .read_text(encoding="utf-8")
+            for path in ("IndexingForegroundService.kt", "IndexingRunner.kt",
+                         "ManagedScanRuntime.kt")
+        )
         for needle in (
-            "enum class ManagedIndexMode { BOUNDED, CONTINUOUS }",
+            "enum class ManagedIndexMode { CONTINUOUS }",
             "const val MAX_CONTINUOUS_BATCHES = 80",
             "const val MAX_CONTINUOUS_NANOS = 4L * 60L * 60L * 1_000_000_000L",
             "const val MAX_BACKOFF_CYCLES = 3",
@@ -122,7 +131,6 @@ class ManagedIndexContractTest(unittest.TestCase):
             self.assertIn(needle, runner)
         for needle in (
             "private var pending: PendingIndexRun? = null",
-            "ManagedIndexMode.BOUNDED",
             "request.mode",
             "START_NOT_STICKY",
         ):
@@ -136,8 +144,12 @@ class ManagedIndexContractTest(unittest.TestCase):
         self.assertNotIn("PROPFIND", runner)
 
     def test_foreground_service_survives_activity_stop_and_uses_any_network(self):
-        service = (ROOT / "app/src/main/java/app/enotone/android/"
-                   "IndexingForegroundService.kt").read_text(encoding="utf-8")
+        service = "".join(
+            (ROOT / "app/src/main/java/app/enotone/android/" / path)
+            .read_text(encoding="utf-8")
+            for path in ("IndexingForegroundService.kt", "IndexingRunner.kt",
+                         "ManagedScanRuntime.kt")
+        )
         xml = (ROOT / "app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
         manifest = ET.fromstring(xml)
         permissions = [p.attrib.get(f"{ANDROID}name")
@@ -152,7 +164,6 @@ class ManagedIndexContractTest(unittest.TestCase):
             "ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC",
             "START_NOT_STICKY",
             "ManagedScanRuntime.claim()",
-            "ManagedTagIndexSession(database).run(",
             "networkAllowed = { true }",
             "override fun onTimeout(startId: Int, fgsType: Int)",
             "stopForeground(STOP_FOREGROUND_REMOVE)",

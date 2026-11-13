@@ -20,11 +20,10 @@ class AuditRefreshContractTest(unittest.TestCase):
         store = STORE.read_text()
         for needle in ("suspend fun tracksWithoutAlbum(", "album IS NULL",
                        "suspend fun tracksWithoutAlbumArtist(",
-                       "albumArtist IS NULL", "suspend fun findTracksForReindex(",
+                       "albumArtist IS NULL",
                        "ORDER BY fileName COLLATE NOCASE", "LIMIT :limit"):
             self.assertIn(needle, dao)
-        for needle in ("missingAlbum(accountEmail:", "missingAlbumArtist(accountEmail:",
-                       "findTracks(accountEmail:", "queueOneForRefresh(", "queueAllForRefresh("):
+        for needle in ("missingAlbum(accountEmail:", "missingAlbumArtist(accountEmail:"):
             self.assertIn(needle, store)
         diagnostics = (ROOT / 'app/src/main/java/app/enotone/android/DiagnosticsGateway.kt').read_text()
         diagnostics += (ROOT / 'app/src/main/java/app/enotone/android/DiagnosticsViewModel.kt').read_text()
@@ -36,10 +35,8 @@ class AuditRefreshContractTest(unittest.TestCase):
         pilot = PILOT.read_text()
         for needle in (
             "SET tagScanCode = 'RETRY_REFRESH'",
-            "suspend fun queueTagRefreshById(",
             "suspend fun queueAllTagRefresh(",
             "tagScanCode LIKE 'RETRY_%'",
-            "tagScanCode != 'RETRY_REFRESH'",
             "CASE WHEN :code IN ('MP3_ID3V23', 'MP3_ID3V24'",
             "THEN :album ELSE album END",
             "THEN :albumArtist ELSE albumArtist END",

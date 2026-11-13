@@ -143,25 +143,27 @@ class ManagedTagIndexSessionTest {
         assertEquals("AUTH_REJECTED", result.stopCode)
     }
 
-    @Test fun fourPassesNeverExceedSessionRequestOrByteCaps() = runBlocking {
+    @Test fun continuousCapsCumulativeRequestsWithoutResettingCheckpoints() = runBlocking {
         var calls = 0
-        val session = ManagedTagIndexSession { _, _, gate, onProgress ->
-            calls++
-            assertEquals(null, gate())
-            val p = batch(remaining = 3590 - 62 - calls * 52)
-            onProgress(p)
-            p
-        }
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { },
+            runBatch = { _, _, gate, onProgress ->
+                calls++
+                assertEquals(null, gate())
+                val p = batch(remaining = 3590 - calls)
+                onProgress(p)
+                p
+            },
+        )
         val progress = session.run("synthetic@example.test", "synthetic-password", { true })
-        assertEquals(4, calls)
-        assertEquals(4, progress.completedBatches)
-        assertEquals(208, progress.attempted)
-        assertEquals(208, progress.savedWithTags)
-        assertEquals(240, progress.getRequests)
-        assertEquals(4 * 3932160L, progress.downloadedBytes)
-        assertEquals("SESSION_LIMIT", progress.stopCode)
-        assertTrue(progress.getRequests <= ManagedIndexLimits.MAX_TOTAL_GETS)
-        assertTrue(progress.downloadedBytes <= ManagedIndexLimits.MAX_TOTAL_BYTES)
+        assertEquals(80, calls)
+        assertEquals(80, progress.completedBatches)
+        assertEquals(80 * 52, progress.attempted)
+        assertEquals(80 * 60, progress.getRequests)
+        assertEquals(80 * 3932160L, progress.downloadedBytes)
+        assertEquals("SESSION_BATCH_LIMIT", progress.stopCode)
+        assertTrue(progress.getRequests <= ManagedIndexLimits.MAX_CONTINUOUS_GETS)
+        assertTrue(progress.downloadedBytes <= ManagedIndexLimits.MAX_CONTINUOUS_BYTES)
     }
 
     @Test fun wifiPolicyFailureBeforeBatchMeansZeroRequests() = runBlocking {
@@ -176,8 +178,8 @@ class ManagedTagIndexSessionTest {
         assertEquals("NETWORK_POLICY", result.stopCode)
     }
 
-    @Test fun transientNetworkAndServerErrorsStopSessionRatherThanRetryLoop() = runBlocking {
-        for (stop in listOf("RETRY_BACKOFF", "AUTH_REJECTED", "NETWORK_POLICY")) {
+    @Test fun authenticationAndNetworkPolicyHaltTheSession() = runBlocking {
+        for (stop in listOf("AUTH_REJECTED", "NETWORK_POLICY")) {
             var calls = 0
             val session = ManagedTagIndexSession { _, _, _, _ ->
                 calls++
@@ -207,15 +209,18 @@ class ManagedTagIndexSessionTest {
 
     @Test fun noCompletedFilesWithSpentNetworkBudgetIsNotNoEligibleFiles() = runBlocking {
         var calls = 0
-        val session = ManagedTagIndexSession { _, _, _, _ ->
-            calls++
-            batch(attempted = 0, gets = 60, bytes = 3932160,
-                remaining = 3506, stop = "NETWORK_BUDGET")
-        }
+        val session = ManagedTagIndexSession(
+            waitBetweenBatches = { },
+            runBatch = { _, _, _, _ ->
+                calls++
+                batch(attempted = 0, gets = 60, bytes = 3932160,
+                    remaining = 3506, stop = "NETWORK_BUDGET")
+            },
+        )
         val result = session.run("synthetic@example.test", "synthetic-password", { true })
-        assertEquals(4, calls)
-        assertEquals("SESSION_LIMIT", result.stopCode)
-        assertEquals(240, result.getRequests)
+        assertEquals(3, calls)
+        assertEquals("NO_PROGRESS", result.stopCode)
+        assertEquals(180, result.getRequests)
     }
 
     @Test fun noEligibleCandidatesDoNotSpinAcrossBatches() = runBlocking {

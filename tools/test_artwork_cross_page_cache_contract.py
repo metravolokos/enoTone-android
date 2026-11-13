@@ -36,6 +36,7 @@ class ArtworkCrossPageCacheContractTest(unittest.TestCase):
     def test_auto_mode_resumes_after_tag_index_and_not_on_boot(self):
         planner = read("app/src/main/java/app/enotone/android/ArtworkIndexPlanner.kt")
         worker = read("app/src/main/java/app/enotone/android/ArtworkIndexingForegroundService.kt")
+        worker += read("app/src/main/java/app/enotone/android/ArtworkPreparationRunner.kt")
         preferences = read("app/src/main/java/app/enotone/android/ArtworkPreferences.kt")
         self.assertIn("ArtworkLoadMode.ON_DEMAND", preferences)
         self.assertIn("AUTO_AFTER_IMPORT", preferences)
