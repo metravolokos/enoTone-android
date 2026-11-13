@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -39,7 +40,7 @@ class LibraryVisibilityUiTest {
         rule.onAllNodes(isToggleable())[1].performClick()
         rule.onAllNodes(isToggleable())[3].assertIsOn()
         // The sole remaining destination must not be removable.
-        rule.onAllNodes(isToggleable())[3].performClick()
+        rule.onAllNodes(isToggleable())[3].assertIsNotEnabled()
         rule.runOnIdle {
             assertEquals(setOf(LibraryPage.TRACKS, LibraryPage.ALBUMS, LibraryPage.ARTISTS), hidden)
         }
