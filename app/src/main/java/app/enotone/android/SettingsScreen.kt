@@ -36,7 +36,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.enotone.library.LibraryPage
 
 @Composable
-internal fun DiagnosticScreen() {
+internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val appContext = LocalContext.current.applicationContext
     val container = (appContext as EnoToneApplication).container
     val sessionModel: SettingsSessionViewModel = viewModel(factory = SettingsSessionFactory)
@@ -67,6 +67,10 @@ internal fun DiagnosticScreen() {
         onSignedOut = { showingLibrary = false; showingDiagnostics = false })
     SettingsNotificationPermission(if (indexing.permissionPending) indexing.permissionRequest else 0,
         indexingModel::onNotificationPermission)
+    // Нажатие на уведомление: «Сейчас играет» поверх любого экрана; «Назад» вернёт на прежний.
+    LaunchedEffect(openNowPlayingRequest) {
+        if (openNowPlayingRequest > 0) playerModel.onNowPlaying(true)
+    }
     BackHandler(enabled = player.nowPlaying || showingLibrary || showingSettings) {
         when {
             player.nowPlaying -> playerModel.onNowPlaying(false)

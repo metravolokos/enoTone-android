@@ -154,7 +154,10 @@ class EnoTonePlaybackService : MediaSessionService() {
         playback.onShuffleLayoutReady = { if (!queueMutation) saveLayoutAndPosition() }
         playback.player.addListener(persistenceListener)
         handler.postDelayed(periodicSave, 12_000L)
-        session = MediaSession.Builder(this, playback.player).build()
+        val builder = MediaSession.Builder(this, playback.player)
+        // Без session activity нажатие на уведомление ничего не открывает (дефект Huawei 2026-11-13).
+        PlayerLaunchIntent.pendingIntent(this)?.let(builder::setSessionActivity)
+        session = builder.build()
         addSession(session)
     }
 
