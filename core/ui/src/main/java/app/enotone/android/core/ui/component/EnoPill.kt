@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,7 +71,7 @@ fun EnoPill(
     }
 }
 
-/** Видимый диаметр 40/48dp, минимальная область нажатия — 48dp. */
+/** Видимый диаметр 40/48dp, вся зона 48dp кликабельна для TalkBack и касания. */
 @Composable
 fun EnoRoundButton(
     icon: EnoIcons,
@@ -84,17 +85,20 @@ fun EnoRoundButton(
     val diameter = if (size > 48.dp) 48.dp else size
     val background = if (accent) EnoColors.accentFill else EnoColors.surface2
     val foreground = if (accent) EnoColors.onAccent else EnoColors.text
-    Box(modifier = modifier.size(48.dp), contentAlignment = Alignment.Center) {
-        Surface(
-            onClick = onClick,
-            enabled = enabled,
-            shape = CircleShape,
-            color = background,
-            contentColor = foreground,
-            modifier = Modifier.size(diameter)
-                .semantics { this.contentDescription = contentDescription },
-        ) {
-            Box(contentAlignment = Alignment.Center) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = CircleShape,
+        color = Color.Transparent,
+        modifier = modifier.size(48.dp)
+            .semantics { this.contentDescription = contentDescription },
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.size(diameter)
+                    .background(background, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
                 androidx.compose.material3.Icon(
                     painter = androidx.compose.ui.res.painterResource(icon.outline),
                     contentDescription = null,
