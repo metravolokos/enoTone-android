@@ -67,7 +67,7 @@
 |---|---|---|---|
 | R-4.1 | Модули `:core:*`, `:data:*`, `:playback`, `:feature:*` | 🟡 | M6-0/5 |
 | R-4.2 | Абстракция `MusicSource` | ❌ | |
-| R-4.3 | UDF: MVVM/MVI + StateFlow, логика не в Composable | 🟡 | #92: медиатека/плеер; #100: аккаунт; #104 (M6-0/4b-2): `LibraryIndexingViewModel`, `ArtworkSettingsViewModel`, `DiagnosticsViewModel`, immutable StateFlow, gateway и `BackgroundWorkLauncher` через AppContainer; T: одноимённые JUnit с фейками, подтверждение/повтор/авторизация/автообложки. Сервисы — 4c; Huawei регрессия настроек ожидается |
+| R-4.3 | UDF: MVVM/MVI + StateFlow, логика не в Composable | 🟡 | #92: медиатека/плеер; #100: аккаунт; #104 (M6-0/4b-2): `LibraryIndexingViewModel`, `ArtworkSettingsViewModel`, `DiagnosticsViewModel`, immutable StateFlow, gateway и `BackgroundWorkLauncher` через AppContainer; T: одноимённые JUnit с фейками, подтверждение/повтор/авторизация/автообложки. M6-0/4c (в PR): runner-ы служб с фейк-портами/JUnit; Huawei регрессия ожидается |
 | R-4.4 | Room — единственный источник истины для UI | 🟡 | медиатека — да; часть состояния в UI |
 | R-4.5 | Стабильный ID трека | 🟡 | SHA от пути; нет канонизации кодирования |
 | R-4.6 | Эвристика повторного сопоставления при переименовании | ❌ | M6-0/6 |
@@ -123,7 +123,7 @@
 |---|---|---|---|
 | R-7.1 | Холодный старт ≤ ~1 с; 60 fps на 10 000+ | 🟡 | не измерялось формально |
 | R-7.2 | `WAKE_MODE_NETWORK` | ✅ | #80; H 2026-11-12 (плавно, 58 треков) |
-| R-7.3 | Надёжность: смена сети, Doze, Android 14–16 FGS | 🟡 | FGS-типы есть; `onTimeout` обработан в обеих службах индексации (`IndexingForegroundService`, `ArtworkIndexingForegroundService`); смена сети и Doze на устройстве не проверялись |
+| R-7.3 | Надёжность: смена сети, Doze, Android 14–16 FGS | 🟡 | FGS-типы есть; `onTimeout` в обеих службах делегируется runner-ам (M6-0/4c в PR); JUnit Pause/Stop/timeout, смена сети и Doze на устройстве не проверялись |
 | R-7.4 | Доступность: `contentDescription`, TalkBack, масштаб шрифта | 🟡 | частично; на TalkBack не проверялось |
 | R-7.5 | Локализация ru / en, без хардкода строк | ✅ | K |
 | R-7.6 | R8 / shrink для release | ✅ | K |
