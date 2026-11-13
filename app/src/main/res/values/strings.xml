@@ -31,15 +31,11 @@
     <string name="save_local_library">Обновить медиатеку</string>
     <string name="local_import_report">Найдено в облаке: %1$d. Сохранено локально: %2$d. Новых: %3$d, изменённых: %4$d, без изменений: %5$d.</string>
     <string name="local_store_failed">Не удалось обновить или прочитать локальную медиатеку. Личные данные не включены в отчёт.</string>
-    <string name="library_open">Открыть медиатеку (без сети)</string>
     <string name="library_back">Назад</string>
-    <string name="library_title">Треки</string>
-    <string name="library_search">Поиск по трекам, исполнителям, альбомам</string>
     <string name="library_count">Показано %1$d из %2$d треков</string>
     <string name="library_loading">Читаем локальную медиатеку…</string>
     <string name="library_failed">Не удалось прочитать локальную медиатеку.</string>
     <string name="library_empty">Здесь пока пусто. Сначала сохраните список /AllMusic на устройстве.</string>
-    <string name="playback_hint">Нажмите на трек для воспроизведения. Нужен пароль приложения Cloud.Mail.ru. Музыка продолжит играть при сворачивании; управление доступно в уведомлении.</string>
     <string name="playback_loading">Подключение к треку…</string>
     <string name="playback_buffering">Буферизация…</string>
     <string name="playback_playing">Воспроизведение</string>
@@ -50,10 +46,8 @@
     <string name="playback_missing_track">Трек не найден в локальном списке.</string>
     <string name="playback_pause">Пауза</string>
     <string name="playback_resume">Продолжить</string>
-    <string name="playback_stop">Стоп</string>
     <string name="playback_previous">Предыдущий</string>
     <string name="playback_next">Следующий</string>
-    <string name="playback_queue_position">Трек %1$d из %2$d в очереди</string>
     <string name="playback_repeat_control">Повтор: %1$s</string>
     <string name="playback_repeat_off">выкл.</string>
     <string name="playback_repeat_one">трек</string>
@@ -103,8 +97,6 @@
     <string name="library_unknown_album">Неизвестный альбом</string>
     <string name="library_group_back">К списку групп</string>
     <string name="library_group_count">Найдено групп: %1$d</string>
-    <string name="library_group_tags_only">Группировка по сохранённым тегам: «Исполнители» — исполнители треков, «Исполнители альбомов» — отдельный тег. Треки с известными метаданными, но без альбома, находятся в «Неизвестный альбом».</string>
-    <string name="library_group_tracks">Треков: %1$d</string>
     <string name="library_groups_empty">Нет распознанных групп. Теги можно обрабатывать отдельно небольшими партиями.</string>
     <string name="managed_index_title">Ход обработки медиатеки</string>
     <string name="managed_notification_started">Индексация тегов выполняется в фоне</string>
@@ -152,7 +144,6 @@
     <string name="home_connect_account">Настроить подключение</string>
     <string name="artwork_description">Обложка текущего трека</string>
     <string name="album_cover_description">Обложка альбома</string>
-    <string name="album_play_all">Воспроизвести альбом</string>
     <string name="album_refresh_tags">Обновить теги альбома (до 10)</string>
     <string name="album_refresh_busy">Обновление тегов…</string>
     <string name="album_refresh_confirm_title">Обновить теги этого альбома?</string>
@@ -172,12 +163,6 @@
     <string name="appearance_system">Как в системе</string>
     <string name="appearance_dark">Тёмный</string>
     <string name="appearance_light">Светлый</string>
-    <string name="appearance_accent">Цвет элементов управления</string>
-    <string name="appearance_red">Красный</string>
-    <string name="appearance_blue">Синий</string>
-    <string name="appearance_green">Зелёный</string>
-    <string name="appearance_orange">Оранжевый</string>
-    <string name="appearance_purple">Фиолетовый</string>
     <string name="library_shuffle_all">Перемешать</string>
     <string name="home_library_sections">Разделы медиатеки</string>
     <string name="ui_play">Воспроизвести</string>

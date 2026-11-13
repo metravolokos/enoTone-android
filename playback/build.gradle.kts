@@ -24,6 +24,6 @@ dependencies {
     implementation(libs.media3.session)
     implementation(libs.coroutines.android)
     // Platform-independent JSON codec for JVM unit tests and Android runtime.
-    implementation(libs.gson)
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }

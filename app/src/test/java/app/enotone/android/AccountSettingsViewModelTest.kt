@@ -24,7 +24,9 @@ class AccountSettingsViewModelTest {
         var exitCalls = 0
         var failExit = false
         var pending = false
-        override suspend fun restore(): StoredWebDavLogin? = persisted
+        var restoreFails = false
+        override suspend fun restore(): StoredWebDavLogin? =
+            if (restoreFails) error("Invalid credential envelope") else persisted
         override suspend fun signOutPending(): Boolean = pending
         override suspend fun verify(email: String, password: String): Boolean {
             verifyCalls++
@@ -200,6 +202,21 @@ class AccountSettingsViewModelTest {
             model.requestSignOut()
             advanceUntilIdle()
             assertTrue(model.state.value.showConfirmation)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `undecryptable saved login asks to sign in instead of crashing`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply { restoreFails = true }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+            assertFalse(model.state.value.loggedIn)
+            assertFalse(model.state.value.restoring)
+            assertEquals(AccountError.RESTORE, model.state.value.error)
+            assertNull(model.state.value.workingLogin)
         } finally {
             Dispatchers.resetMain()
         }

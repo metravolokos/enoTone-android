@@ -1,6 +1,5 @@
 package app.enotone.android
 
-import app.enotone.library.ManagedIndexMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,15 +14,13 @@ internal class FakeBackgroundWorkLauncher : BackgroundWorkLauncher {
     override val artwork = MutableStateFlow(ArtworkScanStatus())
     var indexingStarts = 0
     var artworkStarts = 0
-    var mode: ManagedIndexMode? = null
     var failStart = false
     val indexingActions = mutableListOf<WorkAction>()
     val artworkActions = mutableListOf<WorkAction>()
-    override fun startIndexing(login: StoredWebDavLogin, mode: ManagedIndexMode): Boolean {
+    override fun startIndexing(login: StoredWebDavLogin): Boolean {
         if (failStart) error("private exception")
         if (indexing.value.active) return false
         indexingStarts++
-        this.mode = mode
         indexing.value = ManagedScanStatus(ManagedScanState.RUNNING)
         return true
     }

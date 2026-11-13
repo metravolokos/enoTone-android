@@ -2,14 +2,13 @@ package app.enotone.android
 
 import android.content.Context
 import android.content.Intent
-import app.enotone.library.ManagedIndexMode
 import kotlinx.coroutines.flow.StateFlow
 
 /** Секреты передаются службам только через существующий RAM-handoff. */
 internal interface BackgroundWorkLauncher {
     val indexing: StateFlow<ManagedScanStatus>
     val artwork: StateFlow<ArtworkScanStatus>
-    fun startIndexing(login: StoredWebDavLogin, mode: ManagedIndexMode): Boolean
+    fun startIndexing(login: StoredWebDavLogin): Boolean
     fun startArtwork(login: StoredWebDavLogin): Boolean
     fun indexingAction(action: WorkAction)
     fun artworkAction(action: WorkAction)
@@ -21,8 +20,8 @@ internal class AndroidBackgroundWorkLauncher(private val context: Context) : Bac
     override val indexing: StateFlow<ManagedScanStatus> = ManagedScanRuntime.status
     override val artwork: StateFlow<ArtworkScanStatus> = ArtworkScanRuntime.status
 
-    override fun startIndexing(login: StoredWebDavLogin, mode: ManagedIndexMode): Boolean {
-        if (!ManagedScanRuntime.prepare(login.email, login.password, mode)) return false
+    override fun startIndexing(login: StoredWebDavLogin): Boolean {
+        if (!ManagedScanRuntime.prepare(login.email, login.password)) return false
         runCatching {
             context.startForegroundService(Intent(context, IndexingForegroundService::class.java)
                 .setAction(IndexingForegroundService.ACTION_START))

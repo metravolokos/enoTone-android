@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>LongParameterList:RemoteTrackDao.kt$RemoteTrackDao$( id: String, sourceKey: String, encodedPath: String, expectedEtag: String?, expectedSize: Long?, expectedModified: String?, title: String?, artist: String?, album: String?, albumArtist: String?, year: Int? = null, trackNumber: Int? = null, discNumber: Int? = null, genre: String? = null, )</ID>
+    <ID>LongParameterList:RemoteTrackDao.kt$RemoteTrackDao$( id: String, sourceKey: String, path: String, etag: String?, size: Long?, modified: String?, code: String, title: String?, artist: String?, album: String?, albumArtist: String?, year: Int? = null, trackNumber: Int? = null, discNumber: Int? = null, genre: String? = null, )</ID>
+    <ID>TooManyFunctions:RemoteTrackDao.kt$RemoteTrackDao</ID>
+  </CurrentIssues>
+</SmellBaseline>

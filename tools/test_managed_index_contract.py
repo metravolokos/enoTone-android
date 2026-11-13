@@ -118,11 +118,10 @@ class ManagedIndexContractTest(unittest.TestCase):
                          "ManagedScanRuntime.kt")
         )
         for needle in (
-            "enum class ManagedIndexMode { CONTINUOUS }",
             "const val MAX_CONTINUOUS_BATCHES = 80",
             "const val MAX_CONTINUOUS_NANOS = 4L * 60L * 60L * 1_000_000_000L",
             "const val MAX_BACKOFF_CYCLES = 3",
-            "ManagedIndexLimits.underGlobalCaps(batches, gets, bytes, mode)",
+            "ManagedIndexLimits.underGlobalCaps(batches, gets, bytes)",
             'stop = "SESSION_TIME_BUDGET"',
             'stop = "RUNNING"',
             'stop == "COOLDOWN"',
@@ -131,7 +130,6 @@ class ManagedIndexContractTest(unittest.TestCase):
             self.assertIn(needle, runner)
         for needle in (
             "private var pending: PendingIndexRun? = null",
-            "request.mode",
             "START_NOT_STICKY",
         ):
             self.assertIn(needle, service)

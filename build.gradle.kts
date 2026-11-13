@@ -7,16 +7,18 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
-// Static analysis for every module (ADR-0074, M6-0/8). Report-only for now:
-// the existing code has never been checked, so failures would block all work.
-// Findings are fixed module by module during M6-0/4–5, then ignoreFailures
-// is switched off by a separate PR.
+// Static analysis for every module (ADR-0076). Blocking since 2026-11-13:
+// existing findings live in a per-module detekt-baseline.xml that may only
+// shrink (tools/check_detekt_baseline.py in CI, AUDIT_PROTOCOL §4.1).
+// Any NEW finding fails the build. Regenerate a baseline only to REMOVE
+// fixed entries: ./gradlew detektBaseline, then review the diff.
 allprojects {
     apply(plugin = "io.gitlab.arturbosch.detekt")
     detekt {
         buildUponDefaultConfig = true
         config.setFrom(rootProject.files("config/detekt/detekt.yml"))
-        ignoreFailures = true
+        baseline = file("detekt-baseline.xml")
+        ignoreFailures = false
         parallel = true
     }
     dependencies {

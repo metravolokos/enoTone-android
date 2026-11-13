@@ -34,7 +34,6 @@ internal class RoomIndexingSessionFactory(
                 request.login.password,
                 networkAllowed = networkAllowed,
                 onProgress = progress,
-                mode = request.mode,
             )
         }
     }

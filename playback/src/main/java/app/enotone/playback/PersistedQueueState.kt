@@ -1,8 +1,7 @@
 package app.enotone.playback
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import org.json.JSONArray
+import org.json.JSONObject
 
 /** Fixed, anonymous recovery reason; no filenames, hashes or credentials. */
 enum class QueueRestoreCode {
@@ -61,7 +60,7 @@ data class PersistedQueueState(
     )
 }
 
-/** Allowlisted JSON trees, with no reflection and no Android runtime dependency. */
+/** Allowlisted JSON trees via org.json (part of Android; JVM tests use org.json:json), no reflection. */
 object QueueStateCodec {
     const val VERSION = 1
     private val hash = Regex("[a-f0-9]{64}")
@@ -99,80 +98,90 @@ object QueueStateCodec {
 
     fun encodeLayout(layout: PersistedQueueLayout): String {
         require(isValidLayout(layout))
-        val json = JsonObject()
-        json.addProperty("version", layout.version)
-        json.add("trackIds", JsonArray().apply { layout.trackIds.forEach(::add) })
-        json.addProperty("shuffleEnabled", layout.shuffleEnabled)
+        // org.json входит в Android: без отдельной зависимости (ревью «что удалить» 2026-11-13).
+        val json = JSONObject()
+        json.put("version", layout.version)
+        json.put("trackIds", JSONArray().apply { layout.trackIds.forEach { put(it) } })
+        json.put("shuffleEnabled", layout.shuffleEnabled)
         if (layout.shuffleEnabled) {
-            json.add("shuffledIndices", JsonArray().apply {
-                layout.shuffledIndices!!.forEach(::add)
+            json.put("shuffledIndices", JSONArray().apply {
+                layout.shuffledIndices!!.forEach { put(it) }
             })
         }
-        json.addProperty("sourceKey", layout.sourceKey)
-        json.addProperty("queueRevision", layout.queueRevision)
-        json.addProperty("savedAtEpochMs", layout.savedAtEpochMs)
+        json.put("sourceKey", layout.sourceKey)
+        json.put("queueRevision", layout.queueRevision)
+        json.put("savedAtEpochMs", layout.savedAtEpochMs)
         return json.toString()
     }
 
     fun decodeLayout(raw: String): PersistedQueueLayout? = try {
         if (raw.isBlank() || raw.length > 2_000_000) null else {
-            val json = JsonParser.parseString(raw).asJsonObject
-            val enabled = json.get("shuffleEnabled").asBoolean
+            val json = JSONObject(raw)
+            val enabled = json.getBoolean("shuffleEnabled")
             if (json.keySet() != layoutFields +
                     if (enabled) setOf("shuffledIndices") else emptySet()) null
             else PersistedQueueLayout(
-                trackIds = json.getAsJsonArray("trackIds").map { it.asString },
-                shuffledIndices = if (enabled) json.getAsJsonArray("shuffledIndices")
-                    .map { it.asInt }.toIntArray() else null,
+                trackIds = json.getJSONArray("trackIds").let { a -> List(a.length()) { a.getString(it) } },
+                shuffledIndices = if (enabled) json.getJSONArray("shuffledIndices")
+                    .let { a -> IntArray(a.length()) { a.getInt(it) } } else null,
                 shuffleEnabled = enabled,
-                sourceKey = json.get("sourceKey").asString,
-                queueRevision = json.get("queueRevision").asString,
-                savedAtEpochMs = json.get("savedAtEpochMs").asLong,
-                version = json.get("version").asInt,
+                sourceKey = json.getString("sourceKey"),
+                queueRevision = json.getString("queueRevision"),
+                savedAtEpochMs = json.getLong("savedAtEpochMs"),
+                version = json.getInt("version"),
             ).takeIf(::isValidLayout)
         }
-    } catch (_: RuntimeException) {
+    } catch (_: Exception) {
+        // JSONException на Android — проверяемое исключение, а не RuntimeException.
         null
     }
 
     fun encodePosition(position: PersistedPositionState): String {
         require(isValidPosition(position))
-        val json = JsonObject()
-        json.addProperty("version", position.version)
-        json.addProperty("selectedTrackId", position.selectedTrackId)
-        json.addProperty("positionMs", position.positionMs)
-        json.addProperty("repeatMode", position.repeatMode)
-        json.addProperty("shuffleEnabled", position.shuffleEnabled)
-        json.addProperty("savedAtEpochMs", position.savedAtEpochMs)
-        json.addProperty("queueRevision", position.queueRevision)
-        if (position.durationMs > 0L) json.addProperty("durationMs", position.durationMs)
+        val json = JSONObject()
+        json.put("version", position.version)
+        json.put("selectedTrackId", position.selectedTrackId)
+        json.put("positionMs", position.positionMs)
+        json.put("repeatMode", position.repeatMode)
+        json.put("shuffleEnabled", position.shuffleEnabled)
+        json.put("savedAtEpochMs", position.savedAtEpochMs)
+        json.put("queueRevision", position.queueRevision)
+        if (position.durationMs > 0L) json.put("durationMs", position.durationMs)
         return json.toString()
     }
 
     fun decodePosition(raw: String): PersistedPositionState? = try {
         if (raw.isBlank() || raw.length > 8_192) null else {
-            val json = JsonParser.parseString(raw).asJsonObject
+            val json = JSONObject(raw)
             // durationMs is optional: checkpoints written before it existed stay readable.
             val keys = json.keySet()
             if (keys != positionFields && keys != positionFields + "durationMs") null
             else PersistedPositionState(
-                selectedTrackId = json.get("selectedTrackId").asString,
-                positionMs = json.get("positionMs").asLong,
-                repeatMode = json.get("repeatMode").asInt,
-                shuffleEnabled = json.get("shuffleEnabled").asBoolean,
-                savedAtEpochMs = json.get("savedAtEpochMs").asLong,
-                queueRevision = json.get("queueRevision").asString,
-                version = json.get("version").asInt,
-                durationMs = json.get("durationMs")?.asLong ?: 0L,
+                selectedTrackId = json.getString("selectedTrackId"),
+                positionMs = json.getLong("positionMs"),
+                repeatMode = json.getInt("repeatMode"),
+                shuffleEnabled = json.getBoolean("shuffleEnabled"),
+                savedAtEpochMs = json.getLong("savedAtEpochMs"),
+                queueRevision = json.getString("queueRevision"),
+                version = json.getInt("version"),
+                durationMs = if (json.has("durationMs")) json.getLong("durationMs") else 0L,
             ).takeIf(::isValidPosition)
         }
-    } catch (_: RuntimeException) {
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun JSONObject.keySet(): Set<String> = keys().asSequence().toSet()
+
+    private fun versionOf(raw: String): Int? = try {
+        JSONObject(raw).let { if (it.has("version")) it.getInt("version") else null }
+    } catch (_: Exception) {
         null
     }
 
     private fun foreignVersion(raw: String): Boolean = try {
-        JsonParser.parseString(raw).asJsonObject.get("version")?.asInt != VERSION
-    } catch (_: RuntimeException) {
+        JSONObject(raw).let { !it.has("version") || it.getInt("version") != VERSION }
+    } catch (_: Exception) {
         false
     }
 
@@ -197,12 +206,8 @@ object QueueStateCodec {
             else QueueRestoreCode.RESTORED)
     }
 
-    private fun hasForeignPositionVersion(raw: String): Boolean = try {
-        val version = JsonParser.parseString(raw).asJsonObject.get("version")
-        version != null && version.asInt != VERSION
-    } catch (_: RuntimeException) {
-        false
-    }
+    private fun hasForeignPositionVersion(raw: String): Boolean =
+        versionOf(raw).let { it != null && it != VERSION }
 
     /**
      * A missing/damaged position is recoverable from the first track at 0.

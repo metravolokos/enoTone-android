@@ -1,0 +1,80 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:PersistedQueueState.kt$QueueStateCodec$layout.version != VERSION || ids.isEmpty() || ids.size &gt; PlaybackQueue.MAX_TRACKS || ids.any { !hash.matches(it) } || ids.toSet().size != ids.size || !hash.matches(layout.sourceKey) || !revision.matches(layout.queueRevision) || layout.savedAtEpochMs &lt; 0L</ID>
+    <ID>ComplexCondition:WebDavPlaybackRange.kt$WebDavPlaybackRange$actualStart != start || actualEnd != end || (totalString != "*" &amp;&amp; actualTotal != knownTotal)</ID>
+    <ID>ComplexCondition:WebDavPlaybackRange.kt$WebDavPlaybackRange$knownTotal &lt;= 0 || start &lt; 0 || end &lt; start || end &gt;= knownTotal</ID>
+    <ID>CyclomaticComplexMethod:TransientMediaCache.kt$TransientMediaCache$fun prefetchCurrent( key: String, uri: Uri, size: Long, upstream: DataSource.Factory, onComplete: (() -&gt; Unit)? = null, )</ID>
+    <ID>CyclomaticComplexMethod:TransientMediaCache.kt$TransientMediaCache$fun prefetchNext( key: String, uri: Uri, size: Long, upstream: DataSource.Factory, )</ID>
+    <ID>CyclomaticComplexMethod:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$override fun open(dataSpec: DataSpec): Long</ID>
+    <ID>CyclomaticComplexMethod:WebDavPlaybackTarget.kt$WebDavPlaybackTarget$fun url(encodedPath: String): String</ID>
+    <ID>ImportOrdering:PreviewAudioPlayback.kt$import android.content.Context import android.os.Handler import android.os.Looper import android.os.SystemClock import androidx.media3.datasource.DataSource import androidx.annotation.OptIn import androidx.media3.common.AudioAttributes import androidx.media3.common.C import androidx.media3.common.MediaItem import androidx.media3.common.MediaMetadata import androidx.media3.common.Player import androidx.media3.common.util.UnstableApi import androidx.media3.exoplayer.ExoPlayer import androidx.media3.exoplayer.source.ProgressiveMediaSource import androidx.media3.exoplayer.source.MediaSource import androidx.media3.exoplayer.source.ShuffleOrder</ID>
+    <ID>ImportOrdering:QueueStateFileStoreTest.kt$import java.io.IOException import org.junit.Assert.assertEquals import org.junit.Assert.assertNotNull import org.junit.Assert.assertNull import org.junit.Assert.assertTrue import org.junit.Rule import org.junit.Test import org.junit.rules.TemporaryFolder</ID>
+    <ID>ImportOrdering:TransientMediaCache.kt$import android.content.Context import android.net.Uri import android.os.Handler import android.os.Looper import androidx.annotation.OptIn import androidx.media3.common.util.UnstableApi import androidx.media3.datasource.DataSource import androidx.media3.datasource.DataSpec import androidx.media3.datasource.cache.CacheDataSource import androidx.media3.datasource.cache.CacheWriter import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor import androidx.media3.datasource.cache.SimpleCache import androidx.media3.database.StandaloneDatabaseProvider import java.io.File import java.util.concurrent.Executors import java.util.concurrent.TimeUnit import java.util.concurrent.atomic.AtomicBoolean import java.util.concurrent.atomic.AtomicLong import java.util.concurrent.atomic.AtomicReference</ID>
+    <ID>ImportOrdering:WebDavMedia3DataSource.kt$import android.net.Uri import androidx.annotation.OptIn import androidx.media3.common.C import androidx.media3.common.PlaybackException import androidx.media3.common.util.UnstableApi import androidx.media3.datasource.BaseDataSource import androidx.media3.datasource.DataSource import androidx.media3.datasource.DataSpec import androidx.media3.datasource.DataSourceException import java.io.IOException import java.io.InputStream import java.net.HttpURLConnection import java.net.URL import java.nio.charset.StandardCharsets import java.util.Base64 import javax.net.ssl.HttpsURLConnection</ID>
+    <ID>InstanceOfCheckForException:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$failure is PlaybackDataIssueException</ID>
+    <ID>LongMethod:PreviewAudioPlayback.kt$PreviewAudioPlayback$fun restoreQueue( email: String, appPassword: String, tracks: List&lt;QueueTrack&gt;, state: PersistedQueueState, useTemporaryCache: Boolean, )</ID>
+    <ID>LongMethod:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$override fun open(dataSpec: DataSpec): Long</ID>
+    <ID>LongParameterList:EnoTonePlaybackService.kt$EnoTonePlaybackService$( email: String, password: String, tracks: List&lt;QueueTrack&gt;, selectedId: String, useTemporaryCache: Boolean, sourceKey: String, )</ID>
+    <ID>LongParameterList:EnoTonePlaybackService.kt$EnoTonePlaybackService$( email: String, password: String, tracks: List&lt;QueueTrack&gt;, state: PersistedQueueState, useTemporaryCache: Boolean, filteredMissingTracks: Boolean, )</ID>
+    <ID>LongParameterList:PreviewAudioPlayback.kt$PreviewAudioPlayback$( email: String, appPassword: String, tracks: List&lt;QueueTrack&gt;, selectedId: String, useTemporaryCache: Boolean, sourceKey: String, )</ID>
+    <ID>MagicNumber:EnoTonePlaybackService.kt$EnoTonePlaybackService$12_000L</ID>
+    <ID>MagicNumber:PersistedQueueState.kt$QueueStateCodec$2_000_000</ID>
+    <ID>MagicNumber:PersistedQueueState.kt$QueueStateCodec$8_192</ID>
+    <ID>MagicNumber:PlaybackDataIssue.kt$PlaybackDataIssueClassifier$12</ID>
+    <ID>MagicNumber:PlaybackSeekPolicy.kt$PlaybackSeekPolicy$1000L</ID>
+    <ID>MagicNumber:PlaybackSeekPolicy.kt$PlaybackSeekPolicy$3600L</ID>
+    <ID>MagicNumber:PlaybackSeekPolicy.kt$PlaybackSeekPolicy$60L</ID>
+    <ID>MagicNumber:PreviewAudioPlayback.kt$PreviewAudioPlayback$35L</ID>
+    <ID>MagicNumber:QueueStateFileStore.kt$QueueStateFileStore$2_000_000L</ID>
+    <ID>MagicNumber:QueueStateFileStore.kt$QueueStateFileStore$8_192L</ID>
+    <ID>MagicNumber:TransientCachePolicy.kt$TransientCachePolicy$0xff</ID>
+    <ID>MagicNumber:TransientMediaCache.kt$TransientMediaCache$30</ID>
+    <ID>MagicNumber:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$126</ID>
+    <ID>MagicNumber:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$15_000</ID>
+    <ID>MagicNumber:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$256</ID>
+    <ID>MagicNumber:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$32</ID>
+    <ID>MagicNumber:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$8_000</ID>
+    <ID>MagicNumber:WebDavPlaybackRange.kt$WebDavPlaybackRange$3</ID>
+    <ID>MagicNumber:WebDavPlaybackTarget.kt$WebDavPlaybackTarget$32</ID>
+    <ID>NestedBlockDepth:PersistedQueueState.kt$QueueStateCodec$fun decodeLayout(raw: String): PersistedQueueLayout?</ID>
+    <ID>NoConsecutiveBlankLines:PersistedQueueState.kt$ </ID>
+    <ID>NoUnusedImports:PreviewAudioPlayback.kt$app.enotone.playback.PreviewAudioPlayback.kt</ID>
+    <ID>NoWildcardImports:PersistedQueueStateTest.kt$import org.junit.Assert.*</ID>
+    <ID>ReturnCount:EnoTonePlaybackService.kt$EnoTonePlaybackService$fun seekToFraction(fraction: Float): Boolean</ID>
+    <ID>ReturnCount:EnoTonePlaybackService.kt$EnoTonePlaybackService$private fun savePosition(urgent: Boolean = false)</ID>
+    <ID>ReturnCount:PersistedQueueState.kt$QueueStateCodec$fun assemble(layoutRaw: String, positionRaw: String?): PersistedQueueState?</ID>
+    <ID>ReturnCount:PersistedQueueState.kt$QueueStateCodec$fun inspect(layoutRaw: String?, positionRaw: String?): QueueReadResult</ID>
+    <ID>ReturnCount:PersistedQueueState.kt$QueueStateRestorer$fun filter(state: PersistedQueueState, availableIds: Set&lt;String&gt;): PersistedQueueState?</ID>
+    <ID>ReturnCount:PersistedQueueState.kt$QueueWriteThrottle$fun delayMs(urgent: Boolean = false): Long</ID>
+    <ID>ReturnCount:PlaybackDataIssue.kt$PlaybackDataIssueClassifier$fun classify(error: Throwable): PlaybackDataIssue</ID>
+    <ID>ReturnCount:PlaybackHandoffTracker.kt$PlaybackHandoffTracker$fun onBuffering(nowMs: Long)</ID>
+    <ID>ReturnCount:PlaybackHandoffTracker.kt$PlaybackHandoffTracker$fun onPlaying(nowMs: Long)</ID>
+    <ID>ReturnCount:PlaybackHandoffTracker.kt$PlaybackHandoffTracker$fun onReady(nowMs: Long)</ID>
+    <ID>ReturnCount:PlaybackReadWindow.kt$PlaybackReadWindow$fun resolve(size: Long, position: Long, requestedLength: Long): Window?</ID>
+    <ID>ReturnCount:PreviewAudioPlayback.kt$PreviewAudioPlayback$fun snapshotLayout(revision: String, savedAtEpochMs: Long): PersistedQueueLayout?</ID>
+    <ID>ReturnCount:PreviewAudioPlayback.kt$PreviewAudioPlayback$fun snapshotPosition(revision: String, savedAtEpochMs: Long): PersistedPositionState?</ID>
+    <ID>ReturnCount:PreviewAudioPlayback.kt$PreviewAudioPlayback$private fun refreshNextPrefetch()</ID>
+    <ID>ReturnCount:PreviewAudioPlayback.kt$PreviewAudioPlayback$private fun scheduleAfterFirstBuffer()</ID>
+    <ID>ReturnCount:PreviewAudioPlayback.kt$PreviewAudioPlayback$private fun stagePlaylistAfterReady()</ID>
+    <ID>ReturnCount:StagedPlaylistPlan.kt$StagedPlaylistPlan$fun nextChunk(): Chunk?</ID>
+    <ID>ReturnCount:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$override fun read(buffer: ByteArray, offset: Int, length: Int): Int</ID>
+    <ID>SpacingAroundKeyword:WebDavMedia3DataSource.kt$WebDavMedia3DataSource.Factory$finally</ID>
+    <ID>SpacingBetweenDeclarationsWithAnnotations:TransientMediaCache.kt$TransientMediaCache$@Volatile private var activeNextWriter: CacheWriter? = null</ID>
+    <ID>SpacingBetweenDeclarationsWithAnnotations:TransientMediaCache.kt$TransientMediaCache$@Volatile private var activeWriter: CacheWriter? = null</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:PreviewAudioPlayback.kt$PreviewAudioPlayback$/** Called only after configuredShuffle is ready, including MediaSession controls. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:PreviewAudioPlayback.kt$PreviewAudioPlayback$/** Saved duration of the restored item, shown until Media3 knows the real one. */</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:PreviewAudioPlayback.kt$PreviewAudioPlayback$// A single guarded recovery per ended item. Do not override Pause or</ID>
+    <ID>SpacingBetweenDeclarationsWithComments:QueueStateFileStore.kt$QueueStateFileStore.Companion$/** JVM/Robolectric tests use an isolated directory; no Android storage or network. */</ID>
+    <ID>ThrowsCount:WebDavPlaybackRange.kt$WebDavPlaybackRange$fun count(header: String?, start: Long, end: Long, knownTotal: Long): Long</ID>
+    <ID>TooGenericExceptionCaught:QueueStateFileStore.kt$QueueStateFileStore$error: Exception</ID>
+    <ID>TooGenericExceptionCaught:WebDavMedia3DataSource.kt$WebDavMedia3DataSource$failure: Exception</ID>
+    <ID>TooManyFunctions:EnoTonePlaybackService.kt$EnoTonePlaybackService : MediaSessionService</ID>
+    <ID>TooManyFunctions:PersistedQueueState.kt$QueueStateCodec</ID>
+    <ID>TooManyFunctions:PreviewAudioPlayback.kt$PreviewAudioPlayback : AutoCloseable</ID>
+    <ID>UseCheckOrError:TransientMediaCache.kt$TransientMediaCache$throw IllegalStateException("Temporary cache directory unavailable")</ID>
+    <ID>UseCheckOrError:TransientMediaCache.kt$TransientMediaCache$throw IllegalStateException("Temporary cache reset failed")</ID>
+    <ID>WildcardImport:PersistedQueueStateTest.kt$import org.junit.Assert.*</ID>
+  </CurrentIssues>
+</SmellBaseline>

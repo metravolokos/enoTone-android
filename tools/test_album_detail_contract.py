@@ -40,7 +40,6 @@ class AlbumDetailContractTest(unittest.TestCase):
                      "app/src/main/res/values-en/strings.xml"):
             root = ET.fromstring(self.src(path))
             keys = {item.attrib["name"] for item in root.findall("string")}
-            self.assertIn("album_play_all", keys)
             self.assertIn("album_cover_description", keys)
         database = self.src(
             "core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")

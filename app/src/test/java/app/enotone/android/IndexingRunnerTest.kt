@@ -1,6 +1,5 @@
 package app.enotone.android
 
-import app.enotone.library.ManagedIndexMode
 import app.enotone.library.ManagedIndexProgress
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -20,7 +19,6 @@ import org.junit.Test
 class IndexingRunnerTest {
     private val request = PendingIndexRun(
         StoredWebDavLogin("synthetic@example.test", "synthetic-secret"),
-        ManagedIndexMode.CONTINUOUS,
     )
 
     @Before fun reset() {

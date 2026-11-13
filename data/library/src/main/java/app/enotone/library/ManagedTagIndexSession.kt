@@ -10,8 +10,6 @@ import kotlinx.coroutines.ensureActive
  * eligible files are processed or a strict time/network budget is reached.
  * There is no auto-start on boot or process restart.
  */
-enum class ManagedIndexMode { CONTINUOUS }
-
 object ManagedIndexLimits {
     const val BETWEEN_BATCH_DELAY_MS = 1500L
     // 80 * 60 GET covers ~3,274 remaining tracks at the observed ~1.16 GET
@@ -23,16 +21,8 @@ object ManagedIndexLimits {
     const val MAX_CONTINUOUS_NANOS = 4L * 60L * 60L * 1_000_000_000L
     const val MAX_BACKOFF_CYCLES = 3
 
-    fun maxBatches(mode: ManagedIndexMode): Int =
-        when (mode) {
-            ManagedIndexMode.CONTINUOUS -> MAX_CONTINUOUS_BATCHES
-        }
-
-    fun underGlobalCaps(
-        batches: Int, gets: Int, bytes: Long,
-        mode: ManagedIndexMode = ManagedIndexMode.CONTINUOUS,
-    ): Boolean {
-        val limit = maxBatches(mode)
+    fun underGlobalCaps(batches: Int, gets: Int, bytes: Long): Boolean {
+        val limit = MAX_CONTINUOUS_BATCHES
         return batches in 0 until limit &&
             gets <= limit * PilotBudget.MAX_BATCH_GETS &&
             bytes <= limit * PilotBudget.MAX_BATCH_BYTES
@@ -95,7 +85,6 @@ class ManagedTagIndexSession(
         password: String,
         networkAllowed: () -> Boolean,
         onProgress: suspend (ManagedIndexProgress) -> Unit = {},
-        mode: ManagedIndexMode = ManagedIndexMode.CONTINUOUS,
     ): ManagedIndexProgress {
         require(email.isNotBlank() && password.isNotBlank())
         var batches = 0
@@ -137,7 +126,7 @@ class ManagedTagIndexSession(
                     partial.lastErrorStage != "NONE") partial.lastErrorHttpStatus else lastHttp,
             )
 
-        while (ManagedIndexLimits.underGlobalCaps(batches, gets, bytes, mode)) {
+        while (ManagedIndexLimits.underGlobalCaps(batches, gets, bytes)) {
             currentCoroutineContext().ensureActive()
             if (timedOut()) {
                 stop = "SESSION_TIME_BUDGET"
@@ -204,7 +193,7 @@ class ManagedTagIndexSession(
                         "RETRY_BACKOFF" else "COOLDOWN"
                 result.stopCode !in setOf("COMPLETED", "NETWORK_BUDGET", "TIME_BUDGET") ->
                     result.stopCode
-                batches >= ManagedIndexLimits.maxBatches(mode) -> "SESSION_BATCH_LIMIT"
+                batches >= ManagedIndexLimits.MAX_CONTINUOUS_BATCHES -> "SESSION_BATCH_LIMIT"
                 else -> "RUNNING"
             }
             onProgress(snapshot())
@@ -216,7 +205,7 @@ class ManagedTagIndexSession(
             } else if (stop != "RUNNING") break
         }
         if (stop == "RUNNING" &&
-            !ManagedIndexLimits.underGlobalCaps(batches, gets, bytes, mode)) {
+            !ManagedIndexLimits.underGlobalCaps(batches, gets, bytes)) {
             stop = "SESSION_BATCH_LIMIT"
         }
         return snapshot(code = stop)
