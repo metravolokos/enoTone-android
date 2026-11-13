@@ -1,11 +1,18 @@
 package app.enotone.android.core.ui.component
 
+import android.content.res.Configuration
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.luminance
+import app.enotone.android.core.ui.theme.EnoColors
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import app.enotone.android.core.ui.R
@@ -46,10 +53,29 @@ fun EnoWordmark(
     contentDescription: String?,
     modifier: Modifier = Modifier,
 ) {
-    Image(
-        painter = painterResource(R.drawable.enotone_wordmark),
-        contentDescription = contentDescription,
-        modifier = modifier.defaultMinSize(minWidth = 120.dp),
-        contentScale = ContentScale.Fit,
-    )
+    // Unlike a flat-tinted icon, the wordmark is two-colour and uses night-qualified
+    // XML vector paints. MaterialTheme can override system UI mode without changing
+    // Android resources, so scope the resource context to the painter only.
+    val dark = EnoColors.text.luminance() > 0.5f
+    val baseContext = LocalContext.current
+    val configuration = remember(baseContext, dark) {
+        Configuration(baseContext.resources.configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                (if (dark) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO)
+        }
+    }
+    val themedContext = remember(baseContext, configuration) {
+        baseContext.createConfigurationContext(configuration)
+    }
+    CompositionLocalProvider(
+        LocalContext provides themedContext,
+        LocalConfiguration provides configuration,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.enotone_wordmark),
+            contentDescription = contentDescription,
+            modifier = modifier.defaultMinSize(minWidth = 120.dp),
+            contentScale = ContentScale.Fit,
+        )
+    }
 }
