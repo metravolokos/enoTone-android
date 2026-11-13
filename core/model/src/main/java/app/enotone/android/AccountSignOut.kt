@@ -3,7 +3,7 @@ package app.enotone.android
 import kotlinx.coroutines.CancellationException
 
 /** Account data must be cleared before the AES-GCM key is destroyed (ADR-0080). */
-internal interface AccountSignOutPort {
+interface AccountSignOutPort {
     suspend fun stopPlayback()
     suspend fun stopIndexers()
     suspend fun deleteTracks(sourceKey: String)
@@ -13,8 +13,8 @@ internal interface AccountSignOutPort {
 }
 
 /** A category-only failure: never attach exception messages containing remote paths. */
-internal class AccountSignOutFailure(val step: Step) : IllegalStateException("SIGN_OUT_${step.name}") {
-    internal enum class Step {
+class AccountSignOutFailure(val step: Step) : IllegalStateException("SIGN_OUT_${step.name}") {
+    enum class Step {
         PLAYBACK, INDEXERS, TRACKS, ARTWORK, CHECKPOINTS, CREDENTIALS
     }
 }
@@ -24,7 +24,7 @@ internal class AccountSignOutFailure(val step: Step) : IllegalStateException("SI
  * A failed operation stops the sequence, so the encrypted login remains available
  * to retry deletion. No restore/playback work is allowed during this sequence.
  */
-internal class AccountSignOut(private val port: AccountSignOutPort) {
+class AccountSignOut(private val port: AccountSignOutPort) {
     suspend fun run(sourceKey: String) {
         require(sourceKey.isNotBlank())
         execute(AccountSignOutFailure.Step.PLAYBACK) { port.stopPlayback() }
@@ -51,7 +51,7 @@ internal class AccountSignOut(private val port: AccountSignOutPort) {
  * sign-out: disk checkpoints still need clearing before Room/Keystore.
  * A real stop exception or queue-file failure is not swallowed.
  */
-internal class AccountPlaybackStop(
+class AccountPlaybackStop(
     private val stopBoundService: suspend () -> Boolean,
     private val clearQueue: suspend () -> Unit,
 ) {
