@@ -172,7 +172,7 @@ fun EnoToneTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
     // User-selected DARK/LIGHT must override *resource* night qualifiers, not just M3 scheme.
     // Otherwise a dark manual mode under a light phone would load values/eno_colors.xml.
     val themedConfiguration = remember(baseContext, darkTheme) {
-        Configuration(baseContext.resources.configuration).apply {
+        Configuration(baseConfiguration).apply {
             uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
                 (if (darkTheme) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO)
         }
