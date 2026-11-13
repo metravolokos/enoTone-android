@@ -4,14 +4,15 @@
 
 Нативный Kotlin + Compose. **Media3 ExoPlayer и MediaSessionService уже работают** в `:playback` (M3–M5); источник WebDAV через строго проверяемый HTTPS/Range DataSource, локальная Room — источник истины перечня/тегов. Фактические транспорт и ограничения фиксируются в ADR и `docs/STATUS.md`; прежний список зависимостей был только архитектурным предложением. Бизнес-логику держим вне Composable, UI строится реактивно.
 
-## Фактическое состояние и Draft перенос M6-0/5b (2026-11-13)
+## Фактическое состояние после #119 и D2a (2026-11-13)
 
-Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104), тонкие службы (#114). 5a (#118) слит. **5b находится в Draft, не в main**: по [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) перенесены самостоятельные классы без изменения поведения и ресурсов Android v2.
+Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104), тонкие службы (#114). 5a (#118) слит. **5b слит в `main` (PR #119)**: по [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) перенесены самостоятельные классы без изменения поведения и ресурсов Android v2.
 
-| Модуль | Содержимое в Draft M6-0/5b |
+| Модуль | Содержимое после #119 / D2a в Draft |
 |---|---|
 | `:app` | Android Application, `AppContainer`, MediaSession/foreground адаптеры, Keystore, resource-bound Compose экраны и ViewModel до D2–D6 |
 | `:core:model` | `AccountSession`, `AccountSignOut`, `PlayingArtworkTarget`; прежние имена и пакеты |
+| `:core:ui` (D2a, Draft) | Палитра v1.4, общая тема/токены, ресурсы D1 и Roborazzi, затем D2b-компоненты. Независим от проектных модулей; `:app → :feature:* → :core:ui`. |
 | `:feature:library` | `AlbumArtworkCatalog`, `ArtworkPreferences`, `LibraryPagePreferences`, полная реализация Home и UI видимости страниц; `:app`-фасады с исходными сигнатурами, resource IDs и навигацией |
 | `:feature:player` | `ArtworkBackdrop`, `FloatingControlsIsland`, `FeatureNowPlayingScreen` (полная реализация) и `NowPlayingIds`; прежняя сигнатура и 28 app-owned R IDs — в `:app` |
 | `:feature:settings` | `DiagnosticReportSanitizer`, `SettingsNotificationPermission` |
@@ -21,7 +22,7 @@
 | `:playback` | MediaSessionService, ExoPlayer, WebDAV DataSource, временный кэш и очередь |
 | `:data:playlist` | Пустой, **явно зарезервирован для M6-0/6**; функциональность плейлистов не заявлена |
 
-В Draft удалены невостребованные каркасы `:core:common/datastore`, `:data:source/cache`, `:feature:ai`. Ресурсы строк, RU/EN, night и v2 полностью остаются в `:app`. Home и Now Playing перенесены целиком, UI настройки видимости страниц тоже; перенос остальных полных экранов и ViewModel **не завершён** из-за границы Android `R`; решение о контракте ресурсов — D2. `AppContainer` остаётся в `:app`, циклических зависимостей feature→app нет.
+В Draft удалены невостребованные каркасы `:core:common/datastore`, `:data:source/cache`, `:feature:ai`. Строки RU/EN, launcher, `AppContainer` остаются в `:app`; на D2a дизайн-ресурсы v2 и тема переносятся в `:core:ui`. Home и Now Playing перенесены целиком, UI настройки видимости страниц тоже; перенос остальных полных экранов и ViewModel **не завершён** из-за границы Android `R`; решение о контракте ресурсов — D2. `AppContainer` остаётся в `:app`, циклических зависимостей feature→app нет.
 
 `SettingsScreen.kt` — каркас навигации и сбор состояний: основной экран из групп-карточек и подэкран «Диагностика» (`SettingsDiagnosticsScreen.kt`, только чтение), [ADR-0081](DECISIONS/ADR-0081-settings-structure-diagnostics.md). Разделы настроек получают state/actions и имеют Preview; I/O перенесён в gateway. Activity-scoped `SettingsSessionViewModel` владеет только RAM-сеансом; `AppContainer` не удерживает пароль. `SettingsWorkSession` сохраняет взаимную исключительность импорта и действий диагностики, сбрасывает данные сеанса после выхода. Автоподготовка обложек ждёт готовности тегов и режима AUTO_AFTER_IMPORT, повторно проверяет состояние перед запуском. Пароль передаётся портом только в RAM-handoff, Intent содержит лишь действие. `openLibraryDatabase` удалён из `:app`; существующие службы/планировщик обращаются к `container.database` без изменения алгоритмов. Санитизация отчёта разрешает только фиксированные операции/метки и числа (Kotlin-тест с небезопасным фейковым ответом).
 
