@@ -168,6 +168,7 @@ private fun colorTokens(): EnoColorTokens = EnoColorTokens(
 @Composable
 fun EnoToneTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
     val baseContext = LocalContext.current
+    val baseConfiguration = LocalConfiguration.current
     // User-selected DARK/LIGHT must override *resource* night qualifiers, not just M3 scheme.
     // Otherwise a dark manual mode under a light phone would load values/eno_colors.xml.
     val themedConfiguration = remember(baseContext, darkTheme) {
@@ -183,7 +184,16 @@ fun EnoToneTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
         LocalContext provides themedContext,
         LocalConfiguration provides themedConfiguration,
     ) {
-        EnoToneThemeContents(darkTheme, content)
+        EnoToneThemeContents(darkTheme) {
+            // The resource configuration is local to palette extraction. UI children
+            // still need the real Activity context (ActivityResultRegistry, intents, etc.).
+            CompositionLocalProvider(
+                LocalContext provides baseContext,
+                LocalConfiguration provides baseConfiguration,
+            ) {
+                content()
+            }
+        }
     }
 }
 
