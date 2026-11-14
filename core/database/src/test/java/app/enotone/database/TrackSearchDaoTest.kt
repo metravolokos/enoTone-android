@@ -43,7 +43,7 @@ class TrackSearchDaoTest {
         seed()
         val dao = database.trackSearchDao()
         assertEquals(listOf("a"),
-            dao.searchTrackIds("account-a", "\"еж*\" AND \"дор*\""))
+            dao.searchTrackIds("account-a", "\"еж*\" \"дор*\""))
         assertEquals(emptyList<String>(), dao.searchTrackIds("account-a", "\"ираж*\""))
     }
 

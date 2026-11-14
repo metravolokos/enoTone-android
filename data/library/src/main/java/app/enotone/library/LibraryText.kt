@@ -47,11 +47,11 @@ object LibraryText {
     fun compare(left: String, right: String, dropArticle: Boolean = false): Int =
         collators.get().compare(sortKey(left, dropArticle), sortKey(right, dropArticle))
 
-    /** FTS input is parameterized by DAO; quoted prefixes make operators literal. */
+    /** DAO binds the MATCH expression; adjacent quoted prefixes give portable implicit AND. */
     fun ftsMatchExpression(query: String): String? {
         val terms = ftsWords.findAll(searchKey(query)).map { it.value }.toList()
         return terms.takeIf { it.isNotEmpty() }
-            ?.joinToString(" AND ") { "\"$it*\"" }
+            ?.joinToString(" ") { "\"$it*\"" }
     }
 
     /** The much smaller album/artist group collection stays in memory. */

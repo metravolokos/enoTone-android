@@ -16,11 +16,11 @@ class LibraryTextTest {
     }
 
     @Test fun sanitizedFtsInputIsAnAndOfQuotedWordPrefixes() {
-        assertEquals("\"еж*\" AND \"дорож*\"",
+        assertEquals("\"еж*\" \"дорож*\"",
             LibraryText.ftsMatchExpression("Ёж ДОРОЖ"))
-        assertEquals("\"or*\" AND \"near*\"",
+        assertEquals("\"or*\" \"near*\"",
             LibraryText.ftsMatchExpression("OR NEAR"))
-        assertEquals("\"word*\" AND \"other*\"",
+        assertEquals("\"word*\" \"other*\"",
             LibraryText.ftsMatchExpression("\"word\"- *other"))
         assertEquals(null, LibraryText.ftsMatchExpression(" \" * - "))
     }
