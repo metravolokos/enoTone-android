@@ -32,6 +32,7 @@ internal fun rememberLibraryViewModel(accountEmail: String, appPassword: String)
             initialPage = pages.firstOrNull() ?: LibraryPage.TRACKS,
             container = container,
             unknownAlbumName = context.getString(R.string.library_unknown_album),
+            compilationsName = context.getString(R.string.library_compilations_name),
             messages = AlbumRefreshMessages(
                 done = context.getString(R.string.album_refresh_done),
                 retry = context.getString(R.string.album_refresh_retry_needed),
