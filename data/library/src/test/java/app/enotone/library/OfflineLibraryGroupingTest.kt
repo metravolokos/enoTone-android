@@ -2,6 +2,7 @@ package app.enotone.library
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -108,7 +109,9 @@ class OfflineLibraryGroupingTest {
         ))
         assertEquals(1, album.size)
         assertEquals(setOf("a", "b"), album.single().trackIds)
+        val preparedKey = album.single().normalizedSearchKey
         assertTrue(OfflineLibraryGrouping.matches(album.single(), " CAFÉ artist "))
+        assertSame(preparedKey, album.single().normalizedSearchKey)
         assertFalse(OfflineLibraryGrouping.matches(album.single(), "Unrelated"))
     }
 

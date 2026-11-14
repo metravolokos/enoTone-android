@@ -15,5 +15,4 @@ internal interface IndexingActions {
 internal interface DiagnosticsActions {
     fun inspect() = Unit
     fun audit(query: AuditQuery) = Unit
-    fun searchProbe() = Unit
 }
