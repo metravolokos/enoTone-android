@@ -86,7 +86,7 @@
 | R-5.2b | `ACTION_VIEW` / `ACTION_SEND` для audio/* | ❌ | |
 | R-5.2c | `NetworkCallback`, системный прокси/VPN | 🟡 | нет `NetworkCallback`; прокси для Ktor CIO не проверен |
 | R-5.2d | Кэш с учётом `getCacheQuotaBytes` | ❌ | |
-| R-5.2e | MediaSession, уведомление, кнопки гарнитуры/BT, аудиофокус, noisy, экран блокировки | ✅ | H (#157 и далее) |
+| R-5.2e | MediaSession, уведомление, кнопки гарнитуры/BT, аудиофокус, noisy, экран блокировки | ✅ | H (#157 и далее); выход из ошибки через Play в уведомлении, на гарнитуре и в BT — ADR-0093, T `PlaybackErrorRecoveryPolicyTest`, H ожидает (PLAY-08) |
 | R-5.2f | Android Auto без GMS (опционально) | ❌ | |
 | R-5.4 | Потоковая загрузка, Range, ретраи с backoff и джиттером, 401/403/404/429/5xx | 🟡 | классификация ошибок есть; **общего backoff с джиттером нет** |
 
