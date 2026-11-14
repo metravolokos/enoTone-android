@@ -71,7 +71,7 @@ internal fun ArtistDetailScreen(
     val stripVisible by remember(listState) {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 ||
-                listState.firstVisibleItemScrollOffset > 650
+                listState.firstVisibleItemScrollOffset > ARTIST_STRIP_THRESHOLD_PX
         }
     }
     var openedActions by remember { mutableStateOf<OfflineTrackRow?>(null) }
@@ -246,3 +246,5 @@ private fun ArtistSectionTitle(title: String) {
         color = EnoColors.text,
     )
 }
+
+private const val ARTIST_STRIP_THRESHOLD_PX = 650
