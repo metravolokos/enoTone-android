@@ -38,16 +38,20 @@ class ComponentsScreenshotTest {
     }
 
     @Config(qualifiers = "w377dp-h816dp-xxxhdpi")
-    @Test fun actionSheetOneGraphite() = actionSheet(dark = true, twoGroups = false)
+    @Test
+    fun actionSheetOneGraphite() = actionSheet(dark = true, twoGroups = false)
 
     @Config(qualifiers = "w377dp-h816dp-xxxhdpi")
-    @Test fun actionSheetOnePorcelain() = actionSheet(dark = false, twoGroups = false)
+    @Test
+    fun actionSheetOnePorcelain() = actionSheet(dark = false, twoGroups = false)
 
     @Config(qualifiers = "w377dp-h816dp-xxxhdpi")
-    @Test fun actionSheetTwoGraphite() = actionSheet(dark = true, twoGroups = true)
+    @Test
+    fun actionSheetTwoGraphite() = actionSheet(dark = true, twoGroups = true)
 
     @Config(qualifiers = "w377dp-h816dp-xxxhdpi")
-    @Test fun actionSheetTwoPorcelain() = actionSheet(dark = false, twoGroups = true)
+    @Test
+    fun actionSheetTwoPorcelain() = actionSheet(dark = false, twoGroups = true)
 
     private fun actionSheet(dark: Boolean, twoGroups: Boolean) {
         composeRule.setContent { ActionSheetGallery(darkTheme = dark, twoGroups = twoGroups) }
