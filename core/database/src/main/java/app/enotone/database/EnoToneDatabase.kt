@@ -7,13 +7,12 @@ import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.withTransaction
 import androidx.room.migration.Migration
+import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [RemoteTrackEntity::class, PlaylistEntity::class, PlaylistItemEntity::class,
-        ],
+    entities = [RemoteTrackEntity::class, PlaylistEntity::class, PlaylistItemEntity::class],
     version = 7,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
