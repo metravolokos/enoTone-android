@@ -256,4 +256,10 @@
     <!-- D3.2: настройка «Прозрачные панели», по умолчанию выключена (ADR-0088). -->
     <string name="appearance_translucent_dock">Прозрачные панели</string>
     <string name="appearance_translucent_dock_hint">Верхняя и нижняя панели, мини-плеер — с размытием</string>
+    <string name="song_action_go_album">Перейти к альбому</string>
+    <string name="song_action_go_artist">Перейти к исполнителю</string>
+    <string name="song_actions_description">Действия: %1$s</string>
+    <string name="song_actions_long_press">Действия с песней</string>
+    <string name="song_playing_description">Сейчас играет</string>
+    <string name="artist_compilations_only">Песни в сборниках · %1$s</string>
 </resources>

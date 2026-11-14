@@ -238,4 +238,10 @@
     <!-- D3.2: "Translucent bars" setting, off by default (ADR-0088). -->
     <string name="appearance_translucent_dock">Translucent bars</string>
     <string name="appearance_translucent_dock_hint">Blur behind the top bar, mini player and navigation bar</string>
+    <string name="song_action_go_album">Go to album</string>
+    <string name="song_action_go_artist">Go to artist</string>
+    <string name="song_actions_description">Actions: %1$s</string>
+    <string name="song_actions_long_press">Song actions</string>
+    <string name="song_playing_description">Now playing</string>
+    <string name="artist_compilations_only">Songs in compilations · %1$s</string>
 </resources>

@@ -86,6 +86,8 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
             libraryStateHolder = libraryStateHolder,
             onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
+            onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
+            onBackDetail = { nav = AppNavigator.pop(nav) },
             onSettings = { nav = AppNavigator.openSettings(nav) },
         )
         return

@@ -1,7 +1,9 @@
 package app.enotone.android
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,8 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,10 +28,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import app.enotone.android.core.ui.theme.EnoColors
+import app.enotone.android.core.ui.theme.EnoElevation
+import app.enotone.android.core.ui.theme.EnoRadii
 import app.enotone.library.OfflineLibraryGroup
-import android.graphics.Bitmap
 
 /**
  * Real album tiles. Only items composed by LazyVerticalGrid request artwork;
@@ -44,6 +50,8 @@ internal fun AlbumArtworkTile(
     accountEmail: String,
     appPassword: String,
     onOpen: () -> Unit,
+    subtitle: String? = group.subtitle,
+    artistCarousel: Boolean = false,
 ) {
     // Lazy grid/list items are disposed during navigation. If we already
     // drew this source on another page, paint the RAM image immediately
@@ -65,14 +73,15 @@ internal fun AlbumArtworkTile(
         }
     }
 
+    val coverShape = RoundedCornerShape(if (artistCarousel) EnoRadii.s else 8.dp)
     Column(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(
             modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                .shadow(2.dp, RoundedCornerShape(8.dp))
-                .clip(RoundedCornerShape(8.dp))
+                .shadow(2.dp, coverShape)
+                .clip(coverShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center,
         ) {
@@ -91,19 +100,28 @@ internal fun AlbumArtworkTile(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (artistCarousel) {
+                Box(Modifier.matchParentSize().border(
+                    EnoElevation.coverBorder, EnoColors.coverOutline, coverShape,
+                ))
+            }
         }
         Text(
             text = group.name,
-            style = MaterialTheme.typography.bodyMedium,
+            style = if (artistCarousel) MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 14.sp, fontWeight = FontWeight.Medium,
+            ) else MaterialTheme.typography.bodyMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        val secondary = listOfNotNull(group.subtitle).joinToString(" · ")
+        val secondary = subtitle.orEmpty()
         if (secondary.isNotEmpty()) {
             Text(
                 text = secondary,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = if (artistCarousel) MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp)
+                    else MaterialTheme.typography.bodySmall,
+                color = if (artistCarousel) EnoColors.textSecondary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

@@ -1,67 +1,88 @@
 package app.enotone.android
 
 import app.enotone.library.LibraryPage
+import java.nio.charset.StandardCharsets
+import java.util.Base64
 
-/** Вкладка нижней панели Android v2: «Домой» или страница медиатеки (ADR-0086). */
+/** Нижняя панель Android v2 (ADR-0086). */
 internal sealed interface AppTab {
     data object Home : AppTab
     data class Library(val page: LibraryPage) : AppTab
 }
 
-/** Экраны поверх вкладок, у которых нет нижней панели и мини-плеера (O-10). */
+/** Детали открываются поверх исходной вкладки, не меняя её выбор. */
+internal sealed interface LibraryDetail {
+    val key: String
+    data class Album(override val key: String) : LibraryDetail
+    data class Artist(override val key: String) : LibraryDetail
+}
+
 internal enum class AppOverlay { SETTINGS, DIAGNOSTICS }
 
-/**
- * Состояние навигации каркаса D3. «Сейчас играет» сюда не входит: это слой поверх любого экрана,
- * им управляет PlayerViewModel (#117 — открытие из уведомления).
- * [scrollToTop] — номер запроса «прокрутить в начало» при повторном нажатии на активную вкладку.
- */
 internal data class AppNavState(
     val tab: AppTab = AppTab.Home,
     val overlay: AppOverlay? = null,
     val scrollToTop: Int = 0,
+    val details: List<LibraryDetail> = emptyList(),
 )
 
 /**
- * Чистые переходы без Android: проверяются JVM-тестами. Глубина стека намеренно мала —
- * «Настройки» → «Диагностика»; экраны альбома и исполнителя пока живут внутри медиатеки (D4).
+ * Чистая навигация. Каждый detail хранит ключ из OfflineLibraryGrouping, а не название;
+ * для любого перехода на экране можно вернуться к прежней вкладке и позиции прокрутки.
  */
 internal object AppNavigator {
     fun select(state: AppNavState, tab: AppTab): AppNavState =
         if (state.overlay == null && state.tab == tab) {
-            state.copy(scrollToTop = state.scrollToTop + 1)
+            state.copy(details = emptyList(), scrollToTop = state.scrollToTop + 1)
         } else {
-            state.copy(tab = tab, overlay = null)
+            state.copy(tab = tab, overlay = null, details = emptyList())
         }
+
+    fun push(state: AppNavState, detail: LibraryDetail): AppNavState {
+        if (state.tab !is AppTab.Library || state.overlay != null || detail.key.isBlank()) return state
+        return if (state.details.lastOrNull() == detail) state
+            else state.copy(details = (state.details + detail).takeLast(MAX_DETAILS))
+    }
+
+    fun pop(state: AppNavState): AppNavState =
+        if (state.details.isEmpty()) state else state.copy(details = state.details.dropLast(1))
 
     fun openSettings(state: AppNavState): AppNavState = state.copy(overlay = AppOverlay.SETTINGS)
 
     fun openDiagnostics(state: AppNavState): AppNavState = state.copy(overlay = AppOverlay.DIAGNOSTICS)
 
-    /** Системное «Назад»; `null` — стек исчерпан, «Назад» уходит системе (выход из приложения). */
+    /** null означает, что «Назад» передаётся Android. */
     fun back(state: AppNavState): AppNavState? = when {
         state.overlay == AppOverlay.DIAGNOSTICS -> state.copy(overlay = AppOverlay.SETTINGS)
         state.overlay == AppOverlay.SETTINGS -> state.copy(overlay = null)
+        state.details.isNotEmpty() -> pop(state)
         state.tab != AppTab.Home -> state.copy(tab = AppTab.Home)
         else -> null
     }
 
-    /** ADR-0052: скрытая в «Настройках» страница пропадает из панели; если она была открыта — на «Домой». */
     fun onVisiblePages(state: AppNavState, visible: List<LibraryPage>): AppNavState {
         val tab = state.tab
-        return if (tab is AppTab.Library && tab.page !in visible) state.copy(tab = AppTab.Home) else state
+        return if (tab is AppTab.Library && tab.page !in visible) {
+            state.copy(tab = AppTab.Home, details = emptyList())
+        } else state
     }
 
-    /** ADR-0080: после выхода из аккаунта — на «Домой», без экранов настроек в стеке. */
-    fun onSignedOut(state: AppNavState): AppNavState = state.copy(tab = AppTab.Home, overlay = null)
+    fun onSignedOut(state: AppNavState): AppNavState =
+        state.copy(tab = AppTab.Home, overlay = null, details = emptyList())
 
-    /** Сохранение при повороте и пересоздании Activity — компактной строкой без Parcelable. */
+    /** Четвёртое поле добавлено к прежнему формату, первые три поля не изменились. */
     fun save(state: AppNavState): String {
         val tab = when (val value = state.tab) {
             AppTab.Home -> HOME
             is AppTab.Library -> value.page.name
         }
-        return listOf(tab, state.overlay?.name.orEmpty(), state.scrollToTop.toString()).joinToString(SEPARATOR)
+        val details = state.details.joinToString(DETAIL_SEPARATOR) { detail ->
+            val kind = if (detail is LibraryDetail.Album) ALBUM else ARTIST
+            kind + Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(detail.key.toByteArray(StandardCharsets.UTF_8))
+        }
+        return listOf(tab, state.overlay?.name.orEmpty(), state.scrollToTop.toString(), details)
+            .joinToString(SEPARATOR)
     }
 
     fun restore(saved: String): AppNavState {
@@ -70,11 +91,37 @@ internal object AppNavigator {
             ?.let { name -> LibraryPage.entries.firstOrNull { it.name == name } }
             ?.let { AppTab.Library(it) }
             ?: AppTab.Home
-        val overlay = parts.getOrNull(1)?.let { name -> AppOverlay.entries.firstOrNull { it.name == name } }
-        val scroll = parts.getOrNull(2)?.toIntOrNull() ?: 0
-        return AppNavState(tab, overlay, scroll)
+        val overlay = parts.getOrNull(1)?.let { name ->
+            AppOverlay.entries.firstOrNull { it.name == name }
+        }
+        val scroll = parts.getOrNull(2)?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val details = if (tab is AppTab.Library) {
+            parts.getOrNull(DETAIL_FIELD_INDEX).orEmpty().split(DETAIL_SEPARATOR).mapNotNull(::parseDetail)
+                .takeLast(MAX_DETAILS)
+        } else emptyList()
+        return AppNavState(tab, overlay, scroll, details)
     }
 
     private const val HOME = "HOME"
     private const val SEPARATOR = "|"
+    private const val DETAIL_SEPARATOR = ";"
+    private const val DETAIL_FIELD_INDEX = 3
+    private const val MAX_DETAILS = 8
 }
+
+private fun parseDetail(item: String): LibraryDetail? {
+    if (item.length < MIN_ENCODED_DETAIL_LENGTH) return null
+    val key = runCatching {
+        String(Base64.getUrlDecoder().decode(item.drop(1)), StandardCharsets.UTF_8)
+    }.getOrNull()
+    return when {
+        key.isNullOrBlank() -> null
+        item.first() == ALBUM -> LibraryDetail.Album(key)
+        item.first() == ARTIST -> LibraryDetail.Artist(key)
+        else -> null
+    }
+}
+
+private const val MIN_ENCODED_DETAIL_LENGTH = 2
+private const val ALBUM = 'a'
+private const val ARTIST = 'r'

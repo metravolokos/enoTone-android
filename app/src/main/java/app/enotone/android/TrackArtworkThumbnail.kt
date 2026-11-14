@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -35,6 +36,7 @@ internal fun TrackArtworkThumbnail(
     accountEmail: String,
     appPassword: String,
     allowNetwork: Boolean,
+    size: Dp = 44.dp,
 ) {
     var cover by remember(trackId, artworkGroup, accountEmail) {
         mutableStateOf<Bitmap?>(artworkGroup?.let {
@@ -57,7 +59,7 @@ internal fun TrackArtworkThumbnail(
     }
 
     Box(
-        modifier = Modifier.size(44.dp)
+        modifier = Modifier.size(size)
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
@@ -67,7 +69,7 @@ internal fun TrackArtworkThumbnail(
             Image(
                 bitmap = image.asImageBitmap(),
                 contentDescription = null,
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(size),
                 contentScale = ContentScale.Crop,
             )
         } else {
