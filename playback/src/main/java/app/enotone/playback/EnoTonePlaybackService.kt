@@ -154,7 +154,12 @@ class EnoTonePlaybackService : MediaSessionService() {
         playback.onShuffleLayoutReady = { if (!queueMutation) saveLayoutAndPosition() }
         playback.player.addListener(persistenceListener)
         handler.postDelayed(periodicSave, 12_000L)
-        val builder = MediaSession.Builder(this, playback.player)
+        val builder = MediaSession.Builder(
+            this,
+            // Кнопки уведомления, гарнитуры и Bluetooth идут в Player.play() напрямую:
+            // без обёртки выход из ошибки работал бы только внутри приложения.
+            ErrorRecoveringPlayer(playback.player) { playback.resume() },
+        )
         // Без session activity нажатие на уведомление ничего не открывает (дефект Huawei 2026-11-13).
         PlayerLaunchIntent.pendingIntent(this)?.let(builder::setSessionActivity)
         session = builder.build()
