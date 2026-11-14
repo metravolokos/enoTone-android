@@ -145,8 +145,7 @@ class PreviewAudioPlayback(
             if (player.currentMediaItem?.mediaId != endedId ||
                 lastEndRecoveryId == endedId || !canRecoverEnded()) return@post
             lastEndRecoveryId = endedId
-            player.seekToNextMediaItem()
-            resumeAfterManualSkip()
+            PlaybackContinuationPolicy.recoverUnexpectedEnd(player)
         }
     }
 
