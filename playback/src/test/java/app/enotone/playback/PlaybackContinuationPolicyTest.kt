@@ -17,15 +17,22 @@ class PlaybackContinuationPolicyTest {
             repeatOne = false, unsuppressed = true))
     }
 
-    @Test fun neverOverridesExplicitPauseFocusLossOrRepeatOne() {
+    @Test fun neverOverridesExplicitPauseOrFocusLoss() {
         assertFalse(PlaybackContinuationPolicy.shouldAutoRecover(
             ended = true, playWhenReady = false, hasNext = true,
             repeatOne = false, unsuppressed = true))
         assertFalse(PlaybackContinuationPolicy.shouldAutoRecover(
             ended = true, playWhenReady = true, hasNext = true,
             repeatOne = false, unsuppressed = false))
-        assertFalse(PlaybackContinuationPolicy.shouldAutoRecover(
-            ended = true, playWhenReady = true, hasNext = true,
-            repeatOne = true, unsuppressed = true))
+    }
+
+    @Test fun repeatOneMustRecoverUnexpectedEndEvenForSingleTrackQueue() {
+        // Если Media3 неожиданно дошёл до ENDED в режиме ONE, текущий
+        // трек должен запускаться заново независимо от наличия Next.
+        for (hasNext in listOf(false, true)) {
+            assertTrue(PlaybackContinuationPolicy.shouldAutoRecover(
+                ended = true, playWhenReady = true, hasNext = hasNext,
+                repeatOne = true, unsuppressed = true))
+        }
     }
 }
