@@ -11,6 +11,9 @@ internal enum class AuditQuery { MISSING_ALBUM, MISSING_ALBUM_ARTIST }
 internal interface DiagnosticsGateway {
     suspend fun inspect(login: StoredWebDavLogin): ProbeReport
     suspend fun audit(query: AuditQuery, email: String): List<RemoteTrackEntity>
+
+    /** Обезличенная проверка поиска по песням: числа, время, класс ошибки. */
+    suspend fun searchProbe(email: String): String = ""
 }
 
 internal class AndroidDiagnosticsGateway(
@@ -27,4 +30,7 @@ internal class AndroidDiagnosticsGateway(
                 AuditQuery.MISSING_ALBUM_ARTIST -> store.missingAlbumArtist(email)
             }
         }
+
+    override suspend fun searchProbe(email: String): String =
+        withContext(container.io) { SearchProbe(container.database).run(email) }
 }
