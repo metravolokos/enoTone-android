@@ -32,7 +32,6 @@
     <string name="local_import_report">Найдено в облаке: %1$d. Сохранено локально: %2$d. Новых: %3$d, изменённых: %4$d, без изменений: %5$d.</string>
     <string name="local_store_failed">Не удалось обновить или прочитать локальную медиатеку. Личные данные не включены в отчёт.</string>
     <string name="library_back">Назад</string>
-    <string name="library_count">Показано %1$d из %2$d треков</string>
     <string name="library_loading">Читаем локальную медиатеку…</string>
     <string name="library_failed">Не удалось прочитать локальную медиатеку.</string>
     <string name="library_empty">Здесь пока пусто. Сначала сохраните список /AllMusic на устройстве.</string>
@@ -96,7 +95,6 @@
     <string name="library_tab_album_artists">Авторы альбомов</string>
     <string name="library_unknown_album">Неизвестный альбом</string>
     <string name="library_group_back">К списку групп</string>
-    <string name="library_group_count">Найдено групп: %1$d</string>
     <string name="library_groups_empty">Нет распознанных групп. Теги можно обрабатывать отдельно небольшими партиями.</string>
     <string name="managed_index_title">Ход обработки медиатеки</string>
     <string name="managed_notification_started">Индексация тегов выполняется в фоне</string>
@@ -229,4 +227,33 @@
         <item quantity="many">%1$s авторов</item>
         <item quantity="other">%1$s автора</item>
     </plurals>
+    <!-- D3.2: результат поиска называется по категории (владелец 2026-11-14). -->
+    <plurals name="library_found_songs">
+        <item quantity="one">Найдена %1$s песня</item>
+        <item quantity="few">Найдено %1$s песни</item>
+        <item quantity="many">Найдено %1$s песен</item>
+        <item quantity="other">Найдено %1$s песни</item>
+    </plurals>
+    <plurals name="library_found_albums">
+        <item quantity="one">Найден %1$s альбом</item>
+        <item quantity="few">Найдено %1$s альбома</item>
+        <item quantity="many">Найдено %1$s альбомов</item>
+        <item quantity="other">Найдено %1$s альбома</item>
+    </plurals>
+    <plurals name="library_found_artists">
+        <item quantity="one">Найден %1$s артист</item>
+        <item quantity="few">Найдено %1$s артиста</item>
+        <item quantity="many">Найдено %1$s артистов</item>
+        <item quantity="other">Найдено %1$s артиста</item>
+    </plurals>
+    <plurals name="library_found_album_artists">
+        <item quantity="one">Найден %1$s автор</item>
+        <item quantity="few">Найдено %1$s автора</item>
+        <item quantity="many">Найдено %1$s авторов</item>
+        <item quantity="other">Найдено %1$s автора</item>
+    </plurals>
+    <string name="library_found_nothing">Ничего не нашлось</string>
+    <!-- D3.2: настройка «Прозрачные панели», по умолчанию выключена (ADR-0088). -->
+    <string name="appearance_translucent_dock">Прозрачные панели</string>
+    <string name="appearance_translucent_dock_hint">Мини-плеер и нижняя панель с размытием</string>
 </resources>

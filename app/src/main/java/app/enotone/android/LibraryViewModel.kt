@@ -352,7 +352,7 @@ internal class LibraryViewModel(
             checkedByGroup[group?.key].orEmpty(),
             attemptedByGroup[group?.key].orEmpty(),
         )
-        DerivedPages(groups, shown, group, visible, album,
+        return DerivedPages(groups, shown, group, visible, album,
             OfflineTrackCatalog.commonAlbumYear(album),
             OfflineTrackCatalog.commonAlbumGenre(album), next)
     }

@@ -32,7 +32,6 @@
     <string name="local_import_report">Found in cloud: %1$d. Saved locally: %2$d. New: %3$d, changed: %4$d, unchanged: %5$d.</string>
     <string name="local_store_failed">Could not update or read the local library. Private data is not included in this report.</string>
     <string name="library_back">Back</string>
-    <string name="library_count">Showing %1$d of %2$d tracks</string>
     <string name="library_loading">Reading local library…</string>
     <string name="library_failed">Unable to read local library.</string>
     <string name="library_empty">No tracks yet. First save the /AllMusic file list on this device.</string>
@@ -96,7 +95,6 @@
     <string name="library_tab_album_artists">Album artists</string>
     <string name="library_unknown_album">Unknown Album</string>
     <string name="library_group_back">Back to groups</string>
-    <string name="library_group_count">Groups: %1$d</string>
     <string name="library_groups_empty">No recognized groups yet. Tags can be indexed later in small batches.</string>
     <string name="managed_index_title">Library processing progress</string>
     <string name="managed_notification_started">Indexing music tags in background</string>
@@ -219,4 +217,25 @@
         <item quantity="one">%1$s album artist</item>
         <item quantity="other">%1$s album artists</item>
     </plurals>
+    <!-- D3.2: search results are named by category (owner 2026-11-14). -->
+    <plurals name="library_found_songs">
+        <item quantity="one">%1$s song found</item>
+        <item quantity="other">%1$s songs found</item>
+    </plurals>
+    <plurals name="library_found_albums">
+        <item quantity="one">%1$s album found</item>
+        <item quantity="other">%1$s albums found</item>
+    </plurals>
+    <plurals name="library_found_artists">
+        <item quantity="one">%1$s artist found</item>
+        <item quantity="other">%1$s artists found</item>
+    </plurals>
+    <plurals name="library_found_album_artists">
+        <item quantity="one">%1$s album artist found</item>
+        <item quantity="other">%1$s album artists found</item>
+    </plurals>
+    <string name="library_found_nothing">Nothing found</string>
+    <!-- D3.2: "Translucent bars" setting, off by default (ADR-0088). -->
+    <string name="appearance_translucent_dock">Translucent bars</string>
+    <string name="appearance_translucent_dock_hint">Blur behind the mini player and navigation bar</string>
 </resources>

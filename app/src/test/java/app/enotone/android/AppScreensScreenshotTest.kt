@@ -1,17 +1,35 @@
 package app.enotone.android
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import app.enotone.android.core.ui.component.EnoBlurState
+import app.enotone.android.core.ui.component.EnoBottomBar
+import app.enotone.android.core.ui.component.EnoBottomBarItem
+import app.enotone.android.core.ui.component.EnoIcons
+import app.enotone.android.core.ui.component.EnoMiniPlayer
+import app.enotone.android.core.ui.component.EnoMiniPlayerLabels
+import app.enotone.android.core.ui.component.LocalEnoDockBlur
+import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
@@ -49,7 +67,7 @@ class AppScreensScreenshotTest {
     }
 
     @Composable
-    private fun Library(state: LibraryUiState) {
+    private fun Library(state: LibraryUiState, blur: EnoBlurState? = null, bottom: Dp = 24.dp) {
         val context = LocalContext.current
         LibraryScreenContent(
             state = state,
@@ -57,7 +75,8 @@ class AppScreensScreenshotTest {
             artworkRepository = remember(context) { ArtworkPreviewRepository(context) },
             accountEmail = "",
             appPassword = "x",
-            contentPadding = PaddingValues(bottom = 24.dp),
+            contentPadding = PaddingValues(bottom = bottom),
+            blur = blur,
         )
     }
 
@@ -97,6 +116,74 @@ class AppScreensScreenshotTest {
         rule.onNode(hasScrollToIndexAction()).performScrollToIndex(SCROLL_TO)
         rule.waitForIdle()
         capture("songs_scrolled_${theme(dark)}")
+    }
+
+    @Test fun albumsScrolledGraphite() = albumsScrolled(dark = true)
+
+    @Test fun albumsScrolledPorcelain() = albumsScrolled(dark = false)
+
+    /** D3.2: заголовок вкладки закреплён, сетка уходит под него (размытие и линия). */
+    private fun albumsScrolled(dark: Boolean) {
+        rule.setContent { Screen(dark) { Library(albumsState()) } }
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(ALBUMS_SCROLL_TO)
+        rule.waitForIdle()
+        capture("albums_scrolled_${theme(dark)}")
+    }
+
+    @Test fun translucentDockGraphite() = translucentDock(dark = true)
+
+    @Test fun translucentDockPorcelain() = translucentDock(dark = false)
+
+    /** D3.2: настройка «Прозрачные панели» включена — мини-плеер и панель над прокрученным списком. */
+    private fun translucentDock(dark: Boolean) {
+        rule.setContent {
+            Screen(dark) {
+                val blur = rememberEnoBlurState()
+                Box(Modifier.fillMaxSize()) {
+                    Library(albumsState(), blur = blur, bottom = DOCK_SPACE)
+                    CompositionLocalProvider(LocalEnoDockBlur provides blur) {
+                        Column(
+                            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            EnoMiniPlayer(
+                                title = "Вымышленная песня", subtitle = "Выдуманный артист",
+                                isPlaying = true, progress = 0.4f,
+                                labels = EnoMiniPlayerLabels("open", "play", "pause", "next"),
+                                onOpen = {}, onPlayPause = {}, onNext = {},
+                            )
+                            EnoBottomBar(
+                                items = listOf(
+                                    EnoBottomBarItem(EnoIcons.HOME, "Домой"),
+                                    EnoBottomBarItem(EnoIcons.SONGS, "Песни"),
+                                    EnoBottomBarItem(EnoIcons.ALBUMS, "Альбомы"),
+                                    EnoBottomBarItem(EnoIcons.ARTISTS, "Артисты"),
+                                    EnoBottomBarItem(EnoIcons.ALBUM_ARTISTS, "Авторы"),
+                                ),
+                                selectedIndex = 2, onSelect = {},
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        rule.onNode(hasScrollToIndexAction()).performScrollToIndex(ALBUMS_SCROLL_TO)
+        rule.waitForIdle()
+        capture("translucent_dock_${theme(dark)}")
+    }
+
+    @Test fun settingsAppearanceGraphite() = settingsAppearance(dark = true)
+
+    @Test fun settingsAppearancePorcelain() = settingsAppearance(dark = false)
+
+    /** D3.2: переключатель «Прозрачные панели» в «Оформлении» (включён для наглядности). */
+    private fun settingsAppearance(dark: Boolean) {
+        rule.setContent {
+            Screen(dark) {
+                AppearanceSettingsContent(UiMode.SYSTEM, {}, translucentDock = true, onTranslucentDock = {})
+            }
+        }
+        capture("settings_appearance_${theme(dark)}")
     }
 
     @Test fun albumsGraphite() = albums(dark = true)
@@ -148,5 +235,7 @@ class AppScreensScreenshotTest {
         const val SAMPLE_TRACKS = 24
         const val SAMPLE_ALBUMS = 8
         const val SCROLL_TO = 8
+        const val ALBUMS_SCROLL_TO = 2
+        val DOCK_SPACE = 186.dp
     }
 }
