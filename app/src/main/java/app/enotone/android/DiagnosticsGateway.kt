@@ -11,7 +11,6 @@ internal enum class AuditQuery { MISSING_ALBUM, MISSING_ALBUM_ARTIST }
 internal interface DiagnosticsGateway {
     suspend fun inspect(login: StoredWebDavLogin): ProbeReport
     suspend fun audit(query: AuditQuery, email: String): List<RemoteTrackEntity>
-
 }
 
 internal class AndroidDiagnosticsGateway(
@@ -28,5 +27,4 @@ internal class AndroidDiagnosticsGateway(
                 AuditQuery.MISSING_ALBUM_ARTIST -> store.missingAlbumArtist(email)
             }
         }
-
 }
