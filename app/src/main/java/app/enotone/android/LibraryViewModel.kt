@@ -177,7 +177,6 @@ internal class LibraryViewModel(
     private var readyAfterTapMs: Long? = null
     private var playingAfterTapMs: Long? = null
     private var accountBlocked = accountEvents.value.blocks(sourceKey)
-    private var handledOpenRequest: Int? = null
     private var reloadJob: Job? = null
 
     private fun unavailable(): Boolean = accountEvents.value.blocks(sourceKey)
@@ -394,17 +393,6 @@ internal class LibraryViewModel(
             it.copy(section = page, search = "", selectedGroupKey = null)
         }
         derivePages()
-    }
-
-    /**
-     * Аудит п. 3: переход с «Домой» — событие существующей ViewModel. Каждый переход имеет номер,
-     * поэтому возврат из «Сейчас играет» (тот же номер) не сбрасывает выбранную страницу (O-13).
-     */
-    fun onOpenRequest(request: Int, page: LibraryPage) {
-        if (handledOpenRequest == request) return
-        val first = handledOpenRequest == null
-        handledOpenRequest = request
-        if (!first) onPageSelected(LibraryPageVisibility.selectedOrFallback(page, mutable.value.visiblePages))
     }
 
     /** Аудит п. 3: настройки видимости страниц применяются к уже созданной медиатеке. */
