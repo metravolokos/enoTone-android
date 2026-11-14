@@ -55,9 +55,10 @@ fun Modifier.enoFrosted(
 )
 
 /**
- * Состояние размытия для мини-плеера и нижней панели. `null` — панели непрозрачные (по умолчанию);
- * не `null` — включена настройка «Прозрачные панели» (D3.2), размывается содержимое с этим
- * состоянием. Значение задаёт `:app` из настроек; компоненты настройки не читают.
+ * Настройка «Прозрачные панели» (D3.2/D3.3). `null` — все панели непрозрачные (по умолчанию):
+ * мини-плеер, нижняя панель, закреплённый заголовок вкладок и полоска прокрутки. Не `null` —
+ * панели полупрозрачные с размытием содержимого с этим состоянием. Значение задаёт `:app`
+ * из настроек; компоненты настройки не читают.
  */
 val LocalEnoDockBlur = staticCompositionLocalOf<EnoBlurState?> { null }
 
@@ -74,3 +75,17 @@ internal fun Modifier.dockBackground(color: Color): Modifier = composed {
 }
 
 private val DOCK_BLUR = 24.dp
+
+/**
+ * Фон верхних панелей (закреплённый заголовок вкладки, полоска прокрутки): при выключенных
+ * «Прозрачных панелях» — сплошной цвет, при включённых — [tintAlpha] с размытием [blurRadius]
+ * содержимого [state] (D3.3, владелец 2026-11-14).
+ */
+fun Modifier.enoTopBarBackground(
+    state: EnoBlurState,
+    color: Color,
+    tintAlpha: Float,
+    blurRadius: Dp,
+): Modifier = composed {
+    if (LocalEnoDockBlur.current == null) background(color) else enoFrosted(state, color, tintAlpha, blurRadius)
+}

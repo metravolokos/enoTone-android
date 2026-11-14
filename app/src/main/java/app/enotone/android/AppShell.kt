@@ -55,48 +55,49 @@ internal fun AppMusicShell(
     // Одно состояние размытия на вкладку: список — источник, полоска/заголовок и (при включённых
     // «Прозрачных панелях», D3.2) мини-плеер и нижняя панель — потребители.
     val blur = rememberEnoBlurState()
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        when (val tab = nav.tab) {
-            AppTab.Home -> EnoToneHomeScreen(
-                connectedAccount = login != null,
-                songCount = library?.tracks?.size?.takeIf { !library.loading && it > 0 },
-                onSettings = onSettings,
-                onShuffleAll = { libraryModel?.onShuffleLibrary() },
-                contentPadding = contentPadding,
-                shuffleEnabled = library?.playbackConnected == true && !selecting,
-            )
-            is AppTab.Library -> if (login != null && libraryModel != null) {
-                // Состояние прокрутки переживает «Сейчас играет» (регрессия Huawei после #92).
-                libraryStateHolder.SaveableStateProvider(LIBRARY_STATE_KEY) {
-                    OfflineLibraryScreen(
-                        model = libraryModel,
-                        page = tab.page,
-                        visiblePages = pages,
-                        accountEmail = login.email,
-                        appPassword = login.password,
-                        contentPadding = contentPadding,
-                        scrollToTop = nav.scrollToTop,
-                        blur = blur,
-                    )
+    // «Прозрачные панели» (ADR-0088, D3.3): и нижние (мини-плеер, панель), и верхние (заголовок, полоска).
+    CompositionLocalProvider(LocalEnoDockBlur provides blur.takeIf { UiEffects.translucentDock }) {
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            when (val tab = nav.tab) {
+                AppTab.Home -> EnoToneHomeScreen(
+                    connectedAccount = login != null,
+                    songCount = library?.tracks?.size?.takeIf { !library.loading && it > 0 },
+                    onSettings = onSettings,
+                    onShuffleAll = { libraryModel?.onShuffleLibrary() },
+                    contentPadding = contentPadding,
+                    shuffleEnabled = library?.playbackConnected == true && !selecting,
+                )
+                is AppTab.Library -> if (login != null && libraryModel != null) {
+                    // Состояние прокрутки переживает «Сейчас играет» (регрессия Huawei после #92).
+                    libraryStateHolder.SaveableStateProvider(LIBRARY_STATE_KEY) {
+                        OfflineLibraryScreen(
+                            model = libraryModel,
+                            page = tab.page,
+                            visiblePages = pages,
+                            accountEmail = login.email,
+                            appPassword = login.password,
+                            contentPadding = contentPadding,
+                            scrollToTop = nav.scrollToTop,
+                            blur = blur,
+                        )
+                    }
                 }
             }
-        }
-        CompositionLocalProvider(LocalEnoDockBlur provides blur.takeIf { UiEffects.translucentDock }) {
-        Column(
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(start = DOCK_SIDE, end = DOCK_SIDE, bottom = DOCK_SIDE),
-            verticalArrangement = Arrangement.spacedBy(DOCK_GAP),
-        ) {
-            EnoToneMiniPlayer(
-                player = player,
-                selecting = selecting,
-                onOpen = { playerModel.onNowPlaying(true) },
-                onPlayPause = playerModel::onPlayPause,
-                onNext = playerModel::onNext,
-            )
-            AppBottomBar(nav = nav, pages = pages, enabled = login != null, onSelectTab = onSelectTab)
-        }
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(start = DOCK_SIDE, end = DOCK_SIDE, bottom = DOCK_SIDE),
+                verticalArrangement = Arrangement.spacedBy(DOCK_GAP),
+            ) {
+                EnoToneMiniPlayer(
+                    player = player,
+                    selecting = selecting,
+                    onOpen = { playerModel.onNowPlaying(true) },
+                    onPlayPause = playerModel::onPlayPause,
+                    onNext = playerModel::onNext,
+                )
+                AppBottomBar(nav = nav, pages = pages, enabled = login != null, onSelectTab = onSelectTab)
+            }
         }
     }
 }
