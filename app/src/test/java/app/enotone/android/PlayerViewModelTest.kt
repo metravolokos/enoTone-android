@@ -39,6 +39,7 @@ class PlayerViewModelTest {
     private class Repo(val items: LibrarySnapshot) : LibraryRepository {
         var checkpoint: PersistedQueueState? = null
         var reads = 0
+        val durationSaves = mutableListOf<Triple<String, String, Long>>()
         override suspend fun load(email: String) = items
         override suspend fun readSavedQueue(): PersistedQueueState? {
             reads++
@@ -47,6 +48,12 @@ class PlayerViewModelTest {
         override suspend fun refreshAlbum(
             email: String, password: String, ids: List<String>,
         ): AlbumTagRefreshReport = error("Not used")
+        override suspend fun saveDurationIfUnknown(
+            sourceKey: String, trackId: String, durationMs: Long,
+        ): Boolean {
+            durationSaves += Triple(sourceKey, trackId, durationMs)
+            return true
+        }
     }
 
     private class Connection : PlaybackConnection {
@@ -58,6 +65,7 @@ class PlayerViewModelTest {
         var restores = 0
         var lastRestored: PersistedQueueState? = null
         var lastFiltered = false
+        fun emit(snapshot: PlaybackSnapshot) { snapshots.value = snapshot }
         override fun connect() { connects++ }
         override fun disconnect() { disconnects++ }
         override fun playQueue(email: String, password: String, queue: List<QueueTrack>,
@@ -70,6 +78,8 @@ class PlayerViewModelTest {
             snapshots.value = snapshots.value.copy(
                 queueTotal = queue.size,
                 currentTrackId = saved.selectedTrackId,
+                sourceKey = saved.sourceKey,
+                durationMs = saved.durationMs,
                 title = "Track",
                 playbackState = "PAUSED",
             )
@@ -186,6 +196,37 @@ class PlayerViewModelTest {
             vm.onCredentialsPersisted(email, "stored-password")
             advanceUntilIdle()
             assertEquals(1, connection.restores) // blocked by account session
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun onlyRealMedia3DurationIsSavedOncePerTrack() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val sourceKey = LibrarySnapshotPlanner.accountKey(email)
+            val repo = Repo(catalog())
+            repo.checkpoint = saved(sourceKey).copy(durationMs = 77_000L)
+            val connection = Connection()
+            PlayerViewModel(
+                connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true },
+            )
+            advanceUntilIdle()
+            assertTrue(repo.durationSaves.isEmpty())
+
+            connection.emit(PlaybackSnapshot(
+                connected = true,
+                currentTrackId = id(1),
+                sourceKey = sourceKey,
+                durationMs = 77_000L,
+                knownDurationMs = 181_000L,
+                positionMs = 1_000L,
+                queueTotal = 2,
+            ))
+            advanceUntilIdle()
+            connection.emit(connection.state.value.copy(positionMs = 2_000L))
+            advanceUntilIdle()
+            assertEquals(listOf(Triple(sourceKey, id(1), 181_000L)), repo.durationSaves)
         } finally { Dispatchers.resetMain() }
     }
 

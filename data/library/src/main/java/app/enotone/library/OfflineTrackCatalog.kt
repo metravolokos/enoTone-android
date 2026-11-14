@@ -17,6 +17,7 @@ data class OfflineTrackRow(
     val trackNumber: Int? = null,
     val discNumber: Int? = null,
     val genre: String? = null,
+    val durationMs: Long? = null,
     /** True only for a real stored tag, not a filename-derived title. */
     val hasStoredTagData: Boolean = false,
 )
@@ -38,6 +39,7 @@ object OfflineTrackCatalog {
                     trackNumber = track.trackNumber,
                     discNumber = track.discNumber,
                     genre = track.genre?.takeIf { it.isNotBlank() },
+                    durationMs = track.durationMs,
                     hasStoredTagData = listOf(
                         track.title, track.artist, track.album, track.albumArtist,
                     ).any { !it.isNullOrBlank() } ||

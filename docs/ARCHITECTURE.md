@@ -1,38 +1,38 @@
-> **Актуальность 2026-11-11, Stable Preview #301:** действуют [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [ADR-0066](DECISIONS/ADR-0066-indexing-finalization.md) и [ADR-0067](DECISIONS/ADR-0067-permanent-album-artwork.md). Далее есть сохранённые исторические срезы M0–M6, в том числе утверждения об отсутствии альбомов/артистов/обложек — **они не описывают текущий `main`**. M1 Room v4, отдельные разделы Album/Artist/Album Artist и Now Playing работают; пользователь принял базовую Stable Preview #301 на Huawei.
+> **Актуальность 2026-11-14:** `main` на `f979991` (#124) использует Room v4; D2 закрыт (#122–#124). Draft PR #125 добавляет Room v5 по [ADR-0085](DECISIONS/ADR-0085-room-v5-duration-playlist-model.md); Huawei-миграция ещё не проверена. Исторические срезы ниже не описывают актуальную ветку.
 
 # Архитектура
 
-Нативный Kotlin + Compose. **Media3 ExoPlayer и MediaSessionService уже работают** в `:playback` (M3–M5); источник WebDAV через строго проверяемый HTTPS/Range DataSource, локальная Room — источник истины перечня/тегов. Фактические транспорт и ограничения фиксируются в ADR и `docs/STATUS.md`; прежний список зависимостей был только архитектурным предложением. Бизнес-логику держим вне Composable, UI строится реактивно.
+Нативный Kotlin + Compose. **Media3 ExoPlayer и MediaSessionService уже работают** в `:playback` (M3–M5); источник WebDAV через строго проверяемый HTTPS/Range DataSource, локальная Room — источник истины перечня/тегов. Фактические транспорт и ограничения фиксируются в ADR, [CURRENT_DECISIONS](CURRENT_DECISIONS.md) и `docs/STATUS.md`; прежний список зависимостей был только архитектурным предложением. Бизнес-логику держим вне Composable, UI строится реактивно.
 
-## Фактическое состояние после #119 и D2a (2026-11-13)
+## Фактическое состояние main после #124 и Draft M6-0/6 (#125)
 
-Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104), тонкие службы (#114). 5a (#118) слит. **5b слит в `main` (PR #119)**: по [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) перенесены самостоятельные классы без изменения поведения и ресурсов Android v2.
+Реализованы ручной DI и ViewModel медиатеки/плеера (#92), аккаунта (#100), индексации/обложек/диагностики (#104), тонкие службы (#114). 5a (#118), 5b (#119), D2a (#122), D2b (#123) и закрытие D2 (#124) слиты. **M6-0/6 в Draft PR #125**: по [ADR-0083](DECISIONS/ADR-0083-staged-feature-modules.md) самостоятельные классы перенесены без изменения поведения и ресурсов Android v2.
 
-| Модуль | Содержимое после #119 / D2a в Draft |
+| Модуль | Содержимое после #124 и в Draft M6-0/6 |
 |---|---|
 | `:app` | Android Application, `AppContainer`, MediaSession/foreground адаптеры, Keystore, resource-bound Compose экраны и ViewModel до D2–D6 |
 | `:core:model` | `AccountSession`, `AccountSignOut`, `PlayingArtworkTarget`; прежние имена и пакеты |
-| `:core:ui` (D2a, Draft) | Палитра v1.4, общая тема/токены, ресурсы D1 и Roborazzi, затем D2b-компоненты. Независим от проектных модулей; `:app → :feature:* → :core:ui`. |
+| `:core:ui` (D2a/D2b) | Палитра v1.4, общая тема/токены, ресурсы D1, Roborazzi и stateless-компоненты. Независим от проектных модулей; `:app → :feature:* → :core:ui`. |
 | `:feature:library` | `AlbumArtworkCatalog`, `ArtworkPreferences`, `LibraryPagePreferences`, полная реализация Home и UI видимости страниц; `:app`-фасады с исходными сигнатурами, resource IDs и навигацией |
 | `:feature:player` | `ArtworkBackdrop`, `FloatingControlsIsland`, `FeatureNowPlayingScreen` (полная реализация) и `NowPlayingIds`; прежняя сигнатура и 28 app-owned R IDs — в `:app` |
 | `:feature:settings` | `DiagnosticReportSanitizer`, `SettingsNotificationPermission` |
-| `:core:database` | Room v4, DAOs/миграции/схемы неизменны |
+| `:core:database` | В Draft: Room v5, миграция 4→5, длительность и DAO плейлистов |
 | `:core:network` | Плоский WebDAV PROPFIND/диагностика |
 | `:data:library` | Range-reader, MP3/FLAC, индексаторы, офлайн-группировка |
 | `:playback` | MediaSessionService, ExoPlayer, WebDAV DataSource, временный кэш и очередь |
-| `:data:playlist` | Пустой, **явно зарезервирован для M6-0/6**; функциональность плейлистов не заявлена |
+| `:data:playlist` | В Draft: `PlaylistRepository`, FAVORITES add/remove/membership/items; UI отсутствует |
 
-В Draft удалены невостребованные каркасы `:core:common/datastore`, `:data:source/cache`, `:feature:ai`. Строки RU/EN, launcher, `AppContainer` остаются в `:app`; на D2a дизайн-ресурсы v2 и тема переносятся в `:core:ui`. Home и Now Playing перенесены целиком, UI настройки видимости страниц тоже; перенос остальных полных экранов и ViewModel **не завершён** из-за границы Android `R`; решение о контракте ресурсов — D2. `AppContainer` остаётся в `:app`, циклических зависимостей feature→app нет.
+Удалены невостребованные каркасы `:core:common/datastore`, `:data:source/cache`, `:feature:ai`. Строки RU/EN, launcher и `AppContainer` остаются в `:app`; тема и ресурсы дизайна v2 находятся в `:core:ui` после D2a (#122), компоненты добавлены в D2b (#123). Home и Now Playing перенесены целиком, UI настройки видимости страниц тоже; перенос остальных полных экранов и ViewModel **не завершён** из-за границы Android `R`. `AppContainer` остаётся в `:app`, циклических зависимостей feature→app нет.
 
 `SettingsScreen.kt` — каркас навигации и сбор состояний: основной экран из групп-карточек и подэкран «Диагностика» (`SettingsDiagnosticsScreen.kt`, только чтение), [ADR-0081](DECISIONS/ADR-0081-settings-structure-diagnostics.md). Разделы настроек получают state/actions и имеют Preview; I/O перенесён в gateway. Activity-scoped `SettingsSessionViewModel` владеет только RAM-сеансом; `AppContainer` не удерживает пароль. `SettingsWorkSession` сохраняет взаимную исключительность импорта и действий диагностики, сбрасывает данные сеанса после выхода. Автоподготовка обложек ждёт готовности тегов и режима AUTO_AFTER_IMPORT, повторно проверяет состояние перед запуском. Пароль передаётся портом только в RAM-handoff, Intent содержит лишь действие. `openLibraryDatabase` удалён из `:app`; существующие службы/планировщик обращаются к `container.database` без изменения алгоритмов. Санитизация отчёта разрешает только фиксированные операции/метки и числа (Kotlin-тест с небезопасным фейковым ответом).
 
-### Фоновые службы M6-0/4c — в Draft PR
+### Фоновые службы M6-0/4c (#114)
 
 - `IndexingForegroundService` теперь отвечает за Android lifecycle, `dataSync`, канал, уведомление и Intent. `ManagedScanRuntime.kt` содержит RAM-handoff, состояние и фиксированные коды отказа. `IndexingRunner` с портами для БД/сети владеет прогоном, паузой, остановкой и `onTimeout` без `Context`/`Service`. Существующие 80 пакетов, 4 часа, сетевые бюджеты и сравнение версии перед записью в Room остаются в `:data:library`.
 - `ArtworkIndexingForegroundService` отвечает за lifecycle и уведомления; `ArtworkScanRuntime.kt` хранит RAM-состояние, `ArtworkPreparationRunner` — обход альбомов, паузу/остановку и приоритет индексации тегов. Android-адаптер использует прежние `ArtworkIndexPlanner` и `ArtworkPreviewRepository`: WebP-мастер до 1200 px, постоянные ссылки и `NO_ART` без повторного GET.
-- Во время `SignOutMarker.pending` запуск запрещён; `AndroidAccountSignOutPort` по-прежнему ждёт остановки перед удалением аккаунта. `LibraryDataRevision` продолжает наблюдать прежние `StateFlow`. JUnit с фейковыми портами проверяют переходы без Android/WebDAV. Room v4, режимы `ON_DEMAND` / `AUTO_AFTER_IMPORT`, оформление и сеть не менялись.
+- Во время `SignOutMarker.pending` запуск запрещён; `AndroidAccountSignOutPort` ждёт остановки, а Room удаляет плейлисты и треки аккаунта одной транзакцией. `LibraryDataRevision` продолжает наблюдать прежние `StateFlow`. JUnit с фейковыми портами проверяют переходы без Android/WebDAV. Режимы `ON_DEMAND` / `AUTO_AFTER_IMPORT`, оформление и сеть не менялись.
 
-Пустой зарезервированный модуль в Draft 5b — только `:data:playlist` для непосредственно следующего M6-0/6. Историческая целевая схема ниже описывает первоначальный план, не текущий состав Gradle. Ветки `main` и Draft различаются.
+Ветка M6-0/6 сохраняет границы M6-0/5b и наполняет `:data:playlist`. Room мигрирует v4→v5 автоматически; запись длительности идёт через `LibraryRepository` и `PlaybackSnapshot`, не напрямую из `:playback` в DAO. Историческая целевая схема ниже описывает первоначальный план, не текущий состав Gradle. Ветки `main` и Draft различаются.
 
 ## Целевая схема
 

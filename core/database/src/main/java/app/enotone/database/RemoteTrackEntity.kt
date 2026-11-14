@@ -33,4 +33,11 @@ data class RemoteTrackEntity(
     val missingScans: Int = 0,
     /** Nullable checkpoint for the fast-parser outcome; preserved only for unchanged versions. */
     val tagScanCode: String? = null,
+    /** Duration belongs to this remote file version; null means it is not known yet. */
+    val durationMs: Long? = null,
+    /**
+     * Когда трек впервые появился в медиатеке (мс) — для «Недавно добавленных» (D4).
+     * `null` — добавлен до учёта: строки до v5 и первый импорт аккаунта.
+     */
+    val firstSeenEpochMs: Long? = null,
 )

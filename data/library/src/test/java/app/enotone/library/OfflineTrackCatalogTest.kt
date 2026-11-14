@@ -52,6 +52,15 @@ class OfflineTrackCatalogTest {
                 genre = "Jazz")))
     }
 
+    @Test fun durationFlowsIntoTheLocalTrackModelWithoutChangingItsUnknownValue() {
+        val rows = OfflineTrackCatalog.build(key, listOf(
+            track(1, "known.mp3").copy(durationMs = 187_000L),
+            track(2, "unknown.mp3"),
+        )).associateBy { it.id }
+        assertEquals(187_000L, rows.getValue("id-1").durationMs)
+        assertEquals(null, rows.getValue("id-2").durationMs)
+    }
+
     @Test fun albumOrderUsesDiscAndTrackWhenAvailableWithStableFallback() {
         val rows = listOf(
             OfflineTrackRow("d2t2", "Coda", "Artist", "Album", year = 2024,

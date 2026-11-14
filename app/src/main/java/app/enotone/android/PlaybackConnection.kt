@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import app.enotone.playback.CachePhase
 import app.enotone.playback.EnoTonePlaybackService
@@ -33,10 +34,13 @@ internal data class PlaybackSnapshot(
     val connected: Boolean = false,
     val playbackState: String = "IDLE",
     val currentTrackId: String? = null,
+    val sourceKey: String? = null,
     val title: String? = null,
     val artist: String? = null,
     val positionMs: Long = 0,
     val durationMs: Long = 0,
+    /** Media3 duration, null until the current media item has a known duration. */
+    val knownDurationMs: Long? = null,
     val canSeek: Boolean = false,
     val queuePosition: Int = 0,
     val queueTotal: Int = 0,
@@ -160,11 +164,15 @@ internal class AndroidPlaybackConnection(
             connected = true,
             playbackState = playbackLabel(p),
             currentTrackId = p.currentMediaItem?.mediaId,
+            sourceKey = active.activeSourceKey,
             title = p.currentMediaItem?.mediaMetadata?.title?.toString(),
             artist = p.currentMediaItem?.mediaMetadata?.artist?.toString(),
             positionMs = p.currentPosition.coerceAtLeast(0L),
             // Includes the saved duration of a restored, not yet prepared item.
             durationMs = active.displayDurationMs,
+            knownDurationMs = p.duration.takeIf {
+                it != C.TIME_UNSET && it > 0L
+            },
             canSeek = active.canSeekCurrent,
             queuePosition = active.queuePosition + 1,
             queueTotal = active.queueSize,

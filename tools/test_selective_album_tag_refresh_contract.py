@@ -57,7 +57,7 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
         ):
             self.assertIn(token, pilot)
 
-    def test_only_ui_strings_added_and_room_v3_stable(self):
+    def test_ui_strings_and_room_migration_chain(self):
         names = {
             "album_refresh_tags", "album_refresh_busy",
             "album_refresh_confirm_title", "album_refresh_confirm_text",
@@ -73,9 +73,10 @@ class SelectiveAlbumTagRefreshContractTest(unittest.TestCase):
             actual = {x.attrib["name"] for x in root.findall("string")}
             self.assertTrue(names.issubset(actual), names - actual)
         db = self.src("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
-        self.assertIn("version = 4", db)
+        self.assertIn("version = 5", db)
         self.assertIn("AutoMigration(from = 2, to = 3)", db)
         self.assertIn("AutoMigration(from = 3, to = 4)", db)
+        self.assertIn("AutoMigration(from = 4, to = 5)", db)
         self.assertNotIn("fallbackToDestructiveMigration", db)
 
 

@@ -8,6 +8,8 @@ import app.enotone.playback.WebDavPlaybackTarget
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
+private const val ACCOUNT_KEY_LENGTH = 64
+
 /** One snapshot for the entire screen: no per-tap Room or network reads. */
 data class LibrarySnapshot(
     val tracks: List<OfflineTrackRow>,
@@ -18,6 +20,11 @@ interface LibraryRepository {
     suspend fun load(email: String): LibrarySnapshot
     suspend fun refreshAlbum(email: String, password: String, ids: List<String>): AlbumTagRefreshReport
     suspend fun readSavedQueue(): PersistedQueueState?
+    suspend fun saveDurationIfUnknown(
+        sourceKey: String,
+        trackId: String,
+        durationMs: Long,
+    ): Boolean = false
 }
 
 /** Pure conversion used by the Room implementation and ordinary JVM tests. */
@@ -69,4 +76,16 @@ class RoomLibraryRepository(
 
     override suspend fun readSavedQueue(): PersistedQueueState? =
         withContext(io) { savedQueueReader() }
+
+    override suspend fun saveDurationIfUnknown(
+        sourceKey: String,
+        trackId: String,
+        durationMs: Long,
+    ): Boolean = withContext(io) {
+        if (durationMs <= 0L || sourceKey.length != ACCOUNT_KEY_LENGTH ||
+            sourceKey.any { it !in "0123456789abcdef" }) return@withContext false
+        database.remoteTrackDao().saveDurationIfUnknown(
+            trackId, sourceKey, durationMs,
+        ) == 1
+    }
 }

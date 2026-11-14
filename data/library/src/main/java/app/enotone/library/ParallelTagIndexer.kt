@@ -48,6 +48,7 @@ private suspend fun <T> runStage(phase: String, block: suspend () -> T): T =
 private data class ParallelTagAttempt(
     val code: String,
     val tags: AudioTagFields?,
+    val durationMs: Long?,
     val stats: RangeReadStats,
     val authRejected: Boolean,
     val failure: PilotFailure? = null,
@@ -138,6 +139,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                         trackNumber = attempt.tags?.trackNumber,
                         discNumber = attempt.tags?.discNumber,
                         genre = attempt.tags?.genre,
+                        durationMs = attempt.durationMs,
                     ) == 1
                 }
                 getRequests += file.attempts.sumOf { it.stats.requests }
@@ -297,6 +299,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
         var reader: WebDavRangeReader? = null
         var failure: PilotFailure? = null
         var tags: AudioTagFields? = null
+        var durationMs: Long? = null
         var code = "RETRY_ERROR"
         var auth = false
         var stage = "RANGE"
@@ -314,9 +317,10 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
             reader.use { range ->
                 stage = "PARSER"
                 val parsed = FastAudioTagReader().read(
-                    item.fileName, range.fileSize, range::readAt)
+                    item.fileName, range.fileSize, range::readAt, range::readCachedAt)
                 code = parsed.code.name
                 tags = parsed.tags
+                durationMs = parsed.durationMs
                 PilotFailures.fromParserResult(parsed.code, range.stats())?.let {
                     failure = it
                     code = it.code
@@ -334,7 +338,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
         }
         val stats = reader?.stats() ?: RangeReadStats(0, 0)
         return ParallelTagAttempt(
-            code = code, tags = tags, stats = stats, authRejected = auth,
+            code = code, tags = tags, durationMs = durationMs, stats = stats, authRejected = auth,
             failure = failure,
             exhaustedGlobalBudget = stats.issue == RangeReadIssue.LIMIT &&
                 !budget.canStartFile(),

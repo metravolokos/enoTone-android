@@ -34,6 +34,17 @@ class FastAudioTagReaderTest {
         v.toByte(), (v ushr 8).toByte(), (v ushr 16).toByte(), (v ushr 24).toByte(),
     )
 
+    private fun putInt32(bytes: ByteArray, at: Int, value: Int) {
+        val encoded = int32(value)
+        System.arraycopy(encoded, 0, bytes, at, encoded.size)
+    }
+
+    private fun putUnsignedLong(bytes: ByteArray, at: Int, value: Long) {
+        for (index in 0 until 8) {
+            bytes[at + index] = (value ushr (56 - index * 8)).toByte()
+        }
+    }
+
     private fun frame(id: String, data: ByteArray, version: Int): ByteArray =
         id.toByteArray(StandardCharsets.US_ASCII) +
             (if (version == 4) sync32(data.size) else int32(data.size)) +
@@ -279,6 +290,96 @@ class FastAudioTagReaderTest {
                 { _, _, _, _ -> fail("Should not read unsupported format"); -1 }).code)
     }
 
+    @Test fun flacDurationComesFromCachedStreamInfoBytes() {
+        val data = ByteArray(42)
+        System.arraycopy("fLaC".toByteArray(), 0, data, 0, 4)
+        data[4] = 0x80.toByte()
+        data[7] = 34
+        val samples = 44_100L * 60L
+        putUnsignedLong(data, 18, (44_100L shl 44) or samples)
+        val cacheRead = byteReader(data)
+        val requests = mutableListOf<Long>()
+        val read = FastAudioTagReader().read(
+            "minute.flac", data.size.toLong(),
+            { position, output, offset, length ->
+                requests += position
+                byteReader(data)(position, output, offset, length)
+            },
+            cacheRead,
+        )
+        assertEquals(60_000L, read.durationMs)
+        assertEquals(FastTagCode.NO_EMBEDDED_TAGS, read.code)
+        assertTrue(requests.all { it < 65_536L })
+    }
+
+    @Test fun mp3DurationUsesXingFrameCountWithoutAnotherRangeRead() {
+        val data = ByteArray(4096)
+        data[0] = 0xFF.toByte()
+        data[1] = 0xFB.toByte() // MPEG-1 Layer III, no CRC
+        data[2] = 0x90.toByte() // 128 kbps, 44.1 kHz
+        data[3] = 0x64
+        System.arraycopy("Xing".toByteArray(), 0, data, 36, 4)
+        putInt32(data, 40, 1)
+        putInt32(data, 44, 1000)
+        var requestsWithDuration = 0
+        val cacheRead = byteReader(data)
+        val result = FastAudioTagReader().read(
+            "xing.mp3", data.size.toLong(),
+            { position, output, offset, length ->
+                requestsWithDuration++
+                byteReader(data)(position, output, offset, length)
+            },
+            cacheRead,
+        )
+        var requestsWithoutDuration = 0
+        FastAudioTagReader().read(
+            "xing.mp3", data.size.toLong(),
+            { position, output, offset, length ->
+                requestsWithoutDuration++
+                byteReader(data)(position, output, offset, length)
+            },
+        )
+        assertEquals(26_122L, result.durationMs)
+        assertEquals(requestsWithoutDuration, requestsWithDuration)
+    }
+
+    @Test fun mp3DurationUsesVbriFrameCount() {
+        val data = ByteArray(4096)
+        data[0] = 0xFF.toByte()
+        data[1] = 0xFB.toByte()
+        data[2] = 0x90.toByte()
+        data[3] = 0x64
+        System.arraycopy("VBRI".toByteArray(), 0, data, 36, 4)
+        putInt32(data, 50, 2000)
+        val result = FastAudioTagReader().read(
+            "vbri.mp3", data.size.toLong(), byteReader(data), byteReader(data))
+        assertEquals(52_244L, result.durationMs)
+    }
+
+    @Test fun mp3WithoutXingOrVbriHasUnknownDuration() {
+        val data = ByteArray(4096)
+        val result = FastAudioTagReader().read(
+            "cbr.mp3", data.size.toLong(), byteReader(data), byteReader(data))
+        assertNull(result.durationMs)
+    }
+
+    @Test fun damagedDurationHeadersReturnNullWithoutThrowing() {
+        val damagedFlac = ByteArray(42)
+        System.arraycopy("fLaC".toByteArray(), 0, damagedFlac, 0, 4)
+        damagedFlac[4] = 0x80.toByte()
+        damagedFlac[7] = 34
+        val damaged = FastAudioTagReader().read(
+            "damaged.flac", damagedFlac.size.toLong(),
+            byteReader(damagedFlac), byteReader(damagedFlac))
+        assertNull(damaged.durationMs)
+        assertEquals(FastTagCode.NO_EMBEDDED_TAGS, damaged.code)
+
+        val truncated = FastAudioTagReader().read(
+            "short.flac", 12, byteReader(damagedFlac), byteReader(damagedFlac))
+        assertNull(truncated.durationMs)
+        assertEquals(FastTagCode.INVALID_METADATA, truncated.code)
+    }
+
     @Test fun mockWebDavProvesTwoGetForFlacMetadataBehindLargeCover() {
         val fixture = flacWithHugeCover(vorbis("TITLE=Demo", "ARTIST=Example"))
         val server = MockWebServer()
@@ -304,13 +405,57 @@ class FastAudioTagReaderTest {
                 email = "synthetic@example.test", appPassword = "only-for-mock",
                 etag = "\"v1\"", allowLoopbackHttpForTests = true,
             ).use { source ->
-                val r = FastAudioTagReader().read("demo.flac", source.fileSize, source::readAt)
+                val r = FastAudioTagReader().read(
+                    "demo.flac", source.fileSize, source::readAt, source::readCachedAt)
                 assertEquals(FastTagCode.FLAC_VORBIS, r.code)
                 assertEquals("Demo", r.tags?.title)
                 assertEquals(2, source.stats().requests)
                 assertEquals(65536L + (fixture.size - 262144L), source.stats().downloadedBytes)
             }
             assertEquals(2, server.requestCount)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test fun mockWebDavReadsMp3XingDurationWithoutAnotherGet() {
+        val fixture = ByteArray(4096)
+        fixture[0] = 0xFF.toByte()
+        fixture[1] = 0xFB.toByte()
+        fixture[2] = 0x90.toByte()
+        fixture[3] = 0x64
+        System.arraycopy("Xing".toByteArray(), 0, fixture, 36, 4)
+        putInt32(fixture, 40, 1)
+        putInt32(fixture, 44, 1000)
+        val server = MockWebServer()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(req: RecordedRequest): MockResponse {
+                val range = req.getHeader("Range") ?: return MockResponse().setResponseCode(400)
+                val bounds = Regex("""bytes=(\d+)-(\d+)""").matchEntire(range)
+                    ?: return MockResponse().setResponseCode(400)
+                val start = bounds.groupValues[1].toInt()
+                val end = bounds.groupValues[2].toInt()
+                return MockResponse().setResponseCode(206)
+                    .addHeader("Content-Range", "bytes=$start-$end/${fixture.size}")
+                    .addHeader("ETag", "\"v1\"")
+                    .setBody(Buffer().write(fixture, start, end - start + 1))
+            }
+        }
+        server.start()
+        try {
+            WebDavRangeReader(
+                libraryRoot = server.url("/AllMusic/").toString(),
+                encodedPath = "/AllMusic/xing.mp3",
+                fileSize = fixture.size.toLong(),
+                email = "synthetic@example.test", appPassword = "only-for-mock",
+                etag = "\"v1\"", allowLoopbackHttpForTests = true,
+            ).use { source ->
+                val read = FastAudioTagReader().read(
+                    "xing.mp3", source.fileSize, source::readAt, source::readCachedAt)
+                assertEquals(26_122L, read.durationMs)
+                assertEquals(1, source.stats().requests)
+            }
+            assertEquals(1, server.requestCount)
         } finally {
             server.shutdown()
         }

@@ -14,7 +14,7 @@
 | `tools/check_detekt_baseline.py <база>` | базовая линия detekt не выросла относительно базового коммита |
 | `tools/check_adr_index.py` | у каждого ADR есть строка в индексе |
 | `:app:compileStablePreviewKotlin` | компиляция варианта Stable Preview без секретов |
-| Room schema | экспортированные схемы v1–v4 совпадают с закоммиченными |
+| Room schema | экспортированные схемы v1–v5 совпадают с закоммиченными |
 | `tools/check_no_gms.py` | дерево зависимостей и байты APK не содержат `com.google.android.gms`, `com.google.firebase`, `com.google.android.play` |
 | Stable Preview (только `main`) | подпись постоянным ключом и совпадение отпечатка сертификата |
 
@@ -31,9 +31,10 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 
 ### Robolectric и Compose UI (#118 слит, M6-0/5a)
 
-- JVM под Robolectric 4.17 (SDK 35), **без эмулятора**: `./gradlew :core:database:testDebugUnitTest :app:testDebugUnitTest`. Экспортированные схемы Room v1–v4 читаются из `core/database/schemas` как debug assets.
-- `EnoToneMigrationTest`: последовательная v1→v2→v3→v4 и прямая v1→v4, реальные строки переживают миграцию, новые nullable-поля остаются NULL.
+- JVM под Robolectric 4.17 (SDK 35), **без эмулятора**: `./gradlew :core:database:testDebugUnitTest :data:playlist:testDebugUnitTest :app:testDebugUnitTest`. Экспортированные схемы Room v1–v5 читаются из `core/database/schemas` как debug assets.
+- `EnoToneMigrationTest`: последовательная v1→v2→v3→v4→v5, прямая v1→v5 и v4→v5 на 120 строках с `tagScanCode`; существующие поля сохраняются, `durationMs` остаётся NULL, новые таблицы доступны.
 - `RemoteTrackDaoTest`: изоляция аккаунтов, CAS тегов, fast-scan, очередь выборочной/полной переиндексации без потери тегов, аудит с лимитом 30, удаление по sourceKey.
+- M6-0/6: `PlaylistRepositoryTest` проверяет конкурирующий get-or-create «Избранного», отсутствие дублей, порядок и `present`, FK-каскады и изоляцию очистки аккаунта; парсер длительности тестирует синтетические FLAC/MP3-заголовки без дополнительных Range-запросов.
 - `NowPlayingUiTest`, `SettingsActionsUiTest`, `HomeNavigationUiTest`, `LibraryVisibilityUiTest`, `MainActivitySettingsUiTest`: Compose-семантика и нажатия через фейковые действия, без WebDAV и реальной переиндексации.
 - `LibraryPagePreferencesTest` проверяет реальную запись и восстановление SharedPreferences, `LocalizedUiResourcesTest` — разрешение RU/EN ресурсов через Android, без чтения XML строками; `MiniPlayerUiTest` — появление и открытие мини-плеера.
 - `CredentialEnvelopeTest` (ACC-06): формат зашифрованного входа с программным AES-ключом вместо Keystore — повреждение, усечение, чужой ключ и версия отвергаются, IV новый при каждом шифровании.

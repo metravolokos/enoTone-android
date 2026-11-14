@@ -81,7 +81,7 @@ internal class AndroidAccountSignOutPort(
                 email, sourceKey, rows,
             ))
         }
-        dao.deleteAllForSource(sourceKey)
+        container.database.deleteAccountData(sourceKey)
         Unit
     }
 

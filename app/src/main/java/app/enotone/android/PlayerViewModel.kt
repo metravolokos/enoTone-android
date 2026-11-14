@@ -69,6 +69,10 @@ internal class PlayerViewModel(
     private var artworkJob: Job? = null
     private var restoredAccount: String? = null
 
+    // Ключ включает длительность: если файл заменили (импорт сбросил durationMs в null) и у новой
+    // версии другая длительность, запись повторится без пересоздания ViewModel (ревью #125).
+    private val durationSaveAttempts = mutableSetOf<Triple<String, String, Long>>()
+
     // Verified and encrypted logins are the only restoration credentials.
     private var restoreAllowed = false
     private var loadingAccount: String? = null
@@ -96,6 +100,7 @@ internal class PlayerViewModel(
                 }
                 val old = mutable.value.playback
                 mutable.update { it.copy(playback = current) }
+                saveKnownDuration(current)
                 if (current.currentTrackId != old.currentTrackId ||
                     (current.queueTotal > 0 && old.queueTotal == 0)) {
                     loadArtwork()
@@ -121,6 +126,7 @@ internal class PlayerViewModel(
             } else if (!accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(stored.email))) {
                 login = stored
                 restoreAllowed = true
+                saveKnownDuration(connection.state.value)
                 ensureCatalog(stored)
                 maybeRestore()
             }
@@ -141,6 +147,7 @@ internal class PlayerViewModel(
             restoredAccount = null
         }
         restoreAllowed = true
+        saveKnownDuration(connection.state.value)
         ensureCatalog(verified)
         maybeRestore()
         loadArtwork()
@@ -301,6 +308,36 @@ internal class PlayerViewModel(
             }
         }
     }
+
+    /** One guarded Room update per source/track after Media3 has real duration data. */
+    private fun saveKnownDuration(snapshot: PlaybackSnapshot) {
+        val sourceKey = login?.let { LibrarySnapshotPlanner.accountKey(it.email) }
+        val trackId = snapshot.currentTrackId
+        val durationMs = snapshot.knownDurationMs?.takeIf { it > 0L }
+        val saveRequest = sourceKey?.let { key ->
+            trackId?.let { id -> durationMs?.let { value -> Triple(key, id, value) } }
+        }
+        if (restoreAllowed && saveRequest != null) {
+            val (key, id, value) = saveRequest
+            if (isDurationSourceAllowed(snapshot, key) &&
+                durationSaveAttempts.add(Triple(key, id, value))) {
+                viewModelScope.launch {
+                    try {
+                        withContext(io) {
+                            repository.saveDurationIfUnknown(key, id, value)
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        // Position polling must not retry a failed write every 500 ms.
+                    }
+                }
+            }
+        }
+    }
+
+    private fun isDurationSourceAllowed(snapshot: PlaybackSnapshot, sourceKey: String): Boolean =
+        snapshot.sourceKey == sourceKey && !accountEvents.value.blocks(sourceKey)
 
     fun onNowPlaying(open: Boolean) {
         mutable.update { it.copy(nowPlaying = open) }

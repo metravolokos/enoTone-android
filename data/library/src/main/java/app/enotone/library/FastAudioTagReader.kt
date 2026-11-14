@@ -3,6 +3,8 @@ package app.enotone.library
 import java.io.IOException
 import java.util.Locale
 
+private const val MILLIS_PER_SECOND = 1_000L
+
 /** Fixed diagnostic codes: safe to display, never include titles or remote paths. */
 enum class FastTagCode {
     MP3_ID3V23, MP3_ID3V24, MP3_ID3V1, FLAC_VORBIS,
@@ -16,6 +18,7 @@ data class FastTagRead(
     val embeddedTitle: Boolean = false,
     val embeddedArtist: Boolean = false,
     val embeddedAlbum: Boolean = false,
+    val durationMs: Long? = null,
 )
 
 /**
@@ -31,13 +34,16 @@ class FastAudioTagReader {
         fileName: String,
         fileSize: Long,
         readAt: (Long, ByteArray, Int, Int) -> Int,
+        readCachedAt: ((Long, ByteArray, Int, Int) -> Int)? = null,
     ): FastTagRead {
         val suffix = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-        if (suffix != "mp3" && suffix != "flac") {
-            return FastTagRead(FastTagCode.UNSUPPORTED_FORMAT)
+        val inputIssue = when {
+            suffix != "mp3" && suffix != "flac" -> FastTagRead(FastTagCode.UNSUPPORTED_FORMAT)
+            fileSize < 4L -> FastTagRead(FastTagCode.INVALID_METADATA)
+            else -> null
         }
-        if (fileSize < 4L) return FastTagRead(FastTagCode.INVALID_METADATA)
-        val source = BoundedBytes(fileSize, readAt)
+        if (inputIssue != null) return inputIssue
+        val source = BoundedBytes(fileSize, readAt, readCachedAt)
         return try {
             if (suffix == "mp3") readMp3(source, fileName) else readFlac(source, fileName)
         } catch (stop: FastStop) {
@@ -45,18 +51,25 @@ class FastAudioTagReader {
         }
     }
 
+    @Suppress("LongMethod", "CyclomaticComplexMethod", "ReturnCount")
     private fun readMp3(source: BoundedBytes, name: String): FastTagRead {
         val first = source.bytes(0L, minOf(10L, source.size).toInt())
         if (first.size < 10 || ascii(first, 0, 3) != "ID3") {
-            if (source.size < 128) return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS)
+            if (source.size < 128) {
+                return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS,
+                    durationMs = mp3DurationMs(source, 0L))
+            }
             val end = source.bytes(source.size - 128L, 128)
-            if (ascii(end, 0, 3) != "TAG") return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS)
+            if (ascii(end, 0, 3) != "TAG") {
+                return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS,
+                    durationMs = mp3DurationMs(source, 0L))
+            }
             val title = latin1(end, 3, 30)
             val artist = latin1(end, 33, 30)
             val album = latin1(end, 63, 30)
             val genre = Id3Genres.fromNumber(u(end[127]))
             return result(FastTagCode.MP3_ID3V1, name, title, artist, album, null,
-                rawGenre = genre)
+                rawGenre = genre, durationMs = mp3DurationMs(source, 0L))
         }
 
         val major = u(first[3])
@@ -103,7 +116,8 @@ class FastAudioTagReader {
             rawYear = tags["TDRC"] ?: tags["TYER"],
             rawTrackNumber = tags["TRCK"],
             rawDiscNumber = tags["TPOS"],
-            rawGenre = tags["TCON"])
+            rawGenre = tags["TCON"],
+            durationMs = mp3DurationMs(source, end))
     }
 
     private fun readFlac(source: BoundedBytes, name: String): FastTagRead {
@@ -111,6 +125,7 @@ class FastAudioTagReader {
             return FastTagRead(FastTagCode.UNSUPPORTED_LAYOUT)
         }
         var pos = 4L
+        var durationMs: Long? = null
         repeat(128) { index ->
             if (pos > source.size - 4) return FastTagRead(FastTagCode.INVALID_METADATA)
             val hdr = source.bytes(pos, 4)
@@ -125,6 +140,9 @@ class FastAudioTagReader {
             if (size.toLong() > source.size - contentStart || type == 127) {
                 return FastTagRead(FastTagCode.INVALID_METADATA)
             }
+            if (index == 0) {
+                durationMs = source.cachedBytes(contentStart, 34)?.let(::flacDurationMs)
+            }
             if (type == 4) {
                 if (size > 65536) return FastTagRead(FastTagCode.FAST_BUDGET_EXCEEDED)
                 val data = source.bytes(contentStart, size)
@@ -134,11 +152,13 @@ class FastAudioTagReader {
                     rawYear = values["DATE"] ?: values["YEAR"],
                     rawTrackNumber = values["TRACKNUMBER"],
                     rawDiscNumber = values["DISCNUMBER"],
-                    rawGenre = values["GENRE"])
+                    rawGenre = values["GENRE"],
+                    durationMs = durationMs)
             }
             // PICTURE, padding, seek table: skip by encoded size, no bulk reads.
             pos = contentStart + size
-            if (last) return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS)
+            if (last) return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS,
+                durationMs = durationMs)
         }
         return FastTagRead(FastTagCode.FAST_BUDGET_EXCEEDED)
     }
@@ -187,6 +207,7 @@ class FastAudioTagReader {
         return result
     }
 
+    @Suppress("LongParameterList")
     private fun result(
         code: FastTagCode,
         fileName: String,
@@ -198,10 +219,11 @@ class FastAudioTagReader {
         rawTrackNumber: String? = null,
         rawDiscNumber: String? = null,
         rawGenre: String? = null,
+        durationMs: Long? = null,
     ): FastTagRead {
         if (listOf(title, artist, album, albumArtist, rawYear, rawTrackNumber,
                 rawDiscNumber, rawGenre).none { !it.isNullOrBlank() }) {
-            return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS)
+            return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS, durationMs = durationMs)
         }
         return FastTagRead(
             code = code,
@@ -214,8 +236,76 @@ class FastAudioTagReader {
             embeddedTitle = !title.isNullOrBlank(),
             embeddedArtist = !artist.isNullOrBlank(),
             embeddedAlbum = !album.isNullOrBlank(),
+            durationMs = durationMs,
         )
     }
+
+    /** Reads only bytes already present in the bounded Range reader's RAM block cache. */
+    @Suppress("MagicNumber", "CyclomaticComplexMethod", "ReturnCount")
+    private fun mp3DurationMs(source: BoundedBytes, frameStart: Long): Long? {
+        val header = source.cachedBytes(frameStart, 4) ?: return null
+        val bits = header.toUnsignedInt()
+        if ((bits ushr 21) != 0x7FF) return null
+        val version = (bits ushr 19) and 0x3
+        val layer = (bits ushr 17) and 0x3
+        val hasCrc = ((bits ushr 16) and 1) == 0
+        val sampleRateIndex = (bits ushr 10) and 0x3
+        val channelMode = (bits ushr 6) and 0x3
+        if (version == 1 || layer != 1 || sampleRateIndex == 3) return null
+        if (((bits ushr 12) and 0xF) in setOf(0, 15)) return null
+        val sampleRates = intArrayOf(44_100, 48_000, 32_000)
+        val sampleRate = when (version) {
+            3 -> sampleRates[sampleRateIndex]
+            2 -> sampleRates[sampleRateIndex] / 2
+            else -> sampleRates[sampleRateIndex] / 4
+        }
+        val samplesPerFrame = if (version == 3) 1152 else 576
+        val sideInfo = when {
+            version == 3 && channelMode == 3 -> 17
+            version == 3 -> 32
+            channelMode == 3 -> 9
+            else -> 17
+        }
+        val adjustedXingStart = frameStart + 4L +
+            (if (hasCrc) 2L else 0L) + sideInfo
+        val xing = source.cachedBytes(adjustedXingStart, 12)
+        if (xing != null && (ascii(xing, 0, 4) == "Xing" || ascii(xing, 0, 4) == "Info")) {
+            val flags = xing.readUnsignedInt(4)
+            if ((flags and 1L) != 0L) {
+                return durationMs(xing.readUnsignedInt(8), samplesPerFrame, sampleRate)
+            }
+        }
+        val vbri = source.cachedBytes(frameStart + 36L, 18) ?: return null
+        if (ascii(vbri, 0, 4) != "VBRI") return null
+        return durationMs(vbri.readUnsignedInt(14), samplesPerFrame, sampleRate)
+    }
+
+    private fun durationMs(frames: Long, samplesPerFrame: Int, sampleRate: Int): Long? {
+        if (frames <= 0L || sampleRate <= 0) return null
+        val duration = frames * samplesPerFrame * MILLIS_PER_SECOND / sampleRate
+        return duration.takeIf { it > 0L }
+    }
+
+    @Suppress("MagicNumber")
+    private fun flacDurationMs(streamInfo: ByteArray): Long? {
+        if (streamInfo.size != 34) return null
+        var packed = 0L
+        for (index in 10 until 18) {
+            packed = (packed shl 8) or (streamInfo[index].toLong() and 0xFFL)
+        }
+        val sampleRate = ((packed ushr 44) and 0xFFFFFL).toInt()
+        val totalSamples = packed and 0xFFFFFFFFFL
+        return if (sampleRate <= 0 || totalSamples <= 0L) null
+        else (totalSamples * MILLIS_PER_SECOND / sampleRate).takeIf { it > 0L }
+    }
+
+    private fun ByteArray.toUnsignedInt(): Int =
+        ((u(this[0]) shl 24) or (u(this[1]) shl 16) or
+            (u(this[2]) shl 8) or u(this[3]))
+
+    private fun ByteArray.readUnsignedInt(at: Int): Long =
+        (u(this[at]).toLong() shl 24) or (u(this[at + 1]).toLong() shl 16) or
+            (u(this[at + 2]).toLong() shl 8) or u(this[at + 3]).toLong()
 
     private fun decodeId3Text(payload: ByteArray, version: Int): String? {
         if (payload.isEmpty()) return ""
@@ -264,6 +354,7 @@ class FastAudioTagReader {
     private class BoundedBytes(
         val size: Long,
         private val readAt: (Long, ByteArray, Int, Int) -> Int,
+        private val readCachedAt: ((Long, ByteArray, Int, Int) -> Int)?,
     ) {
         private val blocks = hashSetOf<Long>()
         private var bytesRequested = 0
@@ -289,6 +380,19 @@ class FastAudioTagReader {
             }
             bytesRequested += count
             return dest
+        }
+
+        @Suppress("ReturnCount")
+        fun cachedBytes(position: Long, count: Int): ByteArray? {
+            val cachedReader = readCachedAt ?: return null
+            if (count < 0 || position < 0 || position > size ||
+                count.toLong() > size - position) return null
+            val dest = ByteArray(count)
+            return try {
+                if (cachedReader(position, dest, 0, count) == count) dest else null
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 }

@@ -167,6 +167,7 @@ class PreviewAudioPlayback(
     private var mediaIdIndices: Map<String, Int> = emptyMap()
     private var originalTrackIds: List<String> = emptyList()
     private var sourceKeyForQueue: String? = null
+    val activeSourceKey: String? get() = sourceKeyForQueue
     private var configuredShuffle: IntArray? = null
     private var stableShuffleApplied = false
     /** Called only after configuredShuffle is ready, including MediaSession controls. */
