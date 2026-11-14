@@ -16,10 +16,14 @@ import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.PlaybackDataIssue
+import app.enotone.playback.QueueEditResult
+import app.enotone.playback.QueueEditStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
@@ -105,6 +109,8 @@ internal interface LibraryScreenActions {
     fun onSeekFraction(fraction: Float)
 }
 
+internal data class QueueActionMessage(val playNext: Boolean, val result: QueueEditResult)
+
 internal data class AlbumRefreshMessages(
     val done: String = "",
     val retry: String = "",
@@ -160,6 +166,8 @@ internal class LibraryViewModel(
         LibraryUiState(section = firstPage, visiblePages = visiblePages),
     )
     val state: StateFlow<LibraryUiState> = mutable
+    private val mutableQueueMessages = MutableSharedFlow<QueueActionMessage>(extraBufferCapacity = 1)
+    val queueMessages: SharedFlow<QueueActionMessage> = mutableQueueMessages
     private var catalogue = LibrarySnapshot(emptyList(), emptyMap())
     private val sourceKey by lazy { LibrarySnapshotPlanner.accountKey(accountEmail) }
     private val checkedByGroup = mutableMapOf<String, Set<String>>()
@@ -449,6 +457,39 @@ internal class LibraryViewModel(
     override fun onAlbumShuffleAll() {
         val items = mutable.value.albumTracks.shuffled()
         items.firstOrNull()?.let { onTrackClicked(it, items) }
+    }
+
+    /** Backend-only actions for D4a/8b: do not add them to LibraryScreenActions yet. */
+    fun onPlayNext(tracks: List<OfflineTrackRow>) = editQueue(tracks, playNext = true)
+
+    fun onAppendToQueue(tracks: List<OfflineTrackRow>) = editQueue(tracks, playNext = false)
+
+    private fun editQueue(rows: List<OfflineTrackRow>, playNext: Boolean) {
+        if (unavailable()) return
+        viewModelScope.launch {
+            val result = try {
+                val tracks = withContext(io) {
+                    rows.mapNotNull { catalogue.preparedById[it.id] }.distinctBy { it.id }
+                }
+                when {
+                    tracks.isEmpty() -> QueueEditResult(QueueEditStatus.EMPTY_SELECTION)
+                    password.isBlank() || !connection.state.value.connected ->
+                        QueueEditResult(QueueEditStatus.UNAVAILABLE)
+                    connection.state.value.queueTotal == 0 -> {
+                        connection.playQueue(accountEmail, password, tracks, tracks.first().id,
+                            useCache(), sourceKey)
+                        QueueEditResult(QueueEditStatus.APPLIED, tracks.size)
+                    }
+                    playNext -> connection.insertNext(tracks)
+                    else -> connection.append(tracks)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                QueueEditResult(QueueEditStatus.UNAVAILABLE)
+            }
+            mutableQueueMessages.emit(QueueActionMessage(playNext, result))
+        }
     }
 
     override fun onTrackClicked(track: OfflineTrackRow, context: List<OfflineTrackRow>) {
