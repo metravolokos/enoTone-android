@@ -124,7 +124,7 @@ jobs:
         if: (github.event_name == 'workflow_dispatch' && inputs.record_roborazzi == true) || (github.event_name == 'pull_request' && github.head_ref == 'feature/d4a-actions-artist')
         run: |
           # Временный режим подготовки новых эталонов D4a, будет удалён после записи PNG.
-          for f in app/src/test/screenshots/songs_*.png app/src/test/screenshots/song_actions_*.png app/src/test/screenshots/artist_*.png; do
+          for f in core/ui/src/test/screenshots/action_sheet_*.png app/src/test/screenshots/songs_*.png app/src/test/screenshots/song_actions_*.png app/src/test/screenshots/artist_*.png; do
             echo "ROBORAZZI_PNG $f $(sha256sum "$f" | cut -d' ' -f1)"
             base64 -w 3000 "$f" | sed "s|^|ROBORAZZI_B64 $f |"
           done
