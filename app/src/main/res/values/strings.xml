@@ -141,6 +141,14 @@
     <string name="home_open_library">Открыть медиатеку</string>
     <string name="home_connect_account">Настроить подключение</string>
     <string name="artwork_description">Обложка текущего трека</string>
+    <string name="album_duration_minutes">%1$d мин</string>
+    <string name="library_compilations_name">Разные исполнители</string>
+    <plurals name="library_compilations_count">
+        <item quantity="one">%1$s сборник</item>
+        <item quantity="few">%1$s сборника</item>
+        <item quantity="many">%1$s сборников</item>
+        <item quantity="other">%1$s сборника</item>
+    </plurals>
     <string name="album_cover_description">Обложка альбома</string>
     <string name="album_refresh_tags">Обновить теги альбома (до 10)</string>
     <string name="album_refresh_busy">Обновление тегов…</string>
