@@ -16,7 +16,6 @@ import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.PlaybackDataIssue
-import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
@@ -30,6 +29,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 // Display sizes match the unchanged Graphite Material 3 design.
 private const val LIBRARY_THUMBNAIL_SIDE_PX = 512
@@ -331,22 +331,12 @@ internal class LibraryViewModel(
                     OfflineTrackCatalog.albumOrder(members) else members
             } ?: emptyList()
         }
-        val visible = if (snapshot.section == LibraryPage.TRACKS) {
-            when {
-                ftsExpression == null -> candidates
-                matchedIds != null -> candidates.filter { it.id in matchedIds }
-                else -> OfflineTrackCatalog.search(candidates, snapshot.search)
-            }
-        } else OfflineTrackCatalog.search(candidates, snapshot.search)
+        val visible = visibleForPage(snapshot, candidates, ftsExpression, matchedIds)
         val album = if (snapshot.section == LibraryPage.ALBUMS && group != null)
             OfflineTrackCatalog.albumOrder(
                 snapshot.tracks.filter { it.id in group.trackIds },
             ) else emptyList()
-        val eligible = album.mapNotNull { row ->
-            val path = byId[row.id]?.encodedPath ?: return@mapNotNull null
-            if (path.endsWith(".flac", true) || path.endsWith(".mp3", true)) row.id
-            else null
-        }
+        val eligible = eligibleAlbumTrackIds(album, byId)
         val next = AlbumTagRefreshSelection.nextBatch(
             eligible,
             checkedByGroup[group?.key].orEmpty(),
@@ -355,6 +345,31 @@ internal class LibraryViewModel(
         return DerivedPages(groups, shown, group, visible, album,
             OfflineTrackCatalog.commonAlbumYear(album),
             OfflineTrackCatalog.commonAlbumGenre(album), next)
+    }
+
+    private fun visibleForPage(
+        snapshot: LibraryUiState,
+        candidates: List<OfflineTrackRow>,
+        ftsExpression: String?,
+        matchedIds: Set<String>?,
+    ): List<OfflineTrackRow> {
+        if (snapshot.section != LibraryPage.TRACKS) {
+            return OfflineTrackCatalog.search(candidates, snapshot.search)
+        }
+        return when {
+            ftsExpression == null -> candidates
+            matchedIds != null -> candidates.filter { it.id in matchedIds }
+            else -> OfflineTrackCatalog.search(candidates, snapshot.search)
+        }
+    }
+
+    private fun eligibleAlbumTrackIds(
+        album: List<OfflineTrackRow>,
+        byId: Map<String, app.enotone.playback.QueueTrack>,
+    ): List<String> = album.mapNotNull { row ->
+        val path = byId[row.id]?.encodedPath ?: return@mapNotNull null
+        if (path.endsWith(".flac", true) || path.endsWith(".mp3", true)) row.id
+        else null
     }
 
     private data class DerivedPages(
