@@ -65,4 +65,47 @@ class AppNavigatorTest {
         states.forEach { assertEquals(it, AppNavigator.restore(AppNavigator.save(it))) }
         assertEquals(AppNavState(), AppNavigator.restore("garbage"))
     }
+
+    @Test fun albumArtistAlbumBackFollowsDetailStack() {
+        val initial = AppNavState(tab = AppTab.Library(LibraryPage.ARTISTS))
+        val artist = AppNavigator.push(initial, LibraryDetail.Artist("artist:one"))
+        val album = AppNavigator.push(artist, LibraryDetail.Album("album:first"))
+        assertEquals(initial.tab, album.tab)
+        assertEquals(artist, AppNavigator.back(album))
+        assertEquals(initial, AppNavigator.back(artist))
+        assertEquals(AppTab.Home, AppNavigator.back(initial)?.tab)
+    }
+
+    @Test fun reselectingSameTabClearsDetailsAndRequestsTop() {
+        val initial = AppNavigator.push(AppNavState(tab = songs), LibraryDetail.Album("album:one"))
+        val next = AppNavigator.select(initial, songs)
+        assertEquals(emptyList<LibraryDetail>(), next.details)
+        assertEquals(1, next.scrollToTop)
+    }
+
+    @Test fun switchingTabsOrSigningOutClearsDetails() {
+        val start = AppNavigator.push(AppNavState(tab = songs), LibraryDetail.Album("a"))
+        assertEquals(emptyList<LibraryDetail>(), AppNavigator.select(start, albums).details)
+        assertEquals(emptyList<LibraryDetail>(), AppNavigator.onSignedOut(start).details)
+    }
+
+    @Test fun pushHasBoundedDepthAndAvoidsIdenticalTop() {
+        var state = AppNavState(tab = songs)
+        repeat(11) { state = AppNavigator.push(state, LibraryDetail.Album("a:$it")) }
+        assertEquals(8, state.details.size)
+        assertEquals(LibraryDetail.Album("a:3"), state.details.first())
+        assertEquals(state, AppNavigator.push(state, LibraryDetail.Album("a:10")))
+    }
+
+    @Test fun newFormatRoundTripsOpaqueKeysAndReadsOldThreeFields() {
+        val initial = AppNavState(tab = albums, details = listOf(
+            LibraryDetail.Artist("artist:А|Б/В"),
+            LibraryDetail.Album("album:Сборник\\u0000Artist"),
+        ))
+        assertEquals(initial, AppNavigator.restore(AppNavigator.save(initial)))
+        assertEquals(AppNavState(tab = albums, scrollToTop = 5),
+            AppNavigator.restore("ALBUMS||5"))
+        assertEquals(emptyList<LibraryDetail>(),
+            AppNavigator.restore("TRACKS||0|zthis-is-not-base64").details)
+    }
 }

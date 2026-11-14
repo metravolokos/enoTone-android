@@ -53,6 +53,9 @@ internal fun rememberLibraryViewModel(accountEmail: String, appPassword: String)
 internal fun OfflineLibraryScreen(
     model: LibraryViewModel,
     page: LibraryPage,
+    detail: LibraryDetail? = null,
+    onOpenDetail: (LibraryDetail) -> Unit = {},
+    onBackDetail: () -> Unit = {},
     visiblePages: List<LibraryPage>,
     accountEmail: String,
     appPassword: String,
@@ -64,11 +67,35 @@ internal fun OfflineLibraryScreen(
     val container = (context as EnoToneApplication).container
     // Аудит п. 3: ViewModel живёт дольше экрана — страница и видимость передаются событиями.
     LaunchedEffect(model, visiblePages) { model.onVisiblePagesChanged(visiblePages) }
-    LaunchedEffect(model, page) { model.onPageSelected(page) }
+    LaunchedEffect(model, page, detail) {
+        val targetPage = when (detail) {
+            is LibraryDetail.Album -> LibraryPage.ALBUMS
+            is LibraryDetail.Artist -> LibraryPage.ARTISTS
+            null -> page
+        }
+        model.onPageSelected(targetPage)
+        if (model.state.value.selectedGroupKey != detail?.key) model.onGroupSelected(detail?.key)
+    }
     val state by model.state.collectAsStateWithLifecycle()
-    LibraryScreenContent(
+    if (detail is LibraryDetail.Artist && state.selectedGroup?.key == detail.key) {
+        ArtistDetailScreen(
+            state = state,
+            artist = requireNotNull(state.selectedGroup),
+            actions = model,
+            artworkRepository = container.artworkPreviewRepository,
+            accountEmail = accountEmail,
+            appPassword = appPassword,
+            contentPadding = contentPadding,
+            onOpenDetail = onOpenDetail,
+            onBackDetail = onBackDetail,
+            blur = blur,
+        )
+    } else LibraryScreenContent(
         state = state,
         actions = model,
+        detail = detail,
+        onOpenDetail = onOpenDetail,
+        onBackDetail = onBackDetail,
         artworkRepository = container.artworkPreviewRepository,
         accountEmail = accountEmail,
         appPassword = appPassword,

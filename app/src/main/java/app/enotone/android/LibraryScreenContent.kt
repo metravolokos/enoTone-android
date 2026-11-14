@@ -61,6 +61,8 @@ import app.enotone.android.core.ui.component.EnoCollapsingStrip
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
+import app.enotone.android.core.ui.component.EnoTrackRow
+import app.enotone.android.core.ui.component.EnoTrackRowVariant
 import app.enotone.android.core.ui.component.enoBlurSource
 import app.enotone.android.core.ui.component.enoTopBarBackground
 import app.enotone.android.core.ui.component.rememberEnoBlurState
@@ -89,6 +91,9 @@ internal fun LibraryScreenContent(
     contentPadding: PaddingValues = PaddingValues(),
     scrollToTop: Int = 0,
     blur: EnoBlurState? = null,
+    detail: LibraryDetail? = null,
+    onOpenDetail: (LibraryDetail) -> Unit = {},
+    onBackDetail: () -> Unit = {},
 ) {
     val section = state.section
     val visiblePages = state.visiblePages
@@ -111,6 +116,7 @@ internal fun LibraryScreenContent(
     val managedIndexStatus = state.managedScanStatus
     val artworkCatalog = state.artworkCatalog
     val playbackState = state.playbackState
+    var openedActions by remember { mutableStateOf<app.enotone.library.OfflineTrackRow?>(null) }
     // Saveable: the app-level Now Playing screen removes the library from
     // composition; MainActivity keeps these states in a SaveableStateHolder so
     // Back returns to the same scroll position (Huawei regression after #92).
@@ -176,7 +182,9 @@ internal fun LibraryScreenContent(
         contentPadding
     }
     // Системное «Назад» из альбома или исполнителя возвращает к списку страницы, а не на «Домой».
-    BackHandler(enabled = selectedGroupKey != null) { actions.onGroupSelected(null) }
+    BackHandler(enabled = detail != null || selectedGroupKey != null) {
+        if (detail != null) onBackDetail() else actions.onGroupSelected(null)
+    }
     // Повтор активной вкладки: из группы — к списку, иначе — в начало. Обработанный номер сохраняется,
     // чтобы возврат из «Сейчас играет» (тот же номер) не прокручивал список заново.
     var handledScroll by rememberSaveable { mutableIntStateOf(scrollToTop) }
@@ -318,7 +326,7 @@ internal fun LibraryScreenContent(
                                 repository = artworkRepository,
                                 accountEmail = accountEmail,
                                 appPassword = appPassword,
-                                onOpen = { actions.onGroupSelected(group.key) },
+                                onOpen = { onOpenDetail(LibraryDetail.Album(group.key)) },
                             )
                         }
                     }
@@ -338,7 +346,13 @@ internal fun LibraryScreenContent(
                         items(shownGroups, key = { it.key }) { group ->
                             Row(
                                 modifier = Modifier.fillMaxWidth().height(72.dp)
-                                    .clickable { actions.onGroupSelected(group.key) },
+                                    .clickable {
+                                        if (section == LibraryPage.ARTISTS) {
+                                            onOpenDetail(LibraryDetail.Artist(group.key))
+                                        } else {
+                                            actions.onGroupSelected(group.key)
+                                        }
+                                    },
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -419,60 +433,40 @@ internal fun LibraryScreenContent(
                     }
                 }
                 items(visible, key = { it.id }) { track ->
-                    // All rows remain lazy. Cover loads only for composed items.
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(60.dp)
-                            .clickable(enabled = !selecting && state.playbackConnected) {
-                                actions.onTrackClicked(track, visible)
-                            },
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (section == LibraryPage.ALBUMS && selectedGroup != null) {
-                            Text(
-                                text = track.trackNumber?.toString().orEmpty(),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(width = 32.dp, height = 24.dp),
-                            )
-                        } else {
+                    EnoTrackRow(
+                        title = track.title,
+                        subtitle = when {
+                            section == LibraryPage.ALBUMS && selectedGroup != null ->
+                                track.artist.orEmpty()
+                            else -> listOfNotNull(track.artist, track.album).joinToString(" · ")
+                        },
+                        onClick = {
+                            if (!selecting && state.playbackConnected) actions.onTrackClicked(track, visible)
+                        },
+                        onMore = { openedActions = track },
+                        onLongClick = { openedActions = track },
+                        onLongClickLabel = stringResource(R.string.song_actions_long_press),
+                        moreContentDescription = stringResource(R.string.song_actions_description, track.title),
+                        playingDescription = stringResource(R.string.song_playing_description),
+                        variant = if (section == LibraryPage.ALBUMS && selectedGroup != null)
+                            EnoTrackRowVariant.ALBUM else EnoTrackRowVariant.LIBRARY,
+                        trackNumber = track.trackNumber?.toString().orEmpty(),
+                        isCurrent = track.id == state.currentTrackId,
+                        isPlaying = playbackState == "PLAYING",
+                        artwork = {
                             TrackArtworkThumbnail(
                                 trackId = track.id,
                                 artworkGroup = artworkCatalog.byTrackId[track.id],
                                 repository = artworkRepository,
                                 accountEmail = accountEmail,
                                 appPassword = appPassword,
-                                allowNetwork = playbackState != "LOADING" &&
-                                    playbackState != "BUFFERING",
+                                allowNetwork = playbackState !in setOf("LOADING", "BUFFERING"),
                             )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = track.title,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.bodyLarge,
-                            )
-                            val subtitle = if (section == LibraryPage.ALBUMS &&
-                                selectedGroup != null) track.artist.orEmpty()
-                            else listOfNotNull(track.artist, track.album)
-                                .joinToString(" · ")
-                            if (subtitle.isNotBlank()) {
-                                Text(
-                                    text = subtitle,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
+                        },
+                    )
                     HorizontalDivider(
-                        modifier = Modifier.padding(start = if (section == LibraryPage.ALBUMS &&
-                            selectedGroup != null) 44.dp else 56.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant,
+                        color = EnoColors.line,
+                        modifier = Modifier.padding(start = 56.dp),
                         thickness = 0.5.dp,
                     )
                 }
@@ -522,6 +516,19 @@ internal fun LibraryScreenContent(
             )
         }
     }
+    }
+    openedActions?.let { track ->
+        TrackActionsHost(
+            track = track,
+            tracks = tracks,
+            currentDetail = detail,
+            artworkCatalog = artworkCatalog,
+            artworkRepository = artworkRepository,
+            accountEmail = accountEmail,
+            appPassword = appPassword,
+            onDismiss = { openedActions = null },
+            onOpenDetail = onOpenDetail,
+        )
     }
 }
 

@@ -42,6 +42,8 @@ internal fun AppMusicShell(
     playerModel: PlayerViewModel,
     libraryStateHolder: SaveableStateHolder,
     onSelectTab: (AppTab) -> Unit,
+    onOpenDetail: (LibraryDetail) -> Unit,
+    onBackDetail: () -> Unit,
     onSettings: () -> Unit,
 ) {
     val login = account.libraryLogin
@@ -69,10 +71,17 @@ internal fun AppMusicShell(
                 )
                 is AppTab.Library -> if (login != null && libraryModel != null) {
                     // Состояние прокрутки переживает «Сейчас играет» (регрессия Huawei после #92).
-                    libraryStateHolder.SaveableStateProvider(LIBRARY_STATE_KEY) {
+                    val routeKey = LIBRARY_STATE_KEY + tab.page.name + ":" +
+                        nav.details.joinToString("/") { detail ->
+                            (if (detail is LibraryDetail.Album) "a" else "r") + detail.key.length + ":" + detail.key
+                        }
+                    libraryStateHolder.SaveableStateProvider(routeKey) {
                         OfflineLibraryScreen(
                             model = libraryModel,
                             page = tab.page,
+                            detail = nav.details.lastOrNull(),
+                            onOpenDetail = onOpenDetail,
+                            onBackDetail = onBackDetail,
                             visiblePages = pages,
                             accountEmail = login.email,
                             appPassword = login.password,
