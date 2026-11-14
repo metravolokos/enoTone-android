@@ -107,6 +107,9 @@ jobs:
           echo "ENOTONE_CI_COMPILER_MIRROR=$RUNNER_TEMP/enotone-ci-maven" >> "$GITHUB_ENV"
       - name: Mock WebDAV tests
         run: python3 -m unittest discover -s tools -p 'test_*.py' -v
+      # ADR-0090: design resources come only from design/ via sync_android.py.
+      - name: Design resources match design/
+        run: python3 design/tools/sync_android.py --check
       # Reject a tampered gradle-wrapper.jar (supply-chain check for ./gradlew users).
       - name: Validate Gradle Wrapper
         uses: gradle/actions/wrapper-validation@v6

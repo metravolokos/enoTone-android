@@ -54,7 +54,7 @@ enum class EnoIcons(@DrawableRes val outline: Int, @DrawableRes val selected: In
     PLAY_NEXT(R.drawable.ic_eno_play_next),
     QUEUE_ADD(R.drawable.ic_eno_queue_add),
 
-    // Служебные значки из утверждённых макетов Android v2 (в UI Icons v1 их нет, D3.1).
+    // Служебные значки из утверждённых макетов Android v2 (добавлены в UI Icons v1 в D3.1).
     SEARCH(R.drawable.ic_eno_search),
     TUNE(R.drawable.ic_eno_tune),
     CLOSE(R.drawable.ic_eno_close),

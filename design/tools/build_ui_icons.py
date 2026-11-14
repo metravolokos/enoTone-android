@@ -62,6 +62,10 @@ ICONS = {
     'tune': [('stroke', 'M4 7h8.5M17.5 7H20M4 17h2.5M11.5 17H20'),
              ('stroke', circle(15, 7, 2.5)), ('stroke', circle(9, 17, 2.5))],
     'close': [('stroke', 'M6.5 6.5L17.5 17.5M17.5 6.5L6.5 17.5')],
+    # действия листа песни (2026-11-15) — формы утверждены на артборде Android2-SongActions
+    # (canvas/gen.py EXTRA: play_next, add_end); заменили временные значки из M6-0/8a (#134)
+    'play_next': [('stroke', 'M4 6.5h10M4 11.5h7M4 16.5h7'), ('both', 'M15.5 11.6 20.5 15l-5 3.4z', 1.6)],
+    'queue_add': [('stroke', 'M4 6.5h12M4 11.5h12M4 16.5h6M17.5 13.5v7M14 17h7')],
 }
 
 def svg(els):
