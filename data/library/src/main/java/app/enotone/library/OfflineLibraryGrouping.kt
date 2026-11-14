@@ -74,9 +74,42 @@ object OfflineLibraryGrouping {
     fun artists(tracks: List<OfflineTrackRow>): List<OfflineLibraryGroup> =
         performerGroups(tracks, "artist:", { it.artist })
 
-    /** Album Artist only, never invent one from a track-level Artist. */
-    fun albumArtists(tracks: List<OfflineTrackRow>): List<OfflineLibraryGroup> =
-        performerGroups(tracks, "album-artist:", { it.albumArtist })
+    /** Stable synthetic group for explicit and detected compilation albums. */
+    const val COMPILATIONS_KEY = "album-artist:compilations"
+
+    private val compilationNames = setOf(
+        "various artists", "va", "разные исполнители", "сборник",
+    )
+
+    /**
+     * Явная метка Various Artists/VA или альбом без Album Artist с двумя и более
+     * разными исполнителями треков. Одиночный альбом без Album Artist не является сборником.
+     */
+    fun compilationTrackIds(tracks: List<OfflineTrackRow>): Set<String> {
+        val explicit = tracks.filter {
+            known(it.albumArtist)?.let(::normalized) in compilationNames
+        }
+        val implicit = tracks.filter {
+            known(it.album) != null && known(it.albumArtist) == null
+        }.groupBy { normalized(requireNotNull(known(it.album))) }
+            .values.filter { album ->
+                album.mapNotNull { known(it.artist)?.let(::normalized) }.distinct().size >= 2
+            }
+        return (explicit + implicit.flatten()).mapTo(linkedSetOf()) { it.id }
+    }
+
+    /** Album Artist groups plus one synthetic group for compilations, always first. */
+    fun albumArtists(
+        tracks: List<OfflineTrackRow>,
+        compilationsName: String = "Разные исполнители",
+    ): List<OfflineLibraryGroup> {
+        val compilationIds = compilationTrackIds(tracks)
+        val regular = performerGroups(tracks.filterNot { it.id in compilationIds },
+            "album-artist:", { it.albumArtist })
+        return if (compilationIds.isEmpty()) regular else listOf(
+            OfflineLibraryGroup(COMPILATIONS_KEY, compilationsName, null, compilationIds),
+        ) + regular
+    }
 
     private fun performerGroups(
         tracks: List<OfflineTrackRow>,
