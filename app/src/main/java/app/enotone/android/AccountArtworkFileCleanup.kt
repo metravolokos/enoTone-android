@@ -1,5 +1,6 @@
 package app.enotone.android
 
+import app.enotone.playback.AtomicFileReplace
 import java.io.File
 import java.io.IOException
 
@@ -73,7 +74,9 @@ internal class AccountArtworkManifest(private val file: File) {
         val temp = File(file.parentFile, file.name + ".tmp")
         try {
             temp.writeText(content, Charsets.US_ASCII)
-            if (!temp.renameTo(file)) throw IOException("Cannot commit sign-out manifest")
+            if (!AtomicFileReplace.replace(temp, file)) {
+                throw IOException("Cannot commit sign-out manifest")
+            }
         } finally {
             temp.delete()
         }

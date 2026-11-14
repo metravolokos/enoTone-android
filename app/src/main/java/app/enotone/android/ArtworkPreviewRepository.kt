@@ -4,9 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
-import app.enotone.library.EmbeddedArtworkPayloadReader
 import app.enotone.library.ArtworkLookupCode
+import app.enotone.library.EmbeddedArtworkPayloadReader
 import app.enotone.library.WebDavRangeReader
+import app.enotone.playback.AtomicFileReplace
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -544,11 +545,13 @@ internal class ArtworkPreviewRepository(context: Context) {
         return try {
             temp = File.createTempFile("art-", ".tmp", directory)
             temp.outputStream().use { it.write(bytes) }
-            temp.renameTo(destination)
+            // Report the real outcome: the previous silent renameTo failure lost artwork
+            // without any signal to the caller or the diagnostics screen.
+            AtomicFileReplace.replace(temp, destination)
         } catch (_: Exception) {
             false
         } finally {
-            temp?.delete()
+            temp?.let { if (it.exists()) it.delete() }
         }
     }
 
