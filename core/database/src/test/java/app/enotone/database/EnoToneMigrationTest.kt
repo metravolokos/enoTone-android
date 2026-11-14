@@ -161,6 +161,66 @@ class EnoToneMigrationTest {
         }
     }
 
+    @Test fun migrationSixToSevenRemovesFtsAndPreservesTracksPlaylistsAndPositions() {
+        val name = "test-migrate-six-to-seven"
+        helper.createDatabase(name, 6).use { db ->
+            db.execSQL("""
+                INSERT INTO remote_tracks
+                (id, sourceKey, encodedPath, fileName, remoteEtag, remoteSize,
+                 remoteModified, title, artist, album, albumArtist, lastSeenEpoch,
+                 missingScans, firstSeenEpochMs)
+                VALUES ('persist', 'source-a', '/fixture/a.mp3', 'a.mp3', 'etag', 1234,
+                        'modified', 'Fixture', 'Artist', 'Album', 'Author', 1, 0, 987654)
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO playlists
+                (id, sourceKey, name, kind, createdEpochMs, updatedEpochMs)
+                VALUES ('playlist-1', 'source-a', 'Example', 'MANUAL', 55, 66)
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO playlist_items
+                (playlistId, trackId, position, addedEpochMs)
+                VALUES ('playlist-1', 'persist', 7, 77)
+            """.trimIndent())
+            db.execSQL("""
+                INSERT INTO track_search (trackId, sourceKey, text)
+                VALUES ('persist', 'source-a', 'fixture')
+            """.trimIndent())
+        }
+        helper.runMigrationsAndValidate(name, 7, true, EnoToneDatabase.MIGRATION_6_7).use { db ->
+            assertEquals(1, count(db, "remote_tracks"))
+            assertEquals(1, count(db, "playlists"))
+            assertEquals(1, count(db, "playlist_items"))
+            db.query("SELECT firstSeenEpochMs FROM remote_tracks WHERE id = 'persist'")
+                .use { c -> assertTrue(c.moveToFirst()); assertEquals(987654L, c.getLong(0)) }
+            db.query("SELECT position, addedEpochMs FROM playlist_items").use { c ->
+                assertTrue(c.moveToFirst())
+                assertEquals(7, c.getInt(0))
+                assertEquals(77L, c.getLong(1))
+            }
+            db.query("SELECT name, kind FROM playlists WHERE id = 'playlist-1'").use { c ->
+                assertTrue(c.moveToFirst())
+                assertEquals("Example", c.getString(0))
+                assertEquals("MANUAL", c.getString(1))
+            }
+            db.query("SELECT COUNT(*) FROM sqlite_master WHERE name = 'track_search'")
+                .use { c -> assertTrue(c.moveToFirst()); assertEquals(0, c.getInt(0)) }
+        }
+    }
+
+    @Test fun directMigrationOneThroughSevenPreservesHistoricalRows() {
+        val name = "test-migrate-one-to-seven"
+        insertLegacyV1(name)
+        helper.runMigrationsAndValidate(name, 7, true, EnoToneDatabase.MIGRATION_6_7).use { db ->
+            assertEquals(1, count(db, "remote_tracks"))
+            assertEquals(0, count(db, "playlists"))
+            db.query("SELECT albumArtist FROM remote_tracks WHERE id = 'id1'").use { c ->
+                assertTrue(c.moveToFirst())
+                assertEquals("Legacy album artist", c.getString(0))
+            }
+        }
+    }
+
     private fun count(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Int =
         db.query("SELECT COUNT(*) FROM $table").use { cursor ->
             assertTrue(cursor.moveToFirst())

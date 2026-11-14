@@ -1,16 +1,20 @@
 package app.enotone.database
 
 import android.content.Context
+import android.database.sqlite.SQLiteException
+import android.util.Log
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.withTransaction
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [RemoteTrackEntity::class, PlaylistEntity::class, PlaylistItemEntity::class,
-        TrackSearchEntity::class],
-    version = 6,
+        ],
+    version = 7,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -23,16 +27,26 @@ import androidx.room.withTransaction
 abstract class EnoToneDatabase : RoomDatabase() {
     abstract fun remoteTrackDao(): RemoteTrackDao
     abstract fun playlistDao(): PlaylistDao
-    abstract fun trackSearchDao(): TrackSearchDao
 
     /** Playlist rows are removed before tracks; item foreign keys then cascade in one commit. */
     suspend fun deleteAccountData(sourceKey: String): Int = withTransaction {
         playlistDao().deleteAllForSource(sourceKey)
-        trackSearchDao().deleteForSource(sourceKey)
         remoteTrackDao().deleteAllForSource(sourceKey)
     }
 
     companion object {
+        /** Only the derived index is disposable; migration never touches user data. */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("DROP TABLE IF EXISTS track_search")
+                } catch (_: SQLiteException) {
+                    // OEM SQLite may reject a malformed FTS table. Room v7 does not manage it.
+                    Log.w("EnoToneRoom", "MIGRATION_6_7_DROP_FTS_FAILED")
+                }
+            }
+        }
+
         /** File name is part of the on-device contract: renaming it loses the library. */
         const val FILE_NAME = "enotone-local-library.db"
 
@@ -51,7 +65,7 @@ abstract class EnoToneDatabase : RoomDatabase() {
                     context.applicationContext,
                     EnoToneDatabase::class.java,
                     FILE_NAME,
-                ).build().also { instance = it }
+                ).addMigrations(MIGRATION_6_7).build().also { instance = it }
             }
     }
 }
