@@ -64,10 +64,13 @@ object EnoColors {
     val coverOutline: Color @Composable get() = LocalEnoColors.current.coverOutline
     val playingOverlay: Color @Composable get() = LocalEnoColors.current.playingOverlay
     val playingBar: Color @Composable get() = LocalEnoColors.current.playingBar
+
     /** Обводка обложки «Сейчас играет»: белая 35 % в «Графите», чёрная 35 % в «Фарфоре» (D3.2). */
     val coverRim: Color @Composable get() = LocalEnoColors.current.coverRim
+
     /** Усиленная тень обложки «Сейчас играет» (D3.2). */
     val shadowStrong: Color @Composable get() = LocalEnoColors.current.shadowStrong
+
     val avatars: List<Pair<Color, Color>> @Composable get() = LocalEnoColors.current.avatars
 }
 
