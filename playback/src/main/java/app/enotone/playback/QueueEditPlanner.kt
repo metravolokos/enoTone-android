@@ -38,57 +38,85 @@ data class QueueEditPlan(
  */
 object QueueEditPlanner {
     fun plan(layout: QueueLayout, edit: QueueEdit): QueueEditPlan {
+        validate(layout)
+        val requested = edit.ids.filter(String::isNotBlank).distinct()
+        val selected = selectIds(layout, requested)
+        return when {
+            requested.isEmpty() -> QueueEditPlan(
+                layout, emptyList(), QueueEditResult(QueueEditStatus.EMPTY_SELECTION),
+            )
+            selected.ids.isEmpty() -> QueueEditPlan(
+                layout, emptyList(), QueueEditResult(emptyResult(layout, requested, selected.full)),
+            )
+            else -> buildPlan(layout, edit, selected)
+        }
+    }
+
+    private data class SelectedIds(val ids: List<String>, val full: Boolean)
+
+    private fun selectIds(layout: QueueLayout, requested: List<String>): SelectedIds {
+        val original = layout.trackIds.toHashSet()
+        val selected = mutableListOf<String>()
+        var additional = 0
+        var full = false
+        requested.forEach { id ->
+            when {
+                id == layout.currentTrackId -> Unit
+                id in original -> selected.add(id)
+                layout.trackIds.size + additional < PlaybackQueue.MAX_TRACKS -> {
+                    selected.add(id)
+                    additional++
+                }
+                else -> full = true
+            }
+        }
+        return SelectedIds(selected, full)
+    }
+
+    private fun emptyResult(
+        layout: QueueLayout,
+        requested: List<String>,
+        full: Boolean,
+    ): QueueEditStatus = when {
+        full -> QueueEditStatus.QUEUE_FULL
+        layout.currentTrackId in requested -> QueueEditStatus.ALREADY_PLAYING
+        else -> QueueEditStatus.EMPTY_SELECTION
+    }
+
+    private fun buildPlan(
+        layout: QueueLayout,
+        edit: QueueEdit,
+        selection: SelectedIds,
+    ): QueueEditPlan {
+        val movedSet = selection.ids.toHashSet()
+        val remaining = layout.playbackIds().filterNot { it in movedSet }
+        val insertion = if (edit is QueueEdit.PlayNext && layout.currentTrackId != null)
+            remaining.indexOf(layout.currentTrackId) + 1 else remaining.size
+        val playbackOrder = remaining.take(insertion) + selection.ids + remaining.drop(insertion)
+        val physical = if (layout.shuffleEnabled) {
+            layout.trackIds + selection.ids.filterNot { it in layout.trackIds.toHashSet() }
+        } else playbackOrder
+        val physicalIndices = physical.withIndex().associate { it.value to it.index }
+        val shuffle = if (layout.shuffleEnabled)
+            playbackOrder.map { physicalIndices.getValue(it) }.toIntArray() else null
+        val status = if (selection.full) QueueEditStatus.QUEUE_FULL else QueueEditStatus.APPLIED
+        return QueueEditPlan(
+            QueueLayout(physical, shuffle, layout.currentTrackId ?: playbackOrder.first()),
+            selection.ids,
+            QueueEditResult(status, selection.ids.size),
+        )
+    }
+
+    private fun validate(layout: QueueLayout) {
         val original = layout.trackIds
         require(original.size <= PlaybackQueue.MAX_TRACKS &&
             original.size == original.toSet().size)
-        require(layout.currentTrackId == null == original.isEmpty())
+        require((layout.currentTrackId == null) == original.isEmpty())
         if (original.isNotEmpty()) require(layout.currentTrackId in original)
         layout.shuffledIndices?.let { indices ->
             require(indices.size == original.size && indices.all { it in original.indices } &&
                 indices.toSet().size == indices.size)
         }
-        val requested = edit.ids.filter(String::isNotBlank).distinct()
-        if (requested.isEmpty()) {
-            return QueueEditPlan(layout, emptyList(), QueueEditResult(QueueEditStatus.EMPTY_SELECTION))
-        }
-        val current = layout.currentTrackId
-        val already = original.toHashSet()
-        val selected = mutableListOf<String>()
-        var full = false
-        var newCount = 0
-        requested.forEach { id ->
-            if (id == current) return@forEach
-            if (id in already) selected.add(id)
-            else if (original.size + newCount < PlaybackQueue.MAX_TRACKS) {
-                selected.add(id)
-                newCount++
-            } else full = true
-        }
-        if (selected.isEmpty()) {
-            val status = when {
-                full -> QueueEditStatus.QUEUE_FULL
-                current in requested -> QueueEditStatus.ALREADY_PLAYING
-                else -> QueueEditStatus.EMPTY_SELECTION
-            }
-            return QueueEditPlan(layout, emptyList(), QueueEditResult(status))
-        }
-        val movedSet = selected.toHashSet()
-        val remaining = layout.playbackIds().filterNot { it in movedSet }
-        val insertion = if (edit is QueueEdit.PlayNext && current != null)
-            remaining.indexOf(current) + 1 else remaining.size
-        val playbackOrder = remaining.take(insertion) + selected + remaining.drop(insertion)
-        val physical = if (layout.shuffleEnabled) {
-            original + selected.filterNot { it in already }
-        } else playbackOrder
-        val physicalIndices = physical.withIndex().associate { it.value to it.index }
-        val shuffle = if (layout.shuffleEnabled)
-            playbackOrder.map { physicalIndices.getValue(it) }.toIntArray() else null
-        val status = if (full) QueueEditStatus.QUEUE_FULL else QueueEditStatus.APPLIED
-        return QueueEditPlan(
-            QueueLayout(physical, shuffle, current ?: playbackOrder.first()),
-            selected,
-            QueueEditResult(status, selected.size),
-        )
     }
 }
 
