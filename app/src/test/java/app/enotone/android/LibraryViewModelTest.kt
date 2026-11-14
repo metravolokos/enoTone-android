@@ -327,20 +327,16 @@ class LibraryViewModelTest {
         }
     }
 
-    @Test fun `new open request switches page but the same request keeps user choice`() = runTest {
+    @Test fun `page selection remains stable across unrelated player screen transitions`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val library = model(this, FakeRepository(catalog(row(1, "Зима"))))
             advanceUntilIdle()
-            library.onOpenRequest(1, LibraryPage.TRACKS)
             library.onPageSelected(LibraryPage.ARTISTS)
-            // Возврат из «Сейчас играет»: тот же запрос — выбор пользователя сохраняется (O-13).
-            library.onOpenRequest(1, LibraryPage.TRACKS)
             assertEquals(LibraryPage.ARTISTS, library.state.value.section)
-            // «Домой → Альбомы»: новый запрос открывает выбранную страницу.
-            library.onOpenRequest(2, LibraryPage.ALBUMS)
-            assertEquals(LibraryPage.ALBUMS, library.state.value.section)
+            // Слой «Сейчас играет» не меняет страницу медиатеки.
             advanceUntilIdle()
+            assertEquals(LibraryPage.ARTISTS, library.state.value.section)
         } finally {
             Dispatchers.resetMain()
         }
@@ -355,8 +351,7 @@ class LibraryViewModelTest {
             library.onVisiblePagesChanged(listOf(LibraryPage.TRACKS, LibraryPage.ARTISTS))
             assertEquals(listOf(LibraryPage.TRACKS, LibraryPage.ARTISTS), library.state.value.visiblePages)
             assertEquals(LibraryPage.TRACKS, library.state.value.section)
-            library.onOpenRequest(1, LibraryPage.TRACKS)
-            library.onOpenRequest(2, LibraryPage.ALBUMS)
+            library.onPageSelected(LibraryPage.ALBUMS)
             assertEquals(LibraryPage.TRACKS, library.state.value.section)
             advanceUntilIdle()
         } finally {
