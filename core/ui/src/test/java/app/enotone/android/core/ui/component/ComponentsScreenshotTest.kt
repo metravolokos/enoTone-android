@@ -54,6 +54,6 @@ class ComponentsScreenshotTest {
         composeRule.waitForIdle()
         val count = if (twoGroups) "two" else "one"
         val theme = if (dark) "graphite" else "porcelain"
-        composeRule.onRoot().captureRoboImage("src/test/screenshots/action_sheet_${count}_${theme}.png")
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/action_sheet_${count}_$theme.png")
     }
 }
