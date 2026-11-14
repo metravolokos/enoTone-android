@@ -44,6 +44,7 @@ internal fun AlbumArtworkTile(
     accountEmail: String,
     appPassword: String,
     onOpen: () -> Unit,
+    subtitle: String? = group.subtitle,
 ) {
     // Lazy grid/list items are disposed during navigation. If we already
     // drew this source on another page, paint the RAM image immediately
@@ -98,7 +99,7 @@ internal fun AlbumArtworkTile(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        val secondary = listOfNotNull(group.subtitle).joinToString(" · ")
+        val secondary = subtitle.orEmpty()
         if (secondary.isNotEmpty()) {
             Text(
                 text = secondary,
