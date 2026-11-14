@@ -237,5 +237,5 @@
     <string name="library_found_nothing">Nothing found</string>
     <!-- D3.2: "Translucent bars" setting, off by default (ADR-0088). -->
     <string name="appearance_translucent_dock">Translucent bars</string>
-    <string name="appearance_translucent_dock_hint">Blur behind the mini player and navigation bar</string>
+    <string name="appearance_translucent_dock_hint">Blur behind the top bar, mini player and navigation bar</string>
 </resources>

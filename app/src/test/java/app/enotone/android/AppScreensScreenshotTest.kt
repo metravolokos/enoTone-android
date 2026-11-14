@@ -134,14 +134,15 @@ class AppScreensScreenshotTest {
 
     @Test fun translucentDockPorcelain() = translucentDock(dark = false)
 
-    /** D3.2: настройка «Прозрачные панели» включена — мини-плеер и панель над прокрученным списком. */
+    /** D3.2/D3.3: «Прозрачные панели» включены — заголовок, мини-плеер и панель над прокрученным списком. */
     private fun translucentDock(dark: Boolean) {
         rule.setContent {
             Screen(dark) {
                 val blur = rememberEnoBlurState()
-                Box(Modifier.fillMaxSize()) {
-                    Library(albumsState(), blur = blur, bottom = DOCK_SPACE)
-                    CompositionLocalProvider(LocalEnoDockBlur provides blur) {
+                // D3.3: настройка включает размытие и верхнего заголовка, и нижних панелей.
+                CompositionLocalProvider(LocalEnoDockBlur provides blur) {
+                    Box(Modifier.fillMaxSize()) {
+                        Library(albumsState(), blur = blur, bottom = DOCK_SPACE)
                         Column(
                             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -255,5 +255,5 @@
     <string name="library_found_nothing">Ничего не нашлось</string>
     <!-- D3.2: настройка «Прозрачные панели», по умолчанию выключена (ADR-0088). -->
     <string name="appearance_translucent_dock">Прозрачные панели</string>
-    <string name="appearance_translucent_dock_hint">Мини-плеер и нижняя панель с размытием</string>
+    <string name="appearance_translucent_dock_hint">Верхняя и нижняя панели, мини-плеер — с размытием</string>
 </resources>
