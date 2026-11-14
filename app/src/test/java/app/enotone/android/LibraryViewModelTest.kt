@@ -31,7 +31,61 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
+@org.robolectric.annotation.Config(sdk = [35])
 class LibraryViewModelTest {
+    @Test fun scratchRealRoomSearchRepro() {
+        Dispatchers.setMain(Dispatchers.Unconfined)
+        try {
+            val db = androidx.room.Room.inMemoryDatabaseBuilder(
+                androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>(),
+                app.enotone.database.EnoToneDatabase::class.java,
+            ).build()
+            val key = LibrarySnapshotPlanner.accountKey(email)
+            kotlinx.coroutines.runBlocking {
+                db.remoteTrackDao().upsertAll((1..60).map { n ->
+                    app.enotone.database.RemoteTrackEntity(
+                        id = id(n), sourceKey = key, encodedPath = "/AllMusic/t$n.mp3",
+                        fileName = "t$n.mp3", remoteEtag = null, remoteSize = 500,
+                        remoteModified = null,
+                        title = when { n % 10 == 0 -> "Malibu $n"; n % 7 == 0 -> "Мальчик $n"; else -> "Song $n" },
+                        artist = "Artist", album = if (n % 5 == 0) "А был ли мальчик?" else "Album",
+                        lastSeenEpoch = 1)
+                })
+            }
+            val repo = app.enotone.library.RoomLibraryRepository(db, Dispatchers.IO) { null }
+            val vm = LibraryViewModel(
+                accountEmail = email, password = "RAM-only", initialPage = LibraryPage.TRACKS,
+                repository = repo, connection = FakeConnection(), artwork = NoArtwork,
+                io = Dispatchers.IO, unknownAlbumName = "Неизвестный альбом",
+                messages = AlbumRefreshMessages(), clockMs = { 1234L },
+                managedStatus = MutableStateFlow(ManagedScanStatus()),
+                accountEvents = MutableStateFlow(AccountState()),
+                dataRevision = MutableStateFlow(0L), visiblePages = LibraryPage.entries.toList(),
+            )
+            fun settle(label: String) {
+                var last = -1; var stable = 0
+                repeat(60) {
+                    Thread.sleep(50)
+                    org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+                    val now = vm.state.value.visible.size
+                    if (now == last) stable++ else { stable = 0; last = now }
+                }
+                val s = vm.state.value
+                println("REPRO $label search='${s.search}' visible=${s.visible.size} tracks=${s.tracks.size} loading=${s.loading} failed=${s.failed}")
+            }
+            settle("initial")
+            val direct = kotlinx.coroutines.runBlocking { repo.searchTrackIds(email, "mal") }
+            println("REPRO direct-fts mal=${direct.size} маль=${kotlinx.coroutines.runBlocking { repo.searchTrackIds(email, "маль") }.size}")
+            vm.onSearch("mal"); settle("mal-slow")
+            vm.onSearch(""); settle("clear")
+            for (q in listOf("м", "ма", "мал", "маль")) vm.onSearch(q)
+            settle("маль-fast")
+            vm.onSearch("malibu"); settle("malibu")
+            db.close()
+        } finally { Dispatchers.resetMain() }
+    }
+
     private val email = "test@example.invalid"
     private fun id(n: Int) = n.toString(16).padStart(64, '0')
     private fun row(n: Int, title: String) =
