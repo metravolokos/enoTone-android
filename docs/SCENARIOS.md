@@ -84,11 +84,12 @@
 | ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |
 |---|---|---|---|---|---|---|
 | PLAY-01 | Альбом до конца | автопереход без пауз | R-6.6a | JVM, H | `PlaybackQueueTest`, `PlaybackContinuationPolicyTest` | H PASS 2026-11-12 (58 треков) |
-| PLAY-02 | Shuffle, repeat one, repeat all | порядок и режимы работают, видны на экране | R-6.6b | JVM, R | `PlaybackModesTest`, `NowPlayingUiTest` | T |
+| PLAY-02 | Shuffle, repeat one, repeat all | цикл выкл → один → вся очередь → выкл; отображение в `SharedPlayerUiState` и на экране меняется с первого нажатия; shuffle включается и выключается | R-6.6b | JVM, R, H | `PlaybackModesTest`, `PlayerViewModelTest`, `NowPlayingUiTest` | прежние T; новый Huawei-тест ожидает владельца (#132) |
 | PLAY-03 | Название и исполнитель | совпадают в списке, мини-плеере, «Сейчас играет», уведомлении и на экране блокировки | аудит п. 6 | JVM, H | `QueueMetadataTest`, `LibraryCatalogMapperTest` | H PASS 0.6.2-preview.475 |
 | PLAY-04 | Перемотка во время воспроизведения | без лишних загрузок, позиция верная | ADR-0039 | JVM, H | `PlaybackSeekPolicyTest`, `WebDavPlaybackRangeTest` | H PASS (ADR-0039) |
 | PLAY-05 | Экран выключен 20+ минут, 5+ автопереходов | без обрывов | R-7.2 | H | нет | H PASS 2026-11-12 (общий отзыв: «плавно, без зависаний»), детальный прогон не отчитан |
 | PLAY-06 | Регулятор громкости | отсутствует в приложении | O-12 | R | `NowPlayingUiTest` | T, H PASS 0.6.0-preview.429 |
+| PLAY-07 | Повтор одного при неожиданном `ENDED` | запускается тот же item с начала, индекс очереди не меняется (в т. ч. очередь из одного трека); изменение режима из уведомления учитывается | R-6.6b | JVM, H | `PlaybackContinuationPolicyTest` (фейковый `Player`) | регрессионный тест #132; Huawei не проверено |
 
 ## REST — восстановление
 

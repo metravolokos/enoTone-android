@@ -1,6 +1,9 @@
 package app.enotone.android
 
 import android.content.Context
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -12,6 +15,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
+import app.enotone.playback.PlaybackModes
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -80,6 +84,61 @@ class NowPlayingUiTest {
             rule.onNodeWithContentDescription(label).assertDoesNotExist()
             rule.onNodeWithText(label).assertDoesNotExist()
         }
+    }
+
+    @Test fun repeatCycleAndShuffleRespondToRealTouchesAndRecompose() {
+        val repeat = mutableIntStateOf(Player.REPEAT_MODE_OFF)
+        val shuffle = mutableStateOf(false)
+        rule.setContent {
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "PAUSED",
+                    errorCode = 0, positionMs = 0, durationMs = 60_000,
+                    canSeek = true, controlsEnabled = true,
+                    hasPrevious = true, hasNext = true,
+                    queuePosition = 1, queueTotal = 3,
+                    repeatMode = repeat.intValue, shuffleEnabled = shuffle.value,
+                    onClose = {}, onSeekFraction = {}, onPlayPause = {},
+                    onPrevious = {}, onNext = {},
+                    onCycleRepeat = {
+                        repeat.intValue = PlaybackModes.nextRepeat(repeat.intValue)
+                    },
+                    onToggleShuffle = { shuffle.value = !shuffle.value },
+                )
+            }
+        }
+
+        fun repeatLabel(mode: Int): String {
+            val labelId = when (mode) {
+                Player.REPEAT_MODE_ONE -> R.string.playback_repeat_one
+                Player.REPEAT_MODE_ALL -> R.string.playback_repeat_all
+                else -> R.string.playback_repeat_off
+            }
+            return context.getString(R.string.playback_repeat_control,
+                context.getString(labelId))
+        }
+
+        for ((from, to) in listOf(
+            Player.REPEAT_MODE_OFF to Player.REPEAT_MODE_ONE,
+            Player.REPEAT_MODE_ONE to Player.REPEAT_MODE_ALL,
+            Player.REPEAT_MODE_ALL to Player.REPEAT_MODE_OFF,
+        )) {
+            rule.onNodeWithContentDescription(repeatLabel(from))
+                .performTouchInput { click() }
+            rule.onNodeWithContentDescription(repeatLabel(to)).assertExists()
+            rule.runOnIdle { assertEquals(to, repeat.intValue) }
+        }
+        rule.onNodeWithContentDescription(context.getString(R.string.playback_shuffle_off))
+            .performTouchInput { click() }
+        rule.onNodeWithContentDescription(context.getString(R.string.playback_shuffle_on))
+            .assertExists()
+        rule.runOnIdle { assertEquals(true, shuffle.value) }
+        rule.onNodeWithContentDescription(context.getString(R.string.playback_shuffle_on))
+            .performTouchInput { click() }
+        rule.onNodeWithContentDescription(context.getString(R.string.playback_shuffle_off))
+            .assertExists()
+        rule.runOnIdle { assertEquals(false, shuffle.value) }
     }
 
     @Test fun disabledTransportIsNotClickableAndKeepsTimeVisible() {

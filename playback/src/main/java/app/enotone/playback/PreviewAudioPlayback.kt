@@ -140,15 +140,22 @@ class PreviewAudioPlayback(
      */
     private fun scheduleEndRecoveryIfNeeded() {
         val endedId = player.currentMediaItem?.mediaId ?: return
-        if (lastEndRecoveryId == endedId || !canRecoverEnded()) return
+        if (alreadyRecovered(endedId) || !canRecoverEnded()) return
         cacheHandler.post {
             if (player.currentMediaItem?.mediaId != endedId ||
-                lastEndRecoveryId == endedId || !canRecoverEnded()) return@post
+                alreadyRecovered(endedId) || !canRecoverEnded()) return@post
             lastEndRecoveryId = endedId
-            player.seekToNextMediaItem()
-            resumeAfterManualSkip()
+            PlaybackContinuationPolicy.recoverUnexpectedEnd(player)
         }
     }
+
+    /**
+     * Одна попытка на трек защищает от петли «следующий → ENDED». При повторе одного трека
+     * тот же id законно заканчивается на каждом круге — иначе повтор оборвался бы после второго
+     * проигрывания (ревью #132). Битый файл даёт ERROR, а не ENDED, поэтому петли нет.
+     */
+    private fun alreadyRecovered(endedId: String): Boolean =
+        player.repeatMode != Player.REPEAT_MODE_ONE && lastEndRecoveryId == endedId
 
     private fun canRecoverEnded(): Boolean =
         PlaybackContinuationPolicy.shouldAutoRecover(
