@@ -36,6 +36,7 @@ import org.junit.Test
 class LibraryViewModelTest {
     @Test fun scratchRealRoomSearchRepro() {
         Dispatchers.setMain(Dispatchers.Unconfined)
+        val out = mutableListOf<String>()
         try {
             val db = androidx.room.Room.inMemoryDatabaseBuilder(
                 androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>(),
@@ -72,13 +73,13 @@ class LibraryViewModelTest {
                     if (now == last) stable++ else { stable = 0; last = now }
                 }
                 val s = vm.state.value
-                println("REPRO $label search='${s.search}' visible=${s.visible.size}")
-                println("REPRO   tracks=${s.tracks.size} loading=${s.loading} failed=${s.failed}")
+                out += ("REPRO $label search='${s.search}' visible=${s.visible.size}")
+                out += ("REPRO   tracks=${s.tracks.size} loading=${s.loading} failed=${s.failed}")
             }
             settle("initial")
             val direct = kotlinx.coroutines.runBlocking { repo.searchTrackIds(email, "mal") }
             val directRu = kotlinx.coroutines.runBlocking { repo.searchTrackIds(email, "маль") }
-            println("REPRO direct-fts mal=${direct.size} маль=${directRu.size}")
+            out += ("REPRO direct-fts mal=${direct.size} маль=${directRu.size}")
             vm.onSearch("mal"); settle("mal-slow")
             vm.onSearch(""); settle("clear")
             for (q in listOf("м", "ма", "мал", "маль")) vm.onSearch(q)
@@ -86,6 +87,7 @@ class LibraryViewModelTest {
             vm.onSearch("malibu"); settle("malibu")
             db.close()
         } finally { Dispatchers.resetMain() }
+        throw AssertionError("REPRORESULT " + out.joinToString(" | "))
     }
 
     private val email = "test@example.invalid"
