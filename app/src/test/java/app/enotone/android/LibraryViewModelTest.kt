@@ -232,27 +232,22 @@ class LibraryViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun ftsResponseControlsTrackSearchAndNeverFlashesEmptyBeforeCompletion() = runTest {
+    @Test fun trackSearchRunsInMemoryAndNeverQueriesFtsOnTheDevicePath() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
-            val repo = FakeRepository(catalog(row(1, "Мираж"), row(2, "Лето")))
-            repo.ftsResults = emptySet()
+            val repo = FakeRepository(catalog(row(1, "Мальчик"), row(2, "Лето"), row(3, "Malibu")))
             val vm = model(this, repo)
             advanceUntilIdle()
-            assertEquals(2, vm.state.value.visible.size)
-            vm.onSearch("ираж") // Old substring search would incorrectly match «Мираж».
-            assertEquals(2, vm.state.value.visible.size) // Previous result remains visible.
-            advanceUntilIdle()
-            assertTrue(vm.state.value.visible.isEmpty())
-            assertEquals(1, repo.ftsQueries)
-            repo.ftsResults = setOf(id(1))
-            vm.onSearch("ми")
+            vm.onSearch("маль")
             advanceUntilIdle()
             assertEquals(listOf(id(1)), vm.state.value.visible.map { it.id })
+            vm.onSearch("MAL")
+            advanceUntilIdle()
+            assertEquals(listOf(id(3)), vm.state.value.visible.map { it.id })
             vm.onSearch("")
             advanceUntilIdle()
-            assertEquals(2, vm.state.value.visible.size)
-            assertEquals(2, repo.ftsQueries) // Blank query never queries FTS.
+            assertEquals(3, vm.state.value.visible.size)
+            assertEquals(0, repo.ftsQueries) // FTS4 hung on Huawei; it is not on the UI path.
         } finally { Dispatchers.resetMain() }
     }
 
