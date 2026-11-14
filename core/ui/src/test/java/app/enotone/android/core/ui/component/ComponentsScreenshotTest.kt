@@ -36,4 +36,20 @@ class ComponentsScreenshotTest {
         composeRule.setContent { ShellGallery(darkTheme = false) }
         composeRule.onRoot().captureRoboImage("src/test/screenshots/shell_porcelain.png")
     }
+
+    @Test fun actionSheetOneGraphite() = actionSheet(dark = true, twoGroups = false)
+
+    @Test fun actionSheetOnePorcelain() = actionSheet(dark = false, twoGroups = false)
+
+    @Test fun actionSheetTwoGraphite() = actionSheet(dark = true, twoGroups = true)
+
+    @Test fun actionSheetTwoPorcelain() = actionSheet(dark = false, twoGroups = true)
+
+    private fun actionSheet(dark: Boolean, twoGroups: Boolean) {
+        composeRule.setContent { ActionSheetGallery(darkTheme = dark, twoGroups = twoGroups) }
+        composeRule.waitForIdle()
+        val count = if (twoGroups) "two" else "one"
+        val theme = if (dark) "graphite" else "porcelain"
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/action_sheet_${count}_${theme}.png")
+    }
 }
