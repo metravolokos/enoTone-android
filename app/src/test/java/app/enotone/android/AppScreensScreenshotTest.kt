@@ -47,7 +47,7 @@ import app.enotone.android.core.ui.theme.EnoToneTheme as EnoTheme
 
 /**
  * Экраны D3.1 на эталонном размере Huawei Nova 15 Pro (377 × 816 dp) в обеих темах — для сверки
- * с PNG-макетами `enotone-design/assets/ui-screens/android-v2/` (02, 04, 09, 10, 01).
+ * с PNG-макетами `design/assets/ui-screens/android-v2/` (02, 04, 09, 10, 01).
  * Только выдуманные названия (AGENTS §5).
  */
 @RunWith(RobolectricTestRunner::class)

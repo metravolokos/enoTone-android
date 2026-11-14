@@ -8,7 +8,7 @@
 2. [docs/STATUS.md](docs/STATUS.md) — текущее состояние и следующий шаг.
 3. [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) — **матрица требований** ТЗ и решений владельца со статусами и доказательствами.
 4. [docs/DECISIONS/README.md](docs/DECISIONS/README.md) — индекс ADR с **фактическими** статусами.
-5. [docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md) — **перед любой работой с внешним видом**: целевой дизайн Android v2, шаги D1–D6, источники ресурсов.
+5. [docs/DESIGN_PLAN.md](docs/DESIGN_PLAN.md) — **перед любой работой с внешним видом**: целевой дизайн Android v2, шаги D1–D6, источники ресурсов; сам дизайн — [design/README.md](design/README.md).
 6. [docs/SCENARIOS.md](docs/SCENARIOS.md) — сценарии с ID и последними результатами; **для ревью и аудита** — [docs/AUDIT_PROTOCOL.md](docs/AUDIT_PROTOCOL.md).
 7. [docs/ROADMAP.md](docs/ROADMAP.md), [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md), [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -20,7 +20,8 @@
 
 - D2a: единая тема, дизайн-ресурсы и цвета **в `:core:ui`**, `UiAppearance` и строки остаются в `:app`.
 - D2b: только stateless-компоненты, Preview, скриншот-тесты. До D3–D6 не встраивать их в экраны.
-- Ресурсы дизайна копировать только из `metravolokos/enotone-design`; палитра **строго копия `assets/tokens/android` v1.5**, не редактировать вручную. Не перегенерировать Бандита, значки и wordmark.
+- **Дизайн живёт в [`design/`](design/README.md)**: решения, генераторы, эталоны, исходники холста. Ресурсы (`ic_eno_*`, `bandit_*`, `eno_colors`, wordmark, launcher) переносятся только `design/tools/sync_android.py`, руками не правятся. Правила работы с дизайном — [`design/AGENTS.md`](design/AGENTS.md).
+- **`design-needed`:** если для задачи нужен значок, поза, цвет, состояние или экран, которого нет в `design/`, — эта часть работы останавливается: issue с меткой `design-needed`, в PR и отчёте «заблокировано дизайном: #N». Без Material-подмен, «похожих» путей и заглушек.
 
 ## 3. Жёсткие ограничения (нарушать нельзя)
 
