@@ -59,10 +59,10 @@ import androidx.compose.ui.unit.dp
 import app.enotone.android.core.ui.component.EnoBlurState
 import app.enotone.android.core.ui.component.EnoCollapsingStrip
 import app.enotone.android.core.ui.component.EnoIcons
-import app.enotone.android.core.ui.component.EnoTrackRow
-import app.enotone.android.core.ui.component.EnoTrackRowVariant
 import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
+import app.enotone.android.core.ui.component.EnoTrackRow
+import app.enotone.android.core.ui.component.EnoTrackRowVariant
 import app.enotone.android.core.ui.component.enoBlurSource
 import app.enotone.android.core.ui.component.enoTopBarBackground
 import app.enotone.android.core.ui.component.rememberEnoBlurState
