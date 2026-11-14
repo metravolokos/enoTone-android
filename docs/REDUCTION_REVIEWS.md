@@ -86,6 +86,16 @@
 | 15 | Имя `PilotTagIndexer` (наследие пилота M1) | **оставлено**: переименование без пользы; класс нужен обновлению тегов альбома | — |
 | 16 | `tools/mock_webdav.py`, генератор фикстур | **оставлено**: тестовая инфраструктура | — |
 
+### 2026-11-15 — сокращение после отказа от FTS4 (Draft #143)
+
+| Компонент | Решение | Проверка |
+|---|---|---|
+| `TrackSearchEntity`, `TrackSearchDao`, `TrackSearchIndex` и методы `trackSearchDao/searchTrackIds/ftsMatchExpression` | **удалить**: FTS отменён решением владельца O-21 | Room v7, миграция v6→v7 и v1→v7 |
+| `reconcile`, `updateRows`, `refreshById`, FTS при выходе из аккаунта | **удалить**: запись/чтение не должны зависеть от сломанного FTS | `EnoToneMigrationTest`, `LibrarySnapshotPlannerTest` |
+| `SearchProbe`, кнопка «Проверить поиск» и связанные строки | **удалить**: диагностика уже установила неисправность | `LibrarySearchTrace` (обезличенное `ms=`) сохранён |
+| `TrackSearchDaoTest`, `TrackSearchIndexTest`, FTS-фейки | **удалить/заменить**: тесты предрасчитанного ключа и миграции | `LibraryTextTest`, `OfflineTrackCatalogTest`, `LibraryViewModelTest` |
+| Русский Collator, сортировка, мини-плеер, очередь, обложки | **оставить без изменений** | ADR-0087 остаётся действующим по сортировке |
+
 ### Mutation-замер
 
 Не проводился. Первый — после PR «Качество».
