@@ -12,15 +12,34 @@ internal data class LibraryGroupIndex(
     val albumArtists: List<OfflineLibraryGroup> = emptyList(),
     val albumByTrackId: Map<String, OfflineLibraryGroup> = emptyMap(),
     val artistByTrackId: Map<String, OfflineLibraryGroup> = emptyMap(),
+    val albumArtistAlbumCounts: Map<String, Int> = emptyMap(),
 ) {
     companion object {
-        fun build(tracks: List<OfflineTrackRow>, unknownAlbumName: String): LibraryGroupIndex {
+        fun build(
+            tracks: List<OfflineTrackRow>,
+            unknownAlbumName: String,
+            compilationsName: String = "Разные исполнители",
+        ): LibraryGroupIndex {
             val albums = OfflineLibraryGrouping.albums(tracks, unknownAlbumName)
             val artists = OfflineLibraryGrouping.artists(tracks)
+            val authors = OfflineLibraryGrouping.albumArtists(tracks, compilationsName)
+            val albumByTrack = byTrack(albums)
+            val byId = tracks.associateBy { it.id }
+            val counts = authors.associate { group ->
+                val keys = if (group.key == OfflineLibraryGrouping.COMPILATIONS_KEY) {
+                    // Один релиз без Album Artist может иметь несколько исполнителей треков.
+                    group.trackIds.mapNotNull { byId[it]?.album?.trim()?.takeIf(String::isNotEmpty) }
+                        .map { it.lowercase(java.util.Locale.ROOT) }.toSet()
+                } else {
+                    group.trackIds.mapNotNull { albumByTrack[it]?.key }
+                        .filterNot { it == "album:missing" }.toSet()
+                }
+                group.key to keys.size
+            }
             return LibraryGroupIndex(
-                tracks.associateBy { it.id }, albums, artists,
-                OfflineLibraryGrouping.albumArtists(tracks),
-                byTrack(albums), byTrack(artists),
+                tracksById = byId, albums = albums, artists = artists,
+                albumArtists = authors, albumByTrackId = albumByTrack,
+                artistByTrackId = byTrack(artists), albumArtistAlbumCounts = counts,
             )
         }
 
