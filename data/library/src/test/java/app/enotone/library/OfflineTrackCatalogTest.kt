@@ -73,6 +73,28 @@ class OfflineTrackCatalogTest {
             OfflineTrackCatalog.search(listOf(row), "еж CAFÉ").isNotEmpty())
     }
 
+    @Test fun preparedSearchIsEquivalentToLegacyAcrossFieldsAndTerms() {
+        val rows = listOf(
+            OfflineTrackRow("r1", "Ёжик", "Café", "Album", "The Author", genre = "Jazz"),
+            OfflineTrackRow("r2", "Мираж", "Rock", "Дорога", "Автор", genre = "Pop"),
+            OfflineTrackRow("r3", "Summer", "Artist", "Café", genre = "Easy"),
+        )
+        val queries = listOf(
+            "", " ", "ЕЖ", "еж café", "CAFE", "the author", "МИРА",
+            "ираж", "ДОРОГА", "rock pop", "easy", "Й", "И", "not found",
+        )
+        for (query in queries) {
+            val expected = rows.filter { row ->
+                LibraryText.containsAllTerms(
+                    listOfNotNull(row.title, row.artist, row.album, row.albumArtist, row.genre)
+                        .joinToString(" "), query,
+                )
+            }
+            assertEquals("query index=" + queries.indexOf(query),
+                expected, OfflineTrackCatalog.search(rows, query))
+        }
+    }
+
     @Test fun durationFlowsIntoTheLocalTrackModelWithoutChangingItsUnknownValue() {
         val rows = OfflineTrackCatalog.build(key, listOf(
             track(1, "known.mp3").copy(durationMs = 187_000L),

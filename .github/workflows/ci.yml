@@ -230,6 +230,18 @@ jobs:
               raise AssertionError("Room v6 schema must be committed")
           assert v6 == saved_v6, "Room v6 exported schema differs from committed JSON"
 
+          # Room v7 removes FTS: check the actual KSP export, not only a hand-written JSON.
+          exported_v7 = pathlib.Path("core/database/schemas/app.enotone.database.EnoToneDatabase/7.json")
+          assert exported_v7.exists(), "Room v7 schema must be exported"
+          v7 = json.loads(exported_v7.read_text(encoding="utf-8"))
+          assert v7["database"]["version"] == 7
+          assert {e["tableName"] for e in v7["database"]["entities"]} == {
+              "remote_tracks", "playlists", "playlist_items"}
+          saved_v7 = json.loads(subprocess.check_output(
+              ["git", "show", "HEAD:" + exported_v7.as_posix()], text=True))
+          assert v7 == saved_v7, "Room v7 KSP schema differs from committed JSON"
+          print("Room v7 schema: no FTS, all catalog and playlist entities retained")
+
           PY
       - name: Resolved dependencies
         run: gradle --no-daemon :app:dependencies --configuration debugRuntimeClasspath > dependencies.txt
