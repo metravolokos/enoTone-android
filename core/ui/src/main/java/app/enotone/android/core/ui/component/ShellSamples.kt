@@ -36,10 +36,9 @@ internal fun ShellGallery(darkTheme: Boolean) {
                     }
                 }
                 EnoCollapsingStrip(visible = true, title = "Песни", blur = blur) {
-                    EnoPill("Играть", onClick = {}, accent = true, icon = EnoIcons.PLAY,
-                        modifier = Modifier.weight(1f).height(44.dp))
-                    EnoPill("Перемешать", onClick = {}, icon = EnoIcons.SHUFFLE,
-                        modifier = Modifier.weight(1f).height(44.dp))
+                    EnoRoundButton(EnoIcons.SHUFFLE, "Перемешать", onClick = {})
+                    EnoRoundButton(EnoIcons.PLAY, "Играть", onClick = {}, accent = true)
+                    EnoRoundButton(EnoIcons.SEARCH, "Поиск", onClick = {}, filled = false)
                 }
             }
             Column(

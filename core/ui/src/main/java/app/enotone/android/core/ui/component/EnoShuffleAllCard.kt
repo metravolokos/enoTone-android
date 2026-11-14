@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -75,13 +76,24 @@ fun EnoShuffleAllCard(
                 )
             }
         }
+        // Бандит выглядывает: голова, наушники и шарф; ниже груди обрезан формой карточки (09_home).
+        // Масштабируется и обрезается мастер целиком — без перерисовки (BANDIT_SET_V1).
         BanditIllustration(
             pose = BanditPose.HEADPHONES,
             contentDescription = null,
-            modifier = Modifier.align(Alignment.BottomEnd).offset(x = (-6).dp, y = 10.dp).height(108.dp),
+            // wrapContentSize(unbounded): мастер выше карточки и не должен сжиматься до её 112 dp.
+            modifier = Modifier.align(Alignment.TopEnd)
+                .offset(x = (-6).dp, y = BANDIT_TOP)
+                .wrapContentSize(Alignment.TopEnd, unbounded = true)
+                .size(width = BANDIT_WIDTH, height = BANDIT_HEIGHT),
         )
     }
 }
 
 /** Место справа под Бандита, чтобы длинный текст не заходил под него. */
-private val BANDIT_SPACE = 104.dp
+private val BANDIT_SPACE = 126.dp
+
+/** Мастер 522 × 720: видимые ≈ 108 dp макета — от макушки до шарфа (≈ 470 px мастера). */
+private val BANDIT_HEIGHT = 165.dp
+private val BANDIT_WIDTH = 120.dp
+private val BANDIT_TOP = 14.dp

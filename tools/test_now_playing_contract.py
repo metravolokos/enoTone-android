@@ -32,8 +32,6 @@ class NowPlayingContractTest(unittest.TestCase):
             "R.drawable.ic_action_pause",
             "R.drawable.ic_action_previous",
             "R.drawable.ic_action_next",
-            "R.drawable.ic_action_repeat",
-            "R.drawable.ic_action_shuffle",
             "R.string.playback_previous",
             "R.string.playback_next",
             "R.string.playback_pause",
@@ -55,7 +53,8 @@ class NowPlayingContractTest(unittest.TestCase):
             xml = ET.fromstring(self.src(relative))
             names = {node.attrib["name"] for node in xml.findall("string")}
             self.assertTrue(strings.issubset(names), strings - names)
-        for name in ("previous", "repeat", "shuffle"):
+        # repeat/shuffle — из UI Icons v1 (:core:ui) с D3.1; здесь остаётся только «назад» ADR-0073.
+        for name in ("previous",):
             path = ROOT / f"app/src/main/res/drawable/ic_action_{name}.xml"
             xml = ET.parse(path).getroot()
             self.assertEqual(xml.tag, "vector")

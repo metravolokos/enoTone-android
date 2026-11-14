@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    // Снимки экранов для сверки с макетами Android v2 (D3.1); только тесты, в APK не входит.
+    alias(libs.plugins.roborazzi)
 }
 android {
     namespace = "app.enotone.android"
@@ -113,6 +115,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi.core)
+    testImplementation(libs.roborazzi.compose)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.test.junit)
     testImplementation(platform(libs.compose.bom))

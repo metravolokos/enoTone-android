@@ -1,3 +1,6 @@
+// Track/Thumb слайдера — экспериментальный API M3; нужен для тонкой линии макета 01_now_playing.
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package app.enotone.android
 
 import android.graphics.Bitmap
@@ -7,6 +10,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,12 +27,13 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -54,8 +60,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import app.enotone.android.core.ui.component.EnoIcons
+import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.playback.PlaybackSeekPolicy
 
 /**
@@ -217,6 +226,17 @@ fun FeatureNowPlayingScreen(
                 )
             }
             Spacer(Modifier.height(12.dp))
+            // D3.1 (01_now_playing): тонкая линия; сыграно и бегунок — цвет текста, остальное — surface2.
+            // Слой буфера и точка следующего трека — D5 (SPEC_now_playing_buffering).
+            val sliderColors = SliderDefaults.colors(
+                thumbColor = EnoColors.text,
+                activeTrackColor = EnoColors.text,
+                inactiveTrackColor = EnoColors.surface2,
+                disabledThumbColor = EnoColors.textSecondary,
+                disabledActiveTrackColor = EnoColors.textSecondary,
+                disabledInactiveTrackColor = EnoColors.surface2,
+            )
+            val sliderInteraction = remember { MutableInteractionSource() }
             Slider(
                 value = shownFraction.coerceIn(0f, 1f),
                 enabled = controlsEnabled && canSeek && knownDuration,
@@ -229,6 +249,26 @@ fun FeatureNowPlayingScreen(
                         onSeekFraction(scrubFraction)
                     }
                     scrubbing = false
+                },
+                colors = sliderColors,
+                interactionSource = sliderInteraction,
+                thumb = {
+                    SliderDefaults.Thumb(
+                        interactionSource = sliderInteraction,
+                        colors = sliderColors,
+                        enabled = controlsEnabled && canSeek && knownDuration,
+                        thumbSize = DpSize(THUMB_SIZE, THUMB_SIZE),
+                    )
+                },
+                track = { sliderState ->
+                    SliderDefaults.Track(
+                        sliderState = sliderState,
+                        colors = sliderColors,
+                        enabled = controlsEnabled && canSeek && knownDuration,
+                        thumbTrackGapSize = 0.dp,
+                        drawStopIndicator = null,
+                        modifier = Modifier.height(TRACK_HEIGHT),
+                    )
                 },
                 modifier = Modifier.fillMaxWidth().semantics {
                     contentDescription = seekLabel
@@ -295,15 +335,17 @@ fun FeatureNowPlayingScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                FilledTonalIconButton(
-                    onClick = onToggleShuffle,
+                // D3.1 (01_now_playing): значки без розовой заливки; включённое перемешивание — значок
+                // акцентом в круге surface2, включённый повтор — значок акцентом (повтор одного — свой значок).
+                NowPlayingToggle(
+                    icon = EnoIcons.SHUFFLE,
+                    active = shuffleEnabled,
+                    circleWhenActive = true,
                     enabled = controlsEnabled && queueTotal > 0,
-                ) {
-                    Icon(painterResource(ids.icActionShuffle),
-                        contentDescription = stringResource(if (shuffleEnabled)
-                            ids.playbackShuffleOn else ids.playbackShuffleOff),
-                        tint = if (shuffleEnabled) color.primary else color.onSurfaceVariant)
-                }
+                    description = stringResource(if (shuffleEnabled)
+                        ids.playbackShuffleOn else ids.playbackShuffleOff),
+                    onClick = onToggleShuffle,
+                )
                 if (queueTotal > 0) {
                     Text(
                         stringResource(ids.nowPlayingQueueShort,
@@ -312,16 +354,14 @@ fun FeatureNowPlayingScreen(
                         color = color.onSurfaceVariant,
                     )
                 }
-                FilledTonalIconButton(
-                    onClick = onCycleRepeat,
+                NowPlayingToggle(
+                    icon = if (repeatMode == Player.REPEAT_MODE_ONE) EnoIcons.REPEAT_ONE else EnoIcons.REPEAT,
+                    active = repeatMode != Player.REPEAT_MODE_OFF,
+                    circleWhenActive = false,
                     enabled = controlsEnabled && queueTotal > 0,
-                ) {
-                    Icon(painterResource(ids.icActionRepeat),
-                        contentDescription = stringResource(
-                            ids.playbackRepeatControl, repeatText),
-                        tint = if (repeatMode != Player.REPEAT_MODE_OFF)
-                            color.primary else color.onSurfaceVariant)
-                }
+                    description = stringResource(ids.playbackRepeatControl, repeatText),
+                    onClick = onCycleRepeat,
+                )
             }
         }
     }
@@ -330,3 +370,36 @@ fun FeatureNowPlayingScreen(
 /** Свайп вниз длиннее этого сворачивает «Сейчас играет». */
 private val COLLAPSE_DRAG = 96.dp
 private const val HANDLE_ALPHA = 0.5f
+
+@Composable
+private fun NowPlayingToggle(
+    icon: EnoIcons,
+    active: Boolean,
+    circleWhenActive: Boolean,
+    enabled: Boolean,
+    description: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier.size(48.dp)
+            .clip(CircleShape)
+            .background(if (active && circleWhenActive) EnoColors.surface2 else Color.Transparent)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(icon.outline),
+            contentDescription = null,
+            modifier = Modifier.size(26.dp),
+            tint = when {
+                !enabled -> EnoColors.textSecondary
+                active -> EnoColors.accentText
+                else -> EnoColors.text
+            },
+        )
+    }
+}
+
+private val THUMB_SIZE = 14.dp
+private val TRACK_HEIGHT = 4.dp

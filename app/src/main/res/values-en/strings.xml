@@ -93,7 +93,7 @@
     <string name="library_tab_tracks">Tracks</string>
     <string name="library_tab_albums">Albums</string>
     <string name="library_tab_artists">Artists</string>
-    <string name="library_tab_album_artists">Album Artists</string>
+    <string name="library_tab_album_artists">Album artists</string>
     <string name="library_unknown_album">Unknown Album</string>
     <string name="library_group_back">Back to groups</string>
     <string name="library_group_count">Groups: %1$d</string>
@@ -197,7 +197,26 @@
     <string name="nav_album_artists">Album artists</string>
     <string name="home_shuffle_all">Shuffle all</string>
     <plurals name="home_song_count">
-        <item quantity="one">%1$d song</item>
-        <item quantity="other">%1$d songs</item>
+        <item quantity="one">%1$s song</item>
+        <item quantity="other">%1$s songs</item>
+    </plurals>
+    <!-- D3.1: tab counters (mockups 02, 04, 06, 07) -->
+    <string name="ui_search">Search</string>
+    <string name="ui_search_close">Close search</string>
+    <plurals name="library_songs_count">
+        <item quantity="one">%1$s song</item>
+        <item quantity="other">%1$s songs</item>
+    </plurals>
+    <plurals name="library_albums_count">
+        <item quantity="one">%1$s album</item>
+        <item quantity="other">%1$s albums</item>
+    </plurals>
+    <plurals name="library_artists_count">
+        <item quantity="one">%1$s artist</item>
+        <item quantity="other">%1$s artists</item>
+    </plurals>
+    <plurals name="library_album_artists_count">
+        <item quantity="one">%1$s album artist</item>
+        <item quantity="other">%1$s album artists</item>
     </plurals>
 </resources>
