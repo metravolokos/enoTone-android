@@ -26,6 +26,7 @@
 | Значки интерфейса UI Icons v1 | [UI_ICONS_V1](docs/UI_ICONS_V1.md) | `assets/ui-icons/v1/` | `tools/build_ui_icons.py` |
 | Бандит: позы и назначение по экранам | [BANDIT_SET_V1](docs/BANDIT_SET_V1.md) | `assets/bandit/` | `tools/clean_bandit.py`, `tools/convert_bandit.py` |
 | Экраны Android UI v2 | [UI_ANDROID_V2](docs/UI_ANDROID_V2.md), [журнал](docs/DECISIONS_ANDROID_V2_UI.md) | `assets/ui-screens/android-v2/` | `canvas/` |
+| Движение: переходы, плеер, лист | [MOTION_ANDROID_V2](docs/MOTION_ANDROID_V2.md) | — | — |
 | Буферизация на «Сейчас играет» | [SPEC_NOW_PLAYING_BUFFERING](docs/SPEC_NOW_PLAYING_BUFFERING.md) | — | — |
 | Перенос в приложение | [ANDROID_INTEGRATION_PLAN](docs/ANDROID_INTEGRATION_PLAN.md), `../docs/DESIGN_PLAN.md` | — | `tools/sync_android.py` |
 | Desktop — рабочее направление (отложено) | [UI_BASELINE_V1](docs/UI_BASELINE_V1.md) | — | — |
