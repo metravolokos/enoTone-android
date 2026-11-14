@@ -129,7 +129,7 @@ jobs:
             base64 -w 3000 "$f" | sed "s|^|ROBORAZZI_B64 $f |"
           done
       - name: Verify Android v2 screenshots against committed golden PNG
-        if: !((github.event_name == 'workflow_dispatch' && inputs.record_roborazzi == true) || (github.event_name == 'pull_request' && github.head_ref == 'feature/d4a-actions-artist'))
+        if: (github.event_name != 'workflow_dispatch' || inputs.record_roborazzi != true) && (github.event_name != 'pull_request' || github.head_ref != 'feature/d4a-actions-artist')
         run: gradle --no-daemon :core:ui:verifyRoborazziDebug :app:verifyRoborazziDebug
       - name: Upload Roborazzi golden candidates and visual diffs
         if: always()
