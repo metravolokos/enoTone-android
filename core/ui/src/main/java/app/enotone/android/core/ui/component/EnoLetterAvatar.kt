@@ -71,7 +71,7 @@ fun EnoLetterAvatar(
             style = TextStyle(
                 fontFamily = avatarUnbounded,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = (18f * (size.value / 48f)).sp,
+                fontSize = (18f + (size.value - 48f) * (38f / 84f)).sp,
                 color = foreground,
             ),
             maxLines = 1,
