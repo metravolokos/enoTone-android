@@ -93,8 +93,9 @@ object QueueEditPlanner {
         val insertion = if (edit is QueueEdit.PlayNext && layout.currentTrackId != null)
             remaining.indexOf(layout.currentTrackId) + 1 else remaining.size
         val playbackOrder = remaining.take(insertion) + selection.ids + remaining.drop(insertion)
+        val knownIds = layout.trackIds.toHashSet()
         val physical = if (layout.shuffleEnabled) {
-            layout.trackIds + selection.ids.filterNot { it in layout.trackIds.toHashSet() }
+            layout.trackIds + selection.ids.filterNot { it in knownIds }
         } else playbackOrder
         val physicalIndices = physical.withIndex().associate { it.value to it.index }
         val shuffle = if (layout.shuffleEnabled)
