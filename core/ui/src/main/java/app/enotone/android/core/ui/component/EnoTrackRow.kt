@@ -120,7 +120,7 @@ fun EnoTrackRow(
             icon = EnoIcons.MORE,
             contentDescription = moreContentDescription,
             onClick = onMore,
-            size = 40.dp,
+            size = 48.dp,
             // В строках «⋮» — просто значок; круг surface2 только в шапках (макет 02_songs).
             filled = false,
         )
