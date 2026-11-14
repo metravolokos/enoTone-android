@@ -3,6 +3,7 @@ package app.enotone.library
 import app.enotone.database.RemoteTrackEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -50,6 +51,26 @@ class OfflineTrackCatalogTest {
         assertEquals(null, OfflineTrackCatalog.commonAlbumGenre(
             rows + OfflineTrackRow("id3", "Third", "Performer", "Album",
                 genre = "Jazz")))
+    }
+
+    @Test fun preparedKeyIsStableAcrossQueriesAndRebuiltForChangedMetadata() {
+        val row = OfflineTrackRow("prepared", "Ёжик", "Café", "Альбом",
+            albumArtist = "Orchêstra", genre = "Rock")
+        val prepared = row.normalizedSearchKey
+        assertEquals("ежик cafe альбом orchestra rock", prepared)
+        repeat(10) {
+            assertEquals(listOf(row), OfflineTrackCatalog.search(listOf(row), "ЕЖ CAFÉ"))
+            assertSame(prepared, row.normalizedSearchKey)
+        }
+        assertEquals("другая cafe альбом orchestra rock",
+            row.copy(title = "Другая").normalizedSearchKey)
+        assertEquals(listOf(row), OfflineTrackCatalog.search(listOf(row), "orchestra rock"))
+        assertTrue(OfflineTrackCatalog.search(listOf(row), "йож").isEmpty())
+        assertEquals(listOf(row), OfflineTrackCatalog.search(listOf(row), ""))
+        assertEquals(LibraryText.containsAllTerms(
+            listOfNotNull(row.title, row.artist, row.album, row.albumArtist, row.genre)
+                .joinToString(" "), "еж CAFÉ"),
+            OfflineTrackCatalog.search(listOf(row), "еж CAFÉ").isNotEmpty())
     }
 
     @Test fun durationFlowsIntoTheLocalTrackModelWithoutChangingItsUnknownValue() {

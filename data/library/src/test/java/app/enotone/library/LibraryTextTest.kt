@@ -15,14 +15,17 @@ class LibraryTextTest {
         assertEquals("е й", LibraryText.searchKey("  Ё \t  Й   "))
     }
 
-    @Test fun sanitizedFtsInputIsAnAndOfQuotedWordPrefixes() {
-        assertEquals("\"еж*\" \"дорож*\"",
-            LibraryText.ftsMatchExpression("Ёж ДОРОЖ"))
-        assertEquals("\"or*\" \"near*\"",
-            LibraryText.ftsMatchExpression("OR NEAR"))
-        assertEquals("\"word*\" \"other*\"",
-            LibraryText.ftsMatchExpression("\"word\"- *other"))
-        assertEquals(null, LibraryText.ftsMatchExpression(" \" * - "))
+    @Test fun termsKeepTheSameSubstringAndSemanticsAsLegacySearch() {
+        val text = "Ёжик в Café"
+        val terms = LibraryText.searchTerms("ЕЖ cafe")
+        assertEquals(listOf("еж", "cafe"), terms)
+        assertTrue(LibraryText.matchesAllTerms(LibraryText.searchKey(text), terms))
+        assertEquals(LibraryText.containsAllTerms(text, "ЕЖ cafe"),
+            LibraryText.matchesAllTerms(LibraryText.searchKey(text), terms))
+        assertFalse(LibraryText.matchesAllTerms(LibraryText.searchKey(text),
+            LibraryText.searchTerms("еж nowhere")))
+        assertTrue(LibraryText.matchesAllTerms(LibraryText.searchKey(text),
+            LibraryText.searchTerms("")))
     }
 
     @Test fun theArticleIsIgnoredOnlyForPerformers() {
