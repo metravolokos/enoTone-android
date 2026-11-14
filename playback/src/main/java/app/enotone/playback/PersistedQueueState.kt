@@ -77,7 +77,7 @@ object QueueStateCodec {
         val ids = layout.trackIds
         if (layout.version != VERSION || ids.isEmpty() || ids.size > PlaybackQueue.MAX_TRACKS ||
             ids.any { !hash.matches(it) } || ids.toSet().size != ids.size ||
-            !hash.matches(layout.sourceKey) || !revision.matches(layout.queueRevision) ||
+            !QueueEditSource.isValid(layout.sourceKey) || !revision.matches(layout.queueRevision) ||
             layout.savedAtEpochMs < 0L) return false
         val indices = layout.shuffledIndices
         return if (layout.shuffleEnabled) {
