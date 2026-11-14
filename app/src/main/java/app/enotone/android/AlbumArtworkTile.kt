@@ -1,5 +1,6 @@
 package app.enotone.android
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,8 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,13 +30,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
 import app.enotone.android.core.ui.theme.EnoRadii
-import androidx.compose.ui.unit.dp
 import app.enotone.library.OfflineLibraryGroup
-import android.graphics.Bitmap
 
 /**
  * Real album tiles. Only items composed by LazyVerticalGrid request artwork;
