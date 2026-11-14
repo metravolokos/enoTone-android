@@ -569,7 +569,8 @@ class PreviewAudioPlayback(
         )
         if (plan.movedIds.isEmpty()) return plan.result
         val byId = tracks.associateBy { it.id }
-        val newIds = plan.layout.trackIds.filterNot { it in originalTrackIds.toSet() }
+        val knownIds = originalTrackIds.toHashSet()
+        val newIds = plan.layout.trackIds.filterNot { it in knownIds }
         val newTracks = newIds.map { byId.getValue(it) }
         val factory = checkNotNull(mediaSourceFactory)
         val route = checkNotNull(routesFactory)
