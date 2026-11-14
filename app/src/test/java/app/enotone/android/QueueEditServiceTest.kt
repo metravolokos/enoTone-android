@@ -10,7 +10,6 @@ import app.enotone.playback.QueueEditSource
 import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueStateFileStore
 import app.enotone.playback.QueueTrack
-import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,6 +18,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import org.robolectric.annotation.Config
+import java.util.UUID
 
 /** Real Media3 timeline and no-network paused restoration; UI belongs to 8b. */
 @RunWith(RobolectricTestRunner::class)
