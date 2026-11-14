@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -47,6 +50,7 @@ internal fun SettingsDiagnosticsContent(
         if (state.probe.isNotEmpty()) Text(state.probe, style = MaterialTheme.typography.bodySmall)
     }
     SettingsGroup(stringResource(R.string.diagnostics_indexing_title)) { IndexingDiagnostics(indexing) }
+    SettingsGroup(stringResource(R.string.diagnostics_search_title)) { SearchDiagnostics(state, actions) }
     SettingsGroup { PlaybackDiagnosticsPanel() }
     SettingsGroup(stringResource(R.string.tag_audit_title)) { TagAudit(state, actions) }
     if (state.message.isNotEmpty()) Text(state.message, style = MaterialTheme.typography.bodySmall)
@@ -76,6 +80,23 @@ private fun IndexingDiagnostics(status: ManagedScanStatus) {
     status.failureStage?.let { stage ->
         Text(stringResource(R.string.managed_index_internal_failure, stage,
             status.failureReason ?: "UNEXPECTED"), style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/** BUG поиска 2026-11-14: след последнего поиска и сравнение FTS с поиском в памяти. */
+@Composable
+private fun SearchDiagnostics(state: DiagnosticsUiState, actions: DiagnosticsActions) {
+    val last by LibrarySearchTrace.last.collectAsState()
+    Text(
+        if (last.isEmpty()) stringResource(R.string.diagnostics_search_none)
+        else stringResource(R.string.diagnostics_search_last, last),
+        style = MaterialTheme.typography.bodySmall,
+    )
+    OutlinedButton(enabled = !state.busy && state.hasLogin, onClick = { actions.searchProbe() }) {
+        Text(stringResource(R.string.diagnostics_search_run))
+    }
+    if (state.searchReport.isNotEmpty()) {
+        SelectionContainer { Text(state.searchReport, style = MaterialTheme.typography.bodySmall) }
     }
 }
 

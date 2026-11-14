@@ -185,6 +185,10 @@
     <string name="diagnostics_entry_summary">Проверка соединения, сведения о воспроизведении и обновлении медиатеки — для сообщений об ошибках.</string>
     <string name="diagnostics_intro">Технические сведения для сообщений об ошибках: только коды и числа, без пароля и адресов.</string>
     <string name="diagnostics_connection_title">Соединение с облаком</string>
+    <string name="diagnostics_search_title">Поиск по песням</string>
+    <string name="diagnostics_search_none">В этом сеансе поиска по песням ещё не было.</string>
+    <string name="diagnostics_search_last">Последний поиск: %1$s</string>
+    <string name="diagnostics_search_run">Проверить поиск</string>
     <string name="diagnostics_indexing_title">Обновление медиатеки</string>
     <string name="diagnostics_indexing_empty">В этом сеансе обновление ещё не запускалось.</string>
     <string name="diagnostics_indexing_state">Состояние: %1$s</string>

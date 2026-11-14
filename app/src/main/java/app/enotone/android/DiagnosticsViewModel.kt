@@ -19,6 +19,8 @@ internal data class DiagnosticsUiState(
     val probe: String = "",
     val auditQuery: AuditQuery? = null,
     val rows: List<RemoteTrackEntity> = emptyList(),
+    /** Обезличенный отчёт «Проверить поиск»: только числа и коды. */
+    val searchReport: String = "",
     val message: String = "",
 )
 
@@ -60,6 +62,11 @@ internal class DiagnosticsViewModel(
             it.copy(auditQuery = query, rows = rows,
                 message = if (rows.isEmpty()) text.get(R.string.tag_audit_no_missing) else "")
         }
+    }
+
+    override fun searchProbe() = execute(R.string.diagnostic_failed) { login ->
+        val report = gateway.searchProbe(login.email)
+        mutable.update { it.copy(searchReport = report) }
     }
 
     private fun execute(failure: Int, action: suspend (StoredWebDavLogin) -> Unit) {

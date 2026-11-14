@@ -285,7 +285,7 @@ internal class LibraryViewModel(
     }
 
     // Page state is derived together to avoid divergent search/group filters.
-    @Suppress("CyclomaticComplexMethod")
+    @Suppress("CyclomaticComplexMethod", "TooGenericExceptionCaught", "LongMethod")
     private fun derivePages() {
         filtersJob?.cancel()
         val generation = ++filterVersion
@@ -294,20 +294,32 @@ internal class LibraryViewModel(
         filtersJob = viewModelScope.launch {
             val ftsExpression = if (snapshot.section == LibraryPage.TRACKS)
                 LibraryText.ftsMatchExpression(snapshot.search) else null
+            var ftsError = ""
+            val startedMs = clockMs()
             val matchedIds = if (ftsExpression != null) {
                 delay(SEARCH_DEBOUNCE_MS) // Debounce while retaining the last results until the response.
                 try {
                     repository.searchTrackIds(accountEmail, snapshot.search)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
-                } catch (_: Exception) {
+                } catch (failure: Exception) {
+                    ftsError = failure.javaClass.simpleName
                     null // Local fallback keeps the screen usable if the index cannot be queried.
                 }
             } else null
             val result = withContext(io) {
                 calculateDerivedPages(snapshot, byId, ftsExpression, matchedIds)
             }
-            if (generation == filterVersion && !unavailable()) {
+            val applied = generation == filterVersion && !unavailable()
+            if (ftsExpression != null) {
+                LibrarySearchTrace.record(
+                    "len=${snapshot.search.length} fts=${matchedIds?.size ?: "null"}" +
+                        (if (ftsError.isEmpty()) "" else " err=$ftsError") +
+                        " shown=${result.visible.size} of=${snapshot.tracks.size}" +
+                        " applied=$applied ms=${clockMs() - startedMs} gen=$generation",
+                )
+            }
+            if (applied) {
                 mutable.update { current ->
                     current.copy(groups = result.groups, shownGroups = result.shown,
                         selectedGroup = result.group, visible = result.visible,
