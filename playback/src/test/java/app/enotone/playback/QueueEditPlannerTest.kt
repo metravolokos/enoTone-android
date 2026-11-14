@@ -9,7 +9,7 @@ import org.junit.Test
 class QueueEditPlannerTest {
     private fun id(n: Int) = n.toString(16).padStart(64, '0')
     private fun layout(
-        current: Int = 2,
+        current: Int = 3,
         shuffle: IntArray? = null,
     ) = QueueLayout((1..4).map(::id), shuffle, id(current))
 
