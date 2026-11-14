@@ -29,7 +29,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,15 +73,7 @@ internal fun ArtistDetailScreen(
     var queueActionsExpanded by remember(artist.key) { mutableStateOf(false) }
     var openedActions by remember { mutableStateOf<OfflineTrackRow?>(null) }
     val canPlay = canPlayArtist(state, plan.songs, appPassword)
-    val albumCount = pluralStringResource(
-        R.plurals.library_albums_count, plan.albums.size, plan.albums.size.toString(),
-    )
-    val songCount = pluralStringResource(
-        R.plurals.library_songs_count, plan.songs.size, plan.songs.size.toString(),
-    )
-    val caption = if (plan.compilationsOnly) {
-        stringResource(R.string.artist_compilations_only, songCount)
-    } else "$albumCount · $songCount"
+    val caption = artistCountCaption(plan)
 
     BackHandler { onBackDetail() }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
