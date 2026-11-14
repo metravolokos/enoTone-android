@@ -87,7 +87,7 @@ object OfflineLibraryGrouping {
      */
     fun compilationTrackIds(tracks: List<OfflineTrackRow>): Set<String> {
         val explicit = tracks.filter {
-            known(it.albumArtist)?.let(::normalized) in compilationNames
+            known(it.albumArtist)?.let(::normalized)?.let(compilationNames::contains) == true
         }
         val implicit = tracks.filter {
             known(it.album) != null && known(it.albumArtist) == null
