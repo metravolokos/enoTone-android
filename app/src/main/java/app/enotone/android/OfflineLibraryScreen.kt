@@ -53,6 +53,9 @@ internal fun rememberLibraryViewModel(accountEmail: String, appPassword: String)
 internal fun OfflineLibraryScreen(
     model: LibraryViewModel,
     page: LibraryPage,
+    detail: LibraryDetail? = null,
+    onOpenDetail: (LibraryDetail) -> Unit = {},
+    onBackDetail: () -> Unit = {},
     visiblePages: List<LibraryPage>,
     accountEmail: String,
     appPassword: String,
@@ -64,11 +67,22 @@ internal fun OfflineLibraryScreen(
     val container = (context as EnoToneApplication).container
     // Аудит п. 3: ViewModel живёт дольше экрана — страница и видимость передаются событиями.
     LaunchedEffect(model, visiblePages) { model.onVisiblePagesChanged(visiblePages) }
-    LaunchedEffect(model, page) { model.onPageSelected(page) }
+    LaunchedEffect(model, page, detail) {
+        val targetPage = when (detail) {
+            is LibraryDetail.Album -> LibraryPage.ALBUMS
+            is LibraryDetail.Artist -> LibraryPage.ARTISTS
+            null -> page
+        }
+        model.onPageSelected(targetPage)
+        model.onGroupSelected(detail?.key)
+    }
     val state by model.state.collectAsStateWithLifecycle()
     LibraryScreenContent(
         state = state,
         actions = model,
+        detail = detail,
+        onOpenDetail = onOpenDetail,
+        onBackDetail = onBackDetail,
         artworkRepository = container.artworkPreviewRepository,
         accountEmail = accountEmail,
         appPassword = appPassword,
