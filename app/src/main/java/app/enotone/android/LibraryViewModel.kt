@@ -160,6 +160,7 @@ internal class LibraryViewModel(
     private val io: CoroutineDispatcher,
     private val unknownAlbumName: String,
     private val messages: AlbumRefreshMessages,
+    private val compilationsName: String = "Разные исполнители",
     private val useCache: () -> Boolean = { true },
     private val clockMs: () -> Long = { System.nanoTime() / NANOS_PER_MILLISECOND },
     visiblePages: List<LibraryPage> = LibraryPageVisibility.defaultOrder,
@@ -273,7 +274,7 @@ internal class LibraryViewModel(
                         }
                     }
                 }
-                val index = withContext(io) { LibraryGroupIndex.build(result.tracks, unknownAlbumName) }
+                val index = withContext(io) { LibraryGroupIndex.build(result.tracks, unknownAlbumName, compilationsName) }
                 val artistPlans = withContext(io) {
                     index.artists.associate { it.key to ArtistDetailPlanner.plan(it, index) }
                 }
@@ -728,6 +729,7 @@ internal class LibraryViewModel(
             container: AppContainer,
             unknownAlbumName: String,
             messages: AlbumRefreshMessages,
+            compilationsName: String,
             visiblePages: List<LibraryPage>,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -737,6 +739,7 @@ internal class LibraryViewModel(
                     container.libraryRepository, container.playbackConnection,
                     RepositoryArtworkLoader(container.artworkPreviewRepository),
                     container.io, unknownAlbumName, messages,
+                    compilationsName = compilationsName,
                     visiblePages = visiblePages,
                     accountEvents = container.accountSession.state) as T
             }
