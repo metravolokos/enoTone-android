@@ -10,6 +10,7 @@ import app.enotone.library.LibraryPageVisibility
 import app.enotone.library.LibraryRepository
 import app.enotone.library.LibrarySnapshot
 import app.enotone.library.LibrarySnapshotPlanner
+import app.enotone.library.LibraryText
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
@@ -170,6 +171,7 @@ internal class LibraryViewModel(
     private val mutableQueueMessages = MutableSharedFlow<QueueActionMessage>(extraBufferCapacity = 1)
     val queueMessages: SharedFlow<QueueActionMessage> = mutableQueueMessages
     private var catalogue = LibrarySnapshot(emptyList(), emptyMap())
+    private var groupsByPage: Map<LibraryPage, List<OfflineLibraryGroup>> = emptyMap()
     private val sourceKey by lazy { LibrarySnapshotPlanner.accountKey(accountEmail) }
     private val checkedByGroup = mutableMapOf<String, Set<String>>()
     private val attemptedByGroup = mutableMapOf<String, Set<String>>()
@@ -198,6 +200,7 @@ internal class LibraryViewModel(
         filterVersion++
         artworkEpoch++
         catalogue = LibrarySnapshot(emptyList(), emptyMap())
+        groupsByPage = emptyMap()
         checkedByGroup.clear()
         attemptedByGroup.clear()
         selectionStartedAt = 0L
@@ -258,15 +261,22 @@ internal class LibraryViewModel(
                 val result = repository.load(accountEmail)
                 if (unavailable()) return@launch
                 catalogue = result
-                val covers = withContext(io) {
-                    AlbumArtworkCatalog.build(result.tracks) { id ->
+                val (covers, groups) = withContext(io) {
+                    val art = AlbumArtworkCatalog.build(result.tracks) { id ->
                         result.preparedById[id]?.let { item ->
                             PlayingArtworkTarget(item.id, item.encodedPath,
                                 item.remoteSize, item.remoteEtag, artworkEpoch)
                         }
                     }
+                    val prepared = mapOf(
+                        LibraryPage.ALBUMS to OfflineLibraryGrouping.albums(result.tracks, unknownAlbumName),
+                        LibraryPage.ARTISTS to OfflineLibraryGrouping.artists(result.tracks),
+                        LibraryPage.ALBUM_ARTISTS to OfflineLibraryGrouping.albumArtists(result.tracks),
+                    )
+                    art to prepared
                 }
                 if (unavailable()) return@launch
+                groupsByPage = groups
                 mutable.update {
                     it.copy(tracks = result.tracks, artworkCatalog = covers,
                         loading = false, failed = false)
@@ -289,9 +299,7 @@ internal class LibraryViewModel(
         val snapshot = mutable.value
         val byId = catalogue.preparedById
         filtersJob = viewModelScope.launch {
-            // BUG 2026-11-14 (Huawei): MATCH FTS4 на устройстве не завершался и держал базу —
-            // поиск зависал, а следующее чтение медиатеки ждало его бесконечно. До разбора
-            // песни ищутся в памяти, как альбомы и исполнители (OfflineTrackCatalog.search).
+            // Предрасчитанные ключи: фильтрация не обращается к Room и не читает теги повторно.
             val startedMs = clockMs()
             val result = withContext(io) { calculateDerivedPages(snapshot, byId) }
             val applied = generation == filterVersion && !unavailable()
@@ -317,15 +325,10 @@ internal class LibraryViewModel(
         snapshot: LibraryUiState,
         byId: Map<String, app.enotone.playback.QueueTrack>,
     ): DerivedPages {
-        val groups = when (snapshot.section) {
-            LibraryPage.TRACKS -> emptyList()
-            LibraryPage.ALBUMS ->
-                OfflineLibraryGrouping.albums(snapshot.tracks, unknownAlbumName)
-            LibraryPage.ARTISTS -> OfflineLibraryGrouping.artists(snapshot.tracks)
-            LibraryPage.ALBUM_ARTISTS -> OfflineLibraryGrouping.albumArtists(snapshot.tracks)
-        }
+        val terms = LibraryText.searchTerms(snapshot.search)
+        val groups = groupsByPage[snapshot.section].orEmpty()
         val group = groups.firstOrNull { it.key == snapshot.selectedGroupKey }
-        val shown = groups.filter { OfflineLibraryGrouping.matches(it, snapshot.search) }
+        val shown = groups.filter { OfflineLibraryGrouping.matches(it, terms) }
         val candidates = when (snapshot.section) {
             LibraryPage.TRACKS -> snapshot.tracks
             else -> group?.let { selected ->
@@ -334,7 +337,7 @@ internal class LibraryViewModel(
                     OfflineTrackCatalog.albumOrder(members) else members
             } ?: emptyList()
         }
-        val visible = OfflineTrackCatalog.search(candidates, snapshot.search)
+        val visible = OfflineTrackCatalog.search(candidates, terms)
         val album = if (snapshot.section == LibraryPage.ALBUMS && group != null)
             OfflineTrackCatalog.albumOrder(
                 snapshot.tracks.filter { it.id in group.trackIds },

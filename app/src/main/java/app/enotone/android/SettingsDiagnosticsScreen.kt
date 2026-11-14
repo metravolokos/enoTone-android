@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -50,7 +49,7 @@ internal fun SettingsDiagnosticsContent(
         if (state.probe.isNotEmpty()) Text(state.probe, style = MaterialTheme.typography.bodySmall)
     }
     SettingsGroup(stringResource(R.string.diagnostics_indexing_title)) { IndexingDiagnostics(indexing) }
-    SettingsGroup(stringResource(R.string.diagnostics_search_title)) { SearchDiagnostics(state, actions) }
+    SettingsGroup(stringResource(R.string.diagnostics_search_title)) { SearchDiagnostics() }
     SettingsGroup { PlaybackDiagnosticsPanel() }
     SettingsGroup(stringResource(R.string.tag_audit_title)) { TagAudit(state, actions) }
     if (state.message.isNotEmpty()) Text(state.message, style = MaterialTheme.typography.bodySmall)
@@ -83,21 +82,15 @@ private fun IndexingDiagnostics(status: ManagedScanStatus) {
     }
 }
 
-/** BUG поиска 2026-11-14: след последнего поиска и сравнение FTS с поиском в памяти. */
+/** Обезличенное время последнего поиска остаётся доступно для проверки производительности. */
 @Composable
-private fun SearchDiagnostics(state: DiagnosticsUiState, actions: DiagnosticsActions) {
+private fun SearchDiagnostics() {
     val last by LibrarySearchTrace.last.collectAsState()
     Text(
         if (last.isEmpty()) stringResource(R.string.diagnostics_search_none)
         else stringResource(R.string.diagnostics_search_last, last),
         style = MaterialTheme.typography.bodySmall,
     )
-    OutlinedButton(enabled = !state.busy && state.hasLogin, onClick = { actions.searchProbe() }) {
-        Text(stringResource(R.string.diagnostics_search_run))
-    }
-    if (state.searchReport.isNotEmpty()) {
-        SelectionContainer { Text(state.searchReport, style = MaterialTheme.typography.bodySmall) }
-    }
 }
 
 /** Только просмотр: какие треки остались без альбома. Повторное чтение — «Переиндексировать всё…». */
