@@ -182,7 +182,9 @@ internal fun LibraryScreenContent(
         contentPadding
     }
     // Системное «Назад» из альбома или исполнителя возвращает к списку страницы, а не на «Домой».
-    BackHandler(enabled = detail != null) { onBackDetail() }
+    BackHandler(enabled = detail != null || selectedGroupKey != null) {
+        if (detail != null) onBackDetail() else actions.onGroupSelected(null)
+    }
     // Повтор активной вкладки: из группы — к списку, иначе — в начало. Обработанный номер сохраняется,
     // чтобы возврат из «Сейчас играет» (тот же номер) не прокручивал список заново.
     var handledScroll by rememberSaveable { mutableIntStateOf(scrollToTop) }
@@ -345,7 +347,11 @@ internal fun LibraryScreenContent(
                             Row(
                                 modifier = Modifier.fillMaxWidth().height(72.dp)
                                     .clickable {
-                                        onOpenDetail(LibraryDetail.Artist(group.key))
+                                        if (section == LibraryPage.ARTISTS) {
+                                            onOpenDetail(LibraryDetail.Artist(group.key))
+                                        } else {
+                                            actions.onGroupSelected(group.key)
+                                        }
                                     },
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 verticalAlignment = Alignment.CenterVertically,
