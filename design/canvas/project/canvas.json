@@ -1,0 +1,285 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-03T21:40:00Z"
+  },
+  "title": "Дизайн аудиоплеера «Енот»",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1600,
+      "h": 900,
+      "title": "Основа: палитра и стиль"
+    },
+    "Icon.dc.html": {
+      "x": 1680,
+      "y": 0,
+      "w": 1300,
+      "h": 900,
+      "title": "Иконка приложения"
+    },
+    "Android-Tracks.dc.html": {
+      "x": 0,
+      "y": 1360,
+      "w": 924,
+      "h": 1000,
+      "title": "Android: Треки"
+    },
+    "Android-Artists.dc.html": {
+      "x": 1004,
+      "y": 1360,
+      "w": 924,
+      "h": 1000,
+      "title": "Android: Артисты"
+    },
+    "Android-Albums.dc.html": {
+      "x": 2008,
+      "y": 1360,
+      "w": 924,
+      "h": 1000,
+      "title": "Android: Альбомы"
+    },
+    "Android-Now.dc.html": {
+      "x": 3012,
+      "y": 1360,
+      "w": 924,
+      "h": 1000,
+      "title": "Android: Сейчас играет"
+    },
+    "Android-Settings.dc.html": {
+      "x": 4016,
+      "y": 1360,
+      "w": 924,
+      "h": 1000,
+      "title": "Android: Настройки"
+    },
+    "Desktop-Tracks.dc.html": {
+      "x": 0,
+      "y": 2720,
+      "w": 1336,
+      "h": 1800,
+      "title": "Desktop: Треки"
+    },
+    "Desktop-Artists.dc.html": {
+      "x": 1416,
+      "y": 2720,
+      "w": 1336,
+      "h": 1800,
+      "title": "Desktop: Артисты"
+    },
+    "Desktop-Albums.dc.html": {
+      "x": 2832,
+      "y": 2720,
+      "w": 1336,
+      "h": 1800,
+      "title": "Desktop: Альбомы"
+    },
+    "Desktop-Now.dc.html": {
+      "x": 4248,
+      "y": 2720,
+      "w": 1336,
+      "h": 1800,
+      "title": "Desktop: Сейчас играет"
+    },
+    "Desktop-Settings.dc.html": {
+      "x": 5664,
+      "y": 2720,
+      "w": 1336,
+      "h": 1800,
+      "title": "Desktop: Настройки"
+    },
+    "Android2-Now.dc.html": {
+      "x": 0,
+      "y": 4900,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Сейчас играет"
+    },
+    "Android2-Songs.dc.html": {
+      "x": 1104,
+      "y": 4900,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Песни"
+    },
+    "Android2-SongActions.dc.html": {
+      "x": 2208,
+      "y": 4900,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Действия с песней"
+    },
+    "Android2-Albums.dc.html": {
+      "x": 3312,
+      "y": 4900,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Альбомы"
+    },
+    "Android2-Album.dc.html": {
+      "x": 4416,
+      "y": 4900,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Альбом"
+    },
+    "Android2-Songs-Scrolled.dc.html": {
+      "x": 0,
+      "y": 6280,
+      "w": 1748,
+      "h": 960,
+      "title": "Android v2: Песни — прокрутка (A/B)"
+    },
+    "Android2-Album-Scrolled.dc.html": {
+      "x": 2080,
+      "y": 6280,
+      "w": 1748,
+      "h": 960,
+      "title": "Android v2: Альбом — прокрутка (A/B)"
+    },
+    "Android2-Artists.dc.html": {
+      "x": 5520,
+      "y": 4900,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Артисты"
+    },
+    "Android2-AlbumArtists.dc.html": {
+      "x": 6624,
+      "y": 4900,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Авторы альбомов"
+    },
+    "Android2-Artist.dc.html": {
+      "x": 7728,
+      "y": 4900,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Исполнитель"
+    },
+    "Android2-Home.dc.html": {
+      "x": 4160,
+      "y": 6280,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Домой (A, с «Продолжить»)"
+    },
+    "Android2-Home-B.dc.html": {
+      "x": 5264,
+      "y": 6280,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Домой (B, без «Продолжить»)"
+    },
+    "Android2-Home-C.dc.html": {
+      "x": 6368,
+      "y": 6280,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Домой (C, история — указующий Бандит)"
+    },
+    "Android2-Bandit-Dark.dc.html": {
+      "x": 0,
+      "y": 7720,
+      "w": 1323,
+      "h": 2772,
+      "title": "Android v2: Бандит на экранах — Графит"
+    },
+    "Android2-Bandit-Light.dc.html": {
+      "x": 1592,
+      "y": 7720,
+      "w": 1323,
+      "h": 2772,
+      "title": "Android v2: Бандит на экранах — Фарфор"
+    },
+    "Android2-Home-C2.dc.html": {
+      "x": 7472,
+      "y": 6280,
+      "w": 898,
+      "h": 960,
+      "title": "Android v2: Домой (C2, выбран — Бандит в наушниках)"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Icon.dc.html",
+    "Android-Tracks.dc.html",
+    "Android-Artists.dc.html",
+    "Android-Albums.dc.html",
+    "Android-Now.dc.html",
+    "Android-Settings.dc.html",
+    "Desktop-Tracks.dc.html",
+    "Desktop-Artists.dc.html",
+    "Desktop-Albums.dc.html",
+    "Desktop-Now.dc.html",
+    "Desktop-Settings.dc.html",
+    "Android2-Now.dc.html",
+    "Android2-Songs.dc.html",
+    "Android2-SongActions.dc.html",
+    "Android2-Albums.dc.html",
+    "Android2-Album.dc.html",
+    "Android2-Songs-Scrolled.dc.html",
+    "Android2-Album-Scrolled.dc.html",
+    "Android2-Artists.dc.html",
+    "Android2-AlbumArtists.dc.html",
+    "Android2-Artist.dc.html",
+    "Android2-Home.dc.html",
+    "Android2-Home-B.dc.html",
+    "Android2-Home-C.dc.html",
+    "Android2-Bandit-Dark.dc.html",
+    "Android2-Bandit-Light.dc.html",
+    "Android2-Home-C2.dc.html"
+  ],
+  "notes": {
+    "t0": {
+      "x": 0,
+      "y": -260,
+      "text": "Основа и иконка",
+      "kind": "title1",
+      "maxW": 2980
+    },
+    "t1": {
+      "x": 0,
+      "y": 1120,
+      "text": "Android: тёмная и светлая темы",
+      "kind": "title1",
+      "maxW": 4940
+    },
+    "t2": {
+      "x": 0,
+      "y": 2480,
+      "text": "Windows и Linux: тёмная и светлая темы",
+      "kind": "title1",
+      "maxW": 7000
+    },
+    "t3": {
+      "x": 0,
+      "y": 4620,
+      "text": "Android v2 — минимализм, UI Icons v1 (2026-11-12)",
+      "kind": "title1",
+      "maxW": 8752
+    },
+    "t4": {
+      "x": 0,
+      "y": 6000,
+      "text": "Прокрутка (A/B) и «Домой» (A/B/C)",
+      "kind": "title1",
+      "maxW": 8496
+    },
+    "t5": {
+      "x": 0,
+      "y": 7440,
+      "text": "Бандит: вход, индексация, пустые состояния, настройки",
+      "kind": "title1",
+      "maxW": 3104
+    }
+  },
+  "designSystems": []
+}

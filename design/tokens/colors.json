@@ -1,0 +1,79 @@
+{
+  "product": "enoTone",
+  "version": "1.5",
+  "status": "approved-design-concept",
+  "concept": "Глянцевый енот",
+  "darkThemeName": "Графит",
+  "lightThemeName": "Фарфор",
+  "reference": {
+    "filename": "Основа палитра и стиль@2x.png",
+    "sha256": "f884320e5656e4d7b26a89df4f991b3d66958280dac46c444646cb1d3b6fa7b9",
+    "inRepository": false
+  },
+  "dark": {
+    "background": "#1B1A19",
+    "surface": "#252321",
+    "surface2": "#2F2C2A",
+    "text": "#F4ECE4",
+    "textSecondary": "#B9AEA4",
+    "accent": "#EBAE9F",
+    "highlight": "#8FB0C2",
+    "line": "#3A3633",
+    "onAccent": "#1B1A19",
+    "shadow": "#80000000",
+    "scrim": "#8C000000",
+    "coverRim": "#59FFFFFF",
+    "shadowStrong": "#A6000000"
+  },
+  "light": {
+    "background": "#EDE9E5",
+    "surface": "#F8F5F1",
+    "surface2": "#E2DCD6",
+    "text": "#211E1C",
+    "textSecondary": "#5C544E",
+    "accentText": "#A24F3E",
+    "accentFill": "#EBAE9F",
+    "line": "#CFC6BE",
+    "onAccent": "#211E1C",
+    "shadow": "#383C281E",
+    "scrim": "#61211E1C",
+    "coverRim": "#59000000",
+    "shadowStrong": "#4D3C281E"
+  },
+  "shared": {
+    "coverOutline": "#2E80766E",
+    "playingOverlay": "#4D000000",
+    "playingBar": "#FFFFFF"
+  },
+  "avatars": [
+    {
+      "background": "#EBAE9F",
+      "letter": "#1B1A19"
+    },
+    {
+      "background": "#8FB0C2",
+      "letter": "#1B1A19"
+    },
+    {
+      "background": "#4F7487",
+      "letter": "#F4ECE4"
+    },
+    {
+      "background": "#D9C3AE",
+      "letter": "#1B1A19"
+    },
+    {
+      "background": "#6E625A",
+      "letter": "#F4ECE4"
+    },
+    {
+      "background": "#B9AEA4",
+      "letter": "#1B1A19"
+    }
+  ],
+  "notes": {
+    "alphaFormat": "#AARRGGBB (Android)",
+    "v1.4": "2026-11-13: добавлены цвета, уже используемые утверждёнными макетами Android UI v2: line, onAccent, shadow, scrim, shared.*, avatars. Значения v1.3 не менялись.",
+    "v1.5": "2026-11-14: coverRim (обводка обложки «Сейчас играет»: белая 35 % в «Графите», чёрная 35 % в «Фарфоре») и shadowStrong (усиленная тень этой обложки) — решение владельца D3.2."
+  }
+}

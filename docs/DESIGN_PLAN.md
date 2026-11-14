@@ -7,10 +7,11 @@
 
 | Что | Где | Как использовать |
 | --- | --- | --- |
-| Иконка, значки UI Icons v1, Wordmark v2.0, Бандит, токены цветов | репозиторий `metravolokos/enotone-design`, ветка `main` (`assets/`, `tokens/colors.json`, `docs/*_V*.md`) | **только копией**, без правок; в описании PR — SHA коммита. Нужна правка ресурса — PR в `enotone-design` (генераторы в `tools/`), затем новая копия |
-| Вид экранов, обе темы | холст claude.ai «Дизайн аудиоплеера «Енот»», ряды «Android v2 …» | эталон вёрстки; расхождения перечислять в PR |
-| Поведение и правила интерфейса | документы владельца `DECISIONS_android_v2_ui.md`, `SPEC_now_playing_buffering.md` (проект claude.ai «enoTone Android AudioPlayer»); выдержки — в заданиях на шаги | эталон поведения |
-| План ресурсов в дизайн-репозитории | `enotone-design/docs/ANDROID_INTEGRATION_PLAN.md` | парный документ |
+| Иконка, значки UI Icons v1, Wordmark v2.0, Бандит, токены цветов | [`design/`](../design/README.md) в этом репозитории (`assets/`, `tokens/colors.json`, `docs/*_V*.md`; до 2026-11-15 — архивный `enotone-design`) | только через `design/tools/sync_android.py`, руками не править; проверка `sync_android.py --check`. Нужна правка — меняется генератор в `design/tools/`, затем синхронизация |
+| Вид экранов, обе темы | PNG `design/assets/ui-screens/android-v2/`; исходники `design/canvas/` (показ — холст claude.ai «Дизайн аудиоплеера «Енот»») | эталон вёрстки; расхождения перечислять в PR |
+| Поведение и правила интерфейса | [`design/docs/DECISIONS_ANDROID_V2_UI.md`](../design/docs/DECISIONS_ANDROID_V2_UI.md), [`SPEC_NOW_PLAYING_BUFFERING.md`](../design/docs/SPEC_NOW_PLAYING_BUFFERING.md); выдержки — в заданиях на шаги | эталон поведения |
+| План ресурсов | [`design/docs/ANDROID_INTEGRATION_PLAN.md`](../design/docs/ANDROID_INTEGRATION_PLAN.md) | парный документ |
+| Нужен новый элемент | issue с меткой `design-needed`, порядок — [`design/README.md`](../design/README.md) | работа над этой частью стоит до утверждения элемента |
 
 История, **не** использовать как цель: ADR-0068…0073 (как целевой вид), Wordmark Master v1.0, App Icon v1.0, Android Adaptive Color v2, 3D-Бандит, «UI Baseline v1.0» как точные размеры.
 
@@ -44,6 +45,7 @@ D4–D6 после D3 — параллельно, отдельными PR. Сл�
 
 | Дата | Событие |
 | --- | --- |
+| 2026-11-15 | **Дизайн перенесён в `design/`** (из `enotone-design` `a2afd4c`, без истории Git): генераторы, эталоны, исходники холста, журнал решений; ресурсы — через `design/tools/sync_android.py`; правило `design-needed`. Проверка в CI и ADR — следующим PR. |
 | 2026-11-14 | **D4a в разработке:** Draft PR #133 от `2367b7f`; лист действий, исполнитель, стек; CI/Roborazzi/Huawei ещё не подтверждены. |
 | 2026-11-14 | **D2 закрыт:** #122 (`ee7d420`), #123 (`7213ccb`); detekt, окантовка обложек и эталоны доведены Claude, эталоны записываются ручным запуском CI и восстанавливаются из журнала. Открыт D3. У столбиков «волны» поверх обложки нет мягкой тени из макета — добавить при встраивании (D4). |
 | 2026-11-13 | D2a — Draft PR #122 от `main` `89545ea`; палитра v1.4 скопирована из `enotone-design` `907a01c`, D2b — stacked Draft от ветки D2a, без подключения компонентов к экранам. |

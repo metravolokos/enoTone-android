@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- enoTone Wordmark v2.0, тема «Фарфор» -->
+    <color name="wordmark_letters">#211E1C</color>
+    <color name="wordmark_accent">#A24F3E</color>
+</resources>

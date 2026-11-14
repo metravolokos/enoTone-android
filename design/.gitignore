@@ -1,0 +1,18 @@
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+.idea/
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# Холст: рабочие файлы рендера
+canvas/node_modules/
+canvas/_s.html
+canvas/*.png
+!canvas/bandit_peek.png
+!canvas/hp_peek.png

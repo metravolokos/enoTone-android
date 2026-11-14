@@ -1,9 +1,10 @@
-"""Перенос изображений Бандита из enotone-design в ресурсы приложения (шаг D1, ADR-0079).
+"""Перенос изображений Бандита из design/ в ресурсы приложения (шаг D1, ADR-0079).
 
-Запуск: python3 tools/convert_bandit.py <путь к enotone-design>/assets/bandit/clean app/src/main/res/drawable-nodpi
+Обычно вызывается из design/tools/sync_android.py --bandit. Вручную:
+python3 design/tools/convert_bandit.py design/assets/bandit/clean core/ui/src/main/res/drawable-nodpi
 Только масштаб (высота 720 px — самый крупный показ ≈ 240 dp × 3) и формат WebP: цвет с качеством 92
 (для плоской контурной графики глазом не отличить от lossless, а размер в ~4 раза меньше), альфа — без потерь.
-Персонаж не перерисовывается и не обрезается. Источник истины — enotone-design (docs/BANDIT_SET_V1.md, SHA-256 оригиналов).
+Персонаж не перерисовывается и не обрезается. Источник истины — design/ (design/docs/BANDIT_SET_V1.md, SHA-256 оригиналов).
 Зависимости: Pillow.
 """
 import os
@@ -13,7 +14,7 @@ from PIL import Image
 
 TARGET_HEIGHT = 720
 WEBP_QUALITY = 92  # проверено сравнением с lossless при 2× увеличении (2026-11-12)
-# имя в enotone-design → имя ресурса; позы 08 (указующий жест — только иконка) и 12 (наушники A) в интерфейсе не используются
+# имя в design/assets/bandit/clean → имя ресурса; позы 08 (указующий жест — только иконка) и 12 (наушники A) в интерфейсе не используются
 MAPPING = {
     'bandit_01_books.png': 'bandit_books',
     'bandit_02_reading.png': 'bandit_reading',

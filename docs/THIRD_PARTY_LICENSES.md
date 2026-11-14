@@ -9,4 +9,4 @@
 - **Onest** (The Onest Project Authors) и **Unbounded** (The Unbounded Project Authors) — SIL Open Font License 1.1; вариативные TTF из `github.com/google/fonts` вшиты в APK (`res/font`), не загружаются из сети. Тексты лицензий — [`docs/licenses/`](licenses/). ADR-0079.
 - **Haze 1.7.2** (`dev.chrisbanes.haze:haze`) — Chris Banes, Apache License 2.0; размытие под полоской прокрутки (ADR-0086, решение владельца 2026-11-14). Только `:core:ui`, без сети и GMS.
 - **Roborazzi 1.76.0** — Apache License 2.0, только тесты `:core:ui` (ADR-0084); в APK не входит.
-- Иконка, значки, логотип и изображения Бандита — собственные ресурсы проекта из `metravolokos/enotone-design`.
+- Иконка, значки, логотип и изображения Бандита — собственные ресурсы проекта из `design/` (до 2026-11-15 — `metravolokos/enotone-design`).

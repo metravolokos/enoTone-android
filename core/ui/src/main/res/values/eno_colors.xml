@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Палитра enoTone v1.5, тема «Фарфор». Сгенерировано tools/build_tokens.py
-     из enotone-design/tokens/colors.json — не править руками. -->
+     из design/tokens/colors.json — не править руками. -->
 <resources>
     <color name="eno_background">#EDE9E5</color>
     <color name="eno_surface">#F8F5F1</color>

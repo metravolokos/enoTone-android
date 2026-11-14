@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.enotone.android.core.ui.R
 
-/** Источник всех цветов — скопированные без правки XML enotone-design a2afd4c (палитра v1.5). */
+/** Источник всех цветов — XML из `design/` (палитра v1.5), переносятся `design/tools/sync_android.py`. */
 data class EnoColorTokens(
     val accentFill: Color,
     val accentText: Color,
