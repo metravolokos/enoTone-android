@@ -9,7 +9,6 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
     def test_player_has_only_real_controls(self):
         p = source(BASE+"NowPlayingScreen.kt") + source("feature/player/src/main/java/app/enotone/android/FeatureNowPlayingScreen.kt")
         for token in ("Brush.verticalGradient(", "Slider(", "FilledIconButton(",
-                      "FilledTonalIconButton(",
                       "onCycleRepeat", "onToggleShuffle", "onPlayPause",
                       'playbackState == "PAUSED"', "0.84f", "coverScale"):
             self.assertIn(token,p)

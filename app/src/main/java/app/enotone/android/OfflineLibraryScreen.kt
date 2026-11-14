@@ -75,10 +75,10 @@ internal fun OfflineLibraryScreen(
     )
 }
 
-/** Preview-only no-op actions. There is no binder, Room or WebDAV in previews. */
+/** Пустые действия для превью и снимков экранов: без binder, Room и WebDAV. */
 // Preview dispatches all actions as no-ops; not production behavior.
 @Suppress("TooManyFunctions")
-private object PreviewLibraryActions : LibraryScreenActions {
+internal object PreviewLibraryActions : LibraryScreenActions {
     override fun onSearch(query: String) = Unit
     override fun onPageSelected(page: LibraryPage) = Unit
     override fun onGroupSelected(key: String?) = Unit

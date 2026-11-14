@@ -34,6 +34,7 @@ fun EnoPill(
     enabled: Boolean = true,
     icon: EnoIcons? = null,
     contentDescription: String = label,
+    horizontalPadding: Dp = 10.dp,
 ) {
     val background = if (accent) EnoColors.accentFill else EnoColors.surface2
     val foreground = if (accent) EnoColors.onAccent else EnoColors.text
@@ -47,8 +48,9 @@ fun EnoPill(
         contentColor = foreground,
     ) {
         Row(
-            // 10 dp: «Перемешать» без обрезки в двух пилюлях на 360–377 dp (полоска, макет 10_songs_scrolled).
-            modifier = Modifier.padding(horizontal = 10.dp),
+            // 10 dp: «Перемешать» без обрезки в двух пилюлях на 360–377 dp (макет 02_songs); в шапке альбома
+            // рядом ещё «⋮» Ø 48 — там поля меньше (05_album).
+            modifier = Modifier.padding(horizontal = horizontalPadding),
             horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -83,9 +85,15 @@ fun EnoRoundButton(
     size: Dp = 40.dp,
     accent: Boolean = false,
     enabled: Boolean = true,
+    filled: Boolean = true,
 ) {
     val diameter = if (size > 48.dp) 48.dp else size
-    val background = if (accent) EnoColors.accentFill else EnoColors.surface2
+    // filled = false — значок без подложки («⋮» в строках, поиск в полоске); зона нажатия та же 48 dp.
+    val background = when {
+        !filled -> Color.Transparent
+        accent -> EnoColors.accentFill
+        else -> EnoColors.surface2
+    }
     val foreground = if (accent) EnoColors.onAccent else EnoColors.text
     Surface(
         onClick = onClick,

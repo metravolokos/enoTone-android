@@ -31,9 +31,9 @@ import app.enotone.android.core.ui.theme.EnoColors
 
 private val wavePeriodsMs = listOf(1600, 2600, 1900, 2200)
 
-/** На паузе столбики замирают низко; без анимации — средняя высота. */
+/** На паузе столбики замирают низко; без анимации — неподвижный «кадр волны» разной высоты (05_album). */
 private const val PAUSED_SCALE = 0.25f
-private const val STATIC_SCALE = 0.62f
+private val STATIC_SCALES = listOf(0.45f, 0.9f, 0.6f, 0.75f)
 private const val MIN_SCALE = 0.30f
 private const val MAX_SCALE = 0.95f
 
@@ -84,7 +84,7 @@ fun EnoPlayingIndicator(
                         label = "bar-$index",
                     )
                     value
-                } else if (!playing) PAUSED_SCALE else STATIC_SCALE
+                } else if (!playing) PAUSED_SCALE else STATIC_SCALES[index]
                 Box(
                     Modifier.width(2.5.dp).height(14.dp)
                         .graphicsLayer {

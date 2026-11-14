@@ -51,6 +51,11 @@ enum class EnoIcons(@DrawableRes val outline: Int, @DrawableRes val selected: In
     REPEAT(R.drawable.ic_eno_repeat),
     REPEAT_ONE(R.drawable.ic_eno_repeat_one),
     QUEUE(R.drawable.ic_eno_queue),
+
+    // Служебные значки из утверждённых макетов Android v2 (в UI Icons v1 их нет, D3.1).
+    SEARCH(R.drawable.ic_eno_search),
+    TUNE(R.drawable.ic_eno_tune),
+    CLOSE(R.drawable.ic_eno_close),
 }
 
 /** Прозрачность отключённого элемента по Material 3. */

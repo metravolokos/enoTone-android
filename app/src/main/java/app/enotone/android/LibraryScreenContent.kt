@@ -21,10 +21,10 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,24 +33,33 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import app.enotone.android.core.ui.component.EnoCollapsingStrip
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoPill
+import app.enotone.android.core.ui.component.EnoRoundButton
 import app.enotone.android.core.ui.component.enoBlurSource
 import app.enotone.android.core.ui.component.rememberEnoBlurState
+import app.enotone.android.core.ui.theme.EnoColors
+import app.enotone.android.core.ui.theme.EnoRadii
 import app.enotone.library.LibraryPage
+import java.text.NumberFormat
 import androidx.compose.foundation.lazy.grid.items as gridItems
 
 /**
@@ -148,92 +157,104 @@ internal fun LibraryScreenContent(
             albumGridState.animateScrollToItem(0)
         }
     }
+    // Поиск раскрывается по значку (макеты 02/04/06/07), а не висит постоянным полем; открыт,
+    // пока в нём есть текст. Закрытие — крестик или системное «Назад»; фильтр сбрасывается.
+    var searchOpen by rememberSaveable(section) { mutableStateOf(search.isNotEmpty()) }
+    val searchFocus = remember { FocusRequester() }
+    val closeSearch = {
+        searchOpen = false
+        actions.onSearch("")
+    }
+    BackHandler(enabled = searchOpen && selectedGroupKey == null) { closeSearch() }
+    var searchScrollRequest by remember { mutableIntStateOf(0) }
+    LaunchedEffect(searchScrollRequest) {
+        if (searchScrollRequest > 0) {
+            libraryListState.animateScrollToItem(0)
+            albumGridState.animateScrollToItem(0)
+        }
+    }
+    val openSearch: () -> Unit = {
+        searchOpen = true
+        searchScrollRequest += 1
+    }
+    // «Играть»/«Перемешать» — только «Песни» и альбом (на «Альбомах», «Артистах», «Авторах» их нет).
+    val canPlayPage = section == LibraryPage.TRACKS && selectedGroup == null && tracks.isNotEmpty() &&
+        search.isBlank()
+    val canPlayAlbum = section == LibraryPage.ALBUMS && selectedGroup != null && albumTracks.isNotEmpty()
+    val playEnabled = state.playbackConnected && !selecting && appPassword.isNotBlank()
     val header: @Composable () -> Unit = {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(modifier = Modifier.padding(horizontal = HEADER_EXTRA_PADDING)) {
             if (selectedGroupKey == null) {
-                Text(
-                    text = stringResource(when (section) {
-                        LibraryPage.TRACKS -> R.string.ui_songs_title
-                        LibraryPage.ALBUMS -> R.string.library_tab_albums
-                        LibraryPage.ARTISTS -> R.string.library_tab_artists
-                        LibraryPage.ALBUM_ARTISTS -> R.string.library_tab_album_artists
-                    }),
-                    style = MaterialTheme.typography.headlineLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().padding(top = 20.dp, bottom = 8.dp),
-                )
-                BasicTextField(
-                    value = search,
-                    onValueChange = { actions.onSearch(it) },
-                    singleLine = true,
-                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 17.sp),
-                    modifier = Modifier.fillMaxWidth().height(52.dp)
-                        .background(MaterialTheme.colorScheme.surface,
-                            RoundedCornerShape(12.dp))
-                        .padding(horizontal = 16.dp),
-                    decorationBox = { innerField ->
-                        Box(modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.CenterStart) {
-                            if (search.isEmpty()) {
-                                Text(
-                                    text = stringResource(when (section) {
-                                        LibraryPage.TRACKS -> R.string.ui_search_songs
-                                        LibraryPage.ALBUMS -> R.string.ui_search_albums
-                                        LibraryPage.ARTISTS -> R.string.ui_search_artists
-                                        LibraryPage.ALBUM_ARTISTS -> R.string.ui_search_artists
-                                    }),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 17.sp,
-                                )
-                            }
-                            innerField()
-                        }
-                    },
-                )
-            }
-            if (search.isNotBlank()) {
-                val count = if (section != LibraryPage.TRACKS && selectedGroup == null) {
-                    stringResource(R.string.library_group_count, shownGroups.size)
+                if (searchOpen) {
+                    LibrarySearchField(
+                        value = search,
+                        hint = stringResource(when (section) {
+                            LibraryPage.TRACKS -> R.string.ui_search_songs
+                            LibraryPage.ALBUMS -> R.string.ui_search_albums
+                            LibraryPage.ARTISTS, LibraryPage.ALBUM_ARTISTS -> R.string.ui_search_artists
+                        }),
+                        focusRequester = searchFocus,
+                        onValueChange = { actions.onSearch(it) },
+                        onClose = closeSearch,
+                    )
                 } else {
-                    stringResource(R.string.library_count, visible.size,
-                        if (section == LibraryPage.TRACKS) tracks.size
-                        else selectedGroup?.trackIds?.size ?: 0)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            text = stringResource(sectionTitle(section)),
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = EnoColors.text,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(top = 8.dp),
+                        )
+                        EnoRoundButton(
+                            icon = EnoIcons.SEARCH,
+                            contentDescription = stringResource(R.string.ui_search),
+                            onClick = openSearch,
+                            filled = false,
+                        )
+                    }
                 }
-                Text(count, style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Счётчик под заголовком; при поиске — «показано N из M» (прежняя строка).
+                val countText = when {
+                    search.isNotBlank() && section != LibraryPage.TRACKS ->
+                        stringResource(R.string.library_group_count, shownGroups.size)
+                    search.isNotBlank() -> stringResource(R.string.library_count, visible.size, tracks.size)
+                    else -> sectionCount(section, if (section == LibraryPage.TRACKS) tracks.size else groups.size)
+                }
+                Text(
+                    text = countText,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
+                    color = EnoColors.textSecondary,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 18.dp),
+                )
             }
-            if ((section == LibraryPage.TRACKS || section == LibraryPage.ALBUMS) &&
-                selectedGroup == null && tracks.isNotEmpty() && search.isBlank()) {
+            if (canPlayPage) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    val enabled = state.playbackConnected && !selecting && appPassword.isNotBlank()
-                    MusicListAction(
-                        text = stringResource(R.string.ui_play),
-                        icon = R.drawable.ic_action_play,
-                        enabled = enabled,
-                        modifier = Modifier.weight(1f),
+                    EnoPill(
+                        label = stringResource(R.string.ui_play), accent = true, icon = EnoIcons.PLAY,
+                        enabled = playEnabled, modifier = Modifier.weight(1f),
                         onClick = { actions.onPlayAll() },
                     )
-                    MusicListAction(
-                        text = stringResource(R.string.library_shuffle_all),
-                        icon = R.drawable.ic_action_shuffle,
-                        enabled = enabled,
-                        modifier = Modifier.weight(1f),
+                    EnoPill(
+                        label = stringResource(R.string.library_shuffle_all), icon = EnoIcons.SHUFFLE,
+                        enabled = playEnabled, modifier = Modifier.weight(1f),
                         onClick = { actions.onShuffleAll() },
                     )
                 }
             }
         }
     }
+    LaunchedEffect(searchOpen) {
+        if (searchOpen) searchFocus.requestFocus()
+    }
     val stripTitle = selectedGroup?.name ?: stringResource(sectionTitle(section))
-    val canPlayPage = (section == LibraryPage.TRACKS || section == LibraryPage.ALBUMS) &&
-        selectedGroup == null && tracks.isNotEmpty() && search.isBlank()
-    val canPlayAlbum = section == LibraryPage.ALBUMS && selectedGroup != null && albumTracks.isNotEmpty()
-    val playEnabled = state.playbackConnected && !selecting && appPassword.isNotBlank()
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -440,25 +461,32 @@ internal fun LibraryScreenContent(
         visible = stripVisible,
         title = stripTitle,
         blur = blur,
-        actions = if (canPlayPage || canPlayAlbum) {
-            {
-                EnoPill(
-                    label = stringResource(R.string.ui_play), accent = true, icon = EnoIcons.PLAY,
-                    enabled = playEnabled,
-                    modifier = Modifier.weight(1f).height(STRIP_PILL_HEIGHT),
-                    onClick = { if (canPlayAlbum) actions.onAlbumPlayAll() else actions.onPlayAll() },
-                )
-                EnoPill(
-                    label = stringResource(R.string.library_shuffle_all), icon = EnoIcons.SHUFFLE,
-                    enabled = playEnabled,
-                    modifier = Modifier.weight(1f).height(STRIP_PILL_HEIGHT),
-                    onClick = { if (canPlayAlbum) actions.onAlbumShuffleAll() else actions.onShuffleAll() },
-                )
-            }
-        } else {
-            null
-        },
-    )
+    ) {
+        if (canPlayPage || canPlayAlbum) {
+            EnoRoundButton(
+                icon = EnoIcons.SHUFFLE,
+                contentDescription = stringResource(R.string.library_shuffle_all),
+                enabled = playEnabled,
+                onClick = { if (canPlayAlbum) actions.onAlbumShuffleAll() else actions.onShuffleAll() },
+            )
+            EnoRoundButton(
+                icon = EnoIcons.PLAY,
+                contentDescription = stringResource(R.string.ui_play),
+                accent = true,
+                enabled = playEnabled,
+                onClick = { if (canPlayAlbum) actions.onAlbumPlayAll() else actions.onPlayAll() },
+            )
+        }
+        // Поиск не пропадает при прокрутке: наверх и раскрыть поле (уточнение владельца 2026-11-14).
+        if (selectedGroupKey == null) {
+            EnoRoundButton(
+                icon = EnoIcons.SEARCH,
+                contentDescription = stringResource(R.string.ui_search),
+                filled = false,
+                onClick = openSearch,
+            )
+        }
+    }
     }
 }
 
@@ -474,4 +502,68 @@ private const val EMPTY_KEY = "library-empty"
 
 /** Полоска появляется, когда крупный заголовок (≈ 56 dp) ушёл под системную строку. */
 private val STRIP_AFTER = 56.dp
-private val STRIP_PILL_HEIGHT = 44.dp
+
+/** Поля шапки как в макетах: 28 dp от края (16 — у списка, ещё 12 — у шапки до D4). */
+private val HEADER_EXTRA_PADDING = 12.dp
+
+@Composable
+private fun sectionCount(section: LibraryPage, count: Int): String {
+    val formatted = remember(count) { NumberFormat.getIntegerInstance().format(count) }
+    return pluralStringResource(
+        when (section) {
+            LibraryPage.TRACKS -> R.plurals.library_songs_count
+            LibraryPage.ALBUMS -> R.plurals.library_albums_count
+            LibraryPage.ARTISTS -> R.plurals.library_artists_count
+            LibraryPage.ALBUM_ARTISTS -> R.plurals.library_album_artists_count
+        },
+        count,
+        formatted,
+    )
+}
+
+/** Раскрытое поле поиска на месте заголовка: пилюля `surface2` 48 dp, значок, крестик. */
+@Composable
+private fun LibrarySearchField(
+    value: String,
+    hint: String,
+    focusRequester: FocusRequester,
+    onValueChange: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp).height(52.dp)
+            .background(EnoColors.surface2, EnoRadii.full)
+            .padding(start = 16.dp, end = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(EnoIcons.SEARCH.outline),
+            contentDescription = null,
+            modifier = Modifier.size(22.dp),
+            tint = EnoColors.textSecondary,
+        )
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = EnoColors.text),
+            cursorBrush = SolidColor(EnoColors.accentText),
+            modifier = Modifier.weight(1f).padding(horizontal = 12.dp).focusRequester(focusRequester),
+            decorationBox = { inner ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (value.isEmpty()) {
+                        Text(hint, style = MaterialTheme.typography.bodyLarge, color = EnoColors.textSecondary,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    inner()
+                }
+            },
+        )
+        EnoRoundButton(
+            icon = EnoIcons.CLOSE,
+            contentDescription = stringResource(R.string.ui_search_close),
+            filled = false,
+            onClick = onClose,
+        )
+    }
+}

@@ -24,6 +24,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoShuffleAllCard
 import app.enotone.android.core.ui.theme.EnoColors
 
@@ -63,7 +64,8 @@ fun FeatureEnoToneHomeScreen(
             )
             IconButton(onClick = onSettings) {
                 Icon(
-                    painter = painterResource(ids.icActionSettings),
+                    // Контурные «ползунки» из макета 09_home (D3.1), не шестерёнка ADR-0073.
+                    painter = painterResource(EnoIcons.TUNE.outline),
                     contentDescription = stringResource(ids.settingsTitle),
                     modifier = Modifier.size(26.dp),
                     tint = EnoColors.text,

@@ -26,11 +26,9 @@ private val nowPlayingIds = NowPlayingIds(
     playbackResume = R.string.playback_resume,
     icActionNext = R.drawable.ic_action_next,
     playbackNext = R.string.playback_next,
-    icActionShuffle = R.drawable.ic_action_shuffle,
     playbackShuffleOn = R.string.playback_shuffle_on,
     playbackShuffleOff = R.string.playback_shuffle_off,
     nowPlayingQueueShort = R.string.now_playing_queue_short,
-    icActionRepeat = R.drawable.ic_action_repeat,
     playbackRepeatControl = R.string.playback_repeat_control,
 )
 
