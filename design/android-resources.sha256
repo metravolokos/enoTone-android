@@ -43,8 +43,10 @@ e3b00387b01f1ca328bd9e8c13570640f204eb98b4552b7faf27c3f1c37cf777  core/ui/src/ma
 dbb8b47aad20a77ee8b274dc0f24737dc24c1af9594b5c65c6b20a2976a68ba4  core/ui/src/main/res/drawable/ic_eno_next.xml
 fc3301e83341633c2946c58cf586b75eb8e95f0a241135f12a2bd8b3f83711e4  core/ui/src/main/res/drawable/ic_eno_pause.xml
 11465e3df270ab1a8dbe45d953b0dc75bd93d2663000349d10206706ec9496bc  core/ui/src/main/res/drawable/ic_eno_play.xml
+5a2f7615c2835a876c43dd4c674df8417cb04446eab459da40d22ce9ab0026a0  core/ui/src/main/res/drawable/ic_eno_play_next.xml
 049f46b1e449cc4e1371f7c76fce87d171b3ff1797ce187ddbbeff7be40d19ac  core/ui/src/main/res/drawable/ic_eno_previous.xml
 a076b2f9f14fc12ceae08d229fa974783b6b6760ccfd58fe8dc61df941aaa038  core/ui/src/main/res/drawable/ic_eno_queue.xml
+94d39141db3a8d70f03bc8505e9d92bbccf883a09ab5af91dfbcb44109d00ba8  core/ui/src/main/res/drawable/ic_eno_queue_add.xml
 bc2579a45a48c54b5a396c25bc68c7d489859b7239f4a8fb4b64f239ffedfc34  core/ui/src/main/res/drawable/ic_eno_repeat.xml
 d36877594360ba7b01c241d6449287b7f6a1aea8f981d9a047c953be437901b0  core/ui/src/main/res/drawable/ic_eno_repeat_one.xml
 6e838641b958ea66408e201f064c445ec40595fa7eb1ad2e569b4475927fa540  core/ui/src/main/res/drawable/ic_eno_search.xml

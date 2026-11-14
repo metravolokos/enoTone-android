@@ -42,7 +42,7 @@
 
 ## Файлы
 
-- `assets/ui-icons/v1/svg/*.svg` — 22 SVG, цвет `currentColor` (с 2026-11-14 добавлены служебные `search`, `tune`, `close`);
+- `assets/ui-icons/v1/svg/*.svg` — 24 SVG, цвет `currentColor` (с 2026-11-14 добавлены служебные `search`, `tune`, `close`; с 2026-11-15 — действия листа песни `play_next`, `queue_add`);
 - `assets/ui-icons/v1/android/drawable/ic_eno_*.xml` — VectorDrawable 24 dp, цвет `#FF000000`; в Compose — `Icon(painterResource(R.drawable.ic_eno_play), contentDescription, tint = …)`;
 - `assets/ui-icons/v1/preview.png` — нижняя панель, плеер и весь набор в обеих темах.
 
