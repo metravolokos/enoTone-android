@@ -120,7 +120,11 @@ class QueueStateFileStore private constructor(
                 out.write(contents.toByteArray(Charsets.UTF_8))
                 out.fd.sync()
             }
-            if (!temporary.renameTo(target)) throw IOException("Queue atomic rename failed")
+            // File.renameTo refuses to overwrite an existing target on Windows, so the
+            // second checkpoint always failed there. See AtomicFileReplace.
+            if (!AtomicFileReplace.replace(temporary, target)) {
+                throw IOException("Queue atomic rename failed")
+            }
         } finally {
             if (temporary.exists()) temporary.delete()
         }

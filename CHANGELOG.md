@@ -11,6 +11,18 @@
 
 - ADR-0090: шаг CI «Design resources match design/» (`design/tools/sync_android.py --check`) — ресурсы `ic_eno_*`, `bandit_*`, палитра, wordmark и launcher только из `design/`; шаблон issue «Нужен элемент дизайна» и метка `design-needed`, раздел «Дизайн» в шаблоне PR. Значки `ic_eno_play_next` / `ic_eno_queue_add` (временные из #134) заменены собранными `build_ui_icons.py` по формам с холста; UI Icons v1 — 24 значка.
 - Дизайн в репозитории приложения: содержимое `enotone-design` (`a2afd4c`) перенесено в `design/` без истории Git — генераторы, эталонные PNG, исходники холста Android v2 (`design/canvas/`), журнал решений `design/docs/DECISIONS_ANDROID_V2_UI.md` и спецификация буферизации (раньше — документы проекта claude.ai). `tools/convert_bandit.py` → `design/tools/`; новый `design/tools/sync_android.py` переносит ресурсы в `:core:ui`/`:app` и пишет манифест `design/android-resources.sha256`. Правило `design-needed` в AGENTS. В ресурсах изменились только шапки-комментарии (путь генератора). Проверка в CI, ADR и значки `play_next`/`queue_add` из генератора — следующим PR.
+- **Инфраструктура: атомарная замена файлов и схема Room v5 в CI** (внешний аудит 2026-11-14, A-01/A-02/A-04).
+  `File.renameTo` отказывает при существующей цели на Windows, поэтому второе сохранение чекпоинта
+  очереди, манифеста выхода и обложки не выполнялось; замена вынесена в `AtomicFileReplace`
+  (`Files.move` с `REPLACE_EXISTING`, откат без `ATOMIC_MOVE` на ФС без атомарного переименования),
+  `ArtworkPreviewRepository.atomicWrite` теперь возвращает фактический результат вместо молчаливого отказа.
+  Шаг CI «Verify Room v1 schema matches committed JSON» проверял схемы v1–v4 и v6, пропуская 5.json —
+  v5 добавлена с проверкой `durationMs`/`firstSeenEpochMs` и таблиц `playlists`/`playlist_items`.
+  STATUS, ROADMAP, ARCHITECTURE, KNOWN_ISSUES, REQUIREMENTS и CURRENT_DECISIONS сверены с `main` `2761ae9`
+  (D4a #133, M6-0/8a #134, фикс повтора #132 числились как Draft).
+  Три теста, падавших на Windows (`QueueStateFileStoreTest` ×2, `QueueEditServiceTest`), проходят.
+  Room, поведение плеера, дизайн и сетевой слой не менялись.
+
 - **Срочное исправление поиска по песням (Huawei, 2026-11-14, сборка 675):** запрос MATCH FTS4 на устройстве не завершался и держал базу — поиск показывал старый список, а следующее чтение медиатеки зависало («Читаем локальную медиатеку»). Песни ищутся в памяти, как альбомы и исполнители (`OfflineTrackCatalog.search`); FTS убран с пути интерфейса до разбора, индекс по-прежнему ведётся. «Проверить поиск» больше не выполняет MATCH — только план запроса (EXPLAIN QUERY PLAN), версию SQLite и поиск в памяти.
 - Диагностика поиска по песням (BUG track search, 2026-11-14): в «Настройки → Диагностика» — обезличенный след последнего поиска (длина запроса, ответ FTS, показано/всего, применён ли ответ, время, класс ошибки) и кнопка «Проверить поиск» (версия SQLite, строки индекса, сравнение FTS с JOIN, FTS без JOIN и поиска в памяти на коротких пробах). Поведение поиска не меняется; исправление — после замера на Huawei.
 - M6-0/8a (ADR-0089, Draft): чистый планировщик «Играть следующей» / «В конец очереди» с переносом дубликатов и стабильным shuffle; изменение Media3 без `setMediaSources`, обновление маршрутов WebDAV, предзагрузки и двухфайловой ревизии очереди; `LibraryViewModel` отдаёт события для Snackbar. JVM/Robolectric; UI и Huawei — после D4a в 8b. Служебные значки playlist_play/playlist_add; предложено добавить их в `enotone-design/tools/build_ui_icons.py`. CI ожидает.
