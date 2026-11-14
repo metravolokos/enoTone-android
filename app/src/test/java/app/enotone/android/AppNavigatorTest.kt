@@ -65,6 +65,7 @@ class AppNavigatorTest {
         states.forEach { assertEquals(it, AppNavigator.restore(AppNavigator.save(it))) }
         assertEquals(AppNavState(), AppNavigator.restore("garbage"))
     }
+
     @Test fun albumArtistAlbumBackFollowsDetailStack() {
         val initial = AppNavState(tab = AppTab.Library(LibraryPage.ARTISTS))
         val artist = AppNavigator.push(initial, LibraryDetail.Artist("artist:one"))
@@ -107,5 +108,4 @@ class AppNavigatorTest {
         assertEquals(emptyList<LibraryDetail>(),
             AppNavigator.restore("TRACKS||0|zthis-is-not-base64").details)
     }
-
 }
