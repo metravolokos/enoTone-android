@@ -16,6 +16,10 @@ import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.PlaybackDataIssue
+import app.enotone.playback.PlaybackQueue
+import app.enotone.playback.QueueEdit
+import app.enotone.playback.QueueEditPlanner
+import app.enotone.playback.QueueLayout
 import app.enotone.playback.QueueEditResult
 import app.enotone.playback.QueueEditStatus
 import kotlinx.coroutines.CancellationException
@@ -476,9 +480,16 @@ internal class LibraryViewModel(
                     password.isBlank() || !connection.state.value.connected ->
                         QueueEditResult(QueueEditStatus.UNAVAILABLE)
                     connection.state.value.queueTotal == 0 -> {
-                        connection.playQueue(accountEmail, password, tracks, tracks.first().id,
+                        val selection = tracks.take(PlaybackQueue.MAX_TRACKS)
+                        val plan = QueueEditPlanner.plan(
+                            QueueLayout(emptyList(), null, null),
+                            QueueEdit.Append(selection.map { it.id }),
+                        )
+                        connection.playQueue(accountEmail, password, selection, selection.first().id,
                             useCache(), sourceKey)
-                        QueueEditResult(QueueEditStatus.APPLIED, tracks.size)
+                        if (tracks.size > PlaybackQueue.MAX_TRACKS)
+                            QueueEditResult(QueueEditStatus.QUEUE_FULL, selection.size)
+                        else plan.result
                     }
                     playNext -> connection.insertNext(tracks)
                     else -> connection.append(tracks)
