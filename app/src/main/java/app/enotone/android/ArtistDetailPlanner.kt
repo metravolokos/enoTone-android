@@ -28,6 +28,7 @@ internal object ArtistDetailPlanner {
         unknownAlbumName: String,
     ): ArtistDetailPlan {
         val members = artist.trackIds
+        val byId = allTracks.associateBy { it.id }
         val tracks = allTracks.filter { it.id in members }
         if (tracks.isEmpty()) return ArtistDetailPlan(emptyList(), emptyList(), true)
 
@@ -35,7 +36,7 @@ internal object ArtistDetailPlanner {
             .asSequence()
             .filter { it.key != "album:missing" && it.trackIds.any(members::contains) }
             .map { group ->
-                val groupTracks = allTracks.filter { it.id in group.trackIds }
+                val groupTracks = group.trackIds.mapNotNull(byId::get)
                 ArtistAlbum(group, OfflineTrackCatalog.commonAlbumYear(groupTracks))
             }.toList()
             .sortedWith(compareBy<ArtistAlbum> { it.year == null }
