@@ -20,7 +20,11 @@ data class OfflineTrackRow(
     val durationMs: Long? = null,
     /** True only for a real stored tag, not a filename-derived title. */
     val hasStoredTagData: Boolean = false,
-)
+) {
+    /** Precomputed once per immutable row, including a copy() with changed metadata. */
+    val normalizedSearchKey: String =
+        LibraryText.searchKey(title, artist, album, albumArtist, genre)
+}
 
 object OfflineTrackCatalog {
     private val titleOrder = Comparator<OfflineTrackRow> { left, right ->
@@ -74,12 +78,10 @@ object OfflineTrackCatalog {
         items.mapNotNull { it.genre?.takeIf(String::isNotBlank) }
             .distinctBy { it.lowercase(Locale.ROOT) }.singleOrNull()
 
-    fun search(items: List<OfflineTrackRow>, query: String): List<OfflineTrackRow> {
-        if (LibraryText.searchKey(query).isBlank()) return items
-        return items.filter { row ->
-            val haystack = listOfNotNull(row.title, row.artist, row.album, row.albumArtist,
-                row.genre).joinToString(" ")
-            LibraryText.containsAllTerms(haystack, query)
-        }
-    }
+    fun search(items: List<OfflineTrackRow>, query: String): List<OfflineTrackRow> =
+        search(items, LibraryText.searchTerms(query))
+
+    fun search(items: List<OfflineTrackRow>, terms: List<String>): List<OfflineTrackRow> =
+        if (terms.isEmpty()) items
+        else items.filter { LibraryText.matchesAllTerms(it.normalizedSearchKey, terms) }
 }

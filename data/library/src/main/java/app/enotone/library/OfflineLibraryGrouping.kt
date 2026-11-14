@@ -13,7 +13,11 @@ data class OfflineLibraryGroup(
     val name: String,
     val subtitle: String?,
     val trackIds: Set<String>,
-)
+) {
+    /** Prepared when groups are built for the loaded catalogue, never per keystroke. */
+    val normalizedSearchKey: String =
+        LibraryText.searchKey(listOfNotNull(name, subtitle).joinToString(" "))
+}
 
 object OfflineLibraryGrouping {
     private fun normalized(text: String): String =
@@ -95,9 +99,9 @@ object OfflineLibraryGrouping {
         }.sortedWith(performerOrder)
     }
 
-    fun matches(group: OfflineLibraryGroup, query: String): Boolean {
-        return LibraryText.containsAllTerms(
-            listOfNotNull(group.name, group.subtitle).joinToString(" "), query,
-        )
-    }
+    fun matches(group: OfflineLibraryGroup, query: String): Boolean =
+        matches(group, LibraryText.searchTerms(query))
+
+    fun matches(group: OfflineLibraryGroup, terms: List<String>): Boolean =
+        LibraryText.matchesAllTerms(group.normalizedSearchKey, terms)
 }
