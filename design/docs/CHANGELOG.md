@@ -162,3 +162,7 @@
 - Добавлены: исходники холста Android v2 (`canvas/`, с переносимыми путями), журнал решений [DECISIONS_ANDROID_V2_UI](DECISIONS_ANDROID_V2_UI.md) и [SPEC_NOW_PLAYING_BUFFERING](SPEC_NOW_PLAYING_BUFFERING.md) (раньше — документы проекта claude.ai), `tools/convert_bandit.py` (из `tools/` приложения), `tools/sync_android.py` и манифест `android-resources.sha256`.
 - Правило `design-needed`: новый элемент без утверждённого ресурса блокирует разработку до его появления в `design/`.
 - Шапки сгенерированных файлов указывают на `design/tools/…`; рисунок и цвета не менялись.
+
+## 2026-11-15 — движение Android v2
+
+- [MOTION_ANDROID_V2](MOTION_ANDROID_V2.md): кривые и длительности, вкладки (fade through), страницы (сдвиг справа + predictive back), «Сейчас играет» (выезд снизу, перелёт обложки, панель вниз, мини-плеер вверх), лист действий (системная строка видна, полоса жестов цвета листа), «Убрать анимации». Утверждено владельцем.
