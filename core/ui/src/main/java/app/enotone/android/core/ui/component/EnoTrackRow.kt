@@ -1,8 +1,9 @@
 package app.enotone.android.core.ui.component
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,11 +21,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
 import app.enotone.android.core.ui.theme.EnoRadii
 
+@OptIn(ExperimentalFoundationApi::class)
 /** Все загружаемые обложки — слот: собственный слой кэша/изображений в :app/:feature. */
 @Composable
 fun EnoTrackRow(
@@ -32,6 +36,8 @@ fun EnoTrackRow(
     subtitle: String,
     onClick: () -> Unit,
     onMore: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     moreContentDescription: String,
     playingDescription: String,
     modifier: Modifier = Modifier,
@@ -42,11 +48,18 @@ fun EnoTrackRow(
     isPlaying: Boolean = false,
     animatedIndicator: Boolean = true,
 ) {
+    val haptic = LocalHapticFeedback.current
     val album = variant == EnoTrackRowVariant.ALBUM
     Row(
         modifier = modifier.fillMaxWidth()
             .height(if (album) 52.dp else 64.dp)
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClickLabel = onLongClickLabel,
+                onLongClick = onLongClick?.let { action ->
+                    { haptic.performHapticFeedback(HapticFeedbackType.LongPress); action() }
+                },
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
