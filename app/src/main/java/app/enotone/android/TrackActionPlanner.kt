@@ -1,7 +1,6 @@
 package app.enotone.android
 
 import app.enotone.library.OfflineLibraryGroup
-import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackRow
 
 /** Группы из тех же тегов и тем же алгоритмом, что вкладки «Альбомы» и «Артисты». */
@@ -13,16 +12,13 @@ internal data class TrackActionTargets(
 internal object TrackActionPlanner {
     fun targets(
         track: OfflineTrackRow,
-        library: List<OfflineTrackRow>,
+        index: LibraryGroupIndex,
         current: LibraryDetail?,
-        unknownAlbumName: String,
     ): TrackActionTargets {
         val album = if (track.album.isNullOrBlank()) null
-            else OfflineLibraryGrouping.albums(library, unknownAlbumName)
-                .firstOrNull { track.id in it.trackIds }
+            else index.albumByTrackId[track.id]
         val artist = if (track.artist.isNullOrBlank()) null
-            else OfflineLibraryGrouping.artists(library)
-                .firstOrNull { track.id in it.trackIds }
+            else index.artistByTrackId[track.id]
         return TrackActionTargets(
             album?.takeUnless { current == LibraryDetail.Album(it.key) },
             artist?.takeUnless { current == LibraryDetail.Artist(it.key) },

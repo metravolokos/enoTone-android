@@ -412,6 +412,8 @@ internal fun LibraryScreenContent(
                                 state.playbackConnected && appPassword.isNotBlank(),
                             onPlayAll = { actions.onAlbumPlayAll() },
                             onShuffleAll = { actions.onAlbumShuffleAll() },
+                            queueTracks = albumTracks,
+                            queueActions = actions,
                             refreshingTags = albumRefreshBusy,
                             canRefreshTags = !albumRefreshBusy &&
                                 albumRefreshSampleIds.isNotEmpty() &&
@@ -520,7 +522,8 @@ internal fun LibraryScreenContent(
     openedActions?.let { track ->
         TrackActionsHost(
             track = track,
-            tracks = tracks,
+            groupIndex = state.groupIndex,
+            actions = actions,
             currentDetail = detail,
             artworkCatalog = artworkCatalog,
             artworkRepository = artworkRepository,

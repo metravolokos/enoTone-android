@@ -16,24 +16,28 @@ class TrackActionPlannerTest {
     )
 
     @Test fun targetsMatchLibraryGroupingRatherThanAlbumArtist() {
-        val targets = TrackActionPlanner.targets(albumTrack, listOf(albumTrack), null, "Неизвестный альбом")
+        val targets = TrackActionPlanner.targets(albumTrack,
+            LibraryGroupIndex.build(listOf(albumTrack), "Неизвестный альбом"), null)
         assertEquals("artist:артист", targets.artist?.key)
         assertEquals("album:альбом\u0000автор", targets.album?.key)
     }
 
     @Test fun existingDetailIsHiddenButOtherNavigationRemains() {
-        val album = TrackActionPlanner.targets(albumTrack, listOf(albumTrack),
-            LibraryDetail.Album("album:альбом\u0000автор"), "Неизвестный альбом")
+        val album = TrackActionPlanner.targets(albumTrack,
+            LibraryGroupIndex.build(listOf(albumTrack), "Неизвестный альбом"),
+            LibraryDetail.Album("album:альбом\u0000автор"))
         assertNull(album.album)
         assertEquals("artist:артист", album.artist?.key)
-        val artist = TrackActionPlanner.targets(albumTrack, listOf(albumTrack),
-            LibraryDetail.Artist("artist:артист"), "Неизвестный альбом")
+        val artist = TrackActionPlanner.targets(albumTrack,
+            LibraryGroupIndex.build(listOf(albumTrack), "Неизвестный альбом"),
+            LibraryDetail.Artist("artist:артист"))
         assertNull(artist.artist)
         assertEquals("Альбом", artist.album?.name)
     }
 
     @Test fun missingTagsDoNotInventTargets() {
-        val targets = TrackActionPlanner.targets(orphan, listOf(orphan), null, "Неизвестный альбом")
+        val targets = TrackActionPlanner.targets(orphan,
+            LibraryGroupIndex.build(listOf(orphan), "Неизвестный альбом"), null)
         assertNull(targets.album)
         assertNull(targets.artist)
     }

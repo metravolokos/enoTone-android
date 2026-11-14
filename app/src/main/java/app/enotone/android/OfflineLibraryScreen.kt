@@ -73,8 +73,7 @@ internal fun OfflineLibraryScreen(
             is LibraryDetail.Artist -> LibraryPage.ARTISTS
             null -> page
         }
-        model.onPageSelected(targetPage)
-        if (model.state.value.selectedGroupKey != detail?.key) model.onGroupSelected(detail?.key)
+        model.onRouteSelected(targetPage, detail?.key)
     }
     val state by model.state.collectAsStateWithLifecycle()
     if (detail is LibraryDetail.Artist && state.selectedGroup?.key == detail.key) {
@@ -113,6 +112,8 @@ internal object PreviewLibraryActions : LibraryScreenActions {
     override fun onPageSelected(page: LibraryPage) = Unit
     override fun onGroupSelected(key: String?) = Unit
     override fun onTrackClicked(track: OfflineTrackRow, context: List<OfflineTrackRow>) = Unit
+    override fun onPlayNext(tracks: List<OfflineTrackRow>) = Unit
+    override fun onAppendToQueue(tracks: List<OfflineTrackRow>) = Unit
     override fun onPlayAll() = Unit
     override fun onShuffleAll() = Unit
     override fun onAlbumPlayAll() = Unit

@@ -114,6 +114,29 @@ class QueueEditServiceTest {
         }
     }
 
+    @Test fun invalidNewRouteReportsFailureAndKeepsCurrentTimeline() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    (1..3).map(::track), checkpoint(), false, false))
+                assertEquals(QueueEditStatus.FAILED,
+                    service.insertNext(listOf(track(4).copy(remoteSize = 0L))).status)
+                assertEquals(listOf(id(1), id(2), id(3)),
+                    (0 until service.player.mediaItemCount).map { service.player.getMediaItemAt(it).mediaId })
+                assertEquals(id(1), service.player.currentMediaItem?.mediaId)
+                assertEquals(14_000L, service.player.currentPosition)
+                assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(4))).status)
+            }
+        } finally {
+            onMain { controller.destroy() }
+            QueueStateFileStore(context).clear()
+        }
+    }
+
     private fun <T> onMain(block: () -> T): T {
         var outcome: Result<T>? = null
         Shadows.shadowOf(Looper.getMainLooper()).runPaused {

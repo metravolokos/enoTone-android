@@ -23,7 +23,7 @@ class ArtistDetailPlannerTest {
             song("new1", "Новый", "Певец", 2024, 1),
         )
         val artist = OfflineLibraryGrouping.artists(tracks).single()
-        val plan = ArtistDetailPlanner.plan(artist, tracks, "Неизвестный альбом")
+        val plan = ArtistDetailPlanner.plan(artist, LibraryGroupIndex.build(tracks, "Неизвестный альбом"))
         assertEquals(listOf("Новый", "Ранний"), plan.albums.map { it.group.name })
         assertEquals(listOf("new1", "new2", "old1", "old2", "missing"), plan.songs.map { it.id })
         assertFalse(plan.compilationsOnly)
@@ -32,7 +32,7 @@ class ArtistDetailPlannerTest {
     @Test fun compilationDoesNotBecomeArtistAlbum() {
         val tracks = listOf(song("one", "Песни в сборниках", "Разные исполнители", 2020))
         val artist = OfflineLibraryGrouping.artists(tracks).single()
-        val plan = ArtistDetailPlanner.plan(artist, tracks, "Неизвестный альбом")
+        val plan = ArtistDetailPlanner.plan(artist, LibraryGroupIndex.build(tracks, "Неизвестный альбом"))
         assertTrue(plan.compilationsOnly)
         assertTrue(plan.albums.isEmpty())
         assertEquals(listOf("one"), plan.songs.map { it.id })
@@ -43,6 +43,7 @@ class ArtistDetailPlannerTest {
             song("b", "Известный", "Певец", 2015))
         val artist = OfflineLibraryGrouping.artists(tracks).single()
         assertEquals(listOf("Известный", "Без года"),
-            ArtistDetailPlanner.plan(artist, tracks, "Неизвестный альбом").albums.map { it.group.name })
+            ArtistDetailPlanner.plan(artist, LibraryGroupIndex.build(tracks, "Неизвестный альбом"))
+                .albums.map { it.group.name })
     }
 }

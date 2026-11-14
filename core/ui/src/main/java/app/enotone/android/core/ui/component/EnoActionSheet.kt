@@ -42,7 +42,7 @@ data class EnoActionSheetHeader(
 )
 
 data class EnoAction(
-    val icon: EnoIcons,
+    val icon: EnoIcons?,
     val label: String,
     val onClick: () -> Unit,
 )
@@ -123,12 +123,14 @@ fun EnoActionSheet(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            painter = painterResource(action.icon.outline),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = EnoColors.text,
-                        )
+                        action.icon?.let { icon ->
+                            Icon(
+                                painter = painterResource(icon.outline),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = EnoColors.text,
+                            )
+                        }
                         Text(
                             action.label,
                             style = MaterialTheme.typography.bodyLarge,

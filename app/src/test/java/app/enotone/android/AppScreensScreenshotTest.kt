@@ -34,7 +34,6 @@ import app.enotone.android.core.ui.component.LocalEnoDockBlur
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
 import app.enotone.library.OfflineLibraryGroup
-import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackRow
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
@@ -85,6 +84,7 @@ class AppScreensScreenshotTest {
 
     private fun songsState() = LibraryUiState(
         loading = false, section = LibraryPage.TRACKS, tracks = tracks, visible = tracks,
+        groupIndex = LibraryGroupIndex.build(tracks, "Неизвестный альбом"),
         playbackConnected = true,
     )
 
@@ -240,6 +240,7 @@ class AppScreensScreenshotTest {
     private fun songActions(dark: Boolean) {
         rule.setContent { Screen(dark) { Library(songsState()) } }
         rule.onNodeWithContentDescription("Действия: Вымышленная песня 1").performClick()
+        rule.mainClock.advanceTimeBy(1_000L)
         rule.waitForIdle()
         capture("song_actions_${theme(dark)}")
     }
@@ -271,17 +272,20 @@ class AppScreensScreenshotTest {
                 hasStoredTagData = true,
             )
         }
-        val performer = OfflineLibraryGrouping.artists(rows).single()
+        val index = LibraryGroupIndex.build(rows, "Неизвестный альбом")
+        val performer = index.artists.single()
         ArtistDetailScreen(
             state = LibraryUiState(
                 loading = false, section = LibraryPage.ARTISTS, tracks = rows,
+                groupIndex = index,
+                artistPlans = mapOf(performer.key to ArtistDetailPlanner.plan(performer, index)),
                 selectedGroup = performer, selectedGroupKey = performer.key,
                 playbackConnected = true,
             ),
             artist = performer,
             actions = PreviewLibraryActions,
             artworkRepository = remember(context) { ArtworkPreviewRepository(context) },
-            accountEmail = "", appPassword = "",
+            accountEmail = "", appPassword = "x",
             contentPadding = PaddingValues(bottom = 186.dp),
             onOpenDetail = {}, onBackDetail = {},
         )
@@ -302,6 +306,18 @@ class AppScreensScreenshotTest {
     private fun artistCompilations(dark: Boolean) {
         rule.setContent { Screen(dark) { ArtistScreen(compilations = true) } }
         capture("artist_compilations_${theme(dark)}")
+    }
+
+    @Test fun artistQueueActionsGraphite() = artistQueueActions(true)
+
+    @Test fun artistQueueActionsPorcelain() = artistQueueActions(false)
+
+    private fun artistQueueActions(dark: Boolean) {
+        rule.setContent { Screen(dark) { ArtistScreen() } }
+        rule.onNodeWithContentDescription("Действия исполнителя").performClick()
+        rule.mainClock.advanceTimeBy(1_000L)
+        rule.waitForIdle()
+        capture("artist_queue_actions_${theme(dark)}")
     }
 
     private fun theme(dark: Boolean) = if (dark) "graphite" else "porcelain"

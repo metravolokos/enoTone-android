@@ -14,7 +14,8 @@ import app.enotone.library.OfflineTrackRow
 @Composable
 internal fun TrackActionsHost(
     track: OfflineTrackRow,
-    tracks: List<OfflineTrackRow>,
+    groupIndex: LibraryGroupIndex,
+    actions: LibraryScreenActions,
     currentDetail: LibraryDetail?,
     artworkCatalog: AlbumArtworkCatalog,
     artworkRepository: ArtworkPreviewRepository,
@@ -23,11 +24,10 @@ internal fun TrackActionsHost(
     onDismiss: () -> Unit,
     onOpenDetail: (LibraryDetail) -> Unit,
 ) {
-    val unknownAlbum = stringResource(R.string.library_unknown_album)
-    val targets = remember(track.id, tracks, currentDetail, unknownAlbum) {
-        TrackActionPlanner.targets(track, tracks, currentDetail, unknownAlbum)
+    val targets = remember(track, groupIndex, currentDetail) {
+        TrackActionPlanner.targets(track, groupIndex, currentDetail)
     }
-    val actions = listOfNotNull(
+    val navigation = listOfNotNull(
         targets.album?.let { group ->
             EnoAction(
                 EnoIcons.ALBUMS,
@@ -57,7 +57,7 @@ internal fun TrackActionsHost(
                 )
             },
         ),
-        groups = listOf(actions),
+        groups = listOf(queueActions(listOf(track), actions), navigation),
         onDismiss = onDismiss,
     )
 }

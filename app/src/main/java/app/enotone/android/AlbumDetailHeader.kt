@@ -8,16 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,10 +31,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.enotone.android.core.ui.component.EnoAction
+import app.enotone.android.core.ui.component.EnoIcon
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
 import app.enotone.library.OfflineLibraryGroup
+import app.enotone.library.OfflineTrackRow
 
 /**
  * Dedicated album details header, part of the album's scrollable track list.
@@ -63,6 +60,8 @@ internal fun AlbumDetailHeader(
     refreshingTags: Boolean,
     refreshMessage: String,
     onRefreshTags: () -> Unit,
+    queueTracks: List<OfflineTrackRow> = emptyList(),
+    queueActions: LibraryScreenActions = PreviewLibraryActions,
 ) {
     var actionsExpanded by remember(group.key) { mutableStateOf(false) }
     // Lazy grid/list items are disposed during navigation. If we already
@@ -151,26 +150,24 @@ internal fun AlbumDetailHeader(
                     size = 48.dp,
                     onClick = { actionsExpanded = true },
                 )
-                DropdownMenu(
-                    expanded = actionsExpanded,
-                    onDismissRequest = { actionsExpanded = false },
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(if (refreshingTags)
-                            R.string.album_refresh_busy else R.string.album_refresh_tags)) },
-                        enabled = canRefreshTags && !refreshingTags,
-                        onClick = {
-                            actionsExpanded = false
-                            onRefreshTags()
-                        },
-                    )
-                }
             }
         }
         if (refreshMessage.isNotBlank()) {
             Text(refreshMessage, style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center)
+        }
+    }
+    if (actionsExpanded) {
+        val refresh = if (canRefreshTags && !refreshingTags) listOf(
+            EnoAction(null, stringResource(R.string.album_refresh_tags), onRefreshTags),
+        ) else emptyList()
+        QueueActionsSheet(group.name, queueTracks, queueActions, { actionsExpanded = false }, refresh) {
+            if (cover != null) Image(cover!!.asImageBitmap(), null,
+                modifier = Modifier.size(56.dp), contentScale = ContentScale.Crop)
+            else Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                EnoIcon(EnoIcons.ALBUMS, null)
+            }
         }
     }
 }
