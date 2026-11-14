@@ -185,6 +185,10 @@
     <string name="diagnostics_entry_summary">Connection check, playback and library update details — for bug reports.</string>
     <string name="diagnostics_intro">Technical details for bug reports: codes and numbers only, no password or addresses.</string>
     <string name="diagnostics_connection_title">Cloud connection</string>
+    <string name="diagnostics_search_title">Song search</string>
+    <string name="diagnostics_search_none">No song search in this session yet.</string>
+    <string name="diagnostics_search_last">Last search: %1$s</string>
+    <string name="diagnostics_search_run">Check search</string>
     <string name="diagnostics_indexing_title">Library update</string>
     <string name="diagnostics_indexing_empty">No update has run in this session yet.</string>
     <string name="diagnostics_indexing_state">State: %1$s</string>
