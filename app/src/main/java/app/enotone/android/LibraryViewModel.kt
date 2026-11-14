@@ -16,7 +16,6 @@ import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.PlaybackDataIssue
-import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
@@ -30,12 +29,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 // Display sizes match the unchanged Graphite Material 3 design.
 private const val LIBRARY_THUMBNAIL_SIDE_PX = 512
 private const val LIBRARY_FULL_ARTWORK_SIDE_PX = 1200
 // System.nanoTime is measured in nanoseconds; UI telemetry uses milliseconds.
 private const val NANOS_PER_MILLISECOND = 1_000_000L
+private const val SEARCH_DEBOUNCE_MS = 150L
 
 /** Immutable input for Compose; the queue and credentials never enter this model. */
 internal data class LibraryUiState(
@@ -283,7 +284,7 @@ internal class LibraryViewModel(
             val ftsExpression = if (snapshot.section == LibraryPage.TRACKS)
                 LibraryText.ftsMatchExpression(snapshot.search) else null
             val matchedIds = if (ftsExpression != null) {
-                delay(150L) // Debounce while retaining the last results until the response.
+                delay(SEARCH_DEBOUNCE_MS) // Debounce while retaining the last results until the response.
                 try {
                     repository.searchTrackIds(accountEmail, snapshot.search)
                 } catch (cancelled: CancellationException) {
@@ -293,47 +294,7 @@ internal class LibraryViewModel(
                 }
             } else null
             val result = withContext(io) {
-                val groups = when (snapshot.section) {
-                    LibraryPage.TRACKS -> emptyList()
-                    LibraryPage.ALBUMS ->
-                        OfflineLibraryGrouping.albums(snapshot.tracks, unknownAlbumName)
-                    LibraryPage.ARTISTS -> OfflineLibraryGrouping.artists(snapshot.tracks)
-                    LibraryPage.ALBUM_ARTISTS -> OfflineLibraryGrouping.albumArtists(snapshot.tracks)
-                }
-                val group = groups.firstOrNull { it.key == snapshot.selectedGroupKey }
-                val shown = groups.filter { OfflineLibraryGrouping.matches(it, snapshot.search) }
-                val candidates = when (snapshot.section) {
-                    LibraryPage.TRACKS -> snapshot.tracks
-                    else -> group?.let { selected ->
-                        val members = snapshot.tracks.filter { it.id in selected.trackIds }
-                        if (snapshot.section == LibraryPage.ALBUMS)
-                            OfflineTrackCatalog.albumOrder(members) else members
-                    } ?: emptyList()
-                }
-                val visible = if (snapshot.section == LibraryPage.TRACKS) {
-                    when {
-                        ftsExpression == null -> candidates
-                        matchedIds != null -> candidates.filter { it.id in matchedIds }
-                        else -> OfflineTrackCatalog.search(candidates, snapshot.search)
-                    }
-                } else OfflineTrackCatalog.search(candidates, snapshot.search)
-                val album = if (snapshot.section == LibraryPage.ALBUMS && group != null)
-                    OfflineTrackCatalog.albumOrder(
-                        snapshot.tracks.filter { it.id in group.trackIds },
-                    ) else emptyList()
-                val eligible = album.mapNotNull { row ->
-                    val path = byId[row.id]?.encodedPath ?: return@mapNotNull null
-                    if (path.endsWith(".flac", true) || path.endsWith(".mp3", true)) row.id
-                    else null
-                }
-                val next = AlbumTagRefreshSelection.nextBatch(
-                    eligible,
-                    checkedByGroup[group?.key].orEmpty(),
-                    attemptedByGroup[group?.key].orEmpty(),
-                )
-                DerivedPages(groups, shown, group, visible, album,
-                    OfflineTrackCatalog.commonAlbumYear(album),
-                    OfflineTrackCatalog.commonAlbumGenre(album), next)
+                calculateDerivedPages(snapshot, byId, ftsExpression, matchedIds)
             }
             if (generation == filterVersion && !unavailable()) {
                 mutable.update { current ->
@@ -344,6 +305,56 @@ internal class LibraryViewModel(
                 }
             }
         }
+    }
+
+    /** Page projection stays off the UI dispatcher. */
+    private fun calculateDerivedPages(
+        snapshot: LibraryUiState,
+        byId: Map<String, app.enotone.playback.QueueTrack>,
+        ftsExpression: String?,
+        matchedIds: Set<String>?,
+    ): DerivedPages {
+        val groups = when (snapshot.section) {
+            LibraryPage.TRACKS -> emptyList()
+            LibraryPage.ALBUMS ->
+                OfflineLibraryGrouping.albums(snapshot.tracks, unknownAlbumName)
+            LibraryPage.ARTISTS -> OfflineLibraryGrouping.artists(snapshot.tracks)
+            LibraryPage.ALBUM_ARTISTS -> OfflineLibraryGrouping.albumArtists(snapshot.tracks)
+        }
+        val group = groups.firstOrNull { it.key == snapshot.selectedGroupKey }
+        val shown = groups.filter { OfflineLibraryGrouping.matches(it, snapshot.search) }
+        val candidates = when (snapshot.section) {
+            LibraryPage.TRACKS -> snapshot.tracks
+            else -> group?.let { selected ->
+                val members = snapshot.tracks.filter { it.id in selected.trackIds }
+                if (snapshot.section == LibraryPage.ALBUMS)
+                    OfflineTrackCatalog.albumOrder(members) else members
+            } ?: emptyList()
+        }
+        val visible = if (snapshot.section == LibraryPage.TRACKS) {
+            when {
+                ftsExpression == null -> candidates
+                matchedIds != null -> candidates.filter { it.id in matchedIds }
+                else -> OfflineTrackCatalog.search(candidates, snapshot.search)
+            }
+        } else OfflineTrackCatalog.search(candidates, snapshot.search)
+        val album = if (snapshot.section == LibraryPage.ALBUMS && group != null)
+            OfflineTrackCatalog.albumOrder(
+                snapshot.tracks.filter { it.id in group.trackIds },
+            ) else emptyList()
+        val eligible = album.mapNotNull { row ->
+            val path = byId[row.id]?.encodedPath ?: return@mapNotNull null
+            if (path.endsWith(".flac", true) || path.endsWith(".mp3", true)) row.id
+            else null
+        }
+        val next = AlbumTagRefreshSelection.nextBatch(
+            eligible,
+            checkedByGroup[group?.key].orEmpty(),
+            attemptedByGroup[group?.key].orEmpty(),
+        )
+        DerivedPages(groups, shown, group, visible, album,
+            OfflineTrackCatalog.commonAlbumYear(album),
+            OfflineTrackCatalog.commonAlbumGenre(album), next)
     }
 
     private data class DerivedPages(

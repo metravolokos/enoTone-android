@@ -12,10 +12,10 @@ import org.junit.Test
  */
 class LibraryScaleBenchmarkTest {
     @Ignore("Manual measurement only; timing and heap differ across JDK and hardware")
-    @Test fun catalogGroupingAndCollatorAtThreeSizes() {
+    @Test
+    fun catalogGroupingAndCollatorAtThreeSizes() {
         val sourceKey = "a".repeat(64)
         for (count in listOf(3_590, 20_000, 50_000)) {
-            System.gc()
             val before = usedHeap()
             val remote = (0 until count).map { i ->
                 RemoteTrackEntity(

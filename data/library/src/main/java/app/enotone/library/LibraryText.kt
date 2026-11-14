@@ -23,9 +23,10 @@ object LibraryText {
             var pos = 0
             while (pos < decomposed.length) {
                 val letter = decomposed[pos]
-                if ((letter == 'и' || letter == 'И') &&
-                    pos + 1 < decomposed.length && decomposed[pos + 1] == '\u0306'
-                ) {
+                val isShortI = letter == 'и' || letter == 'И'
+                val followedByBreve = pos + 1 < decomposed.length &&
+                    decomposed[pos + 1] == '\u0306'
+                if (isShortI && followedByBreve) {
                     append(if (letter == 'И') 'Й' else 'й')
                     pos += 2
                 } else {
@@ -41,7 +42,7 @@ object LibraryText {
     fun sortKey(text: String, dropArticle: Boolean): String {
         val trimmed = Normalizer.normalize(text.trim(), Normalizer.Form.NFC)
         return if (dropArticle && trimmed.startsWith("The ", ignoreCase = true))
-            trimmed.drop(4).trimStart() else trimmed
+            trimmed.drop("The ".length).trimStart() else trimmed
     }
 
     fun compare(left: String, right: String, dropArticle: Boolean = false): Int =

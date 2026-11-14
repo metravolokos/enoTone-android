@@ -20,6 +20,7 @@ interface LibraryRepository {
     suspend fun load(email: String): LibrarySnapshot
     suspend fun refreshAlbum(email: String, password: String, ids: List<String>): AlbumTagRefreshReport
     suspend fun readSavedQueue(): PersistedQueueState?
+
     /** Null is reserved for test fakes that model only an in-memory snapshot. */
     suspend fun searchTrackIds(email: String, query: String): Set<String>? = null
     suspend fun saveDurationIfUnknown(
