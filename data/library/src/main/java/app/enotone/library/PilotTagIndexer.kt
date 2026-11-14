@@ -235,6 +235,7 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
                 genre = tags?.genre,
                 durationMs = result?.durationMs,
             ) == 1
+            if (saved) TrackSearchIndex(database).refreshById(sourceKey, item.id)
             attempted++
             // Opaque local ID only. Allows an album refresh button to advance
             // past the exact files handled, not guess from aggregate counters.

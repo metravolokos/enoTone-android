@@ -142,6 +142,11 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                         durationMs = attempt.durationMs,
                     ) == 1
                 }
+                if (committed == true) {
+                    runStage("FTS_SYNC") {
+                        TrackSearchIndex(database).refreshById(sourceKey, file.item.id)
+                    }
+                }
                 getRequests += file.attempts.sumOf { it.stats.requests }
                 downloadedBytes += file.attempts.sumOf { it.stats.downloadedBytes }
                 if (committed != null) {

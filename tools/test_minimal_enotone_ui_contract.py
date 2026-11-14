@@ -20,7 +20,6 @@ class MinimalEnoToneUiContractTest(unittest.TestCase):
             self.assertNotIn(token,p)
     def test_room_v5_migration_and_signing(self):
         database = source("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
-        self.assertIn("version = 5", database)
         self.assertIn("AutoMigration(from = 4, to = 5)", database)
         self.assertIn('applicationIdSuffix = ".preview"',source("app/build.gradle.kts"))
         art=source(BASE+"ArtworkPreviewRepository.kt")

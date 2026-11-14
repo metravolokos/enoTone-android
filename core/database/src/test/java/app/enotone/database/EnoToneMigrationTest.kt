@@ -127,6 +127,40 @@ class EnoToneMigrationTest {
         }
     }
 
+    @Test fun migrationFiveToSixCreatesEmptyFtsAndPreservesTheLibrary() {
+        val name = "test-migrate-five-to-six"
+        helper.createDatabase(name, 5).use { db ->
+            db.execSQL("""
+                INSERT INTO remote_tracks
+                (id, sourceKey, encodedPath, fileName, remoteEtag, remoteSize,
+                 remoteModified, title, artist, album, albumArtist, lastSeenEpoch, missingScans)
+                VALUES ('persist', 'source-a', '/fixture/a.mp3', 'a.mp3', 'etag', 1234,
+                        'modified', 'Ёжик', 'Иван', 'Сборник', 'Автор', 1, 0)
+            """.trimIndent())
+        }
+        helper.runMigrationsAndValidate(name, 6, true).use { db ->
+            assertEquals(1, count(db, "remote_tracks"))
+            assertEquals(0, count(db, "track_search"))
+            db.query("SELECT title, artist, albumArtist FROM remote_tracks WHERE id = 'persist'")
+                .use { cursor ->
+                    assertTrue(cursor.moveToFirst())
+                    assertEquals("Ёжик", cursor.getString(0))
+                    assertEquals("Иван", cursor.getString(1))
+                    assertEquals("Автор", cursor.getString(2))
+                }
+        }
+    }
+
+    @Test fun directMigrationOneToSixRetainsHistoricalRowsAndCreatesFts() {
+        val name = "test-migrate-one-to-six"
+        insertLegacyV1(name)
+        helper.runMigrationsAndValidate(name, 6, true).use { db ->
+            assertEquals(1, count(db, "remote_tracks"))
+            assertEquals(0, count(db, "track_search"))
+            assertEquals(0, count(db, "playlist_items"))
+        }
+    }
+
     private fun count(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Int =
         db.query("SELECT COUNT(*) FROM $table").use { cursor ->
             assertTrue(cursor.moveToFirst())

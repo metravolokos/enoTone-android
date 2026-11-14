@@ -20,7 +20,6 @@ class TrackArtworkThumbnailContractTest(unittest.TestCase):
             self.assertIn(token, repo)
         self.assertNotIn("CACHE_LIMIT_BYTES", repo)
         db = self.text("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
-        self.assertIn("version = 5", db)
         self.assertIn("AutoMigration(from = 4, to = 5)", db)
 
 

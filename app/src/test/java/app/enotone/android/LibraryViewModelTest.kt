@@ -42,6 +42,12 @@ class LibraryViewModelTest {
         var failure: Boolean = false
         var saved: PersistedQueueState? = null
         var reads = 0
+        var ftsResults: Set<String>? = null
+        var ftsQueries = 0
+        override suspend fun searchTrackIds(email: String, query: String): Set<String>? {
+            ftsQueries++
+            return ftsResults
+        }
         override suspend fun load(email: String): LibrarySnapshot {
             if (failure) error("synthetic failure")
             return response
@@ -177,6 +183,30 @@ class LibraryViewModelTest {
             vm.onSearch("")
             advanceUntilIdle()
             assertEquals(2, vm.state.value.visible.size)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun ftsResponseControlsTrackSearchAndNeverFlashesEmptyBeforeCompletion() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val repo = FakeRepository(catalog(row(1, "Мираж"), row(2, "Лето")))
+            repo.ftsResults = emptySet()
+            val vm = model(this, repo)
+            advanceUntilIdle()
+            assertEquals(2, vm.state.value.visible.size)
+            vm.onSearch("ираж") // Old substring search would incorrectly match «Мираж».
+            assertEquals(2, vm.state.value.visible.size) // Previous result remains visible.
+            advanceUntilIdle()
+            assertTrue(vm.state.value.visible.isEmpty())
+            assertEquals(1, repo.ftsQueries)
+            repo.ftsResults = setOf(id(1))
+            vm.onSearch("ми")
+            advanceUntilIdle()
+            assertEquals(listOf(id(1)), vm.state.value.visible.map { it.id })
+            vm.onSearch("")
+            advanceUntilIdle()
+            assertEquals(2, vm.state.value.visible.size)
+            assertEquals(2, repo.ftsQueries) // Blank query never queries FTS.
         } finally { Dispatchers.resetMain() }
     }
 
