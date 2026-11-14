@@ -163,6 +163,7 @@ internal fun ArtistDetailScreen(
                                     appPassword = appPassword,
                                     onOpen = { onOpenDetail(LibraryDetail.Album(album.group.key)) },
                                     subtitle = album.year?.toString(),
+                                    artistCarousel = true,
                                 )
                             }
                         }
