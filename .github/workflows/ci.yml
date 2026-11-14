@@ -129,6 +129,13 @@ jobs:
                       print(f"{path} | {case.attrib.get('classname')}.{case.attrib.get('name')}")
                       print((failure.attrib.get("message") or "")[:2000])
                       print((failure.text or "")[:1200])
+          schema = pathlib.Path("core/database/schemas/app.enotone.database.EnoToneDatabase/6.json")
+          if schema.is_file():
+              # The generated schema can be extracted from CI and committed without
+              # fabricating Room's identity hash in a GitHub-only environment.
+              print("ROOM_V6_SCHEMA_BEGIN")
+              print(schema.read_text(encoding="utf-8"))
+              print("ROOM_V6_SCHEMA_END")
           PY
       # Blocking since 2026-11-13: old findings are in detekt-baseline.xml,
       # any new finding fails (ADR-0076, AUDIT_PROTOCOL §4.1).
