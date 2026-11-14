@@ -61,15 +61,17 @@
 | LIB-06 | Файл изменён в облаке (ETag, размер или дата) | теги перечитаны, ссылка на обложку сброшена | ADR-0082 | JVM | `LibrarySnapshotPlannerTest` (changedIds) | T |
 | LIB-07 | «Переиндексировать всё…» → «Отмена» | ничего не запускается | ADR-0066 | R, H | `SettingsActionsUiTest`, `LibraryIndexingViewModelTest` | H PASS 0.6.2-preview.460 |
 
-## SRCH — поиск FTS4 и русский порядок (M6-0/7)
+## SRCH — поиск в памяти и русский порядок (ADR-0091, ADR-0087)
 
 | ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |
 |---|---|---|---|---|---|---|
-| SRCH-01 | «ежик» при названии «Ёжик», разный регистр, две части запроса | поиск по префиксам всех слов, без сети | R-6.3c | JVM, R, H | LibraryTextTest, TrackSearchDaoTest | ожидает CI/Huawei |
-| SRCH-06 | Кавычки, звёздочки, дефисы, OR/NEAR; «ираж» против «Мираж» | без FTS-инъекций, только начало слова | R-3.5 | JVM, R, H | LibraryTextTest, TrackSearchDaoTest | ожидает CI/Huawei |
-| SRCH-03 | Быстрый ввод/очистка | без мигания пустыми результатами и устаревшего ответа | R-6.3c | JVM, H | LibraryViewModelTest | ожидает CI/Huawei |
-| SRCH-04 | Сортировка песен, альбомов и артистов; The Beatles | русский Collator, ё рядом с е, прежние ключи обложек | R-6.2g | JVM, H | LibraryGroupSortTest, LibraryTextTest | ожидает CI/Huawei |
-| SRCH-05 | Обновление v5→v6 поверх Stable Preview | треки, очередь, обложки сохранены; FTS построен локально | R-8.5 | R, H | EnoToneMigrationTest, TrackSearchDaoTest | ожидает CI/Huawei |
+| SRCH-01 | «ежик» при «Ёжик», смешанный регистр, два слова; поиск по песням и полям тегов | все слова — **подстроки** нормализованного ключа (title/artist/album/albumArtist/genre), порядок неизменен, без сети | O-21 | JVM, H | `LibraryTextTest`, `OfflineTrackCatalogTest`, `LibraryViewModelTest` | CI/Huawei ожидают (#143); Huawei 677: память «маль» 19/3647 |
+| SRCH-06 | Кавычки, дефисы, OR/NEAR, середина слова «ираж» в «Мираж», пустой запрос | обычные символы текста, **без синтаксиса FTS**; поиск подстроки, пустой запрос показывает всё | O-21 | JVM, H | `LibraryTextTest`, `OfflineTrackCatalogTest` | CI/Huawei ожидают (#143) |
+| SRCH-03 | Быстрый ввод/стирание/смена вкладки | старые результаты не перезаписывают новые; после очистки снова весь список | O-21 | JVM, H | `LibraryViewModelTest` | CI/Huawei ожидают (#143) |
+| SRCH-04 | Сортировка песен, альбомов и артистов; The Beatles | русский Collator, ё рядом с е, прежние ключи обложек | R-6.2g | JVM, H | `LibraryGroupSortTest`, `LibraryTextTest` | Huawei ожидает, сортировка не изменена (#143) |
+| SRCH-05 | Обновление v6→v7 поверх Huawei 677, с очередью и плейлистами | Room сохраняет `remote_tracks`, `playlists`, `playlist_items.position`, `firstSeenEpochMs`; остаток FTS удалён по возможности, очередь и обложки на месте; не зависает «Читаем…» | O-21, R-8.5 | R, H | `EnoToneMigrationTest` (v6→v7, v1→v7) | CI/Huawei ожидают (#143); без переиндексации |
+| SRCH-07 | Замер на Huawei с 3647 песнями, «маль» и английским запросом | 19 песен для «маль»; строка «Последний поиск» с `ms=` **≤ 20 мс**; быстрый ввод без чужих результатов, кнопки «Проверить поиск» нет | O-21 | H | `OfflineTrackCatalogTest` (подготовленные ключи) | ожидает новой Stable Preview и замера владельца |
+
 
 ## NAV — навигация
 

@@ -9,7 +9,6 @@ object LibraryText {
     private val russian = Locale.forLanguageTag("ru")
     private val spaces = Regex("\\s+")
     private val marks = Regex("\\p{M}+")
-    private val ftsWords = Regex("[\\p{L}\\p{N}]+")
     private val collators: ThreadLocal<Collator> = ThreadLocal.withInitial {
         Collator.getInstance(russian).apply { strength = Collator.SECONDARY }
     }
@@ -48,17 +47,19 @@ object LibraryText {
     fun compare(left: String, right: String, dropArticle: Boolean = false): Int =
         collators.get().compare(sortKey(left, dropArticle), sortKey(right, dropArticle))
 
-    /** DAO binds the MATCH expression; adjacent quoted prefixes give portable implicit AND. */
-    fun ftsMatchExpression(query: String): String? {
-        val terms = ftsWords.findAll(searchKey(query)).map { it.value }.toList()
-        return terms.takeIf { it.isNotEmpty() }
-            ?.joinToString(" ") { "\"$it*\"" }
-    }
+    /** Build the same cross-field text once when a catalogue row is created. */
+    fun searchKey(
+        title: String, artist: String?, album: String?, albumArtist: String?, genre: String?,
+    ): String = searchKey(listOfNotNull(title, artist, album, albumArtist, genre).joinToString(" "))
 
-    /** The much smaller album/artist group collection stays in memory. */
-    fun containsAllTerms(text: String, query: String): Boolean {
-        val terms = searchKey(query).split(' ').filter(String::isNotEmpty)
-        val haystack = searchKey(text)
-        return terms.all(haystack::contains)
-    }
+    /** Query normalization is performed once, not once per candidate row. */
+    fun searchTerms(query: String): List<String> =
+        searchKey(query).split(' ').filter(String::isNotEmpty)
+
+    fun matchesAllTerms(normalizedKey: String, terms: List<String>): Boolean =
+        terms.all(normalizedKey::contains)
+
+    /** Legacy-equivalent substring AND semantics, retained for small collections and tests. */
+    fun containsAllTerms(text: String, query: String): Boolean =
+        matchesAllTerms(searchKey(text), searchTerms(query))
 }

@@ -47,12 +47,6 @@ class LibraryViewModelTest {
         var failure: Boolean = false
         var saved: PersistedQueueState? = null
         var reads = 0
-        var ftsResults: Set<String>? = null
-        var ftsQueries = 0
-        override suspend fun searchTrackIds(email: String, query: String): Set<String>? {
-            ftsQueries++
-            return ftsResults
-        }
         override suspend fun load(email: String): LibrarySnapshot {
             if (failure) error("synthetic failure")
             return response
@@ -232,7 +226,7 @@ class LibraryViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun trackSearchRunsInMemoryAndNeverQueriesFtsOnTheDevicePath() = runTest {
+    @Test fun trackSearchRunsInMemoryWithRussianAndLatinQueries() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val repo = FakeRepository(catalog(row(1, "Мальчик"), row(2, "Лето"), row(3, "Malibu")))
@@ -247,7 +241,6 @@ class LibraryViewModelTest {
             vm.onSearch("")
             advanceUntilIdle()
             assertEquals(3, vm.state.value.visible.size)
-            assertEquals(0, repo.ftsQueries) // FTS4 hung on Huawei; it is not on the UI path.
         } finally { Dispatchers.resetMain() }
     }
 

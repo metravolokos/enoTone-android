@@ -188,7 +188,6 @@
     <string name="diagnostics_search_title">Поиск по песням</string>
     <string name="diagnostics_search_none">В этом сеансе поиска по песням ещё не было.</string>
     <string name="diagnostics_search_last">Последний поиск: %1$s</string>
-    <string name="diagnostics_search_run">Проверить поиск</string>
     <string name="diagnostics_indexing_title">Обновление медиатеки</string>
     <string name="diagnostics_indexing_empty">В этом сеансе обновление ещё не запускалось.</string>
     <string name="diagnostics_indexing_state">Состояние: %1$s</string>
