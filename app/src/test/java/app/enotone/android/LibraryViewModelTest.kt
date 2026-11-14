@@ -72,11 +72,13 @@ class LibraryViewModelTest {
                     if (now == last) stable++ else { stable = 0; last = now }
                 }
                 val s = vm.state.value
-                println("REPRO $label search='${s.search}' visible=${s.visible.size} tracks=${s.tracks.size} loading=${s.loading} failed=${s.failed}")
+                println("REPRO $label search='${s.search}' visible=${s.visible.size}")
+                println("REPRO   tracks=${s.tracks.size} loading=${s.loading} failed=${s.failed}")
             }
             settle("initial")
             val direct = kotlinx.coroutines.runBlocking { repo.searchTrackIds(email, "mal") }
-            println("REPRO direct-fts mal=${direct.size} маль=${kotlinx.coroutines.runBlocking { repo.searchTrackIds(email, "маль") }.size}")
+            val directRu = kotlinx.coroutines.runBlocking { repo.searchTrackIds(email, "маль") }
+            println("REPRO direct-fts mal=${direct.size} маль=${directRu.size}")
             vm.onSearch("mal"); settle("mal-slow")
             vm.onSearch(""); settle("clear")
             for (q in listOf("м", "ма", "мал", "маль")) vm.onSearch(q)
