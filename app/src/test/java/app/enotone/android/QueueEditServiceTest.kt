@@ -46,45 +46,48 @@ class QueueEditServiceTest {
         fileStore.clear()
         val initial = checkpoint()
         fileStore.writeLayoutAndPosition(initial.layout(), initial.position())
-        val first = Robolectric.buildService(EnoTonePlaybackService::class.java).create()
+        val first = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
         try {
             val service = first.get()
-            assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
-                (1..3).map(::track), initial, false, false))
-            assertEquals(id(1), service.player.currentMediaItem?.mediaId)
-            assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(4))).status)
-            assertEquals(14_000L, service.player.currentPosition)
-            assertEquals(Player.REPEAT_MODE_OFF, service.player.repeatMode)
-            assertEquals(listOf(id(1), id(4), id(2), id(3)),
-                (0 until service.player.mediaItemCount).map {
-                    service.player.getMediaItemAt(it).mediaId
-                })
-            // The standard MediaSession / headphone next command navigates this timeline.
-            service.player.seekToNextMediaItem()
-            assertEquals(id(4), service.player.currentMediaItem?.mediaId)
-
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    (1..3).map(::track), initial, false, false))
+                assertEquals(id(1), service.player.currentMediaItem?.mediaId)
+                assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(4))).status)
+                assertEquals(14_000L, service.player.currentPosition)
+                assertEquals(Player.REPEAT_MODE_OFF, service.player.repeatMode)
+                assertEquals(listOf(id(1), id(4), id(2), id(3)),
+                    (0 until service.player.mediaItemCount).map {
+                        service.player.getMediaItemAt(it).mediaId
+                    })
+                // The native MediaSession/headphone Next must follow the edited timeline.
+                service.player.seekToNextMediaItem()
+                assertEquals(id(4), service.player.currentMediaItem?.mediaId)
+            }
             val persisted = waitForRevision(fileStore, initial.queueRevision)
             assertEquals(QueueEditSource.edited(initial.sourceKey), persisted.sourceKey)
             assertEquals(listOf(id(1), id(4), id(2), id(3)), persisted.trackIds)
             assertEquals(id(4), persisted.selectedTrackId)
             assertEquals(0L, persisted.positionMs)
         } finally {
-            first.destroy()
+            onMain { first.destroy() }
         }
         val restored = QueueStateFileStore(context).read()!!
-        val second = Robolectric.buildService(EnoTonePlaybackService::class.java).create()
+        val second = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
         try {
             val service = second.get()
             val byId = (1..4).map(::track).associateBy { it.id }
-            assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
-                restored.trackIds.map(byId::getValue), restored, false, false))
-            assertEquals(id(4), service.player.currentMediaItem?.mediaId)
-            assertEquals(listOf(id(1), id(4), id(2), id(3)),
-                (0 until service.player.mediaItemCount).map {
-                    service.player.getMediaItemAt(it).mediaId
-                })
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    restored.trackIds.map(byId::getValue), restored, false, false))
+                assertEquals(id(4), service.player.currentMediaItem?.mediaId)
+                assertEquals(listOf(id(1), id(4), id(2), id(3)),
+                    (0 until service.player.mediaItemCount).map {
+                        service.player.getMediaItemAt(it).mediaId
+                    })
+            }
         } finally {
-            second.destroy()
+            onMain { second.destroy() }
             QueueStateFileStore(context).clear()
         }
     }
@@ -93,20 +96,30 @@ class QueueEditServiceTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         QueueStateFileStore(context).clear()
         val initial = checkpoint().copy(repeatMode = Player.REPEAT_MODE_ONE)
-        val controller = Robolectric.buildService(EnoTonePlaybackService::class.java).create()
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
         try {
             val service = controller.get()
-            assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
-                (1..3).map(::track), initial, false, false))
-            val beforePosition = service.player.currentPosition
-            assertEquals(QueueEditStatus.APPLIED, service.append(listOf(track(4))).status)
-            assertEquals(Player.REPEAT_MODE_ONE, service.player.repeatMode)
-            assertEquals(id(1), service.player.currentMediaItem?.mediaId)
-            assertEquals(beforePosition, service.player.currentPosition)
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    (1..3).map(::track), initial, false, false))
+                val beforePosition = service.player.currentPosition
+                assertEquals(QueueEditStatus.APPLIED, service.append(listOf(track(4))).status)
+                assertEquals(Player.REPEAT_MODE_ONE, service.player.repeatMode)
+                assertEquals(id(1), service.player.currentMediaItem?.mediaId)
+                assertEquals(beforePosition, service.player.currentPosition)
+            }
         } finally {
-            controller.destroy()
+            onMain { controller.destroy() }
             QueueStateFileStore(context).clear()
         }
+    }
+
+    private fun <T> onMain(block: () -> T): T {
+        var outcome: Result<T>? = null
+        Shadows.shadowOf(Looper.getMainLooper()).runPaused {
+            outcome = runCatching(block)
+        }
+        return requireNotNull(outcome).getOrThrow()
     }
 
     private fun waitForRevision(store: QueueStateFileStore, old: String): PersistedQueueState {
