@@ -40,8 +40,8 @@ internal object AppNavigator {
 
     fun push(state: AppNavState, detail: LibraryDetail): AppNavState {
         if (state.tab !is AppTab.Library || state.overlay != null || detail.key.isBlank()) return state
-        if (state.details.lastOrNull() == detail) return state
-        return state.copy(details = (state.details + detail).takeLast(MAX_DETAILS))
+        return if (state.details.lastOrNull() == detail) state
+            else state.copy(details = (state.details + detail).takeLast(MAX_DETAILS))
     }
 
     fun pop(state: AppNavState): AppNavState =
@@ -96,31 +96,32 @@ internal object AppNavigator {
         }
         val scroll = parts.getOrNull(2)?.toIntOrNull()?.coerceAtLeast(0) ?: 0
         val details = if (tab is AppTab.Library) {
-            parts.getOrNull(3).orEmpty().split(DETAIL_SEPARATOR).mapNotNull(::parseDetail)
+            parts.getOrNull(DETAIL_FIELD_INDEX).orEmpty().split(DETAIL_SEPARATOR).mapNotNull(::parseDetail)
                 .takeLast(MAX_DETAILS)
         } else emptyList()
         return AppNavState(tab, overlay, scroll, details)
     }
 
-    private fun parseDetail(item: String): LibraryDetail? {
-        if (item.length < 2) return null
-        val key = try {
-            String(Base64.getUrlDecoder().decode(item.drop(1)), StandardCharsets.UTF_8)
-        } catch (_: IllegalArgumentException) {
-            return null
-        }
-        if (key.isBlank()) return null
-        return when (item.first()) {
-            ALBUM -> LibraryDetail.Album(key)
-            ARTIST -> LibraryDetail.Artist(key)
-            else -> null
-        }
-    }
-
     private const val HOME = "HOME"
     private const val SEPARATOR = "|"
     private const val DETAIL_SEPARATOR = ";"
-    private const val ALBUM = 'a'
-    private const val ARTIST = 'r'
+    private const val DETAIL_FIELD_INDEX = 3
     private const val MAX_DETAILS = 8
 }
+
+private fun parseDetail(item: String): LibraryDetail? {
+    if (item.length < MIN_ENCODED_DETAIL_LENGTH) return null
+    val key = runCatching {
+        String(Base64.getUrlDecoder().decode(item.drop(1)), StandardCharsets.UTF_8)
+    }.getOrNull()
+    return when {
+        key.isNullOrBlank() -> null
+        item.first() == ALBUM -> LibraryDetail.Album(key)
+        item.first() == ARTIST -> LibraryDetail.Artist(key)
+        else -> null
+    }
+}
+
+private const val MIN_ENCODED_DETAIL_LENGTH = 2
+private const val ALBUM = 'a'
+private const val ARTIST = 'r'
