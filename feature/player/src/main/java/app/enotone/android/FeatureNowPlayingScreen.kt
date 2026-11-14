@@ -5,6 +5,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -40,12 +43,15 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -114,12 +120,27 @@ fun FeatureNowPlayingScreen(
         animationSpec = tween(260), label = "pausedGraphiteCover",
     )
 
+    val collapseLabel = stringResource(ids.libraryPlayerClose)
+    val collapseAfterPx = with(LocalDensity.current) { COLLAPSE_DRAG.toPx() }
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(
             Brush.verticalGradient(
                 listOf(color.surfaceContainerHigh, color.background),
             ),
-        ),
+        )
+            // D3: свайп вниз сворачивает в мини-плеер. Горизонтальное перетаскивание ползунка
+            // перемотки поглощается Slider и сюда не доходит.
+            .pointerInput(onClose) {
+                var dragged = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { dragged = 0f },
+                    onVerticalDrag = { change, distance ->
+                        dragged += distance
+                        change.consume()
+                    },
+                    onDragEnd = { if (dragged > collapseAfterPx) onClose() },
+                )
+            },
     ) {
         val coverSide = minOf(maxWidth - 56.dp, maxHeight * 0.38f, 320.dp)
         Column(
@@ -132,9 +153,17 @@ fun FeatureNowPlayingScreen(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onClose) {
-                    Icon(painterResource(ids.icActionBack),
-                        contentDescription = stringResource(ids.libraryPlayerClose))
+                // Вместо стрелки «назад» — ручка «Свернуть» (D3); для TalkBack это кнопка.
+                Box(
+                    modifier = Modifier.size(48.dp)
+                        .clickable(onClickLabel = collapseLabel, role = Role.Button, onClick = onClose)
+                        .semantics { contentDescription = collapseLabel },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        Modifier.size(width = 36.dp, height = 5.dp)
+                            .background(color.onSurfaceVariant.copy(alpha = HANDLE_ALPHA), CircleShape),
+                    )
                 }
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     Text(stringResource(ids.nowPlayingTitle),
@@ -297,3 +326,7 @@ fun FeatureNowPlayingScreen(
         }
     }
 }
+
+/** Свайп вниз длиннее этого сворачивает «Сейчас играет». */
+private val COLLAPSE_DRAG = 96.dp
+private const val HANDLE_ALPHA = 0.5f

@@ -26,4 +26,14 @@ class ComponentsScreenshotTest {
         composeRule.setContent { ComponentGallery(darkTheme = false) }
         composeRule.onRoot().captureRoboImage("src/test/screenshots/components_porcelain.png")
     }
+
+    @Test fun graphiteShell() {
+        composeRule.setContent { ShellGallery(darkTheme = true) }
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/shell_graphite.png")
+    }
+
+    @Test fun porcelainShell() {
+        composeRule.setContent { ShellGallery(darkTheme = false) }
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/shell_porcelain.png")
+    }
 }

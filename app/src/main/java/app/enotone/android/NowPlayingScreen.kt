@@ -12,7 +12,6 @@ private val nowPlayingIds = NowPlayingIds(
     playbackRepeatOne = R.string.playback_repeat_one,
     playbackRepeatAll = R.string.playback_repeat_all,
     playbackRepeatOff = R.string.playback_repeat_off,
-    icActionBack = R.drawable.ic_action_back,
     libraryPlayerClose = R.string.library_player_close,
     nowPlayingTitle = R.string.now_playing_title,
     artworkDescription = R.string.artwork_description,

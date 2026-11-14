@@ -19,9 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -33,7 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import app.enotone.library.LibraryPage
+import app.enotone.library.LibraryPageVisibility
 
 @Composable
 internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
@@ -52,41 +52,45 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val indexing by indexingModel.state.collectAsStateWithLifecycle()
     val artwork by artworkModel.state.collectAsStateWithLifecycle()
     val diagnostics by diagnosticsModel.state.collectAsStateWithLifecycle()
-    var showingLibrary by remember { mutableStateOf(false) }
-    var showingSettings by remember { mutableStateOf(false) }
-    // Сохраняются при пересоздании Activity вместе с ViewModel: иначе поворот сбросил бы страницу.
-    var initialLibraryPage by rememberSaveable { mutableStateOf(LibraryPage.TRACKS) }
-    var libraryOpenRequest by rememberSaveable { mutableIntStateOf(0) }
-    var showingDiagnostics by remember { mutableStateOf(false) }
+    // Навигация каркаса D3 (ADR-0086): переживает поворот и пересоздание Activity.
+    var nav by rememberSaveable(stateSaver = navSaver) { mutableStateOf(AppNavState()) }
     val playerModel: PlayerViewModel = viewModel(factory = remember(appContext) {
         PlayerViewModel.factory(container)
     })
     val player by playerModel.state.collectAsStateWithLifecycle()
     val libraryStateHolder = rememberSaveableStateHolder()
-    SettingsAccountEffects(account, showingLibrary, showingSettings, session, playerModel, artworkModel,
-        onSignedOut = { showingLibrary = false; showingDiagnostics = false })
+    val inSettings = nav.overlay != null
+    // Видимость страниц перечитывается при выходе из «Настроек», где её меняют (ADR-0052).
+    val pages = remember(inSettings) {
+        LibraryPageVisibility.visible(LibraryPagePreferences(appContext).hiddenPages())
+    }
+    LaunchedEffect(pages) { nav = AppNavigator.onVisiblePages(nav, pages) }
+    SettingsAccountEffects(account, showingMusic = !inSettings, showingSettings = inSettings, session,
+        playerModel, artworkModel, onSignedOut = { nav = AppNavigator.onSignedOut(nav) })
     SettingsNotificationPermission(if (indexing.permissionPending) indexing.permissionRequest else 0,
         indexingModel::onNotificationPermission)
     // Нажатие на уведомление: «Сейчас играет» поверх любого экрана; «Назад» вернёт на прежний.
     LaunchedEffect(openNowPlayingRequest) {
         if (openNowPlayingRequest > 0) playerModel.onNowPlaying(true)
     }
-    BackHandler(enabled = player.nowPlaying || showingLibrary || showingSettings) {
-        when {
-            player.nowPlaying -> playerModel.onNowPlaying(false)
-            showingLibrary -> showingLibrary = false
-            showingDiagnostics -> showingDiagnostics = false
-            showingSettings -> showingSettings = false
-        }
+    val back = AppNavigator.back(nav)
+    BackHandler(enabled = player.nowPlaying || back != null) {
+        if (player.nowPlaying) playerModel.onNowPlaying(false) else back?.let { nav = it }
     }
-    if (SettingsMusicDestination(player, playerModel, account, showingLibrary, showingSettings,
-        initialLibraryPage, libraryOpenRequest, libraryStateHolder, appContext,
-        onLibraryBack = { showingLibrary = false },
-        onSettings = { showingSettings = true }, onOpenPage = { page ->
-            initialLibraryPage = page
-            libraryOpenRequest++
-            showingLibrary = true
-        })) return
+    if (player.nowPlaying && player.playback.queueTotal > 0) {
+        AppNowPlaying(player, playerModel)
+        return
+    }
+    if (!inSettings) {
+        AppMusicShell(
+            nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
+            libraryStateHolder = libraryStateHolder,
+            onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
+            onSettings = { nav = AppNavigator.openSettings(nav) },
+        )
+        return
+    }
+    val showingDiagnostics = nav.overlay == AppOverlay.DIAGNOSTICS
 
     // Мини-плеера в «Настройках» и «Диагностике» нет (O-10 уточнено владельцем 2026-11-13):
     // он нужен только на экранах музыки. Отдельная прокрутка для основного экрана и подэкрана.
@@ -97,12 +101,12 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (showingDiagnostics) {
-            SettingsHeader(stringResource(R.string.diagnostics_title), "") { showingDiagnostics = false }
+            SettingsHeader(stringResource(R.string.diagnostics_title), "") { nav = AppNavigator.back(nav) ?: nav }
             SettingsDiagnosticsContent(diagnostics, indexing.status, diagnosticsModel)
         } else {
             val version = remember(appContext) { appVersionName(appContext) }
             SettingsHeader(stringResource(R.string.settings_title), version) {
-                showingSettings = false
+                nav = AppNavigator.back(nav) ?: nav
             }
             SettingsGroup(stringResource(R.string.settings_group_cloud)) {
                 AccountSettingsSection(
@@ -124,7 +128,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 SettingsArtworkSection(artwork, artworkModel::changeMode, artworkModel::clear,
                     artworkModel::pause, artworkModel::stop)
             }
-            SettingsDiagnosticsEntry { showingDiagnostics = true }
+            SettingsDiagnosticsEntry { nav = AppNavigator.openDiagnostics(nav) }
         }
     }
     }
@@ -133,7 +137,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
 @Composable
 private fun SettingsAccountEffects(
     account: AccountUiState,
-    showingLibrary: Boolean,
+    showingMusic: Boolean,
     showingSettings: Boolean,
     session: SettingsWorkSession,
     playerModel: PlayerViewModel,
@@ -145,8 +149,9 @@ private fun SettingsAccountEffects(
     val library = account.libraryLogin
     LaunchedEffect(working) { session.updateLogin(working) }
     LaunchedEffect(showingSettings) { artworkModel.setVisible(showingSettings) }
-    LaunchedEffect(showingLibrary, library) {
-        if (showingLibrary && library != null) playerModel.onCredentialsPersisted(library.email, library.password)
+    LaunchedEffect(showingMusic, library) {
+        // «Домой» тоже запускает воспроизведение («Перемешать всё»), поэтому — любой экран музыки.
+        if (showingMusic && library != null) playerModel.onCredentialsPersisted(library.email, library.password)
     }
     LaunchedEffect(account.verifiedVersion) {
         val verified = account.active
@@ -195,3 +200,8 @@ private fun SettingsDiagnosticsEntry(onOpen: () -> Unit) {
         }
     }
 }
+
+private val navSaver = Saver<AppNavState, String>(
+    save = { AppNavigator.save(it) },
+    restore = { AppNavigator.restore(it) },
+)

@@ -11,7 +11,6 @@ data class NowPlayingIds(
     val playbackRepeatOne: Int,
     val playbackRepeatAll: Int,
     val playbackRepeatOff: Int,
-    val icActionBack: Int,
     val libraryPlayerClose: Int,
     val nowPlayingTitle: Int,
     val artworkDescription: Int,

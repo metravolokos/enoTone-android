@@ -133,7 +133,7 @@
     <string name="now_playing_queue_short">%1$d / %2$d</string>
     <string name="library_player_title">Player</string>
     <string name="library_player_open">Player</string>
-    <string name="library_player_close">Close</string>
+    <string name="library_player_close">Collapse</string>
     <string name="library_open_search">Open search</string>
     <string name="library_close_search">Close search and clear query</string>
     <string name="library_search_short">Search</string>
@@ -190,4 +190,14 @@
     <string name="diagnostics_indexing_title">Library update</string>
     <string name="diagnostics_indexing_empty">No update has run in this session yet.</string>
     <string name="diagnostics_indexing_state">State: %1$s</string>
+    <!-- D3: Android v2 bottom bar labels -->
+    <string name="nav_songs">Songs</string>
+    <string name="nav_albums">Albums</string>
+    <string name="nav_artists">Artists</string>
+    <string name="nav_album_artists">Album artists</string>
+    <string name="home_shuffle_all">Shuffle all</string>
+    <plurals name="home_song_count">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
 </resources>

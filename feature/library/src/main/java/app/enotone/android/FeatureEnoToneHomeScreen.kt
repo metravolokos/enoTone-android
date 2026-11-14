@@ -1,18 +1,16 @@
 package app.enotone.android
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,122 +20,73 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.enotone.library.LibraryPage
+import app.enotone.android.core.ui.component.EnoShuffleAllCard
+import app.enotone.android.core.ui.theme.EnoColors
 
-/** Home uses genuine library destinations; no invented recommendations. */
+/**
+ * «Домой», вариант C2 (D3, макет `09_home`): крупный заголовок и вход в «Настройки» справа,
+ * плашка «Перемешать всё · N песен» с Бандитом. Секции «Недавно добавленные» — D4: в базе пока
+ * нет даты добавления трека, поэтому их нет и заглушек вместо них тоже нет.
+ * [songCount] — `null`, пока медиатека не прочитана или пуста: тогда плашки нет.
+ */
 @Composable
 fun FeatureEnoToneHomeScreen(
-    visiblePages: List<LibraryPage>,
     connectedAccount: Boolean,
+    songCount: Int?,
     onSettings: () -> Unit,
-    onOpenPage: (LibraryPage) -> Unit,
-    miniPlayer: @Composable () -> Unit = {},
+    onShuffleAll: () -> Unit,
     ids: HomeScreenIds,
-    navigation: @Composable () -> Unit,
+    contentPadding: PaddingValues,
+    shuffleEnabled: Boolean = true,
 ) {
-    Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+    Column(
+        modifier = Modifier.fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
+            .padding(contentPadding),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 28.dp, end = 18.dp, top = 16.dp),
+            verticalAlignment = Alignment.Bottom,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(78.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(ids.navHome),
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier = Modifier.weight(1f),
+            Text(
+                text = stringResource(ids.navHome),
+                style = MaterialTheme.typography.headlineLarge,
+                color = EnoColors.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onSettings) {
+                Icon(
+                    painter = painterResource(ids.icActionSettings),
+                    contentDescription = stringResource(ids.settingsTitle),
+                    modifier = Modifier.size(26.dp),
+                    tint = EnoColors.text,
                 )
-                IconButton(onClick = onSettings) {
-                    Icon(
-                        painter = painterResource(ids.icActionSettings),
-                        contentDescription = stringResource(ids.settingsTitle),
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier.fillMaxWidth().weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 90.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    text = stringResource(ids.homeMusicTitle),
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                // An existing library action, not a fake editorial carousel.
-                val page = visiblePages.firstOrNull()
-                if (page != null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                            .clickable {
-                                if (connectedAccount) onOpenPage(page) else onSettings()
-                            }
-                            .padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Icon(
-                            painter = painterResource(ids.icNavAlbums),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = stringResource(if (connectedAccount) ids.homeOpenLibrary
-                                else ids.homeConnectAccount),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                    }
-                }
-                if (connectedAccount) {
-                    Text(
-                        text = stringResource(ids.homeLibrarySections),
-                        style = MaterialTheme.typography.headlineMedium,
-                    )
-                    visiblePages.forEach { section ->
-                        val (title, image) = when (section) {
-                            LibraryPage.TRACKS -> ids.libraryTabTracks to ids.icNavTracks
-                            LibraryPage.ALBUMS -> ids.libraryTabAlbums to ids.icNavAlbums
-                            LibraryPage.ARTISTS -> ids.libraryTabArtists to ids.icNavArtists
-                            LibraryPage.ALBUM_ARTISTS -> ids.libraryTabAlbumArtists to ids.icNavAlbumArtists
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth().height(60.dp)
-                                .clickable { onOpenPage(section) },
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            Icon(
-                                painter = painterResource(image),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = stringResource(title),
-                                style = MaterialTheme.typography.bodyLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
-                            )
-                            Text(
-                                text = "›",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                        }
-                    }
-                }
             }
         }
-        Column(modifier = Modifier.align(Alignment.BottomCenter)
-            .fillMaxWidth()) {
-            miniPlayer()
-            navigation()
+        when {
+            !connectedAccount -> Text(
+                text = stringResource(ids.homeConnectAccount),
+                style = MaterialTheme.typography.titleMedium,
+                color = EnoColors.accentText,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 18.dp)
+                    .heightIn(min = 48.dp)
+                    .clickable(onClick = onSettings)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+            songCount != null && songCount > 0 -> EnoShuffleAllCard(
+                title = stringResource(ids.homeShuffleAll),
+                subtitle = pluralStringResource(ids.homeSongCount, songCount, songCount),
+                onClick = onShuffleAll,
+                enabled = shuffleEnabled,
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
+            )
         }
     }
 }
