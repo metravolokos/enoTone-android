@@ -20,6 +20,8 @@ interface LibraryRepository {
     suspend fun load(email: String): LibrarySnapshot
     suspend fun refreshAlbum(email: String, password: String, ids: List<String>): AlbumTagRefreshReport
     suspend fun readSavedQueue(): PersistedQueueState?
+    /** Null is reserved for test fakes that model only an in-memory snapshot. */
+    suspend fun searchTrackIds(email: String, query: String): Set<String>? = null
     suspend fun saveDurationIfUnknown(
         sourceKey: String,
         trackId: String,
@@ -63,8 +65,17 @@ class RoomLibraryRepository(
 ) : LibraryRepository {
     override suspend fun load(email: String): LibrarySnapshot = withContext(io) {
         val key = LibrarySnapshotPlanner.accountKey(email)
-        LibraryCatalogMapper.map(key, database.remoteTrackDao().allForSource(key))
+        val remote = database.remoteTrackDao().allForSource(key)
+        TrackSearchIndex(database).reconcile(key, remote)
+        LibraryCatalogMapper.map(key, remote)
     }
+
+    override suspend fun searchTrackIds(email: String, query: String): Set<String> =
+        withContext(io) {
+            val expression = LibraryText.ftsMatchExpression(query) ?: return@withContext emptySet()
+            val key = LibrarySnapshotPlanner.accountKey(email)
+            database.trackSearchDao().searchTrackIds(key, expression).toSet()
+        }
 
     override suspend fun refreshAlbum(
         email: String,

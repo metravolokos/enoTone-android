@@ -61,6 +61,16 @@
 | LIB-06 | Файл изменён в облаке (ETag, размер или дата) | теги перечитаны, ссылка на обложку сброшена | ADR-0082 | JVM | `LibrarySnapshotPlannerTest` (changedIds) | T |
 | LIB-07 | «Переиндексировать всё…» → «Отмена» | ничего не запускается | ADR-0066 | R, H | `SettingsActionsUiTest`, `LibraryIndexingViewModelTest` | H PASS 0.6.2-preview.460 |
 
+## SRCH — поиск FTS4 и русский порядок (M6-0/7)
+
+| ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |
+|---|---|---|---|---|---|---|
+| SRCH-01 | «ежик» при названии «Ёжик», разный регистр, две части запроса | поиск по префиксам всех слов, без сети | R-6.3c | JVM, R, H | LibraryTextTest, TrackSearchDaoTest | ожидает CI/Huawei |
+| SRCH-02 | Кавычки, звёздочки, дефисы, OR/NEAR; «ираж» против «Мираж» | без FTS-инъекций, только начало слова | R-3.5 | JVM, R, H | LibraryTextTest, TrackSearchDaoTest | ожидает CI/Huawei |
+| SRCH-03 | Быстрый ввод/очистка | без мигания пустыми результатами и устаревшего ответа | R-6.3c | JVM, H | LibraryViewModelTest | ожидает CI/Huawei |
+| SRCH-04 | Сортировка песен, альбомов и артистов; The Beatles | русский Collator, ё рядом с е, прежние ключи обложек | R-6.2g | JVM, H | LibraryGroupSortTest, LibraryTextTest | ожидает CI/Huawei |
+| SRCH-05 | Обновление v5→v6 поверх Stable Preview | треки, очередь, обложки сохранены; FTS построен локально | R-8.5 | R, H | EnoToneMigrationTest, TrackSearchDaoTest | ожидает CI/Huawei |
+
 ## NAV — навигация
 
 | ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |

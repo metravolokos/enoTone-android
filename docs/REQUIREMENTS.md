@@ -55,7 +55,7 @@
 | R-3.2 | Compose + Material 3, edge-to-edge, тема светлая / тёмная / системная | ✅ | ADR-0073, ADR-0084; D2a сохраняет ключ и значения UiAppearance |
 | R-3.3 | Media3 ExoPlayer + MediaSessionService + **MediaLibraryService** | 🟡 | `MediaLibraryService` нет (Android Auto, внешние контроллеры) |
 | R-3.4 | OkHttp и собственный WebDAV-слой | ⛔ / 🟡 | Ktor CIO + HttpURLConnection (ADR-0012/0013/0018); **три HTTP-стека**, нужен ADR о едином слое |
-| R-3.5 | Room + **FTS** | 🟡 | В Draft M6-0/6 — Room v5; FTS нет (M6-0/7) |
+| R-3.5 | Room + **FTS** | 🟡 | Room v5 принят; FTS4/Room v6 в Draft M6-0/7, CI и Huawei ожидают |
 | R-3.6 | DataStore для настроек | ❌ | `SharedPreferences` |
 | R-3.7 | WorkManager для синхронизации | ⛔ | O-03 |
 | R-3.8 | Картинки: Coil или свой загрузчик + ADR | ✅ | свой (`ArtworkPreviewRepository`), ADR-0054/0067 |
@@ -100,11 +100,11 @@
 | R-6.2d | Форматы mp3, flac, ogg/opus, m4a, wav | 🟡 | теги только MP3/FLAC (O-06) |
 | R-6.2e | Теги: title, artist, album artist, album, track/disc, year, genre, **длительность**, обложка | 🟡 | Draft M6-0/6: nullable длительность из уже прочитанного FLAC/MP3 заголовка и Media3; UI ожидает D4, старые записи остаются пустыми до прослушивания |
 | R-6.2f | Фоллбэк на структуру папок; `cover.jpg`/`folder.jpg` | ⛔ / ❌ | структура плоская (O-01); файлы обложек папок не используются |
-| R-6.2g | NFC, русская коллация, игнор «The», Various Artists | 🟡 | NFC есть; **`Collator` и ё/е нет** (M6-0/7) |
+| R-6.2g | NFC, русская коллация, игнор «The», Various Artists | 🟡 | LibraryText/Collator ru в Draft M6-0/7; ключи групп без изменений, CI/Huawei ожидают |
 | R-6.3a | Треки / Альбомы / Исполнители, нижняя навигация | ✅ | H |
 | R-6.3b | Сортировки треков (название / артист / альбом / дата) | 🟡 | проверить |
-| R-6.3c | Поиск на FTS, устойчивый к регистру и ё/е | 🟡 | поиск в памяти, без ё/е (M6-0/7) |
-| R-6.3d | Paging на десятки тысяч треков | ❌ | M6-0/7 |
+| R-6.3c | Поиск на FTS, устойчивый к регистру и ё/е | 🟡 | FTS4/LibraryViewModel 150 мс в Draft M6-0/7; CI/Huawei ожидают |
+| R-6.3d | Paging на десятки тысяч треков | 🟡 | Замер сделан, Paging не реализован; решение владельца (а/б/в) ожидается, ADR-0087 |
 | R-6.4 | Кэш обложек трёх размеров, LRU | ⛔ | O-05 |
 | R-6.5a | Кэш текущего + следующего трека | ✅ | H; T |
 | R-6.5b | Закрепление (pinning) current/next | ❌ | только LRU 512 МиБ |

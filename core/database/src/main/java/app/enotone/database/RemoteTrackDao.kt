@@ -9,6 +9,9 @@ interface RemoteTrackDao {
     @Query("SELECT * FROM remote_tracks WHERE sourceKey = :sourceKey")
     suspend fun allForSource(sourceKey: String): List<RemoteTrackEntity>
 
+    @Query("SELECT * FROM remote_tracks WHERE sourceKey = :sourceKey AND id = :id LIMIT 1")
+    suspend fun byId(sourceKey: String, id: String): RemoteTrackEntity?
+
     /** Explicit account sign-out only. Never use for listing/refresh errors. */
     @Query("DELETE FROM remote_tracks WHERE sourceKey = :sourceKey")
     suspend fun deleteAllForSource(sourceKey: String): Int

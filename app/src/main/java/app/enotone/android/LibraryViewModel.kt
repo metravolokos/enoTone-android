@@ -10,6 +10,7 @@ import app.enotone.library.LibraryPageVisibility
 import app.enotone.library.LibraryRepository
 import app.enotone.library.LibrarySnapshot
 import app.enotone.library.LibrarySnapshotPlanner
+import app.enotone.library.LibraryText
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
@@ -18,6 +19,7 @@ import app.enotone.playback.PlaybackDataIssue
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -278,6 +280,18 @@ internal class LibraryViewModel(
         val snapshot = mutable.value
         val byId = catalogue.preparedById
         filtersJob = viewModelScope.launch {
+            val ftsExpression = if (snapshot.section == LibraryPage.TRACKS)
+                LibraryText.ftsMatchExpression(snapshot.search) else null
+            val matchedIds = if (ftsExpression != null) {
+                delay(150L) // Debounce while retaining the last results until the response.
+                try {
+                    repository.searchTrackIds(accountEmail, snapshot.search)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null // Local fallback keeps the screen usable if the index cannot be queried.
+                }
+            } else null
             val result = withContext(io) {
                 val groups = when (snapshot.section) {
                     LibraryPage.TRACKS -> emptyList()
@@ -296,7 +310,13 @@ internal class LibraryViewModel(
                             OfflineTrackCatalog.albumOrder(members) else members
                     } ?: emptyList()
                 }
-                val visible = OfflineTrackCatalog.search(candidates, snapshot.search)
+                val visible = if (snapshot.section == LibraryPage.TRACKS) {
+                    when {
+                        ftsExpression == null -> candidates
+                        matchedIds != null -> candidates.filter { it.id in matchedIds }
+                        else -> OfflineTrackCatalog.search(candidates, snapshot.search)
+                    }
+                } else OfflineTrackCatalog.search(candidates, snapshot.search)
                 val album = if (snapshot.section == LibraryPage.ALBUMS && group != null)
                     OfflineTrackCatalog.albumOrder(
                         snapshot.tracks.filter { it.id in group.trackIds },

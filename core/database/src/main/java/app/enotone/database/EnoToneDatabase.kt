@@ -8,23 +8,27 @@ import androidx.room.RoomDatabase
 import androidx.room.withTransaction
 
 @Database(
-    entities = [RemoteTrackEntity::class, PlaylistEntity::class, PlaylistItemEntity::class],
-    version = 5,
+    entities = [RemoteTrackEntity::class, PlaylistEntity::class, PlaylistItemEntity::class,
+        TrackSearchEntity::class],
+    version = 6,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4),
         AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6),
     ],
     exportSchema = true,
 )
 abstract class EnoToneDatabase : RoomDatabase() {
     abstract fun remoteTrackDao(): RemoteTrackDao
     abstract fun playlistDao(): PlaylistDao
+    abstract fun trackSearchDao(): TrackSearchDao
 
     /** Playlist rows are removed before tracks; item foreign keys then cascade in one commit. */
     suspend fun deleteAccountData(sourceKey: String): Int = withTransaction {
         playlistDao().deleteAllForSource(sourceKey)
+        trackSearchDao().deleteForSource(sourceKey)
         remoteTrackDao().deleteAllForSource(sourceKey)
     }
 

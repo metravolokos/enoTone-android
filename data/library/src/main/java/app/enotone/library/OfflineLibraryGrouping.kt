@@ -21,6 +21,18 @@ object OfflineLibraryGrouping {
 
     private fun known(text: String?): String? = text?.trim()?.takeIf { it.isNotEmpty() }
 
+    private val albumOrder = compareBy<OfflineLibraryGroup> { it.key == "album:missing" }
+        .then(Comparator { a, b -> LibraryText.compare(a.name, b.name) })
+        .then(Comparator { a, b ->
+            LibraryText.compare(a.subtitle.orEmpty(), b.subtitle.orEmpty())
+        })
+        .thenBy { it.key }
+
+    private val performerOrder = Comparator<OfflineLibraryGroup> { a, b ->
+        LibraryText.compare(a.name, b.name, dropArticle = true).takeIf { it != 0 }
+            ?: a.key.compareTo(b.key)
+    }
+
     /** Prefer Album Artist for album identity, fallback to track Artist only here. */
     fun albums(
         tracks: List<OfflineTrackRow>,
@@ -51,11 +63,7 @@ object OfflineLibraryGrouping {
                     else known(first.albumArtist) ?: known(first.artist),
                 trackIds = rows.mapTo(linkedSetOf()) { it.id },
             )
-        }.sortedWith(compareBy<OfflineLibraryGroup> {
-            it.key == "album:missing"
-        }.thenBy { normalized(it.name) }
-            .thenBy { normalized(it.subtitle.orEmpty()) }
-            .thenBy { it.key })
+        }.sortedWith(albumOrder)
     }
 
     /** Track-level Artist only, independent from the Album Artist tag. */
@@ -84,14 +92,12 @@ object OfflineLibraryGrouping {
                 subtitle = null,
                 trackIds = rows.mapTo(linkedSetOf()) { it.id },
             )
-        }.sortedWith(compareBy<OfflineLibraryGroup> { normalized(it.name) }
-            .thenBy { it.key })
+        }.sortedWith(performerOrder)
     }
 
     fun matches(group: OfflineLibraryGroup, query: String): Boolean {
-        val terms = normalized(query).split(Regex("\\s+")).filter { it.isNotBlank() }
-        if (terms.isEmpty()) return true
-        val text = normalized(listOfNotNull(group.name, group.subtitle).joinToString(" "))
-        return terms.all { text.contains(it) }
+        return LibraryText.containsAllTerms(
+            listOfNotNull(group.name, group.subtitle).joinToString(" "), query,
+        )
     }
 }

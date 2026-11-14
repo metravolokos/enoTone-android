@@ -23,6 +23,11 @@ data class OfflineTrackRow(
 )
 
 object OfflineTrackCatalog {
+    private val titleOrder = Comparator<OfflineTrackRow> { left, right ->
+        LibraryText.compare(left.title, right.title).takeIf { it != 0 }
+            ?: left.id.compareTo(right.id)
+    }
+
     fun build(sourceKey: String, tracks: List<RemoteTrackEntity>): List<OfflineTrackRow> =
         tracks.asSequence()
             .filter { it.sourceKey == sourceKey && it.missingScans == 0 }
@@ -47,8 +52,7 @@ object OfflineTrackCatalog {
                         track.discNumber != null || track.genre != null,
                 )
             }
-            .sortedWith(compareBy<OfflineTrackRow> { it.title.lowercase(Locale.ROOT) }
-                .thenBy { it.id })
+            .sortedWith(titleOrder)
             .toList()
 
     /**
@@ -59,8 +63,7 @@ object OfflineTrackCatalog {
     fun albumOrder(items: List<OfflineTrackRow>): List<OfflineTrackRow> =
         items.sortedWith(compareBy<OfflineTrackRow> { it.discNumber ?: 1 }
             .thenBy { it.trackNumber ?: Int.MAX_VALUE }
-            .thenBy { it.title.lowercase(Locale.ROOT) }
-            .thenBy { it.id })
+            .then(titleOrder))
 
     /** A compilation with conflicting release years must not show a fake one. */
     fun commonAlbumYear(items: List<OfflineTrackRow>): Int? =
@@ -72,14 +75,11 @@ object OfflineTrackCatalog {
             .distinctBy { it.lowercase(Locale.ROOT) }.singleOrNull()
 
     fun search(items: List<OfflineTrackRow>, query: String): List<OfflineTrackRow> {
-        val terms = query.trim().lowercase(Locale.ROOT)
-            .split(Regex("\\s+")).filter { it.isNotBlank() }
-        if (terms.isEmpty()) return items
+        if (LibraryText.searchKey(query).isBlank()) return items
         return items.filter { row ->
             val haystack = listOfNotNull(row.title, row.artist, row.album, row.albumArtist,
-                row.genre)
-                .joinToString(" ").lowercase(Locale.ROOT)
-            terms.all { haystack.contains(it) }
+                row.genre).joinToString(" ")
+            LibraryText.containsAllTerms(haystack, query)
         }
     }
 }
