@@ -560,69 +560,95 @@ class PreviewAudioPlayback(
      */
     fun editQueue(tracks: List<QueueTrack>, edit: QueueEdit): QueueEditResult {
         val currentId = player.currentMediaItem?.mediaId
-            ?: return QueueEditResult(QueueEditStatus.UNAVAILABLE)
-        if (originalTrackIds.isEmpty()) return QueueEditResult(QueueEditStatus.UNAVAILABLE)
-        val plan = QueueEditPlanner.plan(
-            QueueLayout(originalTrackIds, if (player.shuffleModeEnabled) configuredShuffle else null,
-                currentId),
-            edit,
-        )
-        if (plan.movedIds.isEmpty()) return plan.result
+        return if (currentId == null || originalTrackIds.isEmpty()) {
+            QueueEditResult(QueueEditStatus.UNAVAILABLE)
+        } else {
+            val plan = QueueEditPlanner.plan(
+                QueueLayout(originalTrackIds,
+                    if (player.shuffleModeEnabled) configuredShuffle else null, currentId),
+                edit,
+            )
+            if (plan.movedIds.isEmpty()) plan.result
+            else applyQueueEdit(tracks, edit, plan, currentId)
+        }
+    }
+
+    private fun applyQueueEdit(
+        tracks: List<QueueTrack>,
+        edit: QueueEdit,
+        plan: QueueEditPlan,
+        currentId: String,
+    ): QueueEditResult {
         val byId = tracks.associateBy { it.id }
         val knownIds = originalTrackIds.toHashSet()
         val newIds = plan.layout.trackIds.filterNot { it in knownIds }
         val newTracks = newIds.map { byId.getValue(it) }
         val factory = checkNotNull(mediaSourceFactory)
         val route = checkNotNull(routesFactory)
-        // Validate every new path and prepare MediaSources before touching Media3.
+        // Validate new source URLs and prepare MediaSources before touching Media3.
         val sources = newTracks.associate { it.id to makeMediaSource(factory, it) }
         route.addTracks(newTracks)
         finishPendingPlaylist()
         require(player.mediaItemCount == originalTrackIds.size) { "Incomplete playback timeline" }
         val working = originalTrackIds.toMutableList()
-        val moved = plan.movedIds.toHashSet()
-        // Block partial-timeline callbacks from applying an obsolete shuffle.
         stableShuffleApplied = true
         expectedQueueSize = plan.layout.trackIds.size
         configuredShuffle = plan.layout.shuffledIndices?.copyOf()
-        if (plan.layout.shuffleEnabled) {
-            newIds.forEach { id ->
-                player.addMediaSources(listOf(sources.getValue(id)))
-                working.add(id)
-            }
-            player.setShuffleOrder(
-                ShuffleOrder.DefaultShuffleOrder(checkNotNull(configuredShuffle), System.nanoTime()))
-        } else {
-            var anchor = if (edit is QueueEdit.PlayNext) currentId
-                else originalTrackIds.last { it !in moved }
-            plan.movedIds.forEach { id ->
-                val from = working.indexOf(id)
-                val to = working.indexOf(anchor) + 1
-                if (from == -1) {
-                    player.addMediaSources(to, listOf(sources.getValue(id)))
-                    working.add(to, id)
-                } else {
-                    // Removing an item before the anchor shifts the insertion index left.
-                    val target = if (from < to) to - 1 else to
-                    if (from != target) {
-                        player.moveMediaItem(from, target)
-                        working.removeAt(from)
-                        working.add(target, id)
-                    }
-                }
-                anchor = id
-            }
-        }
+        if (plan.layout.shuffleEnabled) applyShuffledEdit(plan, newIds, sources, working)
+        else applyLinearEdit(plan, edit, currentId, sources, working)
+
         check(working == plan.layout.trackIds) { "Queue edit order mismatch" }
         originalTrackIds = plan.layout.trackIds
         mediaIdIndices = originalTrackIds.withIndex().associate { it.value to it.index }
         activeRoutes = activeRoutes + newTracks.associateBy { it.id }
         sourceKeyForQueue = QueueEditSource.edited(checkNotNull(sourceKeyForQueue))
-        // The previously prefetched next song may no longer be next.
+        // Previous next-song prefetch is now stale even if current audio continues.
         temporaryCache?.cancelNext()
         scheduledNextId = null
         refreshNextPrefetch()
         return plan.result
+    }
+
+    private fun applyShuffledEdit(
+        plan: QueueEditPlan,
+        newIds: List<String>,
+        sources: Map<String, MediaSource>,
+        working: MutableList<String>,
+    ) {
+        newIds.forEach { id ->
+            player.addMediaSources(listOf(sources.getValue(id)))
+            working.add(id)
+        }
+        player.setShuffleOrder(
+            ShuffleOrder.DefaultShuffleOrder(checkNotNull(plan.layout.shuffledIndices), System.nanoTime()))
+    }
+
+    private fun applyLinearEdit(
+        plan: QueueEditPlan,
+        edit: QueueEdit,
+        currentId: String,
+        sources: Map<String, MediaSource>,
+        working: MutableList<String>,
+    ) {
+        val moved = plan.movedIds.toHashSet()
+        var anchor = if (edit is QueueEdit.PlayNext) currentId
+            else originalTrackIds.last { it !in moved }
+        plan.movedIds.forEach { id ->
+            val from = working.indexOf(id)
+            val to = working.indexOf(anchor) + 1
+            if (from == -1) {
+                player.addMediaSources(to, listOf(sources.getValue(id)))
+                working.add(to, id)
+            } else {
+                val target = if (from < to) to - 1 else to
+                if (from != target) {
+                    player.moveMediaItem(from, target)
+                    working.removeAt(from)
+                    working.add(target, id)
+                }
+            }
+            anchor = id
+        }
     }
 
     /**
