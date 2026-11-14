@@ -344,47 +344,18 @@ internal fun LibraryScreenContent(
                             item(key = EMPTY_KEY) { Text(stringResource(R.string.library_groups_empty)) }
                         }
                         items(shownGroups, key = { it.key }) { group ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().height(72.dp)
-                                    .clickable {
-                                        if (section == LibraryPage.ARTISTS) {
-                                            onOpenDetail(LibraryDetail.Artist(group.key))
-                                        } else {
-                                            actions.onGroupSelected(group.key)
-                                        }
-                                    },
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Box(
-                                    modifier = Modifier.size(56.dp)
-                                        .clip(androidx.compose.foundation.shape.CircleShape)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = group.name.take(1).uppercase(),
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                Text(
-                                    text = group.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                Text(
-                                    text = "›",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                            }
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                modifier = Modifier.padding(start = 72.dp),
-                                thickness = 0.5.dp,
+                            LibraryPerformerRow(
+                                section = section,
+                                group = group,
+                                artistPlan = state.artistPlans[group.key],
+                                albumCount = state.groupIndex.albumArtistAlbumCounts[group.key] ?: 0,
+                                onClick = {
+                                    if (section == LibraryPage.ARTISTS) {
+                                        onOpenDetail(LibraryDetail.Artist(group.key))
+                                    } else {
+                                        actions.onGroupSelected(group.key)
+                                    }
+                                },
                             )
                         }
                     }
@@ -414,6 +385,11 @@ internal fun LibraryScreenContent(
                             onShuffleAll = { actions.onAlbumShuffleAll() },
                             queueTracks = albumTracks,
                             queueActions = actions,
+                            onOpenArtist = selectedGroup.subtitle?.let { name ->
+                                state.groupIndex.artists.firstOrNull {
+                                    it.name.equals(name, ignoreCase = true)
+                                }?.let { artist -> { onOpenDetail(LibraryDetail.Artist(artist.key)) } }
+                            },
                             refreshingTags = albumRefreshBusy,
                             canRefreshTags = !albumRefreshBusy &&
                                 albumRefreshSampleIds.isNotEmpty() &&
@@ -453,6 +429,8 @@ internal fun LibraryScreenContent(
                         variant = if (section == LibraryPage.ALBUMS && selectedGroup != null)
                             EnoTrackRowVariant.ALBUM else EnoTrackRowVariant.LIBRARY,
                         trackNumber = track.trackNumber?.toString().orEmpty(),
+                        duration = if (section == LibraryPage.ALBUMS && selectedGroup != null)
+                            AlbumDuration.trackTime(track.durationMs) else null,
                         isCurrent = track.id == state.currentTrackId,
                         isPlaying = playbackState == "PLAYING",
                         artwork = {
