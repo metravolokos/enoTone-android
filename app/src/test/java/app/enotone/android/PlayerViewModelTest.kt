@@ -1,12 +1,14 @@
 package app.enotone.android
 
 import android.graphics.Bitmap
+import androidx.media3.common.Player
 import app.enotone.library.AlbumTagRefreshReport
 import app.enotone.library.LibraryRepository
 import app.enotone.library.LibrarySnapshot
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.PersistedQueueState
+import app.enotone.playback.PlaybackModes
 import app.enotone.playback.QueueTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -89,8 +91,14 @@ class PlayerViewModelTest {
         override fun playPause() = Unit
         override fun playNext() = Unit
         override fun playPrevious() = Unit
-        override fun cycleRepeatMode() = Unit
-        override fun toggleShuffle() = Unit
+        override fun cycleRepeatMode() {
+            snapshots.value = snapshots.value.copy(
+                repeatMode = PlaybackModes.nextRepeat(snapshots.value.repeatMode))
+        }
+        override fun toggleShuffle() {
+            snapshots.value = snapshots.value.copy(
+                shuffleEnabled = !snapshots.value.shuffleEnabled)
+        }
         override fun seekToFraction(fraction: Float) = Unit
     }
 
@@ -114,6 +122,32 @@ class PlayerViewModelTest {
         savedAtEpochMs = 123L,
         queueRevision = "01234567-89ab-cdef-0123-456789abcdef",
     )
+
+    @Test fun repeatAndShuffleCommandsReachSharedPlayerUiState() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val connection = Connection()
+            val model = PlayerViewModel(
+                connection, Repo(catalog()), CredentialsProvider { null }, NoArtwork,
+                StandardTestDispatcher(testScheduler), { true })
+            advanceUntilIdle()
+            connection.emit(PlaybackSnapshot(connected = true, queueTotal = 3))
+            advanceUntilIdle()
+            for (expected in listOf(
+                Player.REPEAT_MODE_ONE, Player.REPEAT_MODE_ALL, Player.REPEAT_MODE_OFF,
+            )) {
+                model.onRepeat()
+                advanceUntilIdle()
+                assertEquals(expected, model.state.value.playback.repeatMode)
+            }
+            model.onShuffle()
+            advanceUntilIdle()
+            assertTrue(model.state.value.playback.shuffleEnabled)
+            model.onShuffle()
+            advanceUntilIdle()
+            assertFalse(model.state.value.playback.shuffleEnabled)
+        } finally { Dispatchers.resetMain() }
+    }
 
     @Test fun savedLoginRestoresOnlySurvivorsAndNeverPlaysAutomatically() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
