@@ -10,7 +10,6 @@ import app.enotone.library.LibraryPageVisibility
 import app.enotone.library.LibraryRepository
 import app.enotone.library.LibrarySnapshot
 import app.enotone.library.LibrarySnapshotPlanner
-import app.enotone.library.LibraryText
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
@@ -25,7 +24,6 @@ import app.enotone.playback.QueueLayout
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -44,7 +42,6 @@ private const val LIBRARY_THUMBNAIL_SIDE_PX = 512
 private const val LIBRARY_FULL_ARTWORK_SIDE_PX = 1200
 // System.nanoTime is measured in nanoseconds; UI telemetry uses milliseconds.
 private const val NANOS_PER_MILLISECOND = 1_000_000L
-private const val SEARCH_DEBOUNCE_MS = 150L
 
 /** Immutable input for Compose; the queue and credentials never enter this model. */
 internal data class LibraryUiState(
@@ -285,38 +282,23 @@ internal class LibraryViewModel(
     }
 
     // Page state is derived together to avoid divergent search/group filters.
-    @Suppress("CyclomaticComplexMethod", "TooGenericExceptionCaught", "LongMethod")
+    @Suppress("CyclomaticComplexMethod")
     private fun derivePages() {
         filtersJob?.cancel()
         val generation = ++filterVersion
         val snapshot = mutable.value
         val byId = catalogue.preparedById
         filtersJob = viewModelScope.launch {
-            val ftsExpression = if (snapshot.section == LibraryPage.TRACKS)
-                LibraryText.ftsMatchExpression(snapshot.search) else null
-            var ftsError = ""
+            // BUG 2026-11-14 (Huawei): MATCH FTS4 на устройстве не завершался и держал базу —
+            // поиск зависал, а следующее чтение медиатеки ждало его бесконечно. До разбора
+            // песни ищутся в памяти, как альбомы и исполнители (OfflineTrackCatalog.search).
             val startedMs = clockMs()
-            val matchedIds = if (ftsExpression != null) {
-                delay(SEARCH_DEBOUNCE_MS) // Debounce while retaining the last results until the response.
-                try {
-                    repository.searchTrackIds(accountEmail, snapshot.search)
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (failure: Exception) {
-                    ftsError = failure.javaClass.simpleName
-                    null // Local fallback keeps the screen usable if the index cannot be queried.
-                }
-            } else null
-            val result = withContext(io) {
-                calculateDerivedPages(snapshot, byId, ftsExpression, matchedIds)
-            }
+            val result = withContext(io) { calculateDerivedPages(snapshot, byId) }
             val applied = generation == filterVersion && !unavailable()
-            if (ftsExpression != null) {
+            if (snapshot.section == LibraryPage.TRACKS && snapshot.search.isNotBlank()) {
                 LibrarySearchTrace.record(
-                    "len=${snapshot.search.length} fts=${matchedIds?.size ?: "null"}" +
-                        (if (ftsError.isEmpty()) "" else " err=$ftsError") +
-                        " shown=${result.visible.size} of=${snapshot.tracks.size}" +
-                        " applied=$applied ms=${clockMs() - startedMs} gen=$generation",
+                    "len=${snapshot.search.length} path=memory shown=${result.visible.size}" +
+                        " of=${snapshot.tracks.size} applied=$applied ms=${clockMs() - startedMs}",
                 )
             }
             if (applied) {
@@ -334,8 +316,6 @@ internal class LibraryViewModel(
     private fun calculateDerivedPages(
         snapshot: LibraryUiState,
         byId: Map<String, app.enotone.playback.QueueTrack>,
-        ftsExpression: String?,
-        matchedIds: Set<String>?,
     ): DerivedPages {
         val groups = when (snapshot.section) {
             LibraryPage.TRACKS -> emptyList()
@@ -354,7 +334,7 @@ internal class LibraryViewModel(
                     OfflineTrackCatalog.albumOrder(members) else members
             } ?: emptyList()
         }
-        val visible = visibleForPage(snapshot, candidates, ftsExpression, matchedIds)
+        val visible = OfflineTrackCatalog.search(candidates, snapshot.search)
         val album = if (snapshot.section == LibraryPage.ALBUMS && group != null)
             OfflineTrackCatalog.albumOrder(
                 snapshot.tracks.filter { it.id in group.trackIds },
@@ -368,22 +348,6 @@ internal class LibraryViewModel(
         return DerivedPages(groups, shown, group, visible, album,
             OfflineTrackCatalog.commonAlbumYear(album),
             OfflineTrackCatalog.commonAlbumGenre(album), next)
-    }
-
-    private fun visibleForPage(
-        snapshot: LibraryUiState,
-        candidates: List<OfflineTrackRow>,
-        ftsExpression: String?,
-        matchedIds: Set<String>?,
-    ): List<OfflineTrackRow> {
-        if (snapshot.section != LibraryPage.TRACKS) {
-            return OfflineTrackCatalog.search(candidates, snapshot.search)
-        }
-        return when {
-            ftsExpression == null -> candidates
-            matchedIds != null -> candidates.filter { it.id in matchedIds }
-            else -> OfflineTrackCatalog.search(candidates, snapshot.search)
-        }
     }
 
     private fun eligibleAlbumTrackIds(
