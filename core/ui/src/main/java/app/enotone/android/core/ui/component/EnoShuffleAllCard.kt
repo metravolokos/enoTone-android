@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -80,8 +81,10 @@ fun EnoShuffleAllCard(
         BanditIllustration(
             pose = BanditPose.HEADPHONES,
             contentDescription = null,
+            // wrapContentSize(unbounded): мастер выше карточки и не должен сжиматься до её 112 dp.
             modifier = Modifier.align(Alignment.TopEnd)
                 .offset(x = (-6).dp, y = BANDIT_TOP)
+                .wrapContentSize(Alignment.TopEnd, unbounded = true)
                 .size(width = BANDIT_WIDTH, height = BANDIT_HEIGHT),
         )
     }

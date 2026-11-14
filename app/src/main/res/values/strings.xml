@@ -197,10 +197,10 @@
     <string name="nav_album_artists">Авторы</string>
     <string name="home_shuffle_all">Перемешать всё</string>
     <plurals name="home_song_count">
-        <item quantity="one">%1$d песня</item>
-        <item quantity="few">%1$d песни</item>
-        <item quantity="many">%1$d песен</item>
-        <item quantity="other">%1$d песни</item>
+        <item quantity="one">%1$s песня</item>
+        <item quantity="few">%1$s песни</item>
+        <item quantity="many">%1$s песен</item>
+        <item quantity="other">%1$s песни</item>
     </plurals>
     <!-- D3.1: счётчики под заголовком вкладок (макеты 02, 04, 06, 07) -->
     <string name="ui_search">Поиск</string>

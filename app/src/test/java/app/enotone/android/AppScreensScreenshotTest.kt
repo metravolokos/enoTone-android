@@ -1,6 +1,8 @@
 package app.enotone.android
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
@@ -29,7 +31,7 @@ import app.enotone.android.core.ui.theme.EnoToneTheme as EnoTheme
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w377dp-h816dp-xxxhdpi")
+@Config(sdk = [35], qualifiers = "ru-rRU-w377dp-h816dp-xxxhdpi")
 class AppScreensScreenshotTest {
     @get:Rule val rule = createComposeRule()
 
@@ -69,6 +71,12 @@ class AppScreensScreenshotTest {
         shownGroups = albums, playbackConnected = true,
     )
 
+    /** Как в приложении: тема и Surface фона (обёртка EnoToneTheme в :app), чтобы цвет текста был темы. */
+    @Composable
+    private fun Screen(dark: Boolean, content: @Composable () -> Unit) {
+        EnoTheme(dark) { Surface(color = MaterialTheme.colorScheme.background, content = content) }
+    }
+
     private fun capture(name: String) = rule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
 
     @Test fun songsGraphite() = songs(dark = true)
@@ -76,7 +84,7 @@ class AppScreensScreenshotTest {
     @Test fun songsPorcelain() = songs(dark = false)
 
     private fun songs(dark: Boolean) {
-        rule.setContent { EnoTheme(dark) { Library(songsState()) } }
+        rule.setContent { Screen(dark) { Library(songsState()) } }
         capture("songs_${theme(dark)}")
     }
 
@@ -85,7 +93,7 @@ class AppScreensScreenshotTest {
     @Test fun songsScrolledPorcelain() = songsScrolled(dark = false)
 
     private fun songsScrolled(dark: Boolean) {
-        rule.setContent { EnoTheme(dark) { Library(songsState()) } }
+        rule.setContent { Screen(dark) { Library(songsState()) } }
         rule.onNode(hasScrollToIndexAction()).performScrollToIndex(SCROLL_TO)
         rule.waitForIdle()
         capture("songs_scrolled_${theme(dark)}")
@@ -96,7 +104,7 @@ class AppScreensScreenshotTest {
     @Test fun albumsPorcelain() = albums(dark = false)
 
     private fun albums(dark: Boolean) {
-        rule.setContent { EnoTheme(dark) { Library(albumsState()) } }
+        rule.setContent { Screen(dark) { Library(albumsState()) } }
         capture("albums_${theme(dark)}")
     }
 
@@ -106,7 +114,7 @@ class AppScreensScreenshotTest {
 
     private fun home(dark: Boolean) {
         rule.setContent {
-            EnoTheme(dark) {
+            Screen(dark) {
                 EnoToneHomeScreen(connectedAccount = true, songCount = 3590, onSettings = {}, onShuffleAll = {})
             }
         }
@@ -119,7 +127,7 @@ class AppScreensScreenshotTest {
 
     private fun nowPlaying(dark: Boolean) {
         rule.setContent {
-            EnoTheme(dark) {
+            Screen(dark) {
                 NowPlayingScreen(
                     trackId = "t0", title = "Вымышленная песня", artist = "Выдуманный артист",
                     album = "Придуманный альбом", artwork = null, playbackState = "PLAYING", errorCode = 0,

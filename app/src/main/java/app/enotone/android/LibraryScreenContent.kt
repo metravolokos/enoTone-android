@@ -215,6 +215,7 @@ internal fun LibraryScreenContent(
                             contentDescription = stringResource(R.string.ui_search),
                             onClick = openSearch,
                             filled = false,
+                            iconSize = 26.dp,
                         )
                     }
                 }
@@ -483,6 +484,7 @@ internal fun LibraryScreenContent(
                 icon = EnoIcons.SEARCH,
                 contentDescription = stringResource(R.string.ui_search),
                 filled = false,
+                iconSize = 24.dp,
                 onClick = openSearch,
             )
         }

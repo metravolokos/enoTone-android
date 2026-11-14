@@ -86,6 +86,7 @@ fun EnoRoundButton(
     accent: Boolean = false,
     enabled: Boolean = true,
     filled: Boolean = true,
+    iconSize: Dp = 20.dp,
 ) {
     val diameter = if (size > 48.dp) 48.dp else size
     // filled = false — значок без подложки («⋮» в строках, поиск в полоске); зона нажатия та же 48 dp.
@@ -112,7 +113,7 @@ fun EnoRoundButton(
                 androidx.compose.material3.Icon(
                     painter = androidx.compose.ui.res.painterResource(icon.outline),
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(iconSize),
                     tint = foreground,
                 )
             }
