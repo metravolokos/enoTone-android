@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.SaveableStateHolder
@@ -48,6 +49,7 @@ internal fun AppMusicShell(
 ) {
     val login = account.libraryLogin
     val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
+    val queueSnackbar = rememberQueueSnackbar(libraryModel)
     val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
     val selecting = library?.selecting == true
     val miniVisible = player.playback.queueTotal > 0
@@ -98,6 +100,7 @@ internal fun AppMusicShell(
                     .padding(start = DOCK_SIDE, end = DOCK_SIDE, bottom = DOCK_SIDE),
                 verticalArrangement = Arrangement.spacedBy(DOCK_GAP),
             ) {
+                SnackbarHost(queueSnackbar)
                 EnoToneMiniPlayer(
                     player = player,
                     selecting = selecting,

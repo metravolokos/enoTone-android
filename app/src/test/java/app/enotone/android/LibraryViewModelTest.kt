@@ -69,6 +69,7 @@ class LibraryViewModelTest {
         var filtered: Boolean? = null
         var inserted: List<QueueTrack> = emptyList()
         var appended: List<QueueTrack> = emptyList()
+        var failQueueEdit = false
         var connectedCount = 0
         var disconnectedCount = 0
         override fun connect() { connectedCount++ }
@@ -102,6 +103,7 @@ class LibraryViewModelTest {
         override fun playNext() = Unit
         override fun playPrevious() = Unit
         override fun insertNext(tracks: List<QueueTrack>): QueueEditResult {
+            check(!failQueueEdit) { "synthetic edit failure" }
             inserted = tracks
             return QueueEditResult(QueueEditStatus.APPLIED, tracks.size)
         }
@@ -180,6 +182,45 @@ class LibraryViewModelTest {
         }
     }
 
+    @Test fun searchAndIndexSurviveAlbumRoundTrip() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val vm = model(this, FakeRepository(catalog(row(1, "Зима"), row(2, "Лето"))))
+            advanceUntilIdle()
+            val index = vm.state.value.groupIndex
+            vm.onSearch("Зима")
+            advanceUntilIdle()
+            val album = index.albumByTrackId.getValue(id(1))
+            vm.onRouteSelected(LibraryPage.ALBUMS, album.key)
+            advanceUntilIdle()
+            assertEquals("", vm.state.value.search)
+            assertEquals(2, vm.state.value.albumTracks.size)
+            vm.onRouteSelected(LibraryPage.TRACKS, null)
+            advanceUntilIdle()
+            assertEquals("Зима", vm.state.value.search)
+            assertEquals(listOf(id(1)), vm.state.value.visible.map { it.id })
+            assertTrue(index === vm.state.value.groupIndex)
+            assertEquals(listOf(id(2), id(1)).sorted(),
+                vm.state.value.artistPlans.values.single().songs.map { it.id }.sorted())
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun queueEditFailureHasDistinctFeedback() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val connection = FakeConnection()
+            val vm = model(this, FakeRepository(catalog(row(1, "Один"), row(2, "Два"))), connection)
+            advanceUntilIdle()
+            vm.onPlayNext(listOf(row(1, "Один")))
+            advanceUntilIdle()
+            connection.failQueueEdit = true
+            val feedback = async(UnconfinedTestDispatcher(testScheduler)) { vm.queueMessages.first() }
+            vm.onPlayNext(listOf(row(2, "Два")))
+            advanceUntilIdle()
+            assertEquals(QueueEditStatus.FAILED, feedback.await().result.status)
+        } finally { Dispatchers.resetMain() }
+    }
+
     @Test fun loadDataAndEmptyLibrary() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
@@ -226,7 +267,7 @@ class LibraryViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun trackSearchRunsInMemoryWithRussianAndLatinQueries() = runTest {
+    @Test fun trackSearchUsesPreparedMemoryKeys() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val repo = FakeRepository(catalog(row(1, "Мальчик"), row(2, "Лето"), row(3, "Malibu")))

@@ -2,7 +2,6 @@ package app.enotone.android
 
 import app.enotone.library.LibraryText
 import app.enotone.library.OfflineLibraryGroup
-import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import java.util.Locale
@@ -24,15 +23,14 @@ internal data class ArtistDetailPlan(
 internal object ArtistDetailPlanner {
     fun plan(
         artist: OfflineLibraryGroup,
-        allTracks: List<OfflineTrackRow>,
-        unknownAlbumName: String,
+        index: LibraryGroupIndex,
     ): ArtistDetailPlan {
         val members = artist.trackIds
-        val byId = allTracks.associateBy { it.id }
-        val tracks = allTracks.filter { it.id in members }
+        val byId = index.tracksById
+        val tracks = members.mapNotNull(byId::get)
         if (tracks.isEmpty()) return ArtistDetailPlan(emptyList(), emptyList(), true)
 
-        val albums = OfflineLibraryGrouping.albums(allTracks, unknownAlbumName)
+        val albums = tracks.mapNotNull { index.albumByTrackId[it.id] }.distinctBy { it.key }
             .asSequence()
             .filter { it.key != "album:missing" && it.trackIds.any(members::contains) }
             .map { group ->

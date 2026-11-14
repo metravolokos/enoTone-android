@@ -51,6 +51,8 @@ internal data class LibraryUiState(
     val search: String = "",
     val selectedGroupKey: String? = null,
     val tracks: List<OfflineTrackRow> = emptyList(),
+    val groupIndex: LibraryGroupIndex = LibraryGroupIndex(),
+    val artistPlans: Map<String, ArtistDetailPlan> = emptyMap(),
     val groups: List<OfflineLibraryGroup> = emptyList(),
     val shownGroups: List<OfflineLibraryGroup> = emptyList(),
     val selectedGroup: OfflineLibraryGroup? = null,
@@ -95,6 +97,8 @@ internal interface LibraryScreenActions {
     fun onPageSelected(page: LibraryPage)
     fun onGroupSelected(key: String?)
     fun onTrackClicked(track: OfflineTrackRow, context: List<OfflineTrackRow>)
+    fun onPlayNext(tracks: List<OfflineTrackRow>)
+    fun onAppendToQueue(tracks: List<OfflineTrackRow>)
     fun onPlayAll()
     fun onShuffleAll()
     fun onAlbumPlayAll()
@@ -170,8 +174,8 @@ internal class LibraryViewModel(
     val state: StateFlow<LibraryUiState> = mutable
     private val mutableQueueMessages = MutableSharedFlow<QueueActionMessage>(extraBufferCapacity = 1)
     val queueMessages: SharedFlow<QueueActionMessage> = mutableQueueMessages
+    private val searchByRoute = mutableMapOf<Pair<LibraryPage, String?>, String>()
     private var catalogue = LibrarySnapshot(emptyList(), emptyMap())
-    private var groupsByPage: Map<LibraryPage, List<OfflineLibraryGroup>> = emptyMap()
     private val sourceKey by lazy { LibrarySnapshotPlanner.accountKey(accountEmail) }
     private val checkedByGroup = mutableMapOf<String, Set<String>>()
     private val attemptedByGroup = mutableMapOf<String, Set<String>>()
@@ -200,7 +204,7 @@ internal class LibraryViewModel(
         filterVersion++
         artworkEpoch++
         catalogue = LibrarySnapshot(emptyList(), emptyMap())
-        groupsByPage = emptyMap()
+        searchByRoute.clear()
         checkedByGroup.clear()
         attemptedByGroup.clear()
         selectionStartedAt = 0L
@@ -261,24 +265,22 @@ internal class LibraryViewModel(
                 val result = repository.load(accountEmail)
                 if (unavailable()) return@launch
                 catalogue = result
-                val (covers, groups) = withContext(io) {
-                    val art = AlbumArtworkCatalog.build(result.tracks) { id ->
+                val covers = withContext(io) {
+                    AlbumArtworkCatalog.build(result.tracks) { id ->
                         result.preparedById[id]?.let { item ->
                             PlayingArtworkTarget(item.id, item.encodedPath,
                                 item.remoteSize, item.remoteEtag, artworkEpoch)
                         }
                     }
-                    val prepared = mapOf(
-                        LibraryPage.ALBUMS to OfflineLibraryGrouping.albums(result.tracks, unknownAlbumName),
-                        LibraryPage.ARTISTS to OfflineLibraryGrouping.artists(result.tracks),
-                        LibraryPage.ALBUM_ARTISTS to OfflineLibraryGrouping.albumArtists(result.tracks),
-                    )
-                    art to prepared
+                }
+                val index = withContext(io) { LibraryGroupIndex.build(result.tracks, unknownAlbumName) }
+                val artistPlans = withContext(io) {
+                    index.artists.associate { it.key to ArtistDetailPlanner.plan(it, index) }
                 }
                 if (unavailable()) return@launch
-                groupsByPage = groups
                 mutable.update {
-                    it.copy(tracks = result.tracks, artworkCatalog = covers,
+                    it.copy(tracks = result.tracks, groupIndex = index, artistPlans = artistPlans,
+                        artworkCatalog = covers,
                         loading = false, failed = false)
                 }
                 derivePages()
@@ -326,7 +328,13 @@ internal class LibraryViewModel(
         byId: Map<String, app.enotone.playback.QueueTrack>,
     ): DerivedPages {
         val terms = LibraryText.searchTerms(snapshot.search)
-        val groups = groupsByPage[snapshot.section].orEmpty()
+        val groups = when (snapshot.section) {
+            LibraryPage.TRACKS -> emptyList()
+            LibraryPage.ALBUMS ->
+                snapshot.groupIndex.albums
+            LibraryPage.ARTISTS -> snapshot.groupIndex.artists
+            LibraryPage.ALBUM_ARTISTS -> snapshot.groupIndex.albumArtists
+        }
         val group = groups.firstOrNull { it.key == snapshot.selectedGroupKey }
         val shown = groups.filter { OfflineLibraryGrouping.matches(it, terms) }
         val candidates = when (snapshot.section) {
@@ -380,8 +388,17 @@ internal class LibraryViewModel(
 
     override fun onPageSelected(page: LibraryPage) {
         if (page !in mutable.value.visiblePages || mutable.value.section == page) return
+        onRouteSelected(page, null)
+    }
+
+    /** Запрос принадлежит маршруту: детали не стирают поиск исходной вкладки. */
+    fun onRouteSelected(page: LibraryPage, groupKey: String?) {
+        val previous = mutable.value
+        if (previous.section == page && previous.selectedGroupKey == groupKey) return
+        searchByRoute[previous.section to previous.selectedGroupKey] = previous.search
         mutable.update {
-            it.copy(section = page, search = "", selectedGroupKey = null)
+            it.copy(section = page, selectedGroupKey = groupKey,
+                search = searchByRoute[page to groupKey].orEmpty())
         }
         derivePages()
     }
@@ -398,10 +415,7 @@ internal class LibraryViewModel(
         if (moved) derivePages()
     }
 
-    override fun onGroupSelected(key: String?) {
-        mutable.update { it.copy(selectedGroupKey = key, search = "") }
-        derivePages()
-    }
+    override fun onGroupSelected(key: String?) = onRouteSelected(mutable.value.section, key)
 
     override fun onPlayAll() {
         val value = mutable.value
@@ -430,10 +444,9 @@ internal class LibraryViewModel(
         items.firstOrNull()?.let { onTrackClicked(it, items) }
     }
 
-    /** Backend-only actions for D4a/8b: do not add them to LibraryScreenActions yet. */
-    fun onPlayNext(tracks: List<OfflineTrackRow>) = editQueue(tracks, playNext = true)
+    override fun onPlayNext(tracks: List<OfflineTrackRow>) = editQueue(tracks, playNext = true)
 
-    fun onAppendToQueue(tracks: List<OfflineTrackRow>) = editQueue(tracks, playNext = false)
+    override fun onAppendToQueue(tracks: List<OfflineTrackRow>) = editQueue(tracks, playNext = false)
 
     private fun editQueue(rows: List<OfflineTrackRow>, playNext: Boolean) {
         if (unavailable()) return
@@ -464,7 +477,7 @@ internal class LibraryViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                QueueEditResult(QueueEditStatus.UNAVAILABLE)
+                QueueEditResult(QueueEditStatus.FAILED)
             }
             mutableQueueMessages.emit(QueueActionMessage(playNext, result))
         }

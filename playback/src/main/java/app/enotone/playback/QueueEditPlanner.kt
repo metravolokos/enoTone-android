@@ -20,7 +20,7 @@ sealed interface QueueEdit {
 }
 
 enum class QueueEditStatus {
-    APPLIED, ALREADY_PLAYING, QUEUE_FULL, EMPTY_SELECTION, UNAVAILABLE,
+    APPLIED, ALREADY_PLAYING, QUEUE_FULL, EMPTY_SELECTION, UNAVAILABLE, FAILED,
 }
 
 /** Number of selected non-current tracks actually relocated or added. */

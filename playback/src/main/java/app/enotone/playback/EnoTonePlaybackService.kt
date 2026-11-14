@@ -198,10 +198,11 @@ class EnoTonePlaybackService : MediaSessionService() {
             // fresh queue with its verified in-memory credentials.
             return QueueEditResult(QueueEditStatus.UNAVAILABLE)
         }
-        val result: QueueEditResult
         queueMutation = true
-        try {
-            result = playback.editQueue(tracks, edit)
+        val result = try {
+            playback.editQueue(tracks, edit)
+        } catch (_: Exception) {
+            QueueEditResult(QueueEditStatus.FAILED)
         } finally {
             queueMutation = false
         }

@@ -63,10 +63,7 @@ internal fun ArtistDetailScreen(
     blur: EnoBlurState? = null,
 ) {
     val blurState = blur ?: rememberEnoBlurState()
-    val unknownAlbum = stringResource(R.string.library_unknown_album)
-    val plan = remember(artist, state.tracks, unknownAlbum) {
-        ArtistDetailPlanner.plan(artist, state.tracks, unknownAlbum)
-    }
+    val plan = state.artistPlans[artist.key] ?: ArtistDetailPlan(emptyList(), emptyList(), true)
     val listState = rememberLazyListState()
     val stripVisible by remember(listState) {
         derivedStateOf {
@@ -74,9 +71,9 @@ internal fun ArtistDetailScreen(
                 listState.firstVisibleItemScrollOffset > ARTIST_STRIP_THRESHOLD_PX
         }
     }
+    var queueActionsExpanded by remember(artist.key) { mutableStateOf(false) }
     var openedActions by remember { mutableStateOf<OfflineTrackRow?>(null) }
-    val canPlay = plan.songs.isNotEmpty() && state.playbackConnected &&
-        !state.selecting && appPassword.isNotBlank()
+    val canPlay = canPlayArtist(state, plan.songs, appPassword)
     val albumCount = pluralStringResource(
         R.plurals.library_albums_count, plan.albums.size, plan.albums.size.toString(),
     )
@@ -124,13 +121,15 @@ internal fun ArtistDetailScreen(
                     Spacer(Modifier.height(24.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         EnoPill(
                             label = stringResource(R.string.ui_play),
                             onClick = { plan.songs.firstOrNull()?.let { actions.onTrackClicked(it, plan.songs) } },
                             modifier = Modifier.weight(1f),
                             accent = true, icon = EnoIcons.PLAY, enabled = canPlay,
+                            horizontalPadding = 4.dp,
                         )
                         EnoPill(
                             label = stringResource(R.string.library_shuffle_all),
@@ -140,6 +139,13 @@ internal fun ArtistDetailScreen(
                             },
                             modifier = Modifier.weight(1f),
                             icon = EnoIcons.SHUFFLE, enabled = canPlay,
+                            horizontalPadding = 4.dp,
+                        )
+                        EnoRoundButton(
+                            icon = EnoIcons.MORE,
+                            contentDescription = stringResource(R.string.artist_actions),
+                            size = 48.dp, enabled = canPlay,
+                            onClick = { queueActionsExpanded = true },
                         )
                     }
                 }
@@ -222,10 +228,16 @@ internal fun ArtistDetailScreen(
             )
         }
     }
+    if (queueActionsExpanded) {
+        QueueActionsSheet(artist.name, plan.songs, actions, { queueActionsExpanded = false }) {
+            EnoLetterAvatar(name = artist.name, contentDescription = artist.name, size = 56.dp)
+        }
+    }
     openedActions?.let { track ->
         TrackActionsHost(
             track = track,
-            tracks = state.tracks,
+            groupIndex = state.groupIndex,
+            actions = actions,
             currentDetail = LibraryDetail.Artist(artist.key),
             artworkCatalog = state.artworkCatalog,
             artworkRepository = artworkRepository,
@@ -236,6 +248,12 @@ internal fun ArtistDetailScreen(
         )
     }
 }
+
+private fun canPlayArtist(
+    state: LibraryUiState,
+    songs: List<OfflineTrackRow>,
+    appPassword: String,
+): Boolean = songs.isNotEmpty() && state.playbackConnected && !state.selecting && appPassword.isNotBlank()
 
 @Composable
 private fun ArtistSectionTitle(title: String) {
