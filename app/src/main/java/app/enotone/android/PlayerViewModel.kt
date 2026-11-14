@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import app.enotone.library.LibraryRepository
 import app.enotone.library.LibrarySnapshot
 import app.enotone.library.LibrarySnapshotPlanner
+import app.enotone.playback.QueueEditSource
 import app.enotone.playback.QueuePersistenceDiagnostics
 import app.enotone.playback.QueueRestoreCode
 import app.enotone.playback.QueueStateRestorer
@@ -232,7 +233,7 @@ internal class PlayerViewModel(
         viewModelScope.launch {
             try {
                 val checkpoint = repository.readSavedQueue() ?: return@launch
-                if (checkpoint.sourceKey != sourceKey) {
+                if (!QueueEditSource.belongsTo(checkpoint.sourceKey, sourceKey)) {
                     QueuePersistenceDiagnostics.result(QueueRestoreCode.SOURCE_MISMATCH)
                     return@launch
                 }
@@ -337,7 +338,8 @@ internal class PlayerViewModel(
     }
 
     private fun isDurationSourceAllowed(snapshot: PlaybackSnapshot, sourceKey: String): Boolean =
-        snapshot.sourceKey == sourceKey && !accountEvents.value.blocks(sourceKey)
+        snapshot.sourceKey?.let { QueueEditSource.belongsTo(it, sourceKey) } == true &&
+            !accountEvents.value.blocks(sourceKey)
 
     fun onNowPlaying(open: Boolean) {
         mutable.update { it.copy(nowPlaying = open) }
