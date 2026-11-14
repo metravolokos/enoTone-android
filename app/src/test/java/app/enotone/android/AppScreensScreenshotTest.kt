@@ -19,6 +19,8 @@ import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
@@ -32,6 +34,7 @@ import app.enotone.android.core.ui.component.LocalEnoDockBlur
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
 import app.enotone.library.OfflineLibraryGroup
+import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackRow
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
@@ -228,6 +231,78 @@ class AppScreensScreenshotTest {
             }
         }
         capture("now_playing_${theme(dark)}")
+    }
+
+
+    @Test fun songActionsGraphite() = songActions(true)
+
+    @Test fun songActionsPorcelain() = songActions(false)
+
+    private fun songActions(dark: Boolean) {
+        rule.setContent { Screen(dark) { Library(songsState()) } }
+        rule.onNodeWithContentDescription("Действия: Вымышленная песня 1").performClick()
+        rule.waitForIdle()
+        capture("song_actions_${theme(dark)}")
+    }
+
+    @Test fun artistTopGraphite() = artistTop(true)
+
+    @Test fun artistTopPorcelain() = artistTop(false)
+
+    @Test fun artistScrolledGraphite() = artistScrolled(true)
+
+    @Test fun artistScrolledPorcelain() = artistScrolled(false)
+
+    @Test fun artistCompilationsGraphite() = artistCompilations(true)
+
+    @Test fun artistCompilationsPorcelain() = artistCompilations(false)
+
+    @Composable
+    private fun ArtistScreen(compilations: Boolean = false) {
+        val context = LocalContext.current
+        val rows = List(if (compilations) 5 else 22) { index ->
+            OfflineTrackRow(
+                id = "artist-$index",
+                title = "Вымышленная песня ${index + 1}",
+                artist = "Выдуманный артист",
+                album = if (compilations) "Сборник" else "Придуманный альбом ${index / 8 + 1}",
+                albumArtist = if (compilations) "Разные исполнители" else "Выдуманный артист",
+                year = if (compilations) 2022 else 2024 - index / 8,
+                trackNumber = index % 8 + 1,
+                hasStoredTagData = true,
+            )
+        }
+        val performer = OfflineLibraryGrouping.artists(rows).single()
+        ArtistDetailScreen(
+            state = LibraryUiState(
+                loading = false, section = LibraryPage.ARTISTS, tracks = rows,
+                selectedGroup = performer, selectedGroupKey = performer.key,
+                playbackConnected = true,
+            ),
+            artist = performer,
+            actions = PreviewLibraryActions,
+            artworkRepository = remember(context) { ArtworkPreviewRepository(context) },
+            accountEmail = "", appPassword = "",
+            contentPadding = PaddingValues(bottom = 186.dp),
+            onOpenDetail = {}, onBackDetail = {},
+        )
+    }
+
+    private fun artistTop(dark: Boolean) {
+        rule.setContent { Screen(dark) { ArtistScreen() } }
+        capture("artist_top_${theme(dark)}")
+    }
+
+    private fun artistScrolled(dark: Boolean) {
+        rule.setContent { Screen(dark) { ArtistScreen() } }
+        rule.onAllNodes(hasScrollToIndexAction())[0].performScrollToIndex(8)
+        rule.waitForIdle()
+        capture("artist_scrolled_${theme(dark)}")
+    }
+
+    private fun artistCompilations(dark: Boolean) {
+        rule.setContent { Screen(dark) { ArtistScreen(compilations = true) } }
+        capture("artist_compilations_${theme(dark)}")
     }
 
     private fun theme(dark: Boolean) = if (dark) "graphite" else "porcelain"
