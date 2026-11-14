@@ -1,6 +1,7 @@
 package app.enotone.android
 
 import android.content.Context
+import android.os.Looper
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
 import app.enotone.playback.EnoTonePlaybackService
@@ -16,6 +17,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 
 /** Real Media3 timeline and no-network paused restoration; UI belongs to 8b. */
@@ -109,8 +111,12 @@ class QueueEditServiceTest {
 
     private fun waitForRevision(store: QueueStateFileStore, old: String): PersistedQueueState {
         repeat(100) {
+            // Robolectric's paused main looper must deliver the layout-write
+            // completion callback before the subsequent transition checkpoint.
+            Shadows.shadowOf(Looper.getMainLooper()).idle()
             val checkpoint = store.read()
-            if (checkpoint != null && checkpoint.queueRevision != old) return checkpoint
+            if (checkpoint != null && checkpoint.queueRevision != old &&
+                checkpoint.selectedTrackId == id(4)) return checkpoint
             Thread.sleep(20L)
         }
         error("New queue layout was not written")
