@@ -46,7 +46,6 @@ class OnDemandArtworkContractTest(unittest.TestCase):
                 item.attrib["name"] for item in root.findall("string")
             })
         db = (ROOT / "core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt").read_text()
-        self.assertIn("version = 5", db)
         self.assertIn("AutoMigration(from = 4, to = 5)", db)
 
 

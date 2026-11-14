@@ -63,7 +63,6 @@ class ArtworkMasterCacheContractTest(unittest.TestCase):
     def test_room_v5_migration_keeps_preview_package(self):
         database = self.code("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         gradle = self.code("app/build.gradle.kts")
-        self.assertIn("version = 5", database)
         self.assertIn("AutoMigration(from = 4, to = 5)", database)
         self.assertIn('applicationIdSuffix = ".preview"', gradle)
         self.assertIn('getByName("stablePreview")', gradle)

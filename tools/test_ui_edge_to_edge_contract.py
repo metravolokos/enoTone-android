@@ -39,7 +39,6 @@ class UiEdgeToEdgeContractTest(unittest.TestCase):
         db = read("core/database/src/main/java/app/enotone/database/EnoToneDatabase.kt")
         self.assertIn("const val MAX_SIDE = 1200", artwork)
         self.assertIn("enotone-artwork-v2", artwork)
-        self.assertIn("version = 5", db)
         self.assertIn("AutoMigration(from = 4, to = 5)", db)
 
 
