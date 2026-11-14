@@ -82,3 +82,43 @@ internal fun ShellGalleryGraphitePreview() = ShellGallery(darkTheme = true)
 internal fun ShellGalleryPorcelainPreview() = ShellGallery(darkTheme = false)
 
 private const val SAMPLE_ROWS = 4
+
+
+/** D4a: галерея листа действий — длинные метаданные и один/два набора пунктов. */
+@Composable
+internal fun ActionSheetGallery(darkTheme: Boolean, twoGroups: Boolean) {
+    EnoToneTheme(darkTheme) {
+        val destinations = listOf(
+            EnoAction(EnoIcons.ALBUMS, "Перейти к альбому", onClick = {}),
+            EnoAction(EnoIcons.ARTISTS, "Перейти к исполнителю", onClick = {}),
+        )
+        EnoActionSheet(
+            header = EnoActionSheetHeader(
+                title = "Очень длинное вымышленное название песни с продолжением",
+                subtitle = "Выдуманный исполнитель с длинным именем · Придуманный альбом",
+            ),
+            groups = if (twoGroups) {
+                listOf(listOf(EnoAction(EnoIcons.SONGS, "Пример первой группы", onClick = {})), destinations)
+            } else {
+                listOf(destinations)
+            },
+            onDismiss = {},
+        )
+    }
+}
+
+@Preview(name = "Лист действий — Графит, одна группа", widthDp = 377, heightDp = 816)
+@Composable
+internal fun ActionSheetOneGraphitePreview() = ActionSheetGallery(darkTheme = true, twoGroups = false)
+
+@Preview(name = "Лист действий — Фарфор, одна группа", widthDp = 377, heightDp = 816)
+@Composable
+internal fun ActionSheetOnePorcelainPreview() = ActionSheetGallery(darkTheme = false, twoGroups = false)
+
+@Preview(name = "Лист действий — Графит, две группы", widthDp = 377, heightDp = 816)
+@Composable
+internal fun ActionSheetTwoGraphitePreview() = ActionSheetGallery(darkTheme = true, twoGroups = true)
+
+@Preview(name = "Лист действий — Фарфор, две группы", widthDp = 377, heightDp = 816)
+@Composable
+internal fun ActionSheetTwoPorcelainPreview() = ActionSheetGallery(darkTheme = false, twoGroups = true)
