@@ -43,6 +43,8 @@ class PreviewAudioPlayback(
     private var cacheEnabledForQueue = false
     private var activeRoutes: Map<String, QueueTrack> = emptyMap()
     private var upstreamFactory: DataSource.Factory? = null
+    private var routesFactory: WebDavMedia3DataSource.Factory? = null
+    private var mediaSourceFactory: ProgressiveMediaSource.Factory? = null
     private var fullyCachedCurrentId: String? = null
     private var scheduledNextId: String? = null
     private val handoffTracker = PlaybackHandoffTracker()
@@ -305,6 +307,28 @@ class PreviewAudioPlayback(
         cacheHandler.postDelayed(task, 35L)
     }
 
+    /**
+     * A user edit cannot run against a partial Media3 timeline: otherwise the
+     * original stage would later append stale items or duplicate moved IDs.
+     * Finish only local source construction (no WebDAV requests), then edit.
+     */
+    private fun finishPendingPlaylist() {
+        val plan = pendingPlaylist ?: return
+        val factory = pendingMediaFactory ?: return
+        scheduledPlaylistFill?.let(cacheHandler::removeCallbacks)
+        scheduledPlaylistFill = null
+        while (!plan.isComplete) {
+            val chunk = plan.nextChunk() ?: break
+            val sources = chunk.items.map { makeMediaSource(factory, it) }
+            if (chunk.prepend) player.addMediaSources(0, sources)
+            else player.addMediaSources(sources)
+        }
+        pendingPlaylist = null
+        pendingMediaFactory = null
+        stageBeforePrepare = false
+        applyStableShuffleIfComplete()
+    }
+
     private fun makeMediaSource(
         factory: ProgressiveMediaSource.Factory,
         item: QueueTrack,
@@ -495,6 +519,8 @@ class PreviewAudioPlayback(
             diskCache.forPlayback(factory)
         } else factory
         val mediaFactory = ProgressiveMediaSource.Factory(sourceFactory)
+        routesFactory = factory
+        mediaSourceFactory = mediaFactory
         val t2 = SystemClock.elapsedRealtime()
 
         activeRoutes = if (useTemporaryCache) queue.items.associateBy { it.id }
@@ -525,6 +551,104 @@ class PreviewAudioPlayback(
             setSourcesMs = t4 - t3,
             prepareAndPlayMs = t5 - t4,
         )
+    }
+
+    /**
+     * Mutate the existing ExoPlayer timeline, preserving the current MediaPeriod,
+     * position, playWhenReady, repeat mode and stable shuffle traversal.
+     * The caller owns the persistence transaction.
+     */
+    fun editQueue(tracks: List<QueueTrack>, edit: QueueEdit): QueueEditResult {
+        val currentId = player.currentMediaItem?.mediaId
+        return if (currentId == null || originalTrackIds.isEmpty()) {
+            QueueEditResult(QueueEditStatus.UNAVAILABLE)
+        } else {
+            val plan = QueueEditPlanner.plan(
+                QueueLayout(originalTrackIds,
+                    if (player.shuffleModeEnabled) configuredShuffle else null, currentId),
+                edit,
+            )
+            if (plan.movedIds.isEmpty()) plan.result
+            else applyQueueEdit(tracks, edit, plan, currentId)
+        }
+    }
+
+    private fun applyQueueEdit(
+        tracks: List<QueueTrack>,
+        edit: QueueEdit,
+        plan: QueueEditPlan,
+        currentId: String,
+    ): QueueEditResult {
+        val byId = tracks.associateBy { it.id }
+        val knownIds = originalTrackIds.toHashSet()
+        val newIds = plan.layout.trackIds.filterNot { it in knownIds }
+        val newTracks = newIds.map { byId.getValue(it) }
+        val factory = checkNotNull(mediaSourceFactory)
+        val route = checkNotNull(routesFactory)
+        // Validate new source URLs and prepare MediaSources before touching Media3.
+        val sources = newTracks.associate { it.id to makeMediaSource(factory, it) }
+        route.addTracks(newTracks)
+        finishPendingPlaylist()
+        require(player.mediaItemCount == originalTrackIds.size) { "Incomplete playback timeline" }
+        val working = originalTrackIds.toMutableList()
+        stableShuffleApplied = true
+        expectedQueueSize = plan.layout.trackIds.size
+        configuredShuffle = plan.layout.shuffledIndices?.copyOf()
+        if (plan.layout.shuffleEnabled) applyShuffledEdit(plan, newIds, sources, working)
+        else applyLinearEdit(plan, edit, currentId, sources, working)
+
+        check(working == plan.layout.trackIds) { "Queue edit order mismatch" }
+        originalTrackIds = plan.layout.trackIds
+        mediaIdIndices = originalTrackIds.withIndex().associate { it.value to it.index }
+        activeRoutes = activeRoutes + newTracks.associateBy { it.id }
+        sourceKeyForQueue = QueueEditSource.edited(checkNotNull(sourceKeyForQueue))
+        // Previous next-song prefetch is now stale even if current audio continues.
+        temporaryCache?.cancelNext()
+        scheduledNextId = null
+        refreshNextPrefetch()
+        return plan.result
+    }
+
+    private fun applyShuffledEdit(
+        plan: QueueEditPlan,
+        newIds: List<String>,
+        sources: Map<String, MediaSource>,
+        working: MutableList<String>,
+    ) {
+        newIds.forEach { id ->
+            player.addMediaSources(listOf(sources.getValue(id)))
+            working.add(id)
+        }
+        player.setShuffleOrder(
+            ShuffleOrder.DefaultShuffleOrder(checkNotNull(plan.layout.shuffledIndices), System.nanoTime()))
+    }
+
+    private fun applyLinearEdit(
+        plan: QueueEditPlan,
+        edit: QueueEdit,
+        currentId: String,
+        sources: Map<String, MediaSource>,
+        working: MutableList<String>,
+    ) {
+        val moved = plan.movedIds.toHashSet()
+        var anchor = if (edit is QueueEdit.PlayNext) currentId
+            else originalTrackIds.last { it !in moved }
+        plan.movedIds.forEach { id ->
+            val from = working.indexOf(id)
+            val to = working.indexOf(anchor) + 1
+            if (from == -1) {
+                player.addMediaSources(to, listOf(sources.getValue(id)))
+                working.add(to, id)
+            } else {
+                val target = if (from < to) to - 1 else to
+                if (from != target) {
+                    player.moveMediaItem(from, target)
+                    working.removeAt(from)
+                    working.add(target, id)
+                }
+            }
+            anchor = id
+        }
     }
 
     /**
@@ -560,6 +684,8 @@ class PreviewAudioPlayback(
             diskCache.forPlayback(factory)
         } else factory
         val mediaFactory = ProgressiveMediaSource.Factory(sourceFactory)
+        routesFactory = factory
+        mediaSourceFactory = mediaFactory
         val t2 = SystemClock.elapsedRealtime()
         activeRoutes = if (useTemporaryCache) queue.items.associateBy { it.id } else emptyMap()
         upstreamFactory = if (useTemporaryCache) factory else null
@@ -642,6 +768,8 @@ class PreviewAudioPlayback(
         player.clearMediaItems()
         activeRoutes = emptyMap()
         upstreamFactory = null
+        routesFactory = null
+        mediaSourceFactory = null
     }
 
     override fun close() {

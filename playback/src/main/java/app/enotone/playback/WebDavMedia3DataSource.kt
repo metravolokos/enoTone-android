@@ -7,14 +7,15 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DataSourceException
+import androidx.media3.datasource.DataSpec
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import java.util.concurrent.ConcurrentHashMap
 import javax.net.ssl.HttpsURLConnection
 
 /**
@@ -166,17 +167,25 @@ internal class WebDavMedia3DataSource(
         tracks: List<QueueTrack>,
     ) : DataSource.Factory {
         private val auth: String
-        private val files: Map<String, PlaybackRemoteFile>
+        private val files: MutableMap<String, PlaybackRemoteFile> = ConcurrentHashMap()
 
         init {
             require(email.contains('@') && appPassword.isNotBlank()) {
                 "Playback credentials required"
             }
-            files = WebDavPlaylistRoutes.index(tracks)
+            files.putAll(WebDavPlaylistRoutes.index(tracks))
             val raw = (email.trim() + ":" + appPassword)
                 .toByteArray(StandardCharsets.UTF_8)
             auth = try { "Basic " + Base64.getEncoder().encodeToString(raw) }
                 finally { raw.fill(0) }
+        }
+
+        /** All already-created data sources see new per-file size and ETag routes. */
+        fun addTracks(tracks: List<QueueTrack>) {
+            if (tracks.isEmpty()) return
+            val added = WebDavPlaylistRoutes.index(tracks)
+            require(added.keys.none { it in files }) { "Playback URL already exists" }
+            files.putAll(added)
         }
 
         override fun createDataSource(): DataSource =

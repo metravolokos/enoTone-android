@@ -75,15 +75,17 @@ object QueueStateCodec {
 
     fun isValidLayout(layout: PersistedQueueLayout): Boolean {
         val ids = layout.trackIds
-        if (layout.version != VERSION || ids.isEmpty() || ids.size > PlaybackQueue.MAX_TRACKS ||
-            ids.any { !hash.matches(it) } || ids.toSet().size != ids.size ||
-            !hash.matches(layout.sourceKey) || !revision.matches(layout.queueRevision) ||
-            layout.savedAtEpochMs < 0L) return false
+        val validSize = layout.version == VERSION && ids.isNotEmpty() &&
+            ids.size <= PlaybackQueue.MAX_TRACKS
+        val validIds = ids.toSet().size == ids.size && ids.all(hash::matches)
+        val validSource = QueueEditSource.isValid(layout.sourceKey) &&
+            revision.matches(layout.queueRevision) && layout.savedAtEpochMs >= 0L
         val indices = layout.shuffledIndices
-        return if (layout.shuffleEnabled) {
+        val validShuffle = if (layout.shuffleEnabled) {
             indices != null && indices.size == ids.size &&
                 indices.all { it in ids.indices } && indices.toSet().size == ids.size
         } else indices == null
+        return validSize && validIds && validSource && validShuffle
     }
 
     fun isValidPosition(position: PersistedPositionState): Boolean =

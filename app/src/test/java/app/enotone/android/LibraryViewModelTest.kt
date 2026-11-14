@@ -2,23 +2,28 @@ package app.enotone.android
 
 import android.graphics.Bitmap
 import app.enotone.library.AlbumTagRefreshReport
-import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.LibraryPage
 import app.enotone.library.LibraryRepository
 import app.enotone.library.LibrarySnapshot
+import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.PersistedQueueState
+import app.enotone.playback.QueueEditResult
+import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueTrack
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.test.resetMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -68,6 +73,8 @@ class LibraryViewModelTest {
         var queue: List<QueueTrack> = emptyList()
         var restored: PersistedQueueState? = null
         var filtered: Boolean? = null
+        var inserted: List<QueueTrack> = emptyList()
+        var appended: List<QueueTrack> = emptyList()
         var connectedCount = 0
         var disconnectedCount = 0
         override fun connect() { connectedCount++ }
@@ -100,6 +107,14 @@ class LibraryViewModelTest {
         override fun playPause() = Unit
         override fun playNext() = Unit
         override fun playPrevious() = Unit
+        override fun insertNext(tracks: List<QueueTrack>): QueueEditResult {
+            inserted = tracks
+            return QueueEditResult(QueueEditStatus.APPLIED, tracks.size)
+        }
+        override fun append(tracks: List<QueueTrack>): QueueEditResult {
+            appended = tracks
+            return QueueEditResult(QueueEditStatus.APPLIED, tracks.size)
+        }
         override fun cycleRepeatMode() = Unit
         override fun toggleShuffle() = Unit
         override fun seekToFraction(fraction: Float) = Unit
@@ -139,6 +154,37 @@ class LibraryViewModelTest {
         dataRevision = revision,
         visiblePages = pages,
     )
+
+    @Test fun queueActionsStartEmptyAndRouteLaterEditsWithFeedback() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val player = FakeConnection()
+            val vm = model(this, FakeRepository(catalog(
+                row(1, "Первая"), row(2, "Вторая"), row(3, "Третья"),
+            )), player)
+            advanceUntilIdle()
+            val first = async(UnconfinedTestDispatcher(testScheduler)) { vm.queueMessages.first() }
+            vm.onPlayNext(listOf(row(2, "Вторая"), row(3, "Третья")))
+            advanceUntilIdle()
+            assertEquals(id(2), player.selected)
+            assertEquals(listOf(id(2), id(3)), player.queue.map { it.id })
+            assertEquals(2, first.await().result.count)
+
+            val second = async(UnconfinedTestDispatcher(testScheduler)) { vm.queueMessages.first() }
+            vm.onPlayNext(listOf(row(1, "Первая")))
+            advanceUntilIdle()
+            assertEquals(listOf(id(1)), player.inserted.map { it.id })
+            assertTrue(second.await().playNext)
+
+            val third = async(UnconfinedTestDispatcher(testScheduler)) { vm.queueMessages.first() }
+            vm.onAppendToQueue(listOf(row(3, "Третья")))
+            advanceUntilIdle()
+            assertEquals(listOf(id(3)), player.appended.map { it.id })
+            assertFalse(third.await().playNext)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 
     @Test fun loadDataAndEmptyLibrary() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))

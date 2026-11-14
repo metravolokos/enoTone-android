@@ -185,6 +185,30 @@ class EnoTonePlaybackService : MediaSessionService() {
         saveLayoutAndPosition()
     }
 
+    /** MediaSession next/previous continues to use native timeline navigation. */
+    fun insertNext(tracks: List<QueueTrack>): QueueEditResult =
+        editQueue(tracks, QueueEdit.PlayNext(tracks.map { it.id }))
+
+    fun append(tracks: List<QueueTrack>): QueueEditResult =
+        editQueue(tracks, QueueEdit.Append(tracks.map { it.id }))
+
+    private fun editQueue(tracks: List<QueueTrack>, edit: QueueEdit): QueueEditResult {
+        if (playback.logicalQueueSize == 0) {
+            // No credentials are retained after Stop; the ViewModel starts a
+            // fresh queue with its verified in-memory credentials.
+            return QueueEditResult(QueueEditStatus.UNAVAILABLE)
+        }
+        val result: QueueEditResult
+        queueMutation = true
+        try {
+            result = playback.editQueue(tracks, edit)
+        } finally {
+            queueMutation = false
+        }
+        if (result.count > 0) saveLayoutAndPosition()
+        return result
+    }
+
     val hasNext: Boolean get() = playback.player.hasNextMediaItem()
     val hasPrevious: Boolean get() = playback.player.hasPreviousMediaItem()
     val queueSize: Int get() = playback.logicalQueueSize

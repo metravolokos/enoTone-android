@@ -14,6 +14,8 @@ import app.enotone.playback.PersistedQueueState
 import app.enotone.playback.PlaybackDataIssue
 import app.enotone.playback.PlaybackDataIssueClassifier
 import app.enotone.playback.PlaybackSetupTimings
+import app.enotone.playback.QueueEditResult
+import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueTrack
 import app.enotone.playback.TransientCacheStatus
 import kotlinx.coroutines.CoroutineDispatcher
@@ -73,6 +75,10 @@ internal interface PlaybackConnection {
     fun playPause()
     fun playNext()
     fun playPrevious()
+    fun insertNext(tracks: List<QueueTrack>): QueueEditResult =
+        QueueEditResult(QueueEditStatus.UNAVAILABLE)
+    fun append(tracks: List<QueueTrack>): QueueEditResult =
+        QueueEditResult(QueueEditStatus.UNAVAILABLE)
     fun cycleRepeatMode()
     fun toggleShuffle()
     fun seekToFraction(fraction: Float)
@@ -223,6 +229,18 @@ internal class AndroidPlaybackConnection(
     }
     override fun playNext() { service?.playNext(); publish() }
     override fun playPrevious() { service?.playPrevious(); publish() }
+    override fun insertNext(tracks: List<QueueTrack>): QueueEditResult {
+        val result = service?.insertNext(tracks)
+            ?: QueueEditResult(QueueEditStatus.UNAVAILABLE)
+        publish()
+        return result
+    }
+    override fun append(tracks: List<QueueTrack>): QueueEditResult {
+        val result = service?.append(tracks)
+            ?: QueueEditResult(QueueEditStatus.UNAVAILABLE)
+        publish()
+        return result
+    }
     override fun cycleRepeatMode() { service?.cycleRepeatMode(); publish() }
     override fun toggleShuffle() { service?.toggleShuffle(); publish() }
     override fun seekToFraction(fraction: Float) { service?.seekToFraction(fraction); publish() }
