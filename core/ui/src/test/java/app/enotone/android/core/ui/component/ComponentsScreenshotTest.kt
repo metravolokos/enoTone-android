@@ -37,12 +37,16 @@ class ComponentsScreenshotTest {
         composeRule.onRoot().captureRoboImage("src/test/screenshots/shell_porcelain.png")
     }
 
+    @Config(qualifiers = "w377dp-h816dp-xxxhdpi")
     @Test fun actionSheetOneGraphite() = actionSheet(dark = true, twoGroups = false)
 
+    @Config(qualifiers = "w377dp-h816dp-xxxhdpi")
     @Test fun actionSheetOnePorcelain() = actionSheet(dark = false, twoGroups = false)
 
+    @Config(qualifiers = "w377dp-h816dp-xxxhdpi")
     @Test fun actionSheetTwoGraphite() = actionSheet(dark = true, twoGroups = true)
 
+    @Config(qualifiers = "w377dp-h816dp-xxxhdpi")
     @Test fun actionSheetTwoPorcelain() = actionSheet(dark = false, twoGroups = true)
 
     private fun actionSheet(dark: Boolean, twoGroups: Boolean) {
