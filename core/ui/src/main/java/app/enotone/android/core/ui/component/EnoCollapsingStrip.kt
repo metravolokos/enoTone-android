@@ -46,7 +46,7 @@ fun EnoCollapsingStrip(
     AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut(), modifier = modifier) {
         Row(
             modifier = Modifier.fillMaxWidth()
-                .enoFrosted(blur, background, TINT_ALPHA, 18.dp)
+                .enoTopBarBackground(blur, background, TINT_ALPHA, 18.dp)
                 .drawBehind {
                     val y = size.height - 0.5.dp.toPx()
                     drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())

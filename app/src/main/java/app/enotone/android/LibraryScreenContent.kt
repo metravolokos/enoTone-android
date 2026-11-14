@@ -62,7 +62,7 @@ import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
 import app.enotone.android.core.ui.component.enoBlurSource
-import app.enotone.android.core.ui.component.enoFrosted
+import app.enotone.android.core.ui.component.enoTopBarBackground
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoRadii
@@ -487,7 +487,7 @@ internal fun LibraryScreenContent(
             modifier = Modifier.fillMaxWidth()
                 .then(
                     if (listScrolled) {
-                        Modifier.enoFrosted(blurState, frostBackground, FROST_ALPHA, FROST_BLUR)
+                        Modifier.enoTopBarBackground(blurState, frostBackground, FROST_ALPHA, FROST_BLUR)
                             .drawBehind {
                                 val y = size.height - 0.5.dp.toPx()
                                 drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
