@@ -25,10 +25,8 @@ data class NowPlayingIds(
     val playbackResume: Int,
     val icActionNext: Int,
     val playbackNext: Int,
-    val icActionShuffle: Int,
     val playbackShuffleOn: Int,
     val playbackShuffleOff: Int,
     val nowPlayingQueueShort: Int,
-    val icActionRepeat: Int,
     val playbackRepeatControl: Int,
 )

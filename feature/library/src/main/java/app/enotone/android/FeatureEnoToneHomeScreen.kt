@@ -24,8 +24,10 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoShuffleAllCard
 import app.enotone.android.core.ui.theme.EnoColors
+import java.text.NumberFormat
 
 /**
  * «Домой», вариант C2 (D3, макет `09_home`): крупный заголовок и вход в «Настройки» справа,
@@ -63,7 +65,8 @@ fun FeatureEnoToneHomeScreen(
             )
             IconButton(onClick = onSettings) {
                 Icon(
-                    painter = painterResource(ids.icActionSettings),
+                    // Контурные «ползунки» из макета 09_home (D3.1), не шестерёнка ADR-0073.
+                    painter = painterResource(EnoIcons.TUNE.outline),
                     contentDescription = stringResource(ids.settingsTitle),
                     modifier = Modifier.size(26.dp),
                     tint = EnoColors.text,
@@ -82,7 +85,9 @@ fun FeatureEnoToneHomeScreen(
             )
             songCount != null && songCount > 0 -> EnoShuffleAllCard(
                 title = stringResource(ids.homeShuffleAll),
-                subtitle = pluralStringResource(ids.homeSongCount, songCount, songCount),
+                subtitle = pluralStringResource(
+                    ids.homeSongCount, songCount, NumberFormat.getIntegerInstance().format(songCount),
+                ),
                 onClick = onShuffleAll,
                 enabled = shuffleEnabled,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),

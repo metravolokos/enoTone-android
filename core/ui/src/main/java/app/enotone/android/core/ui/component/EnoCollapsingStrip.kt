@@ -3,8 +3,6 @@ package app.enotone.android.core.ui.component
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,9 +31,10 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
 /**
- * Полоска прокрутки, вариант B (макеты `10_songs_scrolled`, `11_album_scrolled`): появляется,
- * когда крупный заголовок ушёл вверх. Фон — 84 % `background` поверх размытия 18 dp,
- * снизу линия `line` 70 %. Сверху — название одной строкой и [trailing], ниже — пилюли [actions].
+ * Полоска прокрутки, вариант B (макеты `10_songs_scrolled`, `11_album_scrolled`, правые колонки):
+ * появляется, когда крупный заголовок ушёл вверх. Одна строка под статус-баром: название слева,
+ * справа [trailing] — круглые кнопки Ø 40 («Перемешать», «Играть», поиск). Фон — 84 % `background`
+ * поверх размытия 18 dp, снизу линия `line` 70 %.
  */
 @Composable
 fun EnoCollapsingStrip(
@@ -43,13 +42,12 @@ fun EnoCollapsingStrip(
     title: String,
     blur: EnoBlurState,
     modifier: Modifier = Modifier,
-    trailing: @Composable () -> Unit = {},
-    actions: (@Composable RowScope.() -> Unit)? = null,
+    trailing: @Composable RowScope.() -> Unit = {},
 ) {
     val background = MaterialTheme.colorScheme.background
     val line = EnoColors.line.copy(alpha = LINE_ALPHA)
     AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut(), modifier = modifier) {
-        Column(
+        Row(
             modifier = Modifier.fillMaxWidth()
                 .hazeEffect(
                     state = blur.haze,
@@ -64,33 +62,23 @@ fun EnoCollapsingStrip(
                     val y = size.height - 0.5.dp.toPx()
                     drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
                 }
-                .statusBarsPadding(),
+                .statusBarsPadding()
+                .height(56.dp)
+                .padding(start = 28.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(56.dp).padding(start = 28.dp, end = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    color = EnoColors.text,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                trailing()
-            }
-            if (actions != null) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(start = 28.dp, end = 28.dp, top = 2.dp, bottom = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    content = actions,
-                )
-            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                ),
+                color = EnoColors.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            trailing()
         }
     }
 }

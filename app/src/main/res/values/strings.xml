@@ -92,8 +92,8 @@
     <string name="credential_vault_failed">Не удалось прочитать или изменить защищённые данные входа. Можно продолжить вручную.</string>
     <string name="library_tab_tracks">Треки</string>
     <string name="library_tab_albums">Альбомы</string>
-    <string name="library_tab_artists">Исполнители</string>
-    <string name="library_tab_album_artists">Исполнители альбомов</string>
+    <string name="library_tab_artists">Артисты</string>
+    <string name="library_tab_album_artists">Авторы альбомов</string>
     <string name="library_unknown_album">Неизвестный альбом</string>
     <string name="library_group_back">К списку групп</string>
     <string name="library_group_count">Найдено групп: %1$d</string>
@@ -165,11 +165,11 @@
     <string name="appearance_light">Светлый</string>
     <string name="library_shuffle_all">Перемешать</string>
     <string name="home_library_sections">Разделы медиатеки</string>
-    <string name="ui_play">Воспроизвести</string>
+    <string name="ui_play">Играть</string>
     <string name="ui_songs_title">Песни</string>
     <string name="ui_search_songs">Поиск в песнях</string>
     <string name="ui_search_albums">Поиск в альбомах</string>
-    <string name="ui_search_artists">Поиск в исполнителях</string>
+    <string name="ui_search_artists">Поиск в артистах</string>
     <string name="playback_restore_seed_ms">Восстановление Media3 (главный поток): %1$d мс</string>
     <string name="playback_queue_restore_summary">Очередь: %1$s · чтение %2$s · layout %3$d · position %4$d · ошибок %5$d (%6$s)</string>
     <string name="settings_app_version">Версия %1$s</string>
@@ -197,9 +197,36 @@
     <string name="nav_album_artists">Авторы</string>
     <string name="home_shuffle_all">Перемешать всё</string>
     <plurals name="home_song_count">
-        <item quantity="one">%1$d песня</item>
-        <item quantity="few">%1$d песни</item>
-        <item quantity="many">%1$d песен</item>
-        <item quantity="other">%1$d песни</item>
+        <item quantity="one">%1$s песня</item>
+        <item quantity="few">%1$s песни</item>
+        <item quantity="many">%1$s песен</item>
+        <item quantity="other">%1$s песни</item>
+    </plurals>
+    <!-- D3.1: счётчики под заголовком вкладок (макеты 02, 04, 06, 07) -->
+    <string name="ui_search">Поиск</string>
+    <string name="ui_search_close">Закрыть поиск</string>
+    <plurals name="library_songs_count">
+        <item quantity="one">%1$s песня</item>
+        <item quantity="few">%1$s песни</item>
+        <item quantity="many">%1$s песен</item>
+        <item quantity="other">%1$s песни</item>
+    </plurals>
+    <plurals name="library_albums_count">
+        <item quantity="one">%1$s альбом</item>
+        <item quantity="few">%1$s альбома</item>
+        <item quantity="many">%1$s альбомов</item>
+        <item quantity="other">%1$s альбома</item>
+    </plurals>
+    <plurals name="library_artists_count">
+        <item quantity="one">%1$s артист</item>
+        <item quantity="few">%1$s артиста</item>
+        <item quantity="many">%1$s артистов</item>
+        <item quantity="other">%1$s артиста</item>
+    </plurals>
+    <plurals name="library_album_artists_count">
+        <item quantity="one">%1$s автор</item>
+        <item quantity="few">%1$s автора</item>
+        <item quantity="many">%1$s авторов</item>
+        <item quantity="other">%1$s автора</item>
     </plurals>
 </resources>

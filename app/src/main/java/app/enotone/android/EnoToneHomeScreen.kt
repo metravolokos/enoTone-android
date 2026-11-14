@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 /** Строки и значок настроек «Домой» принадлежат :app; экран живёт в :feature:library (ADR-0083). */
 private val homeScreenIds = HomeScreenIds(
     navHome = R.string.nav_home,
-    icActionSettings = R.drawable.ic_action_settings,
     settingsTitle = R.string.settings_title,
     homeConnectAccount = R.string.home_connect_account,
     homeShuffleAll = R.string.home_shuffle_all,

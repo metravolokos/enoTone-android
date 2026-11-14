@@ -9,7 +9,7 @@
 | `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`) и «контрактные» тесты исходников (см. ниже) |
 | Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
 | `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; после слитого #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
-| `gradle :core:ui:verifyRoborazziDebug` | сравнение эталонов Android v2 в обеих темах, diff — артефакт `roborazzi-results` |
+| `gradle :core:ui:verifyRoborazziDebug :app:verifyRoborazziDebug` | сравнение эталонов Android v2 в обеих темах (компоненты и экраны), diff — артефакт `roborazzi-results` |
 | `gradle detekt` | статический анализ Kotlin + правила ktlint; **блокирующий** с базовой линией `detekt-baseline.xml` в каждом модуле — [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md) |
 | `tools/check_detekt_baseline.py <база>` | базовая линия detekt не выросла относительно базового коммита |
 | `tools/check_adr_index.py` | у каждого ADR есть строка в индексе |
@@ -44,6 +44,8 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 ### Roborazzi (D2a)
 
 Только `:core:ui` и `testImplementation`, не в APK. Robolectric 4.17, `@GraphicsMode(NATIVE)`, Roborazzi 1.76.0. `ThemeScreenshotTest`: синтетический specimen с палитрой, Onest 400/500/600, Unbounded, радиусами; два эталона: `core/ui/src/test/screenshots/theme_graphite.png`, `theme_porcelain.png`. Для начальной записи **в том же CI-окружении**: Actions → Android M0 → Run workflow на ветке D2a с `record_roborazzi=true`; скачать артефакт `roborazzi-results` (или восстановить PNG из строк `ROBORAZZI_PNG <путь> <sha256>` и `ROBORAZZI_B64 <путь> <часть base64>` журнала этого запуска), коммитить PNG; обычный PR запускает `:core:ui:verifyRoborazziDebug` и загружает diff. Пока golden не зафиксированы, проверка не считается завершённой. Ресурсы `tools:keep` проверяются на подписанном Stable Preview (`:app:assembleStablePreview` + `aapt2 dump resources` / `apkanalyzer`); не заявлять PASS без выполнения.
+
+D3.1 добавляет в `:app` `AppScreensScreenshotTest`: экраны «Песни» (верх и прокрутка), «Альбомы», «Домой», «Сейчас играет» на эталонном размере 377 × 816 dp, `ru`, обе темы — `app/src/test/screenshots/*.png`. Их сверяют глазами с PNG-макетами `enotone-design/assets/ui-screens/android-v2/` перед коммитом эталона; запись — тем же `record_roborazzi=true`.
 
 D2b добавляет `ComponentsScreenshotTest` (две галереи компонентов в обеих темах), `EnoLetterAvatarTest` (Unicode/grapheme/детерминированность), dual-Preview у каждого компонента. PNG-эталоны D2b: `core/ui/src/test/screenshots/components_graphite.png`, `components_porcelain.png`, записываются тем же `record_roborazzi=true` на stacked-ветке после D2a.
 
