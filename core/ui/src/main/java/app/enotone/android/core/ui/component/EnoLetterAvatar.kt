@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.enotone.android.core.ui.R
@@ -57,10 +58,11 @@ fun EnoLetterAvatar(
     name: String,
     contentDescription: String,
     modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
 ) {
     val (background, foreground) = EnoColors.avatars[avatarPaletteIndex(name)]
     Box(
-        modifier = modifier.size(48.dp).background(background, CircleShape)
+        modifier = modifier.size(size).background(background, CircleShape)
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
@@ -69,7 +71,7 @@ fun EnoLetterAvatar(
             style = TextStyle(
                 fontFamily = avatarUnbounded,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp,
+                fontSize = (18f * (size.value / 48f)).sp,
                 color = foreground,
             ),
             maxLines = 1,
