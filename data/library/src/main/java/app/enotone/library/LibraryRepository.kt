@@ -65,8 +65,7 @@ class RoomLibraryRepository(
 ) : LibraryRepository {
     override suspend fun load(email: String): LibrarySnapshot = withContext(io) {
         val key = LibrarySnapshotPlanner.accountKey(email)
-        val remote = database.remoteTrackDao().allForSource(key)
-        TrackSearchIndex(database).reconcile(key, remote)
+        val remote = TrackSearchIndex(database).reconcile(key)
         LibraryCatalogMapper.map(key, remote)
     }
 

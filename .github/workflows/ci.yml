@@ -114,6 +114,22 @@ jobs:
       # without editing this file (ADR-0074, M6-0/8).
       - name: Build, JUnit and Lint (all modules)
         run: gradle --no-daemon :app:assembleDebug testDebugUnitTest lintDebug
+      - name: Diagnose failed JUnit tests
+        if: failure()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import xml.etree.ElementTree as ET
+
+          for path in sorted(pathlib.Path(".").glob("**/build/test-results/testDebugUnitTest/TEST-*.xml")):
+              root = ET.parse(path).getroot()
+              for case in root.iter("testcase"):
+                  for failure in list(case.findall("failure")) + list(case.findall("error")):
+                      print(f"{path} | {case.attrib.get('classname')}.{case.attrib.get('name')}")
+                      print((failure.attrib.get("message") or "")[:2000])
+                      print((failure.text or "")[:1200])
+          PY
       # Blocking since 2026-11-13: old findings are in detekt-baseline.xml,
       # any new finding fails (ADR-0076, AUDIT_PROTOCOL §4.1).
       - name: Record Roborazzi snapshots (manual workflow_dispatch only)

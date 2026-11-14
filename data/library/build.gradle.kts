@@ -6,6 +6,7 @@ android {
     namespace = "app.enotone.data.library"
     compileSdk = 36
     defaultConfig { minSdk = 26 }
+    testOptions { unitTests.isIncludeAndroidResources = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -25,5 +26,7 @@ dependencies {
     implementation(libs.room.ktx)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     testImplementation(libs.okhttp.mockwebserver)
 }

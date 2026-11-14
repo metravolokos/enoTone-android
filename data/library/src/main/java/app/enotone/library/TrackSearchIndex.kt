@@ -23,11 +23,14 @@ class TrackSearchIndex(private val database: EnoToneDatabase) {
     )
 
     /** Repairs the initial empty v6 index and legacy tag writes missed by a caller. */
-    suspend fun reconcile(sourceKey: String, tracks: List<RemoteTrackEntity>) {
+    suspend fun reconcile(sourceKey: String): List<RemoteTrackEntity> =
         database.withTransaction {
+            // Snapshot and FTS repair share one transaction. A background tag write
+            // cannot slip between the read and repair and reintroduce stale text.
+            val tracks = database.remoteTrackDao().allForSource(sourceKey)
             val dao = database.trackSearchDao()
             val stored = dao.allForSource(sourceKey).groupBy { it.trackId }
-            val fresh = tracks.filter { it.sourceKey == sourceKey }.map(::entry)
+            val fresh = tracks.map(::entry)
             val expectedIds = fresh.mapTo(HashSet(fresh.size)) { it.trackId }
             val stale = stored.keys.filterNot { it in expectedIds }
             if (stale.isNotEmpty()) dao.deleteByIds(sourceKey, stale)
@@ -39,8 +42,8 @@ class TrackSearchIndex(private val database: EnoToneDatabase) {
                 dao.deleteByIds(sourceKey, batch.map { it.trackId })
                 dao.insertAll(batch)
             }
+            tracks
         }
-    }
 
     /** Refresh just the changed track after tag writing (no network or re-scan). */
     suspend fun refreshById(sourceKey: String, id: String) {

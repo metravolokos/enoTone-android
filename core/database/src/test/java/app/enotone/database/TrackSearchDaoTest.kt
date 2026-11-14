@@ -13,7 +13,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** FTS4 behavior: source isolation, prefixes, missing files, and safe parameter binding. */
+/** FTS4 behavior: prefix tokens, source isolation, missing tracks and rebuilds. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class TrackSearchDaoTest {
@@ -27,30 +27,46 @@ class TrackSearchDaoTest {
 
     @After fun close() = database.close()
 
-    @Test fun prefixesRespectAccountMissingFlagsAndNoDuplicateRows() = runBlocking {
-        val tracks = database.remoteTrackDao()
-        tracks.upsertAll(listOf(
-            track("a", "account-a"),
-            track("b", "account-b"),
+    private suspend fun seed() {
+        database.remoteTrackDao().upsertAll(listOf(
+            track("a", "account-a"), track("b", "account-b"),
             track("missing", "account-a", missing = 1),
         ))
-        val index = database.trackSearchDao()
-        index.insertAll(listOf(
+        database.trackSearchDao().insertAll(listOf(
             TrackSearchEntity("a", "account-a", "ежик зеленая дорога"),
             TrackSearchEntity("b", "account-b", "ежик зеленая дорога"),
             TrackSearchEntity("missing", "account-a", "ежик зеленая дорога"),
         ))
+    }
+
+    @Test fun prefixAndMatchesOnlyPresentTracksInOneAccount() = runBlocking {
+        seed()
+        val dao = database.trackSearchDao()
         assertEquals(listOf("a"),
-            index.searchTrackIds("account-a", "\"еж*\" AND \"дор*\""))
-        assertEquals(emptyList<String>(),
-            index.searchTrackIds("account-a", "\"ираж*\""))
-        assertEquals(listOf("b"), index.searchTrackIds("account-b", "\"еж*\""))
-        index.deleteByIds("account-a", listOf("a"))
-        index.insertAll(listOf(TrackSearchEntity("a", "account-a", "ежик новый")))
-        assertEquals(1, index.allForSource("account-a").count { it.trackId == "a" })
-        assertTrue(index.searchTrackIds("account-a", "\"дор*\"").isEmpty())
-        assertEquals(2, index.deleteForSource("account-a"))
-        assertEquals(listOf("b"), index.searchTrackIds("account-b", "\"еж*\""))
+            dao.searchTrackIds("account-a", "\"еж*\" AND \"дор*\""))
+        assertEquals(emptyList<String>(), dao.searchTrackIds("account-a", "\"ираж*\""))
+    }
+
+    @Test fun anotherAccountIsNotExposed() = runBlocking {
+        seed()
+        assertEquals(listOf("b"),
+            database.trackSearchDao().searchTrackIds("account-b", "\"еж*\""))
+    }
+
+    @Test fun changingIndexTextRemovesOldMatchesWithoutDuplicates() = runBlocking {
+        seed()
+        val dao = database.trackSearchDao()
+        dao.deleteByIds("account-a", listOf("a"))
+        dao.insertAll(listOf(TrackSearchEntity("a", "account-a", "ежик новый")))
+        assertEquals(1, dao.allForSource("account-a").count { it.trackId == "a" })
+        assertTrue(dao.searchTrackIds("account-a", "\"дор*\"").isEmpty())
+    }
+
+    @Test fun deletingOneSourceKeepsAnotherIntact() = runBlocking {
+        seed()
+        val dao = database.trackSearchDao()
+        assertEquals(2, dao.deleteForSource("account-a"))
+        assertEquals(listOf("b"), dao.searchTrackIds("account-b", "\"еж*\""))
     }
 
     private fun track(id: String, source: String, missing: Int = 0) = RemoteTrackEntity(
