@@ -42,6 +42,7 @@ import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
 import app.enotone.android.core.ui.component.EnoTrackRow
 import app.enotone.android.core.ui.component.enoBlurSource
+import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
@@ -61,6 +62,7 @@ internal fun ArtistDetailScreen(
     onBackDetail: () -> Unit,
     blur: EnoBlurState? = null,
 ) {
+    val blurState = blur ?: rememberEnoBlurState()
     val unknownAlbum = stringResource(R.string.library_unknown_album)
     val plan = remember(artist, state.tracks, unknownAlbum) {
         ArtistDetailPlanner.plan(artist, state.tracks, unknownAlbum)
@@ -89,7 +91,7 @@ internal fun ArtistDetailScreen(
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize().statusBarsPadding().enoBlurSource(blur),
+            modifier = Modifier.fillMaxSize().statusBarsPadding().enoBlurSource(blurState),
             contentPadding = PaddingValues(bottom = contentPadding.calculateBottomPadding()),
         ) {
             item(key = "artist-head") {
@@ -200,7 +202,7 @@ internal fun ArtistDetailScreen(
                 }
             }
         }
-        EnoCollapsingStrip(visible = stripVisible, title = artist.name, blur = blur) {
+        EnoCollapsingStrip(visible = stripVisible, title = artist.name, blur = blurState) {
             EnoRoundButton(
                 icon = EnoIcons.SHUFFLE,
                 contentDescription = stringResource(R.string.library_shuffle_all),
