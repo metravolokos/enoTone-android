@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,21 +42,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.enotone.android.core.ui.component.EnoBlurState
 import app.enotone.android.core.ui.component.EnoCollapsingStrip
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
 import app.enotone.android.core.ui.component.enoBlurSource
+import app.enotone.android.core.ui.component.enoFrosted
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoRadii
@@ -63,9 +71,11 @@ import java.text.NumberFormat
 import androidx.compose.foundation.lazy.grid.items as gridItems
 
 /**
- * Медиатека внутри каркаса D3: заголовок, поиск и кнопки прокручиваются вместе со списком
- * (вариант B), при уходе заголовка вверх появляется полоска с размытием. Нижняя панель и
- * мини-плеер — в каркасе (AppShell); содержимое строк прежнее до D4.
+ * Медиатека внутри каркаса D3. На вкладках «Песни», «Альбомы», «Артисты», «Авторы» заголовок
+ * (название, поиск, счётчик, на «Песнях» — кнопки) закреплён, список прокручивается под ним
+ * (D3.2, владелец). На экранах альбома и исполнителя шапка прокручивается со списком, а при её
+ * уходе вверх появляется полоска (вариант B). Нижняя панель и мини-плеер — в каркасе (AppShell);
+ * содержимое строк прежнее до D4.
  */
 // Один draw-only Compose-узел на все страницы до D4: разбиение по экранам — в D4 (альбом, исполнитель).
 @Suppress("CyclomaticComplexMethod", "ComplexCondition", "LongMethod")
@@ -78,6 +88,7 @@ internal fun LibraryScreenContent(
     appPassword: String,
     contentPadding: PaddingValues = PaddingValues(),
     scrollToTop: Int = 0,
+    blur: EnoBlurState? = null,
 ) {
     val section = state.section
     val visiblePages = state.visiblePages
@@ -130,7 +141,10 @@ internal fun LibraryScreenContent(
         )
     }
 
-    val blur = rememberEnoBlurState()
+    val ownBlur = rememberEnoBlurState()
+    val blurState = blur ?: ownBlur
+    // Вкладка-категория (не альбом и не исполнитель): заголовок закреплён (D3.2).
+    val pinnedHeader = selectedGroupKey == null
     val density = LocalDensity.current
     val stripAfterPx = with(density) { STRIP_AFTER.toPx() }
     val stripVisible by remember(libraryListState, albumGridState, section, selectedGroup) {
@@ -141,6 +155,25 @@ internal fun LibraryScreenContent(
             else libraryListState.firstVisibleItemIndex > 0 ||
                 libraryListState.firstVisibleItemScrollOffset > stripAfterPx
         }
+    }
+    // Закреплённый заголовок получает размытие и линию, как только под ним оказался список.
+    val listScrolled by remember(libraryListState, albumGridState, section, selectedGroup) {
+        derivedStateOf {
+            val grid = section == LibraryPage.ALBUMS && selectedGroup == null
+            if (grid) albumGridState.canScrollBackward else libraryListState.canScrollBackward
+        }
+    }
+    var pinnedHeaderPx by remember { mutableIntStateOf(0) }
+    val layoutDirection = LocalLayoutDirection.current
+    val listPadding = if (pinnedHeader) {
+        PaddingValues(
+            start = contentPadding.calculateStartPadding(layoutDirection),
+            end = contentPadding.calculateEndPadding(layoutDirection),
+            top = contentPadding.calculateTopPadding() + with(density) { pinnedHeaderPx.toDp() },
+            bottom = contentPadding.calculateBottomPadding(),
+        )
+    } else {
+        contentPadding
     }
     // Системное «Назад» из альбома или исполнителя возвращает к списку страницы, а не на «Домой».
     BackHandler(enabled = selectedGroupKey != null) { actions.onGroupSelected(null) }
@@ -166,17 +199,8 @@ internal fun LibraryScreenContent(
         actions.onSearch("")
     }
     BackHandler(enabled = searchOpen && selectedGroupKey == null) { closeSearch() }
-    var searchScrollRequest by remember { mutableIntStateOf(0) }
-    LaunchedEffect(searchScrollRequest) {
-        if (searchScrollRequest > 0) {
-            libraryListState.animateScrollToItem(0)
-            albumGridState.animateScrollToItem(0)
-        }
-    }
-    val openSearch: () -> Unit = {
-        searchOpen = true
-        searchScrollRequest += 1
-    }
+    // Заголовок закреплён — поиск всегда на виду, прокручивать список при открытии не нужно.
+    val openSearch: () -> Unit = { searchOpen = true }
     // «Играть»/«Перемешать» — только «Песни» и альбом (на «Альбомах», «Артистах», «Авторах» их нет).
     val canPlayPage = section == LibraryPage.TRACKS && selectedGroup == null && tracks.isNotEmpty() &&
         search.isBlank()
@@ -219,11 +243,10 @@ internal fun LibraryScreenContent(
                         )
                     }
                 }
-                // Счётчик под заголовком; при поиске — «показано N из M» (прежняя строка).
+                // Счётчик под заголовком; при поиске — «Найдено N альбомов/артистов/…» (D3.2).
                 val countText = when {
-                    search.isNotBlank() && section != LibraryPage.TRACKS ->
-                        stringResource(R.string.library_group_count, shownGroups.size)
-                    search.isNotBlank() -> stringResource(R.string.library_count, visible.size, tracks.size)
+                    search.isNotBlank() ->
+                        foundCount(section, if (section == LibraryPage.TRACKS) visible.size else shownGroups.size)
                     else -> sectionCount(section, if (section == LibraryPage.TRACKS) tracks.size else groups.size)
                 }
                 Text(
@@ -278,13 +301,12 @@ internal fun LibraryScreenContent(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         state = albumGridState,
-                        contentPadding = contentPadding,
-                        modifier = Modifier.fillMaxWidth().weight(1f).enoBlurSource(blur),
+                        contentPadding = listPadding,
+                        modifier = Modifier.fillMaxWidth().weight(1f).enoBlurSource(blurState),
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        item(key = HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) { header() }
-                        if (shownGroups.isEmpty()) {
+                        if (shownGroups.isEmpty() && search.isBlank()) {
                             item(key = EMPTY_KEY, span = { GridItemSpan(maxLineSpan) }) {
                                 Text(stringResource(R.string.library_groups_empty))
                             }
@@ -306,12 +328,11 @@ internal fun LibraryScreenContent(
                 run {
                     LazyColumn(
                         state = libraryListState,
-                        contentPadding = contentPadding,
-                        modifier = Modifier.fillMaxWidth().weight(1f).enoBlurSource(blur),
+                        contentPadding = listPadding,
+                        modifier = Modifier.fillMaxWidth().weight(1f).enoBlurSource(blurState),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        item(key = HEADER_KEY) { header() }
-                        if (shownGroups.isEmpty()) {
+                        if (shownGroups.isEmpty() && search.isBlank()) {
                             item(key = EMPTY_KEY) { Text(stringResource(R.string.library_groups_empty)) }
                         }
                         items(shownGroups, key = { it.key }) { group ->
@@ -357,11 +378,11 @@ internal fun LibraryScreenContent(
             }
             else -> LazyColumn(
                 state = libraryListState,
-                contentPadding = contentPadding,
-                modifier = Modifier.fillMaxWidth().weight(1f).enoBlurSource(blur),
+                contentPadding = listPadding,
+                modifier = Modifier.fillMaxWidth().weight(1f).enoBlurSource(blurState),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                item(key = HEADER_KEY) { header() }
+                if (!pinnedHeader) item(key = HEADER_KEY) { header() }
                 if (section == LibraryPage.ALBUMS && selectedGroup != null) {
                     item(key = "album-detail-header") {
                         AlbumDetailHeader(
@@ -458,10 +479,32 @@ internal fun LibraryScreenContent(
             }
         }
     }
+    // Закреплённый заголовок вкладки поверх списка: список уходит под него (D3.2).
+    if (pinnedHeader && !loading && !failed && tracks.isNotEmpty()) {
+        val frostBackground = MaterialTheme.colorScheme.background
+        val line = EnoColors.line.copy(alpha = LINE_ALPHA)
+        Column(
+            modifier = Modifier.fillMaxWidth()
+                .then(
+                    if (listScrolled) {
+                        Modifier.enoFrosted(blurState, frostBackground, FROST_ALPHA, FROST_BLUR)
+                            .drawBehind {
+                                val y = size.height - 0.5.dp.toPx()
+                                drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())
+                            }
+                    } else {
+                        Modifier
+                    },
+                )
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp)
+                .onSizeChanged { pinnedHeaderPx = it.height },
+        ) { header() }
+    }
     EnoCollapsingStrip(
-        visible = stripVisible,
+        visible = stripVisible && !pinnedHeader,
         title = stripTitle,
-        blur = blur,
+        blur = blurState,
     ) {
         if (canPlayPage || canPlayAlbum) {
             EnoRoundButton(
@@ -478,16 +521,6 @@ internal fun LibraryScreenContent(
                 onClick = { if (canPlayAlbum) actions.onAlbumPlayAll() else actions.onPlayAll() },
             )
         }
-        // Поиск не пропадает при прокрутке: наверх и раскрыть поле (уточнение владельца 2026-11-14).
-        if (selectedGroupKey == null) {
-            EnoRoundButton(
-                icon = EnoIcons.SEARCH,
-                contentDescription = stringResource(R.string.ui_search),
-                filled = false,
-                iconSize = 24.dp,
-                onClick = openSearch,
-            )
-        }
     }
     }
 }
@@ -502,11 +535,33 @@ private fun sectionTitle(section: LibraryPage): Int = when (section) {
 private const val HEADER_KEY = "library-header"
 private const val EMPTY_KEY = "library-empty"
 
+/** Закреплённый заголовок при прокрученном списке: как полоска — 84 % фона, размытие 18 dp, линия 70 %. */
+private const val FROST_ALPHA = 0.84f
+private val FROST_BLUR = 18.dp
+private const val LINE_ALPHA = 0.7f
+
 /** Полоска появляется, когда крупный заголовок (≈ 56 dp) ушёл под системную строку. */
 private val STRIP_AFTER = 56.dp
 
 /** Поля шапки как в макетах: 28 dp от края (16 — у списка, ещё 12 — у шапки до D4). */
 private val HEADER_EXTRA_PADDING = 12.dp
+
+/** «Найдено 12 песен / 136 альбомов / 56 артистов / 20 авторов», «Ничего не нашлось» (D3.2). */
+@Composable
+private fun foundCount(section: LibraryPage, count: Int): String {
+    if (count == 0) return stringResource(R.string.library_found_nothing)
+    val formatted = remember(count) { NumberFormat.getIntegerInstance().format(count) }
+    return pluralStringResource(
+        when (section) {
+            LibraryPage.TRACKS -> R.plurals.library_found_songs
+            LibraryPage.ALBUMS -> R.plurals.library_found_albums
+            LibraryPage.ARTISTS -> R.plurals.library_found_artists
+            LibraryPage.ALBUM_ARTISTS -> R.plurals.library_found_album_artists
+        },
+        count,
+        formatted,
+    )
+}
 
 @Composable
 private fun sectionCount(section: LibraryPage, count: Int): String {

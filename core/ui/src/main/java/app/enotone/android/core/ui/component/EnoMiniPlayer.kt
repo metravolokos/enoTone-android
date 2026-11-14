@@ -68,7 +68,7 @@ fun EnoMiniPlayer(
                 spotColor = EnoColors.shadow,
             )
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface)
+            .dockBackground(MaterialTheme.colorScheme.surface)
             // Жест вверх по мини-плееру открывает «Сейчас играет», как раньше (#92).
             .pointerInput(onOpen) {
                 var dragged = 0f

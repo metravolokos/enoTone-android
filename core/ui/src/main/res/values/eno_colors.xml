@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Палитра enoTone v1.4, тема «Фарфор». Сгенерировано tools/build_tokens.py
+<!-- Палитра enoTone v1.5, тема «Фарфор». Сгенерировано tools/build_tokens.py
      из enotone-design/tokens/colors.json — не править руками. -->
 <resources>
     <color name="eno_background">#EDE9E5</color>
@@ -13,6 +13,8 @@
     <color name="eno_on_accent">#211E1C</color>
     <color name="eno_shadow">#383C281E</color>
     <color name="eno_scrim">#61211E1C</color>
+    <color name="eno_cover_rim">#59000000</color>
+    <color name="eno_shadow_strong">#4D3C281E</color>
     <color name="eno_cover_outline">#2E80766E</color>
     <color name="eno_playing_overlay">#4D000000</color>
     <color name="eno_playing_bar">#FFFFFF</color>

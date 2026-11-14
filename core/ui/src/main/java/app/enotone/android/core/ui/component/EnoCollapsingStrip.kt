@@ -24,9 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.enotone.android.core.ui.theme.EnoColors
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
@@ -49,15 +46,7 @@ fun EnoCollapsingStrip(
     AnimatedVisibility(visible = visible, enter = fadeIn(), exit = fadeOut(), modifier = modifier) {
         Row(
             modifier = Modifier.fillMaxWidth()
-                .hazeEffect(
-                    state = blur.haze,
-                    style = HazeStyle(
-                        backgroundColor = background,
-                        tint = HazeTint(background.copy(alpha = TINT_ALPHA)),
-                        blurRadius = 18.dp,
-                        noiseFactor = 0f,
-                    ),
-                )
+                .enoFrosted(blur, background, TINT_ALPHA, 18.dp)
                 .drawBehind {
                     val y = size.height - 0.5.dp.toPx()
                     drawLine(line, Offset(0f, y), Offset(size.width, y), strokeWidth = 1.dp.toPx())

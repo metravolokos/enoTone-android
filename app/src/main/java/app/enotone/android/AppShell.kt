@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +25,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.enotone.android.core.ui.component.EnoBottomBar
 import app.enotone.android.core.ui.component.EnoBottomBarItem
 import app.enotone.android.core.ui.component.EnoIcons
+import app.enotone.android.core.ui.component.LocalEnoDockBlur
+import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
 
 /**
@@ -49,6 +52,9 @@ internal fun AppMusicShell(
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     // Последняя строка списка поднимается над панелью и мини-плеером (вариант B).
     val contentPadding = PaddingValues(bottom = dockHeight(miniVisible) + navBar)
+    // Одно состояние размытия на вкладку: список — источник, полоска/заголовок и (при включённых
+    // «Прозрачных панелях», D3.2) мини-плеер и нижняя панель — потребители.
+    val blur = rememberEnoBlurState()
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         when (val tab = nav.tab) {
             AppTab.Home -> EnoToneHomeScreen(
@@ -70,10 +76,12 @@ internal fun AppMusicShell(
                         appPassword = login.password,
                         contentPadding = contentPadding,
                         scrollToTop = nav.scrollToTop,
+                        blur = blur,
                     )
                 }
             }
         }
+        CompositionLocalProvider(LocalEnoDockBlur provides blur.takeIf { UiEffects.translucentDock }) {
         Column(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .navigationBarsPadding()
@@ -88,6 +96,7 @@ internal fun AppMusicShell(
                 onNext = playerModel::onNext,
             )
             AppBottomBar(nav = nav, pages = pages, enabled = login != null, onSelectTab = onSelectTab)
+        }
         }
     }
 }
