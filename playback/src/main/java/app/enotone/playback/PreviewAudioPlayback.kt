@@ -658,6 +658,8 @@ class PreviewAudioPlayback(
             diskCache.forPlayback(factory)
         } else factory
         val mediaFactory = ProgressiveMediaSource.Factory(sourceFactory)
+        routesFactory = factory
+        mediaSourceFactory = mediaFactory
         val t2 = SystemClock.elapsedRealtime()
         activeRoutes = if (useTemporaryCache) queue.items.associateBy { it.id } else emptyMap()
         upstreamFactory = if (useTemporaryCache) factory else null
