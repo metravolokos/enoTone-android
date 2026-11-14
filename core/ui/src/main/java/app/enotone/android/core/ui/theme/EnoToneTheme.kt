@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.enotone.android.core.ui.R
 
-/** Источник всех цветов — скопированные без правки XML enotone-design 907a01c. */
+/** Источник всех цветов — скопированные без правки XML enotone-design a2afd4c (палитра v1.5). */
 data class EnoColorTokens(
     val accentFill: Color,
     val accentText: Color,
@@ -41,6 +41,8 @@ data class EnoColorTokens(
     val coverOutline: Color,
     val playingOverlay: Color,
     val playingBar: Color,
+    val coverRim: Color,
+    val shadowStrong: Color,
     val avatars: List<Pair<Color, Color>>,
 )
 
@@ -62,6 +64,10 @@ object EnoColors {
     val coverOutline: Color @Composable get() = LocalEnoColors.current.coverOutline
     val playingOverlay: Color @Composable get() = LocalEnoColors.current.playingOverlay
     val playingBar: Color @Composable get() = LocalEnoColors.current.playingBar
+    /** Обводка обложки «Сейчас играет»: белая 35 % в «Графите», чёрная 35 % в «Фарфоре» (D3.2). */
+    val coverRim: Color @Composable get() = LocalEnoColors.current.coverRim
+    /** Усиленная тень обложки «Сейчас играет» (D3.2). */
+    val shadowStrong: Color @Composable get() = LocalEnoColors.current.shadowStrong
     val avatars: List<Pair<Color, Color>> @Composable get() = LocalEnoColors.current.avatars
 }
 
@@ -80,7 +86,8 @@ data class EnoShadow(val offsetY: Dp, val blur: Dp)
 
 /** Смещение и размер размытия теней из Android v2; цвет из EnoColors.shadow. */
 object EnoElevation {
-    val nowPlaying = EnoShadow(offsetY = 22.dp, blur = 44.dp)
+    /** D3.2 (владелец): тень обложки «Сейчас играет» больше прежних 22/44, цвет — shadowStrong. */
+    val nowPlaying = EnoShadow(offsetY = 28.dp, blur = 64.dp)
     val albumCover = EnoShadow(offsetY = 18.dp, blur = 40.dp)
     val floatingPlayer = EnoShadow(offsetY = 8.dp, blur = 24.dp)
     val bottomBar = EnoShadow(offsetY = 8.dp, blur = 24.dp)
@@ -169,6 +176,8 @@ private fun colorTokens(): EnoColorTokens = EnoColorTokens(
     coverOutline = colorResource(R.color.eno_cover_outline),
     playingOverlay = colorResource(R.color.eno_playing_overlay),
     playingBar = colorResource(R.color.eno_playing_bar),
+    coverRim = colorResource(R.color.eno_cover_rim),
+    shadowStrong = colorResource(R.color.eno_shadow_strong),
     avatars = listOf(
         colorResource(R.color.eno_avatar_1) to colorResource(R.color.eno_avatar_on_1),
         colorResource(R.color.eno_avatar_2) to colorResource(R.color.eno_avatar_on_2),

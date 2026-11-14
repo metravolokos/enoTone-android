@@ -1,6 +1,5 @@
 package app.enotone.android.core.ui.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,7 +39,7 @@ fun EnoBottomBar(
     Row(
         modifier = modifier.fillMaxWidth().height(70.dp)
             .clip(EnoRadii.full)
-            .background(EnoColors.surface2)
+            .dockBackground(EnoColors.surface2)
             .padding(horizontal = 6.dp)
             .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,

@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.enotone.android.core.ui.component.EnoBlurState
 import app.enotone.library.LibraryPage
 import app.enotone.library.LibraryPageVisibility
 import app.enotone.library.OfflineTrackRow
@@ -57,6 +58,7 @@ internal fun OfflineLibraryScreen(
     appPassword: String,
     contentPadding: PaddingValues,
     scrollToTop: Int,
+    blur: EnoBlurState? = null,
 ) {
     val context = LocalContext.current.applicationContext
     val container = (context as EnoToneApplication).container
@@ -72,6 +74,7 @@ internal fun OfflineLibraryScreen(
         appPassword = appPassword,
         contentPadding = contentPadding,
         scrollToTop = scrollToTop,
+        blur = blur,
     )
 }
 

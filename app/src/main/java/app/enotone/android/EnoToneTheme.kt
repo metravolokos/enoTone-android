@@ -40,10 +40,36 @@ internal object UiAppearance {
     }
 }
 
+/**
+ * Визуальные эффекты (D3.2, ADR-0088): «Прозрачные панели» — мини-плеер и нижняя панель с
+ * размытием. Отдельный файл настроек, чтобы не трогать данные [UiAppearance]; по умолчанию выключено.
+ */
+internal object UiEffects {
+    private const val PREFS = "enotone_ui_effects_v1"
+    private const val KEY_TRANSLUCENT_DOCK = "translucent_dock"
+    private var initialized = false
+    var translucentDock by mutableStateOf(false)
+        private set
+
+    fun initialize(context: Context) {
+        if (initialized) return
+        translucentDock = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_TRANSLUCENT_DOCK, false)
+        initialized = true
+    }
+
+    fun chooseTranslucentDock(context: Context, value: Boolean) {
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_TRANSLUCENT_DOCK, value).apply()
+        translucentDock = value
+    }
+}
+
 @Composable
 internal fun EnoToneTheme(content: @Composable () -> Unit) {
     val context = LocalContext.current
     UiAppearance.initialize(context)
+    UiEffects.initialize(context)
     val dark = when (UiAppearance.mode) {
         UiMode.SYSTEM -> isSystemInDarkTheme()
         UiMode.DARK -> true
