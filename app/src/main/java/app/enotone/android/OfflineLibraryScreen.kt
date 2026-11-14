@@ -74,10 +74,23 @@ internal fun OfflineLibraryScreen(
             null -> page
         }
         model.onPageSelected(targetPage)
-        model.onGroupSelected(detail?.key)
+        if (model.state.value.selectedGroupKey != detail?.key) model.onGroupSelected(detail?.key)
     }
     val state by model.state.collectAsStateWithLifecycle()
-    LibraryScreenContent(
+    if (detail is LibraryDetail.Artist && state.selectedGroup?.key == detail.key) {
+        ArtistDetailScreen(
+            state = state,
+            artist = requireNotNull(state.selectedGroup),
+            actions = model,
+            artworkRepository = container.artworkPreviewRepository,
+            accountEmail = accountEmail,
+            appPassword = appPassword,
+            contentPadding = contentPadding,
+            onOpenDetail = onOpenDetail,
+            onBackDetail = onBackDetail,
+            blur = blur,
+        )
+    } else LibraryScreenContent(
         state = state,
         actions = model,
         detail = detail,
