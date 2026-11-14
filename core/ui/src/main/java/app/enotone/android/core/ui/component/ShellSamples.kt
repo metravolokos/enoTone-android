@@ -83,7 +83,6 @@ internal fun ShellGalleryPorcelainPreview() = ShellGallery(darkTheme = false)
 
 private const val SAMPLE_ROWS = 4
 
-
 /** D4a: галерея листа действий — длинные метаданные и один/два набора пунктов. */
 @Composable
 internal fun ActionSheetGallery(darkTheme: Boolean, twoGroups: Boolean) {
