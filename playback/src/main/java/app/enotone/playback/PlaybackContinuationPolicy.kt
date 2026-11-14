@@ -3,8 +3,8 @@ package app.enotone.playback
 import androidx.media3.common.Player
 
 /**
- * A defensive recovery of an unexpected Media3 ENDED while a real next item
- * exists. Normal automatic transitions do not need this; Pause and audio
+ * A defensive recovery of an unexpected Media3 ENDED when next is available
+ * or repeat-one is selected. Normal transitions do not need this; Pause and audio
  * focus suppression must never be turned into unsolicited playback.
  *
  * These inputs contain no media IDs, paths, or personal information.

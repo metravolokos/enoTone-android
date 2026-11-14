@@ -1,7 +1,6 @@
 package app.enotone.android
 
 import android.content.Context
-import app.enotone.playback.PlaybackModes
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.click
@@ -16,6 +15,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
+import app.enotone.playback.PlaybackModes
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test

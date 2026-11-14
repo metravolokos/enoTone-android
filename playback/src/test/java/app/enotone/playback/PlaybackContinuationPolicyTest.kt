@@ -1,12 +1,12 @@
 package app.enotone.playback
 
 import androidx.media3.common.Player
-import java.lang.reflect.InvocationHandler
-import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Proxy
 
 class PlaybackContinuationPolicyTest {
     @Test fun recoversOnlyUnexpectedEndWithRequestedPlaybackAndNextItem() {
