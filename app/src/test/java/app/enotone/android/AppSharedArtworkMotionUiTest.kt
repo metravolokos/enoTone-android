@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
@@ -183,14 +184,12 @@ class AppSharedArtworkMotionUiTest {
             val sample = cover()
             samples += sample.sharedBoundsWidthsDp
             if (sample.sharedBoundsWidthsDp.any { it > miniWidthDp && it < fullWidthDp }) {
-                println("ARTWORK_PROGRESS phase=" + phase + " frames=" + samples)
                 return sample
             }
         }
-        println("ARTWORK_PROGRESS phase=" + phase + " frames=" + samples)
         throw AssertionError(
             phase + " did not expose intermediate shared bounds between " +
-                miniWidthDp + "dp and " + fullWidthDp + "dp",
+                miniWidthDp + "dp and " + fullWidthDp + "dp; sampled frames=" + samples,
         )
     }
 

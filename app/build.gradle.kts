@@ -124,6 +124,3 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
 }
 
-tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
-    testLogging { showStandardStreams = true }
-}
