@@ -125,7 +125,7 @@ class EnoActionSheetWindowTest {
         rule.onNodeWithTag(ACTION_SHEET_CONTENT_TAG).performTouchInput {
             swipe(
                 start = Offset(center.x, size.height * 0.15f),
-                end = Offset(center.x, size.height * 1.75f),
+                end = Offset(center.x, size.height * 0.95f),
                 durationMillis = 480,
             )
         }
