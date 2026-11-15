@@ -1,8 +1,9 @@
 package app.enotone.android
 
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 
 /** Единственный порядок системного Back, независимо от порядка composition отдельных экранов. */
 internal enum class AppBackTarget { PLAYER, OVERLAY, DETAIL, SEARCH, TAB, EXIT }
@@ -54,3 +55,14 @@ internal class AppSearchBackRegistry {
 
 internal val LocalAppSearchBackRegistry = compositionLocalOf<AppSearchBackRegistry?> { null }
 internal val LocalActiveAppRoute = compositionLocalOf<AppRouteKey?> { null }
+
+/** Semantics отражает фактически применённый scale и даёт проверить слой в Compose UI. */
+internal val AppBackScaleKey = SemanticsPropertyKey<Float>("appBackScale")
+internal var SemanticsPropertyReceiver.appBackScale by AppBackScaleKey
+
+internal fun appMusicPreviewProgress(
+    playerExpanded: Boolean,
+    previewRoute: AppRouteKey?,
+    route: AppNavState,
+    progress: Float,
+): Float = if (!playerExpanded && previewRoute == appRouteKey(route)) progress else 0f
