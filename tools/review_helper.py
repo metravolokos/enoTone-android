@@ -102,12 +102,12 @@ def check(path: str) -> int:
                 errors.append(f"{ident}: нет поля «{field}»")
         def value(field: str) -> str:
             m = re.search(rf"{field}\*{{0,2}}\s*[:|]\*{{0,2}}\s*([^\n|]*)", s)
-            return m.group(1).strip().strip("*").strip().lower() if m else ""
-        if value("Серьёзность").split(" ")[0] not in SEVERITY:
+            return m.group(1).strip().strip("*").strip().strip(".;,").lower() if m else ""
+        if value("Серьёзность").split(" ")[0].strip(".;,") not in SEVERITY:
             errors.append(f"{ident}: серьёзность вне {sorted(SEVERITY)}")
         if not any(value("Подтверждение").startswith(c) for c in CONFIRM):
             errors.append(f"{ident}: подтверждение вне {sorted(CONFIRM)}")
-        if value("Решение").split(" ")[0].upper().strip("`") not in DECISION:
+        if value("Решение").split(" ")[0].upper().strip("`.;,") not in DECISION:
             errors.append(f"{ident}: решение вне {sorted(DECISION)}")
         if not re.search(r"blob/[0-9a-f]{40}/", s):
             errors.append(f"{ident}: в «Ссылки» нужны строки конкретного коммита blob/<SHA>/путь#Lnn")
@@ -119,7 +119,7 @@ def check(path: str) -> int:
         for f in findings:
             m = re.search(r"Решение\*{0,2}\s*[:|]\*{0,2}\s*([^\n|]*)", f)
             if m:
-                decisions.add(m.group(1).strip().strip("*").strip().split(" ")[0].upper().strip("`"))
+                decisions.add(m.group(1).strip().strip("*").strip().split(" ")[0].upper().strip("`.;,"))
         blocking = bool(decisions & {"BLOCK", "VERIFY_REQUIRED"})
         asking = "OWNER" in decisions
         v = verdict.group(1)
