@@ -90,6 +90,7 @@ class AppBackControllerTest {
         controller.finishTransition()
         assertEquals(0f, controller.progress, 0f)
     }
+
     @Test fun oldAnimatedRouteCannotUnregisterNewSearchCallback() {
         val registry = AppSearchBackRegistry()
         val key = appRouteKey(detail)
@@ -102,5 +103,4 @@ class AppBackControllerTest {
         unregisterNew()
         assertNull(registry.handler(key))
     }
-
 }
