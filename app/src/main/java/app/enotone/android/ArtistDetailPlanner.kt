@@ -1,6 +1,7 @@
 package app.enotone.android
 
 import app.enotone.library.LibraryText
+import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
@@ -42,8 +43,14 @@ internal object ArtistDetailPlanner {
                 .then(Comparator { a, b -> LibraryText.compare(a.group.name, b.group.name) })
                 .thenBy { it.group.key })
 
+        // Альбом без Album Artist с разными трековыми Artist — сборник, а не
+        // сольный релиз каждого исполнителя (признак уже вычислен в индексе).
+        val compilationIds = index.albumArtists
+            .firstOrNull { it.key == OfflineLibraryGrouping.COMPILATIONS_KEY }
+            ?.trackIds.orEmpty()
         val ownAlbums = albums.filter {
-            normalized(it.group.subtitle) == normalized(artist.name)
+            normalized(it.group.subtitle) == normalized(artist.name) &&
+                it.group.trackIds.none(compilationIds::contains)
         }
         val others = albums.filterNot { it in ownAlbums }
         val ordered = buildList {
