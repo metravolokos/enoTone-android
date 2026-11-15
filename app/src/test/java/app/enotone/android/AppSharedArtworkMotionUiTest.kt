@@ -21,6 +21,7 @@ import androidx.media3.common.Player
 import app.enotone.android.core.ui.component.EnoBottomBar
 import app.enotone.android.core.ui.component.EnoBottomBarItem
 import app.enotone.android.core.ui.component.EnoIcons
+import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -72,10 +73,14 @@ class AppSharedArtworkMotionUiTest {
                                     playerExpanded = expanded.value,
                                     miniVisible = true, dragProgress = 0f, backProgress = 0f,
                                     miniPlayer = {
-                                        EnoToneMiniPlayer(
-                                            player = player, onOpen = {}, onPlayPause = {},
-                                            onNext = {},
-                                        )
+                                        androidx.compose.runtime.CompositionLocalProvider(
+                                            LocalEnoArtworkVisibility provides this,
+                                        ) {
+                                            EnoToneMiniPlayer(
+                                                player = player, onOpen = {}, onPlayPause = {},
+                                                onNext = {},
+                                            )
+                                        }
                                     },
                                     bottomBar = {
                                         EnoBottomBar(

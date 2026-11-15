@@ -26,9 +26,16 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import app.enotone.android.core.ui.component.LocalEnoSharedTransition
 import kotlin.math.roundToInt
+
+/** The actual placement translation in px, exposed to UI assertions (not an animation flag). */
+internal val AppDockOffsetKey = SemanticsPropertyKey<Float>("appDockOffsetPx")
+internal var SemanticsPropertyReceiver.appDockOffsetPx by AppDockOffsetKey
 
 /**
  * Shared artwork exits in its own AnimatedVisibilityScope, while the dock
@@ -53,14 +60,14 @@ internal fun AppDockMotion(
         label = "dockGestureReveal",
     )
     val miniHeightPx = with(LocalDensity.current) { MINI_HEIGHT.toPx() }
+    val miniOffsetPx = -miniHeightPx * (1f - reveal) /
+        AppMotionSpec.MINI_UP_DENOMINATOR
     if (miniVisible) {
         Box(
             Modifier.fillMaxWidth().height(MINI_HEIGHT)
-                .offset {
-                    IntOffset(0, (-miniHeightPx * (1f - reveal) /
-                        AppMotionSpec.MINI_UP_DENOMINATOR).roundToInt())
-                }
+                .offset { IntOffset(0, miniOffsetPx.roundToInt()) }
                 .graphicsLayer { alpha = reveal }
+                .semantics { appDockOffsetPx = miniOffsetPx }
                 .testTag("app-mini-dock"),
         ) {
             // This source *exits* when Now Playing opens: sharedBounds needs
@@ -92,11 +99,13 @@ internal fun AppDockMotion(
         }
     }
     var bottomHeightPx by remember { mutableIntStateOf(0) }
+    val bottomOffsetPx = bottomHeightPx * (1f - reveal)
     AnimatedVisibility(
         visible = true,
         modifier = Modifier
-            .offset { IntOffset(0, (bottomHeightPx * (1f - reveal)).roundToInt()) }
+            .offset { IntOffset(0, bottomOffsetPx.roundToInt()) }
             .onSizeChanged { bottomHeightPx = it.height }
+            .semantics { appDockOffsetPx = bottomOffsetPx }
             .testTag("app-bottom-dock"),
         enter = slideInVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), initialOffsetY = { it }),
         exit = slideOutVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), targetOffsetY = { it }),

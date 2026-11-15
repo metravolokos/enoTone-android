@@ -37,8 +37,8 @@ class AppDockMotionUiTest {
     private data class Position(val bar: Float, val mini: Float)
 
     private fun position(): Position = Position(
-        rule.onNodeWithTag("app-bottom-dock").fetchSemanticsNode().boundsInRoot.top,
-        rule.onNodeWithTag("app-mini-dock").fetchSemanticsNode().boundsInRoot.top,
+        rule.onNodeWithTag("app-bottom-dock").fetchSemanticsNode().config[AppDockOffsetKey],
+        rule.onNodeWithTag("app-mini-dock").fetchSemanticsNode().config[AppDockOffsetKey],
     )
 
     private class HostState {
