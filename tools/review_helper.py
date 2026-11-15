@@ -113,6 +113,9 @@ def read_findings(text: str, recheck: bool, errors: list[str]) -> list[tuple[str
         ident = ID_PATTERN.match(heading)
         if ident:
             end = headings[i + 1].start() if i + 1 < len(headings) else len(source)
+            next_section = re.search(r"^##\s+", source[head.end():], re.M)
+            if next_section is not None:
+                end = min(end, head.end() + next_section.start())
             findings.append((ident.group(1), source[head.end():end]))
         elif not recheck or (remarks is not None and re.search(
             rf"^###\s+{re.escape(heading)}\s*$", remarks, re.M
