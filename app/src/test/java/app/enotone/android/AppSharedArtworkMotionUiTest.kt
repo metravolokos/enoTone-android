@@ -1,8 +1,6 @@
 package app.enotone.android
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.view.View
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,13 +8,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import app.enotone.android.core.ui.component.EnoBottomBar
@@ -42,8 +41,6 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35], qualifiers = "w393dp-h852dp")
 class AppSharedArtworkMotionUiTest {
     @get:Rule val rule = createComposeRule()
-    private var renderView: View? = null
-
     private data class Cover(
         val width: Int,
         val components: Int,
@@ -62,8 +59,6 @@ class AppSharedArtworkMotionUiTest {
         val player = SharedPlayerUiState(playback = playback, artwork = bitmap)
         rule.mainClock.autoAdvance = false
         rule.setContent {
-            val view = LocalView.current
-            SideEffect { renderView = view }
             EnoToneTheme {
                 AppMotionRoot(
                     inSettings = false, diagnostics = false, playerExpanded = expanded.value,
@@ -167,13 +162,7 @@ class AppSharedArtworkMotionUiTest {
     private fun cover(): Cover {
         rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
-        lateinit var captured: Bitmap
-        rule.runOnIdle {
-            val view = requireNotNull(renderView)
-            check(view.width > 0 && view.height > 0) { "Compose view not measured" }
-            captured = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-            view.draw(Canvas(captured))
-        }
+        val captured = rule.onRoot().captureToImage().asAndroidBitmap()
         val width = captured.width
         val height = captured.height
         val marked = BooleanArray(width * height)
@@ -194,6 +183,7 @@ class AppSharedArtworkMotionUiTest {
                 }
             }
         }
+        println("ARTWORK_CAPTURE dimensions=${width}x$height greenPixels=$count")
         assertTrue(
             "Expected visible lime artwork pixels: ${width}x$height, count=$count",
             count > 100,
