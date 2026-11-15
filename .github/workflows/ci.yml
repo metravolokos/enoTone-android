@@ -133,6 +133,17 @@ jobs:
       - name: Verify Android v2 screenshots against committed golden PNG
         if: github.event_name != 'workflow_dispatch' || inputs.record_roborazzi != true
         run: gradle --no-daemon :core:ui:verifyRoborazziDebug :app:verifyRoborazziDebug
+      # ВРЕМЕННО для D4b: перенос синтетических PNG из CI в Git GitHub API. Удалить до Ready.
+      - name: D4b candidate PNG base64 (temporary)
+        if: always() && github.event_name == 'pull_request' && github.head_ref == 'feature/d4b-artists-album'
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for f in app/build/outputs/roborazzi/d4b_*_actual.png; do
+            name="$(basename "$f" _actual.png)"
+            echo "D4B_PNG $name $(sha256sum "$f" | cut -d' ' -f1)"
+            base64 -w 3000 "$f" | sed "s|^|D4B_B64 $name |"
+          done
       - name: Upload Roborazzi golden candidates and visual diffs
         if: always()
         uses: actions/upload-artifact@v7
