@@ -72,6 +72,8 @@ class AlbumArtistBackRegressionUiTest {
         rule.waitUntil(10000) { model.state.value.derivedRoute == (page to key) }
         assertNotNull(model.state.value.selectedGroup)
         rule.onNodeWithText("Song Alpha").assertExists()
+        // Обычный Back после завершения push; быстрые повторные жесты покрыты R-06 отдельно.
+        rule.waitForIdle()
         rule.runOnIdle { dispatcher.onBackPressed() }
         rule.runOnIdle { assertEquals("Back должен сделать pop, а не Home", root, nav) }
         rule.waitUntil(10000) { model.state.value.derivedRoute == (page to null) }
