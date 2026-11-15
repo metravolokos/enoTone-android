@@ -3,6 +3,7 @@ package app.enotone.android
 import android.content.Context
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -12,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeDown
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
@@ -74,6 +76,15 @@ class NowPlayingUiTest {
         // D3.2 (владелец): кнопки/ручки «Свернуть» нет — экран закрывается только жестом вниз.
         rule.onNodeWithContentDescription(context.getString(R.string.library_player_close))
             .assertDoesNotExist()
+        // Короткий медленный свайп не закрывает плеер (D3.4), он возвращается на место.
+        rule.onRoot().performTouchInput {
+            swipe(
+                start = Offset(center.x, top + 70f),
+                end = Offset(center.x, top + 110f),
+                durationMillis = 600,
+            )
+        }
+        rule.runOnIdle { assertEquals(0, close) }
         rule.onRoot().performTouchInput { swipeDown(startY = top + 40f, endY = bottom - 40f) }
         rule.runOnIdle { assertEquals(1, close) }
         rule.onNodeWithContentDescription("Громкость").assertDoesNotExist()
