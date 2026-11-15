@@ -20,7 +20,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -42,6 +41,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import android.view.WindowManager
 import kotlinx.coroutines.launch
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
@@ -79,10 +80,6 @@ fun EnoActionSheet(
         sheetState = sheetState,
         containerColor = sheetColor,
         scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = ACTION_SHEET_SCRIM_ALPHA),
-        properties = ModalBottomSheetProperties(
-            isAppearanceLightStatusBars = lightSystemBars,
-            isAppearanceLightNavigationBars = sheetColor.luminance() > 0.5f,
-        ),
         // Insets применяем к содержимому сами, чтобы фон листа доходил до полосы жестов.
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
         shape = RoundedCornerShape(topStart = EnoRadii.xl, topEnd = EnoRadii.xl),
@@ -188,6 +185,9 @@ private fun ActionSheetSystemBars(sheetColor: Color, lightStatusBars: Boolean) {
     val view = LocalView.current
     SideEffect {
         val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect
+        // В отличие от окна Activity, Material3 Dialog может наследовать fullscreen от OEM.
+        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         @Suppress("DEPRECATION")
         window.statusBarColor = android.graphics.Color.TRANSPARENT
@@ -197,6 +197,7 @@ private fun ActionSheetSystemBars(sheetColor: Color, lightStatusBars: Boolean) {
             window.isNavigationBarContrastEnforced = false
         }
         WindowCompat.getInsetsController(window, window.decorView).apply {
+            show(WindowInsetsCompat.Type.statusBars())
             isAppearanceLightStatusBars = lightStatusBars
             isAppearanceLightNavigationBars = sheetColor.luminance() > 0.5f
         }
