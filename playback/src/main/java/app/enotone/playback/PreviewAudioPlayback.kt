@@ -39,7 +39,20 @@ class PreviewAudioPlayback(
 ) : AutoCloseable {
     // Lazy: in baseline mode neither initialize nor touch the disk cache.
     private val applicationContext = context.applicationContext
+
+    @Volatile
     private var temporaryCache: TransientMediaCache? = null
+
+    /** Причина, по которой кэш недоступен; только код, без путей и текстов. */
+    @Volatile
+    private var transientCacheFailure: TransientCacheFailure? = null
+
+    private var cachePreparing = false
+
+    /** Служба закрывается: кэш, открытый после закрытия, использовать нельзя. */
+    @Volatile
+    private var closed = false
+
     private var cacheEnabledForQueue = false
     private var activeRoutes: Map<String, QueueTrack> = emptyMap()
     private var upstreamFactory: DataSource.Factory? = null
@@ -481,6 +494,36 @@ class PreviewAudioPlayback(
     fun nextCacheSnapshot(): TransientCacheStatus =
         temporaryCache?.nextSnapshot() ?: TransientCacheStatus(CachePhase.IDLE, 0L, 0L)
 
+    /** Причина недоступности кэша для диагностики; null — кэш доступен или ещё готовится. */
+    fun transientCacheFailure(): TransientCacheFailure? = transientCacheFailure
+
+    /**
+     * Готовит кэш вне главного потока. Удаление каталога до 512 МиБ и открытие
+     * `SimpleCache` с SQLite — тяжёлые операции: на UI-потоке они давали фриз
+     * и ANR при холодном старте воспроизведения.
+     *
+     * Сбой не фатален: очередь играет через сеть, причина остаётся кодом в
+     * диагностике. Повторные вызовы не пересоздают кэш.
+     */
+    fun prepareTransientCache() {
+        if (temporaryCache != null || cachePreparing) return
+        cachePreparing = true
+        Thread({
+            val decision = createTransientCacheSafely(applicationContext)
+            cacheHandler.post {
+                cachePreparing = false
+                when (decision) {
+                    is TransientCacheFactory.Decision.UseCache -> {
+                        // Служба могла закрыться, пока кэш готовился.
+                        if (closed) decision.cache.close() else temporaryCache = decision.cache
+                    }
+                    is TransientCacheFactory.Decision.PlayWithoutCache ->
+                        transientCacheFailure = decision.reason
+                }
+            }
+        }, "enotone-cache-open").apply { isDaemon = true }.start()
+    }
+
     /**
      * Give Media3 the real local playlist, so Android notification and Bluetooth
      * use standard seekToNext/Previous media-item commands, not custom actions.
@@ -513,11 +556,16 @@ class PreviewAudioPlayback(
         val queue = PlaybackQueue.create(tracks, selectedId)
         val t1 = SystemClock.elapsedRealtime()
         val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
-        val sourceFactory = if (useTemporaryCache) {
-            val diskCache = temporaryCache ?: TransientMediaCache(applicationContext)
-                .also { temporaryCache = it }
+        // Кэш не создаётся здесь: его готовит prepareTransientCache() вне главного
+        // потока. Если он не готов или недоступен — играем через сеть, а не падаем.
+        val diskCache = temporaryCache
+        val sourceFactory = if (useTemporaryCache && diskCache != null) {
             diskCache.forPlayback(factory)
         } else factory
+        if (useTemporaryCache && diskCache == null && transientCacheFailure == null) {
+            // Первый запуск: подготовку могли не успеть начать — запускаем сейчас.
+            prepareTransientCache()
+        }
         val mediaFactory = ProgressiveMediaSource.Factory(sourceFactory)
         routesFactory = factory
         mediaSourceFactory = mediaFactory
@@ -678,11 +726,16 @@ class PreviewAudioPlayback(
         val queue = PlaybackQueue.create(tracks, state.selectedTrackId)
         val t1 = SystemClock.elapsedRealtime()
         val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
-        val sourceFactory = if (useTemporaryCache) {
-            val diskCache = temporaryCache ?: TransientMediaCache(applicationContext)
-                .also { temporaryCache = it }
+        // Кэш не создаётся здесь: его готовит prepareTransientCache() вне главного
+        // потока. Если он не готов или недоступен — играем через сеть, а не падаем.
+        val diskCache = temporaryCache
+        val sourceFactory = if (useTemporaryCache && diskCache != null) {
             diskCache.forPlayback(factory)
         } else factory
+        if (useTemporaryCache && diskCache == null && transientCacheFailure == null) {
+            // Первый запуск: подготовку могли не успеть начать — запускаем сейчас.
+            prepareTransientCache()
+        }
         val mediaFactory = ProgressiveMediaSource.Factory(sourceFactory)
         routesFactory = factory
         mediaSourceFactory = mediaFactory
@@ -800,6 +853,7 @@ class PreviewAudioPlayback(
     }
 
     override fun close() {
+        closed = true
         stop()
         player.removeListener(handoffListener)
         player.removeListener(cacheTransitionListener)
