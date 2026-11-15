@@ -21,6 +21,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -34,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.enotone.library.LibraryPageVisibility
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
@@ -73,16 +77,48 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     LaunchedEffect(openNowPlayingRequest) {
         if (openNowPlayingRequest > 0) playerModel.onNowPlaying(true)
     }
-    val back = AppNavigator.back(nav)
     val expanded = player.nowPlaying && player.playback.queueTotal > 0
+    val searchRegistry = remember { AppSearchBackRegistry() }
+    val activeSearchBack = searchRegistry.handler(appRouteKey(nav))
+    val backTarget = appBackTarget(expanded, nav, activeSearchBack != null)
     var backProgress by remember { mutableFloatStateOf(0f) }
+    var previewTarget by remember { mutableStateOf<AppBackTarget?>(null) }
+    var previewRoute by remember { mutableStateOf<AppRouteKey?>(null) }
     var playerDragProgress by remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
+    val resetJob = remember { arrayOfNulls<Job>(1) }
     LaunchedEffect(expanded) { if (!expanded) playerDragProgress = 0f }
     AppBackGesture(
-        enabled = expanded || back != null,
-        onPreview = { progress -> backProgress = progress },
+        enabled = backTarget != AppBackTarget.EXIT,
+        onPreview = { progress ->
+            resetJob[0]?.cancel()
+            if (previewTarget == null) {
+                previewTarget = backTarget
+                previewRoute = appRouteKey(nav)
+            }
+            backProgress = progress
+        },
         onCommit = {
-            if (expanded) playerModel.onNowPlaying(false) else back?.let { nav = it }
+            dispatchAppBack(
+                target = backTarget,
+                closePlayer = { playerModel.onNowPlaying(false) },
+                navigateBack = { AppNavigator.back(nav)?.let { nav = it } },
+                closeSearch = { activeSearchBack?.invoke() },
+            )
+            // Уходящий экран сохраняет preview transform до завершения 250-мс exit;
+            // новый маршрут масштабируется отдельно и остаётся в масштабе 1.
+            resetJob[0] = scope.launch {
+                delay(AppMotionSpec.PAGE_CLOSE_MS.toLong())
+                backProgress = 0f
+                previewTarget = null
+                previewRoute = null
+            }
+        },
+        onCancel = {
+            resetJob[0]?.cancel()
+            backProgress = 0f
+            previewTarget = null
+            previewRoute = null
         },
     )
     // Музыка остаётся под полным плеером: shared element не может перелететь
@@ -91,7 +127,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         inSettings = inSettings,
         diagnostics = nav.overlay == AppOverlay.DIAGNOSTICS,
         playerExpanded = expanded,
-        backProgress = backProgress,
+        backProgress = if (!expanded && previewTarget == AppBackTarget.OVERLAY) backProgress else 0f,
         music = {
             AppMusicShell(
                 nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
@@ -101,12 +137,19 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 onBackDetail = { nav = AppNavigator.pop(nav) },
                 onSettings = { nav = AppNavigator.openSettings(nav) },
                 playerExpanded = expanded && backProgress <= 0f && playerDragProgress <= 0f,
-                backProgress = if (nav.details.isNotEmpty()) backProgress else 0f,
+                backProgress = if (!expanded && previewTarget in setOf(
+                        AppBackTarget.DETAIL, AppBackTarget.TAB,
+                    )) backProgress else 0f,
+                backPreviewRoute = previewRoute,
+                searchRegistry = searchRegistry,
             )
         },
         player = {
-            AppNowPlaying(player, playerModel, predictiveBackProgress = backProgress,
-                onDragProgress = { playerDragProgress = it })
+            AppNowPlaying(
+                player, playerModel,
+                predictiveBackProgress = if (previewTarget == AppBackTarget.PLAYER) backProgress else 0f,
+                onDragProgress = { playerDragProgress = it },
+            )
         },
         settings = { showingDiagnostics ->
             // Мини-плеера в настройках и диагностике нет (O-10).
