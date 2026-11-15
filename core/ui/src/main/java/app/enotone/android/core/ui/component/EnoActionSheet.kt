@@ -73,7 +73,7 @@ fun EnoActionSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val sheetColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val lightSystemBars = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val lightSystemBars = MaterialTheme.colorScheme.background.luminance() > LIGHT_SYSTEM_BAR_THRESHOLD
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -199,11 +199,12 @@ private fun ActionSheetSystemBars(sheetColor: Color, lightStatusBars: Boolean) {
         WindowCompat.getInsetsController(window, window.decorView).apply {
             show(WindowInsetsCompat.Type.statusBars())
             isAppearanceLightStatusBars = lightStatusBars
-            isAppearanceLightNavigationBars = sheetColor.luminance() > 0.5f
+            isAppearanceLightNavigationBars = sheetColor.luminance() > LIGHT_SYSTEM_BAR_THRESHOLD
         }
     }
 }
 
+private const val LIGHT_SYSTEM_BAR_THRESHOLD = 0.5f
 private const val ACTION_SHEET_SCRIM_ALPHA = 0.4f
 internal const val ACTION_SHEET_HANDLE_TAG = "eno_action_sheet_handle"
 internal const val ACTION_SHEET_CONTENT_TAG = "eno_action_sheet_content"
