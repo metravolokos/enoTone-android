@@ -103,4 +103,21 @@ class AppBackControllerTest {
         unregisterNew()
         assertNull(registry.handler(key))
     }
+    @Test fun secondGestureRetargetsBeforePreviousExitFinishes() {
+        val controller = AppBackController()
+        val first = AppNavigator.push(detail, LibraryDetail.Album("album"))
+        var nav = first
+        controller.preview(AppBackTarget.DETAIL, nav, 0.8f)
+        controller.commit(AppBackTarget.DETAIL, nav, closePlayer = {},
+            updateNav = { nav = it }, closeSearch = {})
+        assertEquals(detail, nav)
+        // До 250 мс: новый системный жест относится к новому экрану.
+        controller.preview(AppBackTarget.DETAIL, nav, 0.5f)
+        assertEquals(appRouteKey(nav), controller.previewRoute)
+        assertEquals(AppBackTarget.DETAIL, controller.previewTarget)
+        assertEquals(0.5f, controller.musicProgress(false), 0f)
+        controller.cancel()
+        assertEquals(detail, nav)
+    }
+
 }

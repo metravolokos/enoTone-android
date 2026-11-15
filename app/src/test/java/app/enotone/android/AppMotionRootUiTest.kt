@@ -107,6 +107,35 @@ class AppMotionRootUiTest {
         rule.onNodeWithText("Fixture library").assertExists()
     }
 
+    @Test fun coveredSettingsAndDiagnosticsAreHiddenFromAccessibility() {
+        val showingDiagnostics = mutableStateOf(false)
+        val expanded = mutableStateOf(false)
+        rule.setContent {
+            EnoToneTheme {
+                AppMotionRoot(
+                    inSettings = true,
+                    diagnostics = showingDiagnostics.value,
+                    playerExpanded = expanded.value,
+                    music = { Text("Library") },
+                    settings = { diagnostics ->
+                        Text(if (diagnostics) "Diagnostics behind player" else "Settings behind player")
+                    },
+                    player = { Text("Full player") },
+                )
+            }
+        }
+        rule.onNodeWithText("Settings behind player").assertExists()
+        rule.runOnIdle { expanded.value = true }
+        rule.waitForIdle()
+        rule.onNodeWithText("Settings behind player").assertDoesNotExist()
+        rule.runOnIdle { showingDiagnostics.value = true }
+        rule.waitForIdle()
+        rule.onNodeWithText("Diagnostics behind player").assertDoesNotExist()
+        rule.runOnIdle { expanded.value = false }
+        rule.waitForIdle()
+        rule.onNodeWithText("Diagnostics behind player").assertExists()
+    }
+
     @Test fun transitionsSettleWithSystemAnimationsDisabled() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val original = Settings.Global.getFloat(context.contentResolver,

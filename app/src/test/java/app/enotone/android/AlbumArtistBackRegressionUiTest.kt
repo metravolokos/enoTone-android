@@ -58,18 +58,18 @@ class AlbumArtistBackRegressionUiTest {
         }
         rule.waitUntil(10000) {
             val state = model.state.value
-            !state.loading && state.derivedRoute == page to null && state.shownGroups.isNotEmpty()
+            !state.loading && state.derivedRoute == (page to null) && state.shownGroups.isNotEmpty()
         }
         rule.onNodeWithText("Author Alpha").performClick()
         rule.waitUntil(10000) {
             val state = model.state.value
-            state.selectedGroup != null && state.derivedRoute == page to state.selectedGroupKey
+            state.selectedGroup != null && state.derivedRoute == (page to state.selectedGroupKey)
         }
         assertNotNull(model.state.value.selectedGroup)
         rule.onNodeWithText("Song Alpha").assertExists()
         rule.runOnIdle { dispatcher.onBackPressed() }
         rule.waitUntil(10000) {
-            nav == root && model.state.value.derivedRoute == page to null
+            nav == root && model.state.value.derivedRoute == (page to null)
         }
         rule.onNodeWithText("Author Alpha").assertExists()
         rule.runOnIdle { assertEquals(root.tab, nav.tab) }
