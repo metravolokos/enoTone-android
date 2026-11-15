@@ -3,7 +3,6 @@ package app.enotone.android.core.ui.component
 import android.os.Build
 import android.view.View
 import android.view.Window
-import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.compose.foundation.background
@@ -220,7 +219,7 @@ private fun setActionSheetSystemBars(
             (if (lightStatusBars) WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS else 0) or
                 (if (lightNavigationBars) WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS else 0)
         window.insetsController?.apply {
-            show(WindowInsets.Type.statusBars())
+            show(android.view.WindowInsets.Type.statusBars())
             setSystemBarsAppearance(appearance, mask)
         }
     } else {
