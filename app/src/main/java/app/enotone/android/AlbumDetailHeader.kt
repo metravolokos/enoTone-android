@@ -3,6 +3,7 @@ package app.enotone.android
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,15 +28,19 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.enotone.android.core.ui.component.EnoAction
 import app.enotone.android.core.ui.component.EnoIcon
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
+import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
 
@@ -62,6 +67,7 @@ internal fun AlbumDetailHeader(
     onRefreshTags: () -> Unit,
     queueTracks: List<OfflineTrackRow> = emptyList(),
     queueActions: LibraryScreenActions = PreviewLibraryActions,
+    onOpenArtist: (() -> Unit)? = null,
 ) {
     var actionsExpanded by remember(group.key) { mutableStateOf(false) }
     // Lazy grid/list items are disposed during navigation. If we already
@@ -90,7 +96,7 @@ internal fun AlbumDetailHeader(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Box(
-            modifier = Modifier.size(232.dp)
+            modifier = Modifier.size(240.dp)
                 .shadow(8.dp, RoundedCornerShape(16.dp))
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -101,7 +107,7 @@ internal fun AlbumDetailHeader(
                     bitmap = cover!!.asImageBitmap(),
                     contentDescription = stringResource(R.string.album_cover_description),
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(232.dp),
+                    modifier = Modifier.size(240.dp),
                 )
             } else {
                 Icon(
@@ -112,21 +118,32 @@ internal fun AlbumDetailHeader(
                 )
             }
         }
-        Text(group.name, style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground, maxLines = 2,
+        Text(group.name,
+            style = MaterialTheme.typography.titleLarge.copy(fontSize = 23.sp, fontWeight = FontWeight.SemiBold),
+            color = EnoColors.text, maxLines = 2,
             overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         group.subtitle?.takeIf { it.isNotBlank() }?.let {
             Text(it, style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = EnoColors.accentText,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center)
+                textAlign = TextAlign.Center,
+                modifier = Modifier.then(
+                    if (onOpenArtist != null) Modifier.clickable(onClick = onOpenArtist) else Modifier,
+                ),
+            )
         }
-        val facts = listOfNotNull(genre?.takeIf { it.isNotBlank() }, year?.toString())
-            .joinToString(" · ")
-        if (facts.isNotBlank()) {
-            Text(facts, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium)
+        val songs = pluralStringResource(
+            R.plurals.library_songs_count, queueTracks.size, queueTracks.size.toString(),
+        )
+        val duration = AlbumDuration.totalMinutes(queueTracks)?.let {
+            stringResource(R.string.album_duration_minutes, it)
         }
+        Text(
+            AlbumDuration.albumFacts(year, genre, songs, duration),
+            color = EnoColors.textSecondary,
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+        )
         // D3.1: «Играть» первая (акцент), «Перемешать» (surface2), «⋮» — круг surface2 Ø 48 (05_album).
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -152,11 +169,7 @@ internal fun AlbumDetailHeader(
                 )
             }
         }
-        if (refreshMessage.isNotBlank()) {
-            Text(refreshMessage, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center)
-        }
+        AlbumRefreshFeedback(refreshMessage)
     }
     if (actionsExpanded) {
         val refresh = if (canRefreshTags && !refreshingTags) listOf(
@@ -169,6 +182,16 @@ internal fun AlbumDetailHeader(
                 EnoIcon(EnoIcons.ALBUMS, null)
             }
         }
+    }
+}
+
+/** Декоративный текст статуса не усложняет обработчики меню альбома. */
+@Composable
+private fun AlbumRefreshFeedback(message: String) {
+    if (message.isNotBlank()) {
+        Text(message, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center)
     }
 }
 

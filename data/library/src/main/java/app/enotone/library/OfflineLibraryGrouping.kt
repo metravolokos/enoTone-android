@@ -74,9 +74,34 @@ object OfflineLibraryGrouping {
     fun artists(tracks: List<OfflineTrackRow>): List<OfflineLibraryGroup> =
         performerGroups(tracks, "artist:", { it.artist })
 
-    /** Album Artist only, never invent one from a track-level Artist. */
-    fun albumArtists(tracks: List<OfflineTrackRow>): List<OfflineLibraryGroup> =
-        performerGroups(tracks, "album-artist:", { it.albumArtist })
+    /** Stable synthetic group for albums explicitly marked as compilations. */
+    const val COMPILATIONS_KEY = "album-artist:compilations"
+
+    private val compilationNames = setOf(
+        "various artists", "va", "разные исполнители", "сборник",
+    )
+
+    /**
+     * Только явный Album Artist. Нельзя выводить сборник из общего названия альбома:
+     * разные сольные релизы (и варианты Artist feat.) могут иметь одинаковое имя.
+     */
+    fun compilationTrackIds(tracks: List<OfflineTrackRow>): Set<String> =
+        tracks.filterTo(mutableListOf()) { row ->
+            known(row.albumArtist)?.let(::normalized)?.let(compilationNames::contains) == true
+        }.mapTo(linkedSetOf()) { it.id }
+
+    /** Album Artist groups plus one synthetic group for compilations, always first. */
+    fun albumArtists(
+        tracks: List<OfflineTrackRow>,
+        compilationsName: String = "Разные исполнители",
+    ): List<OfflineLibraryGroup> {
+        val compilationIds = compilationTrackIds(tracks)
+        val regular = performerGroups(tracks.filterNot { it.id in compilationIds },
+            "album-artist:", { it.albumArtist })
+        return if (compilationIds.isEmpty()) regular else listOf(
+            OfflineLibraryGroup(COMPILATIONS_KEY, compilationsName, null, compilationIds),
+        ) + regular
+    }
 
     private fun performerGroups(
         tracks: List<OfflineTrackRow>,

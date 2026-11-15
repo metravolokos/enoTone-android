@@ -47,6 +47,7 @@ fun EnoTrackRow(
     isCurrent: Boolean = false,
     isPlaying: Boolean = false,
     animatedIndicator: Boolean = true,
+    duration: String? = null,
 ) {
     val haptic = LocalHapticFeedback.current
     val album = variant == EnoTrackRowVariant.ALBUM
@@ -108,12 +109,22 @@ fun EnoTrackRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (subtitle.isNotBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = EnoColors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (album && duration != null) {
             Text(
-                text = subtitle,
+                text = duration,
                 style = MaterialTheme.typography.bodyMedium,
                 color = EnoColors.textSecondary,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
         }
         EnoRoundButton(

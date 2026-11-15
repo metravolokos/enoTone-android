@@ -12,15 +12,30 @@ internal data class LibraryGroupIndex(
     val albumArtists: List<OfflineLibraryGroup> = emptyList(),
     val albumByTrackId: Map<String, OfflineLibraryGroup> = emptyMap(),
     val artistByTrackId: Map<String, OfflineLibraryGroup> = emptyMap(),
+    val albumArtistAlbumCounts: Map<String, Int> = emptyMap(),
 ) {
     companion object {
-        fun build(tracks: List<OfflineTrackRow>, unknownAlbumName: String): LibraryGroupIndex {
+        fun build(
+            tracks: List<OfflineTrackRow>,
+            unknownAlbumName: String,
+            compilationsName: String = "Разные исполнители",
+        ): LibraryGroupIndex {
             val albums = OfflineLibraryGrouping.albums(tracks, unknownAlbumName)
             val artists = OfflineLibraryGrouping.artists(tracks)
+            val authors = OfflineLibraryGrouping.albumArtists(tracks, compilationsName)
+            val albumByTrack = byTrack(albums)
+            val byId = tracks.associateBy { it.id }
+            val counts = authors.associate { group ->
+                // Один и тот же заголовок может принадлежать разным релизам;
+                // считаем точно те же ключи, что использует вкладка «Альбомы».
+                val albumKeys = group.trackIds.mapNotNull { albumByTrack[it]?.key }
+                    .filterNot { it == "album:missing" }.toSet()
+                group.key to albumKeys.size
+            }
             return LibraryGroupIndex(
-                tracks.associateBy { it.id }, albums, artists,
-                OfflineLibraryGrouping.albumArtists(tracks),
-                byTrack(albums), byTrack(artists),
+                tracksById = byId, albums = albums, artists = artists,
+                albumArtists = authors, albumByTrackId = albumByTrack,
+                artistByTrackId = byTrack(artists), albumArtistAlbumCounts = counts,
             )
         }
 
