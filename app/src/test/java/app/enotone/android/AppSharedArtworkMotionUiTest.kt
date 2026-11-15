@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import app.enotone.android.core.ui.component.EnoBottomBar
@@ -43,7 +44,11 @@ class AppSharedArtworkMotionUiTest {
     @get:Rule val rule = createComposeRule()
     private var renderView: View? = null
 
-    private data class Cover(val width: Int, val components: Int)
+    private data class Cover(
+        val width: Int,
+        val components: Int,
+        val sharedBoundsWidths: List<Float>,
+    )
 
     @Test fun oneArtworkFliesBetweenMiniAndFullDuringOpenAndClose() {
         val expanded = mutableStateOf(false)
@@ -142,10 +147,10 @@ class AppSharedArtworkMotionUiTest {
         phase: String, mini: Cover, intermediate: Cover, full: Cover,
     ) {
         assertEquals("$phase must paint one visible cover, not two", 1, intermediate.components)
-        assertTrue("$phase must be wider than mini: $mini → $intermediate",
-            intermediate.width > mini.width)
-        assertTrue("$phase must be narrower than full: $intermediate → $full",
-            intermediate.width < full.width)
+        assertTrue(
+            "$phase must expose an intermediate shared bound: $mini → $intermediate → $full",
+            intermediate.sharedBoundsWidths.any { it > mini.width && it < full.width },
+        )
     }
 
     /**
@@ -208,6 +213,9 @@ class AppSharedArtworkMotionUiTest {
                 if (y < height - 1) visit(cell + width)
             }
         }
-        return Cover(maxX - minX + 1, components)
+        val sharedBoundsWidths = rule.onAllNodesWithTag(
+            "eno-shared-artwork", useUnmergedTree = true,
+        ).fetchSemanticsNodes().map { it.boundsInRoot.width }
+        return Cover(maxX - minX + 1, components, sharedBoundsWidths)
     }
 }

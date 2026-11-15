@@ -53,12 +53,15 @@ internal fun AppDockMotion(
 ) {
     val gestureProgress = maxOf(dragProgress, backProgress).coerceIn(0f, 1f)
     val targetReveal = if (playerExpanded) gestureProgress else 1f
-    val reveal by animateFloatAsState(
+    val settledReveal by animateFloatAsState(
         targetValue = targetReveal,
         animationSpec = if (playerExpanded && gestureProgress > 0f) snap()
             else tween(AppMotionSpec.PLAYER_CLOSE_MS),
         label = "dockGestureReveal",
     )
+    // Direct gesture progress must update in the same frame as the pointer or
+    // predictive-back callback. Only settling after cancel/commit is animated.
+    val reveal = if (playerExpanded && gestureProgress > 0f) gestureProgress else settledReveal
     val miniHeightPx = with(LocalDensity.current) { MINI_HEIGHT.toPx() }
     val miniOffsetPx = -miniHeightPx * (1f - reveal) /
         AppMotionSpec.MINI_UP_DENOMINATOR

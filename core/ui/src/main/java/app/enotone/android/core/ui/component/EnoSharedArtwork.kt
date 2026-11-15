@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 
 /**
  * D3.4: единый ключ обложки для мини-плеера и полного плеера.
@@ -31,7 +32,7 @@ fun Modifier.enoSharedArtwork(): Modifier {
             boundsTransform = { _, _ ->
                 tween(durationMillis = SHARED_DURATION_MS, easing = sharedEasing)
             },
-        )
+        ).testTag("eno-shared-artwork")
     }
 }
 
