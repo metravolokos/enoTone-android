@@ -38,17 +38,19 @@ class ArtistDetailPlannerTest {
         assertEquals(listOf("one"), plan.songs.map { it.id })
     }
 
-    @Test fun albumWithoutAlbumArtistAndTwoPerformersIsCompilationForEach() {
+    @Test fun equalAlbumNamesWithoutAlbumArtistRemainOwnAlbums() {
         val rows = listOf(
-            song("one", "Общий сборник").copy(artist = "Певец"),
-            song("two", "Общий сборник").copy(artist = "Другой певец"),
+            song("one", "Greatest Hits").copy(artist = "Певец"),
+            song("two", "Greatest Hits").copy(artist = "Другой певец"),
         )
         val index = LibraryGroupIndex.build(rows, "Неизвестный альбом")
+        assertEquals(2, index.albums.size)
         for (artist in index.artists) {
             val plan = ArtistDetailPlanner.plan(artist, index)
-            assertTrue(plan.compilationsOnly)
-            assertTrue(plan.albums.isEmpty())
+            assertFalse(plan.compilationsOnly)
+            assertEquals(1, plan.albums.size)
             assertEquals(1, plan.songs.size)
+            assertEquals(artist.name, plan.albums.single().group.subtitle)
         }
     }
 
