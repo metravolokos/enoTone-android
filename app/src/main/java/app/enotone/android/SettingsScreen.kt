@@ -146,6 +146,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             SettingsDiagnosticsEntry { nav = AppNavigator.openDiagnostics(nav) }
         }
             }
+            }
         },
     )
 }
