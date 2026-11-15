@@ -202,7 +202,12 @@ private val CONTENT_AIR = 16.dp
 
 /** «Сейчас играет» — слой поверх любого экрана; сворачивается в мини-плеер (D3). */
 @Composable
-internal fun AppNowPlaying(player: SharedPlayerUiState, playerModel: PlayerViewModel) {
+internal fun AppNowPlaying(
+    player: SharedPlayerUiState,
+    playerModel: PlayerViewModel,
+    predictiveBackProgress: Float = 0f,
+    onDragProgress: (Float) -> Unit = {},
+) {
     val playback = player.playback
     NowPlayingScreen(
         trackId = playback.currentTrackId.orEmpty(),
@@ -229,5 +234,7 @@ internal fun AppNowPlaying(player: SharedPlayerUiState, playerModel: PlayerViewM
         onNext = playerModel::onNext,
         onCycleRepeat = playerModel::onRepeat,
         onToggleShuffle = playerModel::onShuffle,
+        predictiveBackProgress = predictiveBackProgress,
+        onDragProgress = onDragProgress,
     )
 }
