@@ -31,6 +31,7 @@ SHOWN = 6
 SEVERITY = {"критично", "высокая", "средняя", "низкая"}
 CONFIRM = {"воспроизведено", "подтверждено кодом", "предполагаемый риск"}
 DECISION = {"BLOCK", "VERIFY_REQUIRED", "OWNER", "FOLLOWUP", "INFO"}
+ALT = {"Ссылки": "Ссылк[аи]", "Проверка исправления": "Проверка(?: исправления)?", "Отклонение от утверждённого": "Отклонение(?: от утверждённого)?"}
 FIELDS = ("Серьёзность", "Подтверждение", "Решение", "Отклонение от утверждённого",
           "Ссылки", "Проверка исправления")
 EMPTY = {"", "-", "—", "ок", "ok", "нет данных"}
@@ -88,17 +89,19 @@ def check(path: str) -> int:
             errors.append(f"{name}: в колонке «Срабатывает?» должно быть «да» или «нет»")
         if why in EMPTY or len(why) < 15:
             errors.append(f"{name}: не указано, что именно сверено (правило 10)")
-        if answer == "да" and not re.search(rf"^#{{2,4}}\s+.*Артефакт\s+{re.escape(name)}", text, re.M):
+        if answer == "да" and not re.search(rf"^#{{2,4}}\s+.*Артефакт\w*\s+.*{re.escape(name)}", text, re.M):
             errors.append(f"{name}: триггер сработал, но нет раздела «Артефакт {name}»")
     if not re.search(r"\|\s*Поведение\s*\|\s*Тест\s*\|\s*Слой", text) and \
             "нового поведения нет" not in text.lower():
         errors.append("нет таблицы «Поведение / Тест / Слой» (правило 12) или фразы «нового поведения нет»")
     sections = re.split(r"^###\s+", text, flags=re.M)[1:]
-    findings = [s for s in sections if re.match(r"[A-ZА-Я]{1,3}-\d+", s)]
+    findings = [s for s in sections if re.match(r"\**[A-ZА-Я]{1,3}-[\w-]*\d", s)]
+    if not findings and not re.search(r"замечаний нет|нет подтверждённых замечаний", text, re.I):
+        errors.append("не найдено ни одного замечания (### <ID> — название); если замечаний нет, напишите это прямо в разделе 3")
     for s in findings:
         ident = s.splitlines()[0][:40]
         for field in FIELDS:
-            if not re.search(rf"{field}\*{{0,2}}\s*[:|]", s):
+            if not re.search(rf"{ALT.get(field, field)}\*{{0,2}}\s*[:|]", s):
                 errors.append(f"{ident}: нет поля «{field}»")
         def value(field: str) -> str:
             m = re.search(rf"{field}\*{{0,2}}\s*[:|]\*{{0,2}}\s*([^\n|]*)", s)
@@ -111,7 +114,7 @@ def check(path: str) -> int:
             errors.append(f"{ident}: решение вне {sorted(DECISION)}")
         if not re.search(r"blob/[0-9a-f]{40}/", s):
             errors.append(f"{ident}: в «Ссылки» нужны строки конкретного коммита blob/<SHA>/путь#Lnn")
-    verdict = re.search(r"Вердикт:\*{0,2}\s*(MERGE_PROPOSED|FIX_REQUIRED|OWNER_DECISION)\b", text)
+    verdict = re.search(r"(?:Вердикт:\*{0,2}\s*|^\W*)(MERGE_PROPOSED|FIX_REQUIRED|OWNER_DECISION)\W*$", text, re.M)
     if not verdict:
         errors.append("нет строки «Вердикт: MERGE_PROPOSED / FIX_REQUIRED / OWNER_DECISION»")
     else:
@@ -123,7 +126,7 @@ def check(path: str) -> int:
         blocking = bool(decisions & {"BLOCK", "VERIFY_REQUIRED"})
         asking = "OWNER" in decisions
         v = verdict.group(1)
-        answered = bool(re.search(r"^#{2,4}\s+Решения владельца", text, re.M))
+        answered = bool(re.search(r"^#{2,4}\s+\**Решения владельца", text, re.M))
         if v == "MERGE_PROPOSED" and (blocking or asking):
             errors.append("вердикт MERGE_PROPOSED при замечаниях BLOCK/VERIFY_REQUIRED/OWNER")
         if v == "FIX_REQUIRED" and not blocking:
@@ -132,11 +135,11 @@ def check(path: str) -> int:
             errors.append("FIX_REQUIRED при неотвеченных OWNER: сначала «Вопросы владельцу», вердикт OWNER_DECISION; задание выдаётся после ответов с разделом «Решения владельца»")
         if v == "OWNER_DECISION" and not asking:
             errors.append("вердикт OWNER_DECISION без замечаний OWNER")
-        if v == "OWNER_DECISION" and not re.search(r"^#{2,4}\s+Вопросы владельцу", text, re.M):
+        if v == "OWNER_DECISION" and not re.search(r"^#{2,4}\s+\**Вопросы владельцу", text, re.M):
             errors.append("OWNER_DECISION без раздела «Вопросы владельцу»")
-        if v == "OWNER_DECISION" and re.search(r"^#{2,4}\s+Задание исполнителю", text, re.M):
+        if v == "OWNER_DECISION" and re.search(r"^#{2,4}\s+\**Задание исполнителю", text, re.M):
             errors.append("при OWNER_DECISION задание исполнителю не выдаётся до ответов владельца")
-        if v == "FIX_REQUIRED" and not re.search(r"^#{2,4}\s+Задание исполнителю", text, re.M):
+        if v == "FIX_REQUIRED" and not re.search(r"^#{2,4}\s+\**Задание исполнителю", text, re.M):
             errors.append("FIX_REQUIRED без раздела «Задание исполнителю»")
         if v == "MERGE_PROPOSED" and not re.search(r"CI[^\n]*(зелён|success|passed)", text, re.I):
             errors.append("MERGE_PROPOSED без указания зелёного CI точного HEAD")
