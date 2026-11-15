@@ -81,6 +81,8 @@ import app.enotone.playback.PlaybackSeekPolicy
  * All visible actions call the existing Media3 service. No in-app volume
  * control: system volume keys only (owner decision 2026-11-12, REQUIREMENTS O-12).
  */
+ // Существующее дерево D3 сохраняем для точных Roborazzi; ветвления Media3 не меняем в задаче движения.
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun FeatureNowPlayingScreen(
     trackId: String,
@@ -158,7 +160,7 @@ fun FeatureNowPlayingScreen(
     var playerHeightPx by remember { mutableFloatStateOf(1f) }
     val shownDragPx by animateFloatAsState(
         targetValue = if (returning) 0f else dragPx,
-        animationSpec = if (returning) tween(250) else snap(),
+        animationSpec = if (returning) tween(RETURN_DURATION_MS) else snap(),
         label = "nowPlayingDrag",
     )
     LaunchedEffect(shownDragPx, playerHeightPx) {
@@ -168,11 +170,11 @@ fun FeatureNowPlayingScreen(
         modifier = Modifier.fillMaxSize()
             .graphicsLayer {
                 translationY = shownDragPx
-                scaleX = 1f - predictiveBackProgress * 0.1f
+                scaleX = 1f - predictiveBackProgress * BACK_SCALE_REDUCTION
                 scaleY = 1f - predictiveBackProgress * 0.1f
-                translationX = size.width * 0.12f * predictiveBackProgress
+                translationX = size.width * BACK_TRANSLATION_RATIO * predictiveBackProgress
                 if (predictiveBackProgress > 0f) {
-                    shape = RoundedCornerShape(28.dp * predictiveBackProgress)
+                    shape = RoundedCornerShape(BACK_RADIUS_DP.dp * predictiveBackProgress)
                     clip = true
                 }
             }
@@ -194,8 +196,8 @@ fun FeatureNowPlayingScreen(
                         change.consume()
                     },
                     onDragEnd = {
-                        if (dragPx >= playerHeightPx * 0.25f ||
-                            velocity.calculateVelocity().y > 1_200f) {
+                        if (dragPx >= playerHeightPx * COLLAPSE_THRESHOLD_FRACTION ||
+                            velocity.calculateVelocity().y > FAST_SWIPE_PX_PER_SECOND) {
                             onClose()
                         } else {
                             returning = true
@@ -457,3 +459,10 @@ private const val ENTRY_DELAY_MS = 100
 private val ENTRY_LIFT_DP = 16.dp
 private val MINI_ARTWORK_SIDE = 44.dp
 private val entryEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+
+private const val RETURN_DURATION_MS = 250
+private const val BACK_SCALE_REDUCTION = 0.1f
+private const val BACK_TRANSLATION_RATIO = 0.12f
+private const val BACK_RADIUS_DP = 28
+private const val COLLAPSE_THRESHOLD_FRACTION = 0.25f
+private const val FAST_SWIPE_PX_PER_SECOND = 1_200f
