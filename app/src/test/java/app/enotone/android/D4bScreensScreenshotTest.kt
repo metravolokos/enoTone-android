@@ -33,8 +33,8 @@ class D4bScreensScreenshotTest {
         song("a1", longName, "Придуманный альбом", longName, 183_000L),
         song("a2", longName, "Придуманный альбом", longName, null),
         song("c1", "Гость сборника", "Общий сборник", "VA", 200_000L),
-        song("c2", "Другой гость", "Сборник без автора", null, null),
-        song("c3", "Третий гость", "Сборник без автора", null, 154_000L),
+        song("c2", "Другой гость", "Совместный сборник", "Various Artists", null),
+        song("c3", "Третий гость", "Совместный сборник", "Various Artists", 154_000L),
     )
 
     private fun song(
