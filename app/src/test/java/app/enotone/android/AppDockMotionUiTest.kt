@@ -13,7 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -42,6 +42,12 @@ class AppDockMotionUiTest {
             rule.onNodeWithTag("app-bottom-dock").fetchSemanticsNode().config[AppDockOffsetKey],
             rule.onNodeWithTag("app-mini-dock").fetchSemanticsNode().config[AppDockOffsetKey],
         )
+    }
+
+    private fun updateAndRender(action: () -> Unit) {
+        rule.runOnIdle(action)
+        rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
     }
 
     private class HostState {
@@ -88,16 +94,17 @@ class AppDockMotionUiTest {
             }
         }
         rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
         return host
     }
 
     @Test fun dragMovesRealDockAtQuarterAndHalfAndReturnsOnCancelOrCommit() {
         val host = render()
         val hidden = position()
-        rule.runOnIdle { host.drag = 0.25f }
+        updateAndRender { host.drag = 0.25f }
         rule.mainClock.advanceTimeBy(48)
         val quarter = position()
-        rule.runOnIdle { host.drag = 0.5f }
+        updateAndRender { host.drag = 0.5f }
         rule.mainClock.advanceTimeBy(48)
         val half = position()
         println("DOCK drag hidden=$hidden quarter=$quarter half=$half")
@@ -107,15 +114,15 @@ class AppDockMotionUiTest {
         assertTrue("Mini at 25%: $hidden -> $quarter", hidden.mini < quarter.mini)
         assertTrue("Mini at 50%: $quarter -> $half", quarter.mini < half.mini)
 
-        rule.runOnIdle { host.drag = 0f }
+        updateAndRender { host.drag = 0f }
         rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 50)
         val cancelled = position()
         assertEquals("Cancel restores the hidden bottom dock", hidden.bar, cancelled.bar, 2f)
         assertEquals("Cancel restores the hidden mini", hidden.mini, cancelled.mini, 2f)
 
-        rule.runOnIdle { host.drag = 0.5f }
+        updateAndRender { host.drag = 0.5f }
         rule.mainClock.advanceTimeBy(48)
-        rule.runOnIdle { host.expanded = false }
+        updateAndRender { host.expanded = false }
         rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 50)
         val shown = position()
         assertTrue("The bottom bar must travel between hidden and fully shown",
@@ -127,13 +134,13 @@ class AppDockMotionUiTest {
     @Test fun predictivePlayerBackDrivesDockAndCancelReturnsIt() {
         val host = render()
         val hidden = position()
-        rule.runOnIdle { host.controller.preview(AppBackTarget.PLAYER, host.nav, 0.5f) }
+        updateAndRender { host.controller.preview(AppBackTarget.PLAYER, host.nav, 0.5f) }
         rule.mainClock.advanceTimeBy(48)
         val half = position()
         println("DOCK predictive hidden=$hidden half=$half")
         assertTrue("Predictive dock: $hidden -> $half",
             hidden.bar > half.bar && hidden.mini < half.mini)
-        rule.runOnIdle { host.controller.cancel() }
+        updateAndRender { host.controller.cancel() }
         rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 50)
         val cancelled = position()
         assertEquals(hidden.bar, cancelled.bar, 2f)
@@ -149,10 +156,10 @@ class AppDockMotionUiTest {
                 Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
             val host = render()
             val hidden = position()
-            rule.runOnIdle { host.controller.preview(AppBackTarget.PLAYER, host.nav, 0.5f) }
+            updateAndRender { host.controller.preview(AppBackTarget.PLAYER, host.nav, 0.5f) }
             rule.mainClock.advanceTimeByFrame()
             val mid = position()
-            rule.runOnIdle { host.expanded = false }
+            updateAndRender { host.expanded = false }
             rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 50)
             val shown = position()
             println("DOCK scale0 hidden=$hidden mid=$mid shown=$shown")

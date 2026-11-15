@@ -15,7 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
@@ -118,6 +118,8 @@ class AppSharedArtworkMotionUiTest {
                 )
             }
         }
+        rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
         rule.mainClock.advanceTimeBy(450)
         val mini = cover()
         assertEquals(1, mini.components)
@@ -192,7 +194,10 @@ class AppSharedArtworkMotionUiTest {
                 }
             }
         }
-        assertTrue("Expected visible lime artwork pixels", count > 100)
+        assertTrue(
+            "Expected visible lime artwork pixels: ${width}x$height, count=$count",
+            count > 100,
+        )
         val stack = IntArray(width * height)
         var components = 0
         for (index in marked.indices) {
