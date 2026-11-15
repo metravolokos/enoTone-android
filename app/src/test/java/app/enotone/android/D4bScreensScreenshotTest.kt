@@ -30,18 +30,27 @@ class D4bScreensScreenshotTest {
 
     private val longName = "Очень длинное вымышленное имя музыкального артиста"
     private val songs = listOf(
-        song("a1", "Первая песня", longName, "Придуманный альбом", longName, 183_000L),
-        song("a2", "Вторая песня", longName, "Придуманный альбом", longName, null),
-        song("c1", "Песня сборника", "Гость сборника", "Общий сборник", "VA", 200_000L),
-        song("c2", "Ещё песня", "Другой гость", "Сборник без автора", null, null),
-        song("c3", "Заключительная", "Третий гость", "Сборник без автора", null, 154_000L),
+        song("a1", longName, "Придуманный альбом", longName, 183_000L),
+        song("a2", longName, "Придуманный альбом", longName, null),
+        song("c1", "Гость сборника", "Общий сборник", "VA", 200_000L),
+        song("c2", "Другой гость", "Сборник без автора", null, null),
+        song("c3", "Третий гость", "Сборник без автора", null, 154_000L),
     )
 
     private fun song(
-        id: String, title: String, artist: String, album: String,
+        id: String, artist: String, album: String,
         albumArtist: String?, duration: Long?,
     ) = OfflineTrackRow(
-        id = id, title = title, artist = artist, album = album,
+        id = id,
+        title = when (id) {
+            "a1" -> "Первая песня"
+            "a2" -> "Вторая песня"
+            "c1" -> "Песня сборника"
+            "c2" -> "Ещё песня"
+            "c3" -> "Заключительная"
+            else -> id
+        },
+        artist = artist, album = album,
         albumArtist = albumArtist, year = 2024,
         trackNumber = if (id == "a2" || id == "c3") 2 else 1,
         genre = "Инди", durationMs = duration, hasStoredTagData = true,
