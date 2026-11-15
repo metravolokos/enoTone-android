@@ -109,7 +109,7 @@ fun EnoTrackRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (!album) {
+            if (subtitle.isNotBlank()) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
