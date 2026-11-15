@@ -54,6 +54,8 @@ internal fun AppMusicShell(
     onOpenDetail: (LibraryDetail) -> Unit,
     onSettings: () -> Unit,
     playerExpanded: Boolean = false,
+    playerDragProgress: Float = 0f,
+    playerBackProgress: Float = 0f,
     backProgress: Float = 0f,
     backPreviewRoute: AppRouteKey? = null,
     searchRegistry: AppSearchBackRegistry? = null,
@@ -138,36 +140,29 @@ internal fun AppMusicShell(
                     SnackbarHost(queueSnackbar)
                 }
 
-                AnimatedVisibility(
-                    visible = miniVisible && !playerExpanded,
-                    enter = fadeIn(tween(AppMotionSpec.DOCK_FADE_MS)) +
-                        slideInVertically(
-                            tween(AppMotionSpec.PLAYER_CLOSE_MS),
-                            initialOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR },
-                        ),
-                    exit = fadeOut(tween(AppMotionSpec.DOCK_FADE_MS)) +
-                        slideOutVertically(
-                            tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
-                            targetOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR },
-                        ),
-                ) {
-                    CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {
-                        EnoToneMiniPlayer(
-                            player = player,
-                            selecting = selecting,
-                            onOpen = { playerModel.onNowPlaying(true) },
-                            onPlayPause = playerModel::onPlayPause,
-                            onNext = playerModel::onNext,
+                AppDockMotion(
+                    playerExpanded = playerExpanded,
+                    miniVisible = miniVisible,
+                    dragProgress = playerDragProgress,
+                    backProgress = playerBackProgress,
+                    miniPlayer = {
+                        CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {
+                            EnoToneMiniPlayer(
+                                player = player,
+                                selecting = selecting,
+                                onOpen = { playerModel.onNowPlaying(true) },
+                                onPlayPause = playerModel::onPlayPause,
+                                onNext = playerModel::onNext,
+                            )
+                        }
+                    },
+                    bottomBar = {
+                        AppBottomBar(
+                            nav = nav, pages = pages,
+                            enabled = login != null, onSelectTab = onSelectTab,
                         )
-                    }
-                }
-                AnimatedVisibility(
-                    visible = !playerExpanded,
-                    enter = slideInVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), initialOffsetY = { it }),
-                    exit = slideOutVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), targetOffsetY = { it }),
-                ) {
-                    AppBottomBar(nav = nav, pages = pages, enabled = login != null, onSelectTab = onSelectTab)
-                }
+                    },
+                )
             }
         }
     }
