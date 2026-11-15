@@ -204,7 +204,6 @@ private fun ActionSheetSystemBars(sheetColor: Color, lightStatusBars: Boolean) {
     }
 }
 
-
 /** Прямые API Android вместо AndroidX Core: :core:ui не зависит от WindowCompat в release. */
 private fun setActionSheetSystemBars(
     window: Window,
