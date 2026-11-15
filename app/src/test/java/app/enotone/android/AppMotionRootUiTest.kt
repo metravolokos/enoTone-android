@@ -4,12 +4,16 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,7 +28,7 @@ class AppMotionRootUiTest {
 
     @Test fun playerOpensAndClosesWithoutRecreatingMusicContent() {
         val expanded = mutableStateOf(false)
-        var musicCompositions = 0
+        val musicComposed = AtomicBoolean(false)
         rule.setContent {
             EnoToneTheme {
                 AppMotionRoot(
@@ -32,10 +36,13 @@ class AppMotionRootUiTest {
                     diagnostics = false,
                     playerExpanded = expanded.value,
                     music = {
+                        DisposableEffect(Unit) {
+                            musicComposed.set(true)
+                            onDispose { musicComposed.set(false) }
+                        }
                         Box(Modifier.fillMaxSize()) {
                             Text("Fixture music route")
                         }
-                        musicCompositions++
                     },
                     settings = { Text("Fixture settings") },
                     player = { Text("Fixture full player") },
@@ -47,12 +54,28 @@ class AppMotionRootUiTest {
         rule.runOnIdle { expanded.value = true }
         rule.waitForIdle()
         rule.onNodeWithText("Fixture full player").assertExists()
+        rule.onNodeWithText("Fixture music route").assertDoesNotExist()
+        rule.runOnIdle { assertTrue("Music must remain composed for shared element", musicComposed.get()) }
         rule.runOnIdle { expanded.value = false }
         rule.waitForIdle()
         rule.onNodeWithText("Fixture music route").assertExists()
         rule.onNodeWithText("Fixture full player").assertDoesNotExist()
-        // Music can recompose but must still be present while the overlay is open.
-        assertEquals(true, musicCompositions > 0)
+        rule.runOnIdle { assertTrue(musicComposed.get()) }
+    }
+
+    @Test fun playerPredictivePreviewNeverScalesMusicLayer() {
+        val route = AppNavState(tab = AppTab.Library(app.enotone.library.LibraryPage.ARTISTS))
+        rule.setContent {
+            EnoToneTheme {
+                AppRouteBackLayer(
+                    route = route,
+                    playerExpanded = true,
+                    previewRoute = appRouteKey(route),
+                    progress = 0.5f,
+                ) { Text("Behind player") }
+            }
+        }
+        rule.onAllNodes(SemanticsMatcher.expectValue(AppBackScaleKey, 1f)).assertCountEquals(1)
     }
 
     @Test fun settingsAndDiagnosticsFollowTheirRouteAndReturnToMusic() {
