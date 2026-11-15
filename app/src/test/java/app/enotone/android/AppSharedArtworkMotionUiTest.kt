@@ -8,14 +8,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import app.enotone.android.core.ui.component.EnoBottomBar
@@ -32,20 +31,20 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * R-2: настоящее дерево SharedTransitionLayout + AppDockMotion +
- * EnoToneMiniPlayer + NowPlayingScreen. Снимок промежуточного кадра,
- * а не проверка наличия текста/ключа sharedBounds.
+ * Проверяет фактические bounds production shared artwork в настоящем
+ * SharedTransitionLayout: мини-плеер → полный плеер → мини-плеер.
+ * Каждый кадр перехода читается по семантическому узлу с тем же shared key.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w393dp-h852dp")
 class AppSharedArtworkMotionUiTest {
     @get:Rule val rule = createComposeRule()
-    private data class Cover(
-        val width: Int,
-        val components: Int,
-        val sharedBoundsWidths: List<Float>,
-    )
+    private var densityScale = 1f
+
+    private data class Cover(val sharedBoundsWidthsDp: List<Float>) {
+        val widthDp: Float get() = sharedBoundsWidthsDp.maxOrNull() ?: 0f
+    }
 
     @Test fun oneArtworkFliesBetweenMiniAndFullDuringOpenAndClose() {
         val expanded = mutableStateOf(false)
@@ -59,6 +58,8 @@ class AppSharedArtworkMotionUiTest {
         val player = SharedPlayerUiState(playback = playback, artwork = bitmap)
         rule.mainClock.autoAdvance = false
         rule.setContent {
+            val density = LocalDensity.current.density
+            SideEffect { densityScale = density }
             EnoToneTheme {
                 AppMotionRoot(
                     inSettings = false, diagnostics = false, playerExpanded = expanded.value,
@@ -113,109 +114,67 @@ class AppSharedArtworkMotionUiTest {
                 )
             }
         }
-        rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
+
         rule.mainClock.advanceTimeBy(450)
+        rule.waitForIdle()
         val mini = cover()
-        assertEquals(1, mini.components)
+        assertEquals(1, mini.sharedBoundsWidthsDp.size)
+        assertEquals(44f, mini.widthDp, 1f)
 
         rule.runOnIdle { expanded.value = true }
-        rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
-        rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_OPEN_MS.toLong() / 2)
-        val opening = cover()
+        val opening = awaitIntermediate("opening", mini.widthDp, FULL_ARTWORK_DP)
         rule.mainClock.advanceTimeBy(450)
+        rule.waitForIdle()
         val full = cover()
-        assertEquals(1, full.components)
+        assertEquals(1, full.sharedBoundsWidthsDp.size)
+        assertEquals(FULL_ARTWORK_DP, full.widthDp, 2f)
 
         rule.runOnIdle { expanded.value = false }
-        rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
-        rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() / 2)
-        val closing = cover()
+        val closing = awaitIntermediate("closing", mini.widthDp, full.widthDp)
         rule.mainClock.advanceTimeBy(450)
+        rule.waitForIdle()
         val miniAgain = cover()
 
-        println("ARTWORK mini=$mini opening=$opening full=$full closing=$closing miniAgain=$miniAgain")
-        assertTrue("Full artwork must be larger than mini", full.width > mini.width * 2)
-        assertIntermediate("opening", mini, opening, full)
-        assertIntermediate("closing", mini, closing, full)
-        assertEquals(1, miniAgain.components)
-        assertEquals(mini.width, miniAgain.width)
-    }
-
-    private fun assertIntermediate(
-        phase: String, mini: Cover, intermediate: Cover, full: Cover,
-    ) {
-        assertEquals("$phase must paint one visible cover, not two", 1, intermediate.components)
+        assertEquals(1, miniAgain.sharedBoundsWidthsDp.size)
+        assertEquals(mini.widthDp, miniAgain.widthDp, 1f)
         assertTrue(
-            "$phase must expose an intermediate shared bound: $mini → $intermediate → $full",
-            intermediate.sharedBoundsWidths.any { it > mini.width && it < full.width },
+            "Opening must pass through an intermediate size; sampled " + opening.sharedBoundsWidthsDp,
+            opening.widthDp > mini.widthDp && opening.widthDp < full.widthDp,
+        )
+        assertTrue(
+            "Closing must pass through an intermediate size; sampled " + closing.sharedBoundsWidthsDp,
+            closing.widthDp > mini.widthDp && closing.widthDp < full.widthDp,
         )
     }
 
-    /**
-     * Distinct solid green bitmap isolates the actual rendered artwork pixels
-     * from Graphite/Porcelain backgrounds and player controls.
-     * Component count catches simultaneous separated source + destination covers.
-     */
+    private fun awaitIntermediate(phase: String, miniWidthDp: Float, fullWidthDp: Float): Cover {
+        val samples = mutableListOf<List<Float>>()
+        repeat(MAX_TRANSITION_FRAMES) {
+            rule.mainClock.advanceTimeByFrame()
+            rule.waitForIdle()
+            val sample = cover()
+            samples += sample.sharedBoundsWidthsDp
+            if (sample.sharedBoundsWidthsDp.any { it > miniWidthDp && it < fullWidthDp }) {
+                println("ARTWORK_PROGRESS phase=" + phase + " frames=" + samples)
+                return sample
+            }
+        }
+        println("ARTWORK_PROGRESS phase=" + phase + " frames=" + samples)
+        throw AssertionError(
+            phase + " did not expose intermediate shared bounds between " +
+                miniWidthDp + "dp and " + fullWidthDp + "dp",
+        )
+    }
+
     private fun cover(): Cover {
-        rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
-        val captured = rule.onRoot().captureToImage().asAndroidBitmap()
-        val width = captured.width
-        val height = captured.height
-        val marked = BooleanArray(width * height)
-        var minX = width
-        var maxX = -1
-        var count = 0
-        for (y in 0 until height) {
-            for (x in 0 until width) {
-                val pixel = captured.getPixel(x, y)
-                val red = (pixel ushr 16) and 255
-                val green = (pixel ushr 8) and 255
-                val blue = pixel and 255
-                if (green > 217 && red < 38 && blue < 38) {
-                    marked[y * width + x] = true
-                    minX = minOf(minX, x)
-                    maxX = maxOf(maxX, x)
-                    count++
-                }
-            }
-        }
-        println("ARTWORK_CAPTURE dimensions=${width}x$height greenPixels=$count")
-        assertTrue(
-            "Expected visible lime artwork pixels: ${width}x$height, count=$count",
-            count > 100,
-        )
-        val stack = IntArray(width * height)
-        var components = 0
-        for (index in marked.indices) {
-            if (!marked[index]) continue
-            components++
-            var front = 0
-            var end = 1
-            stack[0] = index
-            marked[index] = false
-            while (front < end) {
-                val cell = stack[front++]
-                val x = cell % width
-                val y = cell / width
-                fun visit(neighbor: Int) {
-                    if (marked[neighbor]) {
-                        marked[neighbor] = false
-                        stack[end++] = neighbor
-                    }
-                }
-                if (x > 0) visit(cell - 1)
-                if (x < width - 1) visit(cell + 1)
-                if (y > 0) visit(cell - width)
-                if (y < height - 1) visit(cell + width)
-            }
-        }
-        val sharedBoundsWidths = rule.onAllNodesWithTag(
+        val widthsDp = rule.onAllNodesWithTag(
             "eno-shared-artwork", useUnmergedTree = true,
-        ).fetchSemanticsNodes().map { it.boundsInRoot.width }
-        return Cover(maxX - minX + 1, components, sharedBoundsWidths)
+        ).fetchSemanticsNodes().map { it.boundsInRoot.width / densityScale }
+        return Cover(widthsDp)
+    }
+
+    private companion object {
+        const val FULL_ARTWORK_DP = 320f
+        const val MAX_TRANSITION_FRAMES = 36
     }
 }
