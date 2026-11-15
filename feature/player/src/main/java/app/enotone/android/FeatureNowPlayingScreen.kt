@@ -6,6 +6,7 @@ package app.enotone.android
 import android.graphics.Bitmap
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,6 +38,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +53,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -103,6 +106,8 @@ fun FeatureNowPlayingScreen(
     onCycleRepeat: () -> Unit,
     onToggleShuffle: () -> Unit,
     ids: NowPlayingIds,
+    predictiveBackProgress: Float = 0f,
+    onDragProgress: (Float) -> Unit = {},
 ) {
     val color = MaterialTheme.colorScheme
 
@@ -132,24 +137,55 @@ fun FeatureNowPlayingScreen(
         animationSpec = tween(260), label = "pausedGraphiteCover",
     )
 
-    val collapseAfterPx = with(LocalDensity.current) { COLLAPSE_DRAG.toPx() }
+    var dragPx by remember { mutableFloatStateOf(0f) }
+    var returning by remember { mutableStateOf(false) }
+    var playerHeightPx by remember { mutableFloatStateOf(1f) }
+    val shownDragPx by animateFloatAsState(
+        targetValue = if (returning) 0f else dragPx,
+        animationSpec = if (returning) tween(250) else snap(),
+        label = "nowPlayingDrag",
+    )
+    LaunchedEffect(shownDragPx, playerHeightPx) {
+        onDragProgress((shownDragPx / playerHeightPx).coerceIn(0f, 1f))
+    }
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(
-                listOf(color.surfaceContainerHigh, color.background),
-            ),
-        )
-            // D3: свайп вниз сворачивает в мини-плеер. Горизонтальное перетаскивание ползунка
-            // перемотки поглощается Slider и сюда не доходит.
-            .pointerInput(onClose) {
-                var dragged = 0f
+        modifier = Modifier.fillMaxSize()
+            .graphicsLayer {
+                translationY = shownDragPx
+                scaleX = 1f - predictiveBackProgress * 0.1f
+                scaleY = 1f - predictiveBackProgress * 0.1f
+                translationX = size.width * 0.12f * predictiveBackProgress
+                if (predictiveBackProgress > 0f) {
+                    shape = RoundedCornerShape(28.dp * predictiveBackProgress)
+                    clip = true
+                }
+            }
+            .background(Brush.verticalGradient(listOf(color.surfaceContainerHigh, color.background)))
+            .onSizeChanged { playerHeightPx = it.height.toFloat().coerceAtLeast(1f) }
+            // D3.4: следует за пальцем; отменённый свайп возвращается к 0.
+            // Slider поглощает собственный горизонтальный жест, не закрывая экран.
+            .pointerInput(onClose, playerHeightPx) {
+                var velocity = VelocityTracker()
                 detectVerticalDragGestures(
-                    onDragStart = { dragged = 0f },
+                    onDragStart = {
+                        dragPx = 0f
+                        returning = false
+                        velocity = VelocityTracker()
+                    },
                     onVerticalDrag = { change, distance ->
-                        dragged += distance
+                        dragPx = (dragPx + distance).coerceAtLeast(0f)
+                        velocity.addPosition(change.uptimeMillis, change.position)
                         change.consume()
                     },
-                    onDragEnd = { if (dragged > collapseAfterPx) onClose() },
+                    onDragEnd = {
+                        if (dragPx >= playerHeightPx * 0.25f ||
+                            velocity.calculateVelocity().y > 1_200f) {
+                            onClose()
+                        } else {
+                            returning = true
+                        }
+                    },
+                    onDragCancel = { returning = true },
                 )
             },
     ) {
@@ -361,9 +397,6 @@ fun FeatureNowPlayingScreen(
         }
     }
 }
-
-/** Свайп вниз длиннее этого сворачивает «Сейчас играет». */
-private val COLLAPSE_DRAG = 96.dp
 
 @Composable
 private fun NowPlayingToggle(
