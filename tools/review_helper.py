@@ -235,6 +235,8 @@ def check(path: str) -> int:
             errors.append("раздел «Что изменилось» пуст")
         if not re.search(r"\bкод(?:а|е|у|ом)?\b", changed, re.I) or not re.search(r"измен|менял|не трог|без прав", changed, re.I):
             errors.append("в разделе «Что изменилось» явно укажите, менялся ли код")
+        if re.search(r"(?:изменился|изменён|менялся)\s*(?:/|или)\s*(?:не\s+(?:изменился|менялся)|без изменений)", changed, re.I):
+            errors.append("в разделе «Что изменилось» оставлены взаимоисключающие варианты состояния кода")
         if not re.search(r"вывод(?:ы)?\s+не\s+меня(?:ется|ются)", changed, re.I):
             trigger_rows(changed, errors)
         prior_decisions = prior_statuses(text, errors) if section(text, "Статус прежних замечаний") is not None else set()
