@@ -46,16 +46,18 @@ class AlbumArtistBackRegressionUiTest {
     private val root = AppNavState(tab = AppTab.Library(page))
 
     @Test fun albumArtistOpensGroupAndSystemBackReturnsToList() {
-        val model = testModel()
         val snapshots = AppLibraryRouteSnapshots()
         var nav by mutableStateOf(root)
         lateinit var dispatcher: OnBackPressedDispatcher
+        lateinit var model: LibraryViewModel
         rule.setContent {
+            model = remember { testModel() }
             EnoToneTheme {
                 AlbumArtistHost(model, snapshots, nav,
                     onNav = { nav = it }, onDispatcher = { dispatcher = it })
             }
         }
+        rule.waitForIdle()
         rule.waitUntil(10000) {
             val state = model.state.value
             !state.loading && state.derivedRoute == (page to null) && state.shownGroups.isNotEmpty()
@@ -135,7 +137,7 @@ class AlbumArtistBackRegressionUiTest {
         return LibraryViewModel(
             accountEmail = "example@invalid.test", password = "not-a-secret",
             initialPage = page, repository = repo, connection = NoPlayback,
-            artwork = NoArtwork, io = Dispatchers.Default,
+            artwork = NoArtwork, io = Dispatchers.Unconfined,
             unknownAlbumName = "Unknown", messages = AlbumRefreshMessages(),
             managedStatus = MutableStateFlow(ManagedScanStatus()),
             accountEvents = MutableStateFlow(AccountState()),
