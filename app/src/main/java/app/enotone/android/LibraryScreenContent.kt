@@ -404,10 +404,10 @@ internal fun LibraryScreenContent(
                 items(visible, key = { it.id }) { track ->
                     EnoTrackRow(
                         title = track.title,
-                        subtitle = when {
-                            section == LibraryPage.ALBUMS && selectedGroup != null ->
-                                track.artist.orEmpty()
-                            else -> listOfNotNull(track.artist, track.album).joinToString(" · ")
+                        subtitle = if (section == LibraryPage.ALBUMS && selectedGroup != null) {
+                            "" // В эталоне 05_album одна строка названия, без второй подписи.
+                        } else {
+                            listOfNotNull(track.artist, track.album).joinToString(" · ")
                         },
                         onClick = {
                             if (!selecting && state.playbackConnected) actions.onTrackClicked(track, visible)
