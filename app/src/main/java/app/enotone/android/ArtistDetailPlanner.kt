@@ -1,8 +1,8 @@
 package app.enotone.android
 
 import app.enotone.library.LibraryText
-import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineLibraryGroup
+import app.enotone.library.OfflineLibraryGrouping
 import app.enotone.library.OfflineTrackCatalog
 import app.enotone.library.OfflineTrackRow
 import java.util.Locale
