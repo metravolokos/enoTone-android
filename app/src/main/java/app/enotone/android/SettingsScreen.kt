@@ -76,6 +76,8 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val back = AppNavigator.back(nav)
     val expanded = player.nowPlaying && player.playback.queueTotal > 0
     var backProgress by remember { mutableFloatStateOf(0f) }
+    var playerDragProgress by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(expanded) { if (!expanded) playerDragProgress = 0f }
     AppBackGesture(
         enabled = expanded || back != null,
         onPreview = { progress -> backProgress = progress },
@@ -97,11 +99,14 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
                 onBackDetail = { nav = AppNavigator.pop(nav) },
                 onSettings = { nav = AppNavigator.openSettings(nav) },
-                playerExpanded = expanded,
+                playerExpanded = expanded && backProgress <= 0f && playerDragProgress <= 0f,
                 backProgress = if (nav.details.isNotEmpty()) backProgress else 0f,
             )
         },
-        player = { AppNowPlaying(player, playerModel) },
+        player = {
+            AppNowPlaying(player, playerModel, predictiveBackProgress = backProgress,
+                onDragProgress = { playerDragProgress = it })
+        },
         settings = { showingDiagnostics ->
             // Мини-плеера в настройках и диагностике нет (O-10).
             key(showingDiagnostics) {
