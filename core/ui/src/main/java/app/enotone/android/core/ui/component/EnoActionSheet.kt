@@ -205,6 +205,7 @@ private fun ActionSheetSystemBars(sheetColor: Color, lightStatusBars: Boolean) {
 }
 
 /** Прямые API Android вместо AndroidX Core: :core:ui не зависит от WindowCompat в release. */
+@Suppress("DEPRECATION")
 private fun setActionSheetSystemBars(
     window: Window,
     lightStatusBars: Boolean,
@@ -223,14 +224,10 @@ private fun setActionSheetSystemBars(
         }
     } else {
         // minSdk 26 поддерживает обе светлые иконки; остальные флаги окна сохраняем.
-        @Suppress("DEPRECATION")
         val oldFlags = window.decorView.systemUiVisibility
-        @Suppress("DEPRECATION")
         val lightMask = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        @Suppress("DEPRECATION")
         val edgeToEdge = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
             View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-        @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility =
             (oldFlags and lightMask.inv()) or edgeToEdge or
                 (if (lightStatusBars) View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR else 0) or
