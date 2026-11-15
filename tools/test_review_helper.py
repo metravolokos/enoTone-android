@@ -161,6 +161,8 @@ class ReviewHelperTests(unittest.TestCase):
     def test_recheck_code_changed_requires_trigger_reassessment(self):
         self.assert_bad(recheck_report(changes="Код изменён в контроллере, тесты обновлены."),
                         "в таблице триггеров нет строки T-NAV")
+        self.assert_bad(recheck_report(changes="Код изменился / не менялся; вывод не меняется."),
+                        "взаимоисключающие варианты")
 
     def test_recheck_code_changed_all_triggers_table_passes(self):
         changes = "Код изменён в контроллере; триггеры пересмотрены.\n| Триггер | Срабатывает? | Что сверено |\n|---|---|---|\n" + TRIGGER_ROWS
