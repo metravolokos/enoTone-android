@@ -139,7 +139,6 @@ fun FeatureNowPlayingScreen(
         animationSpec = tween(260), label = "pausedGraphiteCover",
     )
 
-
     // В обычном предпросмотре экран статичен; в переходе D3.4 контент (кроме обложки)
     // поднимается на 16 dp и проявляется с задержкой 100 мс.
     val animatedEntrance = LocalEnoArtworkVisibility.current != null
@@ -236,8 +235,10 @@ fun FeatureNowPlayingScreen(
                 // чёрная в «Фарфоре» (палитра v1.5). Тень рисуется под обложкой и не обрезается.
                 Box(
                     modifier = Modifier.enoSharedArtwork().size(coverSide)
-                        .graphicsLayer { scaleX = coverScale * dragArtworkScale
-                            scaleY = coverScale * dragArtworkScale }
+                        .graphicsLayer {
+                            scaleX = coverScale * dragArtworkScale
+                            scaleY = coverScale * dragArtworkScale
+                        }
                         .enoShadow(EnoElevation.nowPlaying, EnoColors.shadowStrong, EnoRadii.l)
                         .clip(RoundedCornerShape(EnoRadii.l))
                         .background(color.surfaceVariant)
