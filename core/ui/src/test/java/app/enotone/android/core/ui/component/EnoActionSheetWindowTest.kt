@@ -8,8 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -124,8 +122,8 @@ class EnoActionSheetWindowTest {
         rule.onNodeWithText("Запустить действие").assertExists()
         rule.onNodeWithTag(ACTION_SHEET_CONTENT_TAG).performTouchInput {
             swipe(
-                start = Offset(center.x, size.height * 0.15f),
-                end = Offset(center.x, size.height * 0.95f),
+                start = Offset(center.x, center.y * 0.3f),
+                end = Offset(center.x, center.y * 1.9f),
                 durationMillis = 480,
             )
         }
