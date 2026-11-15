@@ -274,7 +274,9 @@ internal class LibraryViewModel(
                         }
                     }
                 }
-                val index = withContext(io) { LibraryGroupIndex.build(result.tracks, unknownAlbumName, compilationsName) }
+                val index = withContext(io) {
+                    LibraryGroupIndex.build(result.tracks, unknownAlbumName, compilationsName)
+                }
                 val artistPlans = withContext(io) {
                     index.artists.associate { it.key to ArtistDetailPlanner.plan(it, index) }
                 }
