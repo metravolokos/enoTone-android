@@ -20,11 +20,7 @@ import androidx.media3.common.Player
 import app.enotone.android.core.ui.component.EnoBottomBar
 import app.enotone.android.core.ui.component.EnoBottomBarItem
 import app.enotone.android.core.ui.component.EnoIcons
-import app.enotone.android.core.ui.component.EnoMiniPlayer
 import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
-import app.enotone.android.core.ui.component.LocalEnoSharedTransition
-import app.enotone.android.core.ui.component.enoSharedArtwork
-import app.enotone.android.core.ui.component.EnoMiniPlayerLabels
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
