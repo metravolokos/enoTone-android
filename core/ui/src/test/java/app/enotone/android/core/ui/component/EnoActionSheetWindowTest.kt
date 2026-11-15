@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -79,6 +80,34 @@ class EnoActionSheetWindowTest {
         rule.runOnIdle {
             assertEquals(1, dismissed)
             assertEquals(1, invoked)
+        }
+        rule.onNodeWithText("Запустить действие").assertDoesNotExist()
+    }
+
+    @Test fun rapidDoubleTapRunsActionOnlyOnce() {
+        var dismissed = 0
+        var invoked = 0
+        rule.setContent {
+            EnoToneTheme(true) {
+                var visible by remember { mutableStateOf(true) }
+                if (visible) {
+                    EnoActionSheet(
+                        header = EnoActionSheetHeader("Выдуманная песня", "Исполнитель"),
+                        groups = listOf(listOf(EnoAction(null, "Запустить действие") { invoked++ })),
+                        onDismiss = { dismissed++; visible = false },
+                    )
+                }
+            }
+        }
+        // Оба тапа в одной серии событий: анимация hide() ещё не успела убрать строки листа.
+        rule.onNodeWithText("Запустить действие").performTouchInput {
+            click()
+            click()
+        }
+        rule.waitForIdle()
+        rule.runOnIdle {
+            assertEquals(1, invoked)
+            assertEquals(1, dismissed)
         }
         rule.onNodeWithText("Запустить действие").assertDoesNotExist()
     }
