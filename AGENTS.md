@@ -8,7 +8,7 @@
 
 - **Диспетчер (read-only):** docs/WORKFLOW.md, ROADMAP/DESIGN_PLAN, открытые Issues/PR и зависимости. Не проводить общий аудит исходников при ответе «что дальше?».
 - **Исполнитель:** AGENTS.md, утверждённая GitHub Issue, MODULE_MAP и только относящиеся к ней CURRENT_DECISIONS, ADR, SCENARIOS, TESTING и код. Если выявлена скрытая зависимость — изучить её.
-- **Ревьюер (по поручению проверить PR):** Issue, base/HEAD SHA, diff, CI и AUDIT_PROTOCOL; **опубликовать заключение комментарием или review в PR**. Код в чужой ветке не изменять без разрешения. Внешний аудит без поручения комментировать PR остаётся read-only.
+- **Ревьюер (по поручению проверить PR):** Issue, base/HEAD SHA, diff, CI, AUDIT_PROTOCOL и бланк docs/REVIEW_REPORT_TEMPLATE.md (отчёт начинать с бланка, проверять `tools/review_helper.py`); **опубликовать заключение комментарием или review в PR**. Код в чужой ветке не изменять без разрешения. Внешний аудит без поручения комментировать PR остаётся read-only.
 - **Архитектурный/полный аудит:** CURRENT_DECISIONS, REQUIREMENTS, индекс ADR, ARCHITECTURE, KNOWN_ISSUES, OPEN_QUESTIONS и релевантные реализации.
 
 Исторические документы в docs/archive/ не описывают текущие решения. Исходное ТЗ уступает более поздним решениям владельца.
