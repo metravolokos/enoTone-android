@@ -1,6 +1,5 @@
 package app.enotone.android
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -19,19 +18,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,42 +76,15 @@ internal fun AppMusicShell(
     // «Прозрачные панели» (ADR-0088, D3.3): и нижние (мини-плеер, панель), и верхние (заголовок, полоска).
     CompositionLocalProvider(LocalEnoDockBlur provides blur.takeIf { UiEffects.translucentDock }) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            AnimatedContent(
-                targetState = nav,
-                contentKey = ::appRouteKey,
-                transitionSpec = { appMotionTransition() },
-                label = "musicRoutes",
-                modifier = Modifier.fillMaxSize(),
-            ) { route ->
-                val active = appRouteKey(route) == appRouteKey(nav)
-                val routeKey = appRouteKey(route)
-                val snapshot = snapshots.stateFor(route, nav, library)
-                if (active && library != null) {
-                    SideEffect { snapshots.capture(route, library) }
-                }
-                val preview = appMusicPreviewProgress(
-                    playerExpanded = playerExpanded,
-                    previewRoute = backPreviewRoute,
-                    route = route,
-                    progress = backProgress,
-                )
-                Box(
-                    Modifier.fillMaxSize()
-                        .semantics { appBackScale = 1f - preview * AppMotionSpec.BACK_SCALE_REDUCTION }
-                        .graphicsLayer {
-                            if (preview > 0f) {
-                                scaleX = 1f - preview * AppMotionSpec.BACK_SCALE_REDUCTION
-                                scaleY = 1f - preview * AppMotionSpec.BACK_SCALE_REDUCTION
-                                translationX = size.width * preview * AppMotionSpec.BACK_TRANSLATION_RATIO
-                                shape = RoundedCornerShape(AppMotionSpec.BACK_RADIUS_DP.dp * preview)
-                                clip = true
-                            }
-                        },
-                ) {
-                    CompositionLocalProvider(
-                        LocalAppSearchBackRegistry provides searchRegistry,
-                        LocalActiveAppRoute provides routeKey.takeIf { active },
-                    ) {
+            AppLibraryRouteTransition(
+                nav = nav,
+                liveState = library,
+                snapshots = snapshots,
+                playerExpanded = playerExpanded,
+                backProgress = backProgress,
+                backPreviewRoute = backPreviewRoute,
+                searchRegistry = searchRegistry,
+            ) { route, snapshot, active ->
             when (val tab = route.tab) {
                 AppTab.Home -> EnoToneHomeScreen(
                     connectedAccount = login != null,
@@ -151,8 +119,6 @@ internal fun AppMusicShell(
                     }
                 }
             }
-                    }
-                }
             }
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
