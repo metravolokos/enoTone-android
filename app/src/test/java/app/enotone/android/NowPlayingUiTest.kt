@@ -78,11 +78,7 @@ class NowPlayingUiTest {
             .assertDoesNotExist()
         // Короткий медленный свайп не закрывает плеер (D3.4), он возвращается на место.
         rule.onRoot().performTouchInput {
-            swipe(
-                start = Offset(center.x, top + 70f),
-                end = Offset(center.x, top + 110f),
-                durationMillis = 600,
-            )
+            swipe(Offset(center.x, top + 70f), Offset(center.x, top + 110f), durationMillis = 600)
         }
         rule.runOnIdle { assertEquals(0, close) }
         rule.onRoot().performTouchInput { swipeDown(startY = top + 40f, endY = bottom - 40f) }
