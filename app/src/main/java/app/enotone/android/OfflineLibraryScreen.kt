@@ -63,12 +63,15 @@ internal fun OfflineLibraryScreen(
     contentPadding: PaddingValues,
     scrollToTop: Int,
     blur: EnoBlurState? = null,
+    routeActive: Boolean = true,
+    routeSnapshot: LibraryUiState? = null,
 ) {
     val context = LocalContext.current.applicationContext
     val container = (context as EnoToneApplication).container
     // Аудит п. 3: ViewModel живёт дольше экрана — страница и видимость передаются событиями.
     LaunchedEffect(model, visiblePages) { model.onVisiblePagesChanged(visiblePages) }
-    LaunchedEffect(model, page, detail) {
+    LaunchedEffect(model, page, detail, routeActive) {
+        if (!routeActive) return@LaunchedEffect
         val targetPage = when (detail) {
             is LibraryDetail.Album -> LibraryPage.ALBUMS
             is LibraryDetail.Artist -> LibraryPage.ARTISTS
@@ -76,7 +79,8 @@ internal fun OfflineLibraryScreen(
         }
         model.onRouteSelected(targetPage, detail?.key)
     }
-    val state by model.state.collectAsStateWithLifecycle()
+    val live by model.state.collectAsStateWithLifecycle()
+    val state = routeSnapshot ?: live
     if (detail is LibraryDetail.Artist && state.selectedGroup?.key == detail.key) {
         ArtistDetailScreen(
             state = state,
