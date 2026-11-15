@@ -101,15 +101,7 @@ internal fun AppMusicShell(
                 )
                 is AppTab.Library -> if (login != null && libraryModel != null) {
                     // Состояние прокрутки переживает «Сейчас играет» (регрессия Huawei после #92).
-                    val routeKey = LIBRARY_STATE_KEY + tab.page.name + ":" +
-                        route.details.joinToString("/") { detail ->
-                            val kind = when (detail) {
-                                is LibraryDetail.Album -> "a"
-                                is LibraryDetail.Artist -> "r"
-                                is LibraryDetail.AlbumArtist -> "u"
-                            }
-                            kind + detail.key.length + ":" + detail.key
-                        }
+                    val routeKey = librarySaveKey(tab, route.details)
                     libraryStateHolder.SaveableStateProvider(routeKey) {
                         OfflineLibraryScreen(
                             model = libraryModel,
@@ -212,6 +204,17 @@ private fun AppBottomBar(
 /** Высота закреплённой части снизу: панель 70, мини-плеер 64 + зазор, отступ снизу и воздух. */
 private fun dockHeight(miniVisible: Boolean): Dp =
     BAR_HEIGHT + DOCK_SIDE + CONTENT_AIR + if (miniVisible) MINI_HEIGHT + DOCK_GAP else 0.dp
+
+/** Isolate encoding of nested detail keys from the AppMusicShell Compose state machine. */
+private fun librarySaveKey(tab: AppTab.Library, details: List<LibraryDetail>): String =
+    LIBRARY_STATE_KEY + tab.page.name + ":" + details.joinToString("/") { detail ->
+        val kind = when (detail) {
+            is LibraryDetail.Album -> "a"
+            is LibraryDetail.Artist -> "r"
+            is LibraryDetail.AlbumArtist -> "u"
+        }
+        kind + detail.key.length + ":" + detail.key
+    }
 
 private const val LIBRARY_STATE_KEY = "library"
 private val DOCK_SIDE = 12.dp

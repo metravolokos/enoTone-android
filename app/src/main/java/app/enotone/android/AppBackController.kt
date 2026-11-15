@@ -26,7 +26,7 @@ internal class AppBackController {
 
     fun preview(target: AppBackTarget, nav: AppNavState, value: Float) {
         val route = appRouteKey(nav)
-        if (previewTarget == null || committed || previewRoute != route || previewTarget != target) {
+        if (committed || previewRoute != route || previewTarget != target) {
             previewTarget = target
             previewRoute = route
             committed = false
@@ -78,15 +78,15 @@ internal class AppBackController {
     }
 
     fun musicProgressFor(route: AppNavState, playerExpanded: Boolean): Float {
-        if (playerExpanded) return 0f
         val key = appRouteKey(route)
-        if (previewRoute == key && previewTarget in setOf(AppBackTarget.DETAIL, AppBackTarget.TAB)) {
-            return progress
-        }
+        val targetIsMusic = previewTarget in setOf(AppBackTarget.DETAIL, AppBackTarget.TAB)
         val completed = outgoing[key]
-        return if (completed?.target in setOf(AppBackTarget.DETAIL, AppBackTarget.TAB)) {
-            completed?.progress ?: 0f
+        val value = if (previewRoute == key && targetIsMusic) {
+            progress
+        } else if (completed?.target in setOf(AppBackTarget.DETAIL, AppBackTarget.TAB)) {
+            completed.progress
         } else 0f
+        return if (playerExpanded) 0f else value
     }
 
     fun musicProgress(playerExpanded: Boolean): Float =

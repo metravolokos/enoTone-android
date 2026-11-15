@@ -119,6 +119,7 @@ class AppBackControllerTest {
         unregisterNew()
         assertNull(registry.handler(key))
     }
+
     @Test fun secondGestureRetargetsBeforePreviousExitFinishes() {
         val controller = AppBackController()
         val first = AppNavigator.push(detail, LibraryDetail.Album("album"))
@@ -135,5 +136,4 @@ class AppBackControllerTest {
         controller.cancel()
         assertEquals(detail, nav)
     }
-
 }

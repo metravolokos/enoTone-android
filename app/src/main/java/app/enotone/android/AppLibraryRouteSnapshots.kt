@@ -33,10 +33,11 @@ internal class AppLibraryRouteSnapshots {
 
     fun stateFor(route: AppNavState, active: AppNavState, live: LibraryUiState?): LibraryUiState? {
         // Home и другие маршруты вне библиотеки не должны вызывать pendingRoute.
-        val target = route.libraryTarget() ?: return null
+        val target = route.libraryTarget()
         val key = appRouteKey(route)
-        if (key == appRouteKey(active) && live?.derivedRoute == target) return live
-        return snapshots[key] ?: live?.pendingRoute(target)
+        return if (target == null) null
+        else if (key == appRouteKey(active) && live?.derivedRoute == target) live
+        else snapshots[key] ?: live?.pendingRoute(target)
     }
 }
 
