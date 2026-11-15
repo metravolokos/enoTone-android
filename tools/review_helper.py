@@ -123,10 +123,19 @@ def check(path: str) -> int:
         blocking = bool(decisions & {"BLOCK", "VERIFY_REQUIRED"})
         asking = "OWNER" in decisions
         v = verdict.group(1)
+        answered = bool(re.search(r"^#{2,4}\s+Решения владельца", text, re.M))
         if v == "MERGE_PROPOSED" and (blocking or asking):
             errors.append("вердикт MERGE_PROPOSED при замечаниях BLOCK/VERIFY_REQUIRED/OWNER")
         if v == "FIX_REQUIRED" and not blocking:
             errors.append("вердикт FIX_REQUIRED без замечаний BLOCK/VERIFY_REQUIRED")
+        if v == "FIX_REQUIRED" and asking and not answered:
+            errors.append("FIX_REQUIRED при неотвеченных OWNER: сначала «Вопросы владельцу», вердикт OWNER_DECISION; задание выдаётся после ответов с разделом «Решения владельца»")
+        if v == "OWNER_DECISION" and not asking:
+            errors.append("вердикт OWNER_DECISION без замечаний OWNER")
+        if v == "OWNER_DECISION" and not re.search(r"^#{2,4}\s+Вопросы владельцу", text, re.M):
+            errors.append("OWNER_DECISION без раздела «Вопросы владельцу»")
+        if v == "OWNER_DECISION" and re.search(r"^#{2,4}\s+Задание исполнителю", text, re.M):
+            errors.append("при OWNER_DECISION задание исполнителю не выдаётся до ответов владельца")
         if v == "FIX_REQUIRED" and not re.search(r"^#{2,4}\s+Задание исполнителю", text, re.M):
             errors.append("FIX_REQUIRED без раздела «Задание исполнителю»")
         if v == "MERGE_PROPOSED" and not re.search(r"CI[^\n]*(зелён|success|passed)", text, re.I):
