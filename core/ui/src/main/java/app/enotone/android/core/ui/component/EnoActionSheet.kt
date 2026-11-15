@@ -1,5 +1,10 @@
 package app.enotone.android.core.ui.component
 
+import android.os.Build
+import android.view.View
+import android.view.Window
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,8 +46,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
 import app.enotone.android.core.ui.theme.EnoRadii
@@ -187,19 +190,53 @@ private fun ActionSheetSystemBars(sheetColor: Color, lightStatusBars: Boolean) {
         // В отличие от окна Activity, Material3 Dialog может наследовать fullscreen от OEM.
         window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         @Suppress("DEPRECATION")
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         @Suppress("DEPRECATION")
         window.navigationBarColor = sheetColor.toArgb()
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
         }
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            show(WindowInsetsCompat.Type.statusBars())
-            isAppearanceLightStatusBars = lightStatusBars
-            isAppearanceLightNavigationBars = sheetColor.luminance() > LIGHT_SYSTEM_BAR_THRESHOLD
+        setActionSheetSystemBars(
+            window = window,
+            lightStatusBars = lightStatusBars,
+            lightNavigationBars = sheetColor.luminance() > LIGHT_SYSTEM_BAR_THRESHOLD,
+        )
+    }
+}
+
+
+/** Прямые API Android вместо AndroidX Core: :core:ui не зависит от WindowCompat в release. */
+private fun setActionSheetSystemBars(
+    window: Window,
+    lightStatusBars: Boolean,
+    lightNavigationBars: Boolean,
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        window.setDecorFitsSystemWindows(false)
+        val mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+            WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        val appearance =
+            (if (lightStatusBars) WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS else 0) or
+                (if (lightNavigationBars) WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS else 0)
+        window.insetsController?.apply {
+            show(WindowInsets.Type.statusBars())
+            setSystemBarsAppearance(appearance, mask)
         }
+    } else {
+        // minSdk 26 поддерживает обе светлые иконки; остальные флаги окна сохраняем.
+        @Suppress("DEPRECATION")
+        val oldFlags = window.decorView.systemUiVisibility
+        @Suppress("DEPRECATION")
+        val lightMask = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        @Suppress("DEPRECATION")
+        val edgeToEdge = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility =
+            (oldFlags and lightMask.inv()) or edgeToEdge or
+                (if (lightStatusBars) View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR else 0) or
+                (if (lightNavigationBars) View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR else 0)
     }
 }
 
