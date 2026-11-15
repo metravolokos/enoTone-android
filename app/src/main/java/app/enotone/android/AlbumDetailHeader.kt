@@ -185,7 +185,6 @@ internal fun AlbumDetailHeader(
     }
 }
 
-
 /** Декоративный текст статуса не усложняет обработчики меню альбома. */
 @Composable
 private fun AlbumRefreshFeedback(message: String) {
