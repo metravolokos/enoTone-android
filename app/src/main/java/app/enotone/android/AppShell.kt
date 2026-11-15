@@ -2,7 +2,6 @@ package app.enotone.android
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -84,10 +83,10 @@ internal fun AppMusicShell(
                 label = "musicRoutes",
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     if (backProgress > 0f) {
-                        scaleX = 1f - backProgress * 0.1f
-                        scaleY = 1f - backProgress * 0.1f
-                        translationX = size.width * backProgress * 0.12f
-                        shape = RoundedCornerShape(28.dp * backProgress)
+                        scaleX = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
+                        scaleY = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
+                        translationX = size.width * backProgress * AppMotionSpec.BACK_TRANSLATION_RATIO
+                        shape = RoundedCornerShape(AppMotionSpec.BACK_RADIUS_DP.dp * backProgress)
                         clip = true
                     }
                 },
@@ -134,21 +133,21 @@ internal fun AppMusicShell(
                 // D3.4: Snackbar поднимается на 16 dp и проявляется за 200 мс.
                 AnimatedVisibility(
                     visible = queueSnackbar.currentSnackbarData != null,
-                    enter = fadeIn(tween(200)) +
-                        slideInVertically(tween(200), initialOffsetY = { snackbarLift }),
-                    exit = fadeOut(tween(200)) +
-                        slideOutVertically(tween(200), targetOffsetY = { snackbarLift }),
+                    enter = fadeIn(tween(AppMotionSpec.SNACKBAR_MS)) +
+                        slideInVertically(tween(AppMotionSpec.SNACKBAR_MS), initialOffsetY = { snackbarLift }),
+                    exit = fadeOut(tween(AppMotionSpec.SNACKBAR_MS)) +
+                        slideOutVertically(tween(AppMotionSpec.SNACKBAR_MS), targetOffsetY = { snackbarLift }),
                 ) {
                     SnackbarHost(queueSnackbar)
                 }
 
                 AnimatedVisibility(
                     visible = miniVisible && !playerExpanded,
-                    enter = fadeIn(tween(150)) +
-                        slideInVertically(tween(250), initialOffsetY = { -it / 3 }),
-                    exit = fadeOut(tween(150)) +
-                        slideOutVertically(tween(250, easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)),
-                            targetOffsetY = { -it / 3 }),
+                    enter = fadeIn(tween(AppMotionSpec.DOCK_FADE_MS)) +
+                        slideInVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), initialOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR }),
+                    exit = fadeOut(tween(AppMotionSpec.DOCK_FADE_MS)) +
+                        slideOutVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
+                            targetOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR }),
                 ) {
                     CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {
                         EnoToneMiniPlayer(
@@ -162,8 +161,8 @@ internal fun AppMusicShell(
                 }
                 AnimatedVisibility(
                     visible = !playerExpanded,
-                    enter = slideInVertically(tween(250), initialOffsetY = { it }),
-                    exit = slideOutVertically(tween(250), targetOffsetY = { it }),
+                    enter = slideInVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), initialOffsetY = { it }),
+                    exit = slideOutVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), targetOffsetY = { it }),
                 ) {
                     AppBottomBar(nav = nav, pages = pages, enabled = login != null, onSelectTab = onSelectTab)
                 }

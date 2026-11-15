@@ -2,7 +2,6 @@ package app.enotone.android
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.fadeIn
@@ -44,10 +43,10 @@ internal fun AppMotionRoot(
                 label = "mainSettingsRoute",
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     if (backProgress > 0f && inSettings && !playerExpanded) {
-                        scaleX = 1f - backProgress * 0.1f
-                        scaleY = 1f - backProgress * 0.1f
-                        translationX = size.width * backProgress * 0.12f
-                        shape = RoundedCornerShape(28.dp * backProgress)
+                        scaleX = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
+                        scaleY = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
+                        translationX = size.width * backProgress * AppMotionSpec.BACK_TRANSLATION_RATIO
+                        shape = RoundedCornerShape(AppMotionSpec.BACK_RADIUS_DP.dp * backProgress)
                         clip = true
                     }
                 },
@@ -67,13 +66,13 @@ internal fun AppMotionRoot(
             AnimatedVisibility(
                 visible = playerExpanded,
                 enter = slideInVertically(
-                    tween(350, easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)),
+                    tween(AppMotionSpec.PLAYER_OPEN_MS, easing = AppMotionSpec.emphasizedDecelerate),
                     initialOffsetY = { it },
-                ) + fadeIn(tween(350)),
+                ) + fadeIn(tween(AppMotionSpec.PLAYER_OPEN_MS)),
                 exit = slideOutVertically(
-                    tween(250, easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)),
+                    tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
                     targetOffsetY = { it },
-                ) + fadeOut(tween(250)),
+                ) + fadeOut(tween(AppMotionSpec.PLAYER_CLOSE_MS)),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {

@@ -4,7 +4,6 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.runtime.Composable
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collect
 
 /**
@@ -22,8 +21,6 @@ internal fun AppBackGesture(
             try {
                 events.collect { onPreview(it.progress.coerceIn(0f, 1f)) }
                 onCommit()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
             } finally {
                 onPreview(0f)
             }
