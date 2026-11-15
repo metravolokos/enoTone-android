@@ -21,14 +21,36 @@ class CompilationGroupingTest {
         assertFalse(groups.last().trackIds.any { it.startsWith("va-") })
     }
 
-    @Test fun missingAlbumArtistWithTwoPerformersIsCompilation() {
+    @Test fun twoArtistsWithIdenticalAlbumNameStaySeparateWithoutAlbumArtist() {
         val tracks = listOf(
-            song("one", "Общий релиз", "Певец 1", null),
-            song("two", "Общий релиз", "Певец 2", null),
-            song("three", "Одиночный релиз", "Певец 3", null),
+            song("one", "Greatest Hits", "Певец 1", null),
+            song("two", "Greatest Hits", "Певец 2", null),
         )
-        assertEquals(setOf("one", "two"), OfflineLibraryGrouping.compilationTrackIds(tracks))
-        assertEquals(setOf("one", "two"), OfflineLibraryGrouping.albumArtists(tracks).single().trackIds)
+        assertTrue(OfflineLibraryGrouping.compilationTrackIds(tracks).isEmpty())
+        assertTrue(OfflineLibraryGrouping.albumArtists(tracks).isEmpty())
+        val albums = OfflineLibraryGrouping.albums(tracks)
+        assertEquals(2, albums.size)
+        assertEquals(2, albums.map { it.key }.distinct().size)
+        assertEquals(setOf("one", "two"), albums.flatMap { it.trackIds }.toSet())
+    }
+
+    @Test fun featuringCreditVariantsDoNotTriggerImplicitCompilation() {
+        val tracks = listOf(
+            song("one", "Live", "Группа X", null),
+            song("two", "Live", "Группа X feat. Y", null),
+        )
+        assertTrue(OfflineLibraryGrouping.compilationTrackIds(tracks).isEmpty())
+        assertTrue(OfflineLibraryGrouping.albumArtists(tracks).isEmpty())
+    }
+
+    @Test fun explicitCompilationDoesNotAbsorbSameNamedSoloRelease() {
+        val tracks = listOf(
+            song("explicit", "Избранное", "Певец", "VA"),
+            song("solo", "Избранное", "Другая группа", null),
+        )
+        assertEquals(setOf("explicit"), OfflineLibraryGrouping.compilationTrackIds(tracks))
+        assertEquals(setOf("explicit"),
+            OfflineLibraryGrouping.albumArtists(tracks).first().trackIds)
     }
 
     @Test fun onePerformerOrMissingAlbumDoesNotBecomeCompilation() {
