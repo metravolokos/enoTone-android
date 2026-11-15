@@ -29,7 +29,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +78,7 @@ fun EnoActionSheet(
     val visibleGroups = groups.filter { it.isNotEmpty() }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    var actionSelected by remember { mutableStateOf(false) }
     val sheetColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val lightSystemBars = MaterialTheme.colorScheme.background.luminance() > LIGHT_SYSTEM_BAR_THRESHOLD
 
@@ -146,11 +151,14 @@ fun EnoActionSheet(
                     Row(
                         modifier = Modifier.fillMaxWidth().height(56.dp)
                             .clickable {
-                                // Выход из листа должен анимироваться до смены маршрута/очереди.
-                                scope.launch {
-                                    sheetState.hide()
-                                    onDismiss()
-                                    action.onClick()
+                                // Пока идёт анимация hide(), повторный тап не должен выполнять действие дважды.
+                                if (!actionSelected) {
+                                    actionSelected = true
+                                    scope.launch {
+                                        sheetState.hide()
+                                        onDismiss()
+                                        action.onClick()
+                                    }
                                 }
                             }
                             .padding(horizontal = 24.dp),
