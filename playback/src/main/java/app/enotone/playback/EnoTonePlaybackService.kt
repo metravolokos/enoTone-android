@@ -31,6 +31,15 @@ class EnoTonePlaybackService : MediaSessionService() {
     private var layoutWritePending = false
     private var layoutGeneration = 0L
     private var queueMutation = false
+
+    /**
+     * Служба уничтожена: `io` уже закрыт. Отложенные записи позиции приходят
+     * на main после `onDestroy`, и `io.execute` на закрытом исполнителе бросает
+     * `RejectedExecutionException` — это был краш при закрытии.
+     */
+    @Volatile
+    private var destroyed = false
+
     private var pendingPositionSave: Runnable? = null
 
     private val periodicSave = object : Runnable {
@@ -64,8 +73,23 @@ class EnoTonePlaybackService : MediaSessionService() {
         }
     }
 
+    /**
+     * Постановка записи в `io` с защитой от закрытого исполнителя. После
+     * `onDestroy` отложенные задачи на main ещё могут сработать; вместо краша
+     * они просто игнорируются — данные к этому моменту уже сохранены.
+     */
+    private fun submitIo(block: () -> Unit) {
+        if (destroyed) return
+        try {
+            io.execute(block)
+        } catch (_: java.util.concurrent.RejectedExecutionException) {
+            // Служба уничтожена между проверкой и постановкой задачи.
+        }
+    }
+
     /** Snapshot only the small current-item fields on main; never scan 3590 IDs. */
     private fun savePosition(urgent: Boolean = false) {
+        if (destroyed) return
         if (layoutWritePending) return
         val revision = activeRevision ?: return
         val snapshot = playback.snapshotPosition(revision, System.currentTimeMillis()) ?: return
@@ -78,7 +102,7 @@ class EnoTonePlaybackService : MediaSessionService() {
             handler.postDelayed(task, delay)
         } else {
             positionThrottle.markWritten()
-            io.execute {
+            submitIo {
                 try { store.writePosition(snapshot) } catch (_: Exception) {
                     // Never log file contents or private source details.
                 }
@@ -93,13 +117,14 @@ class EnoTonePlaybackService : MediaSessionService() {
     private fun saveLayoutAndPosition() {
         val nextRevision = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
-        val layout = playback.snapshotLayout(nextRevision, now) ?: return
-        val position = playback.snapshotPosition(nextRevision, now) ?: return
+        val layout = playback.snapshotLayout(nextRevision, now)
+        val position = playback.snapshotPosition(nextRevision, now)
+        if (layout == null || position == null || destroyed) return
         val generation = ++layoutGeneration
         layoutWritePending = true
         pendingPositionSave?.let(handler::removeCallbacks)
         pendingPositionSave = null
-        io.execute {
+        submitIo {
             val completed = runCatching {
                 store.writeLayoutAndPosition(layout, position)
             }.isSuccess
@@ -149,6 +174,9 @@ class EnoTonePlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         playback = PreviewAudioPlayback(this)
+        // Каталог до 512 МиБ и SQLite: готовим в фоне, иначе первый playQueue
+        // блокировал главный поток (A-13), а сбой кэша блокировал музыку (A-14).
+        playback.prepareTransientCache()
         // The callback fires after the player's full shuffle permutation exists.
         // Listener registration order must never determine persistence correctness.
         playback.onShuffleLayoutReady = { if (!queueMutation) saveLayoutAndPosition() }
@@ -281,7 +309,7 @@ class EnoTonePlaybackService : MediaSessionService() {
         layoutWritePending = false
         queueMutation = true
         try { playback.stop() } finally { queueMutation = false }
-        io.execute {
+        submitIo {
             try { store.clear() } catch (_: Exception) { }
         }
     }
@@ -295,11 +323,15 @@ class EnoTonePlaybackService : MediaSessionService() {
         handler.removeCallbacks(periodicSave)
         pendingPositionSave?.let(handler::removeCallbacks)
         pendingPositionSave = null
+        // Если запись структуры ещё ожидает, финальная позиция уже входит в пару
+        // layout+position (writeLayoutAndPosition), поэтому savePosition сам её
+        // пропустит по layoutWritePending: отдельная запись позиции не нужна.
         savePosition(urgent = true)
         playback.player.removeListener(persistenceListener)
         playback.onShuffleLayoutReady = null
         session.release()
         playback.close()
+        destroyed = true
         io.shutdown() // Ordered flush; no blocking main-thread fsync.
         super.onDestroy()
     }
