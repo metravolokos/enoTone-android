@@ -24,12 +24,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,11 +61,14 @@ internal fun AppMusicShell(
     onSettings: () -> Unit,
     playerExpanded: Boolean = false,
     backProgress: Float = 0f,
+    backPreviewRoute: AppRouteKey? = null,
+    searchRegistry: AppSearchBackRegistry? = null,
 ) {
     val login = account.libraryLogin
     val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
     val queueSnackbar = rememberQueueSnackbar(libraryModel)
     val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
+    val snapshots = androidx.compose.runtime.remember(libraryModel) { AppLibraryRouteSnapshots() }
     val selecting = library?.selecting == true
     val miniVisible = player.playback.queueTotal > 0
     val snackbarLift = with(LocalDensity.current) { 16.dp.roundToPx() }
@@ -81,16 +86,37 @@ internal fun AppMusicShell(
                 contentKey = ::appRouteKey,
                 transitionSpec = { appMotionTransition() },
                 label = "musicRoutes",
-                modifier = Modifier.fillMaxSize().graphicsLayer {
-                    if (backProgress > 0f) {
-                        scaleX = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
-                        scaleY = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
-                        translationX = size.width * backProgress * AppMotionSpec.BACK_TRANSLATION_RATIO
-                        shape = RoundedCornerShape(AppMotionSpec.BACK_RADIUS_DP.dp * backProgress)
-                        clip = true
-                    }
-                },
+                modifier = Modifier.fillMaxSize(),
             ) { route ->
+                val active = appRouteKey(route) == appRouteKey(nav)
+                val routeKey = appRouteKey(route)
+                val snapshot = snapshots.stateFor(route, nav, library)
+                if (active && library != null) {
+                    SideEffect { snapshots.capture(route, library) }
+                }
+                val preview = appMusicPreviewProgress(
+                    playerExpanded = playerExpanded,
+                    previewRoute = backPreviewRoute,
+                    route = route,
+                    progress = backProgress,
+                )
+                Box(
+                    Modifier.fillMaxSize()
+                        .semantics { appBackScale = 1f - preview * AppMotionSpec.BACK_SCALE_REDUCTION }
+                        .graphicsLayer {
+                            if (preview > 0f) {
+                                scaleX = 1f - preview * AppMotionSpec.BACK_SCALE_REDUCTION
+                                scaleY = 1f - preview * AppMotionSpec.BACK_SCALE_REDUCTION
+                                translationX = size.width * preview * AppMotionSpec.BACK_TRANSLATION_RATIO
+                                shape = RoundedCornerShape(AppMotionSpec.BACK_RADIUS_DP.dp * preview)
+                                clip = true
+                            }
+                        },
+                ) {
+                    CompositionLocalProvider(
+                        LocalAppSearchBackRegistry provides searchRegistry,
+                        LocalActiveAppRoute provides routeKey.takeIf { active },
+                    ) {
             when (val tab = route.tab) {
                 AppTab.Home -> EnoToneHomeScreen(
                     connectedAccount = login != null,
@@ -119,10 +145,14 @@ internal fun AppMusicShell(
                             contentPadding = contentPadding,
                             scrollToTop = route.scrollToTop,
                             blur = blur,
+                            routeActive = active,
+                            routeSnapshot = snapshot,
                         )
                     }
                 }
             }
+                    }
+                }
             }
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
