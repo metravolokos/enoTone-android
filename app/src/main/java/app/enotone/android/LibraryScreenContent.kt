@@ -236,7 +236,7 @@ internal fun LibraryScreenContent(
                             text = stringResource(sectionTitle(section)),
                             style = MaterialTheme.typography.headlineLarge,
                             color = EnoColors.text,
-                            maxLines = 1,
+                            maxLines = if (section == LibraryPage.ALBUM_ARTISTS) 2 else 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f).padding(top = 8.dp),
                         )
@@ -395,15 +395,8 @@ internal fun LibraryScreenContent(
                                 managedIndexStatus.state != ManagedScanState.RUNNING &&
                                 !managedIndexStatus.terminating &&
                                 playbackState !in setOf("PLAYING", "BUFFERING", "LOADING"),
-                            refreshMessage = when {
-                                albumRefreshFeedback?.first == selectedGroup.key ->
-                                    albumRefreshFeedback?.second.orEmpty()
-                                albumRefreshSampleIds.isEmpty() ->
-                                    stringResource(R.string.album_refresh_no_more)
-                                playbackState in setOf("PLAYING", "BUFFERING") ->
-                                    stringResource(R.string.album_refresh_audio_active)
-                                else -> ""
-                            },
+                            refreshMessage = albumRefreshFeedback
+                                ?.takeIf { it.first == selectedGroup.key }?.second.orEmpty(),
                             onRefreshTags = { actions.onRequestAlbumRefresh(selectedGroup.key, albumRefreshSampleIds) },
                         )
                     }
