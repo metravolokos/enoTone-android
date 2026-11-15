@@ -1,5 +1,13 @@
 package app.enotone.android
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +37,7 @@ import app.enotone.android.core.ui.component.EnoBottomBar
 import app.enotone.android.core.ui.component.EnoBottomBarItem
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.LocalEnoDockBlur
+import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
 
@@ -46,6 +57,8 @@ internal fun AppMusicShell(
     onOpenDetail: (LibraryDetail) -> Unit,
     onBackDetail: () -> Unit,
     onSettings: () -> Unit,
+    playerExpanded: Boolean = false,
+    backProgress: Float = 0f,
 ) {
     val login = account.libraryLogin
     val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
@@ -62,7 +75,22 @@ internal fun AppMusicShell(
     // «Прозрачные панели» (ADR-0088, D3.3): и нижние (мини-плеер, панель), и верхние (заголовок, полоска).
     CompositionLocalProvider(LocalEnoDockBlur provides blur.takeIf { UiEffects.translucentDock }) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            when (val tab = nav.tab) {
+            AnimatedContent(
+                targetState = nav,
+                contentKey = ::appRouteKey,
+                transitionSpec = { appMotionTransition() },
+                label = "musicRoutes",
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    if (backProgress > 0f) {
+                        scaleX = 1f - backProgress * 0.1f
+                        scaleY = 1f - backProgress * 0.1f
+                        translationX = size.width * backProgress * 0.12f
+                        shape = RoundedCornerShape(28.dp * backProgress)
+                        clip = true
+                    }
+                },
+            ) { route ->
+            when (val tab = route.tab) {
                 AppTab.Home -> EnoToneHomeScreen(
                     connectedAccount = login != null,
                     songCount = library?.tracks?.size?.takeIf { !library.loading && it > 0 },
@@ -74,25 +102,26 @@ internal fun AppMusicShell(
                 is AppTab.Library -> if (login != null && libraryModel != null) {
                     // Состояние прокрутки переживает «Сейчас играет» (регрессия Huawei после #92).
                     val routeKey = LIBRARY_STATE_KEY + tab.page.name + ":" +
-                        nav.details.joinToString("/") { detail ->
+                        route.details.joinToString("/") { detail ->
                             (if (detail is LibraryDetail.Album) "a" else "r") + detail.key.length + ":" + detail.key
                         }
                     libraryStateHolder.SaveableStateProvider(routeKey) {
                         OfflineLibraryScreen(
                             model = libraryModel,
                             page = tab.page,
-                            detail = nav.details.lastOrNull(),
+                            detail = route.details.lastOrNull(),
                             onOpenDetail = onOpenDetail,
                             onBackDetail = onBackDetail,
                             visiblePages = pages,
                             accountEmail = login.email,
                             appPassword = login.password,
                             contentPadding = contentPadding,
-                            scrollToTop = nav.scrollToTop,
+                            scrollToTop = route.scrollToTop,
                             blur = blur,
                         )
                     }
                 }
+            }
             }
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
@@ -101,14 +130,32 @@ internal fun AppMusicShell(
                 verticalArrangement = Arrangement.spacedBy(DOCK_GAP),
             ) {
                 SnackbarHost(queueSnackbar)
-                EnoToneMiniPlayer(
-                    player = player,
-                    selecting = selecting,
-                    onOpen = { playerModel.onNowPlaying(true) },
-                    onPlayPause = playerModel::onPlayPause,
-                    onNext = playerModel::onNext,
-                )
-                AppBottomBar(nav = nav, pages = pages, enabled = login != null, onSelectTab = onSelectTab)
+
+                AnimatedVisibility(
+                    visible = miniVisible && !playerExpanded,
+                    enter = fadeIn(tween(150)) +
+                        slideInVertically(tween(250), initialOffsetY = { -it / 3 }),
+                    exit = fadeOut(tween(150)) +
+                        slideOutVertically(tween(250, easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)),
+                            targetOffsetY = { -it / 3 }),
+                ) {
+                    CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {
+                        EnoToneMiniPlayer(
+                            player = player,
+                            selecting = selecting,
+                            onOpen = { playerModel.onNowPlaying(true) },
+                            onPlayPause = playerModel::onPlayPause,
+                            onNext = playerModel::onNext,
+                        )
+                    }
+                }
+                AnimatedVisibility(
+                    visible = !playerExpanded,
+                    enter = slideInVertically(tween(250), initialOffsetY = { it }),
+                    exit = slideOutVertically(tween(250), targetOffsetY = { it }),
+                ) {
+                    AppBottomBar(nav = nav, pages = pages, enabled = login != null, onSelectTab = onSelectTab)
+                }
             }
         }
     }
