@@ -56,8 +56,8 @@ class LibraryPerformerRowUiTest {
 
     @Test fun albumArtistsShowCompilationGroupFirstWithCount() {
         val rows = listOf(
-            song("one", "Первый", "Сборник", null),
-            song("two", "Второй", "Сборник", null),
+            song("one", "Первый", "Сборник", "Various Artists"),
+            song("two", "Второй", "Сборник", "Various Artists"),
         )
         val index = LibraryGroupIndex.build(rows, "Неизвестный альбом")
         val group = index.albumArtists.single()
