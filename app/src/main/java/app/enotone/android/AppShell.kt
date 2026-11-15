@@ -144,10 +144,15 @@ internal fun AppMusicShell(
                 AnimatedVisibility(
                     visible = miniVisible && !playerExpanded,
                     enter = fadeIn(tween(AppMotionSpec.DOCK_FADE_MS)) +
-                        slideInVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), initialOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR }),
+                        slideInVertically(
+                            tween(AppMotionSpec.PLAYER_CLOSE_MS),
+                            initialOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR },
+                        ),
                     exit = fadeOut(tween(AppMotionSpec.DOCK_FADE_MS)) +
-                        slideOutVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
-                            targetOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR }),
+                        slideOutVertically(
+                            tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
+                            targetOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR },
+                        ),
                 ) {
                     CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {
                         EnoToneMiniPlayer(
