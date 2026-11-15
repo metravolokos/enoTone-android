@@ -9,12 +9,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
 import app.enotone.android.core.ui.component.LocalEnoSharedTransition
@@ -41,26 +43,35 @@ internal fun AppMotionRoot(
                 targetState = inSettings,
                 transitionSpec = { settingsMotionTransition() },
                 label = "mainSettingsRoute",
-                modifier = Modifier.fillMaxSize().graphicsLayer {
-                    if (backProgress > 0f && inSettings && !playerExpanded) {
-                        scaleX = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
-                        scaleY = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
-                        translationX = size.width * backProgress * AppMotionSpec.BACK_TRANSLATION_RATIO
-                        shape = RoundedCornerShape(AppMotionSpec.BACK_RADIUS_DP.dp * backProgress)
-                        clip = true
-                    }
-                },
+                modifier = Modifier.fillMaxSize(),
             ) { settingsVisible ->
                 if (settingsVisible) {
-                    AnimatedContent(
-                        targetState = diagnostics,
-                        transitionSpec = { settingsMotionTransition() },
-                        label = "settingsDiagnosticsRoute",
-                    ) { showingDiagnostics ->
-                        settings(showingDiagnostics)
+                    Box(
+                        Modifier.fillMaxSize().graphicsLayer {
+                            if (backProgress > 0f && !playerExpanded) {
+                                scaleX = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
+                                scaleY = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
+                                translationX = size.width * backProgress * AppMotionSpec.BACK_TRANSLATION_RATIO
+                                shape = RoundedCornerShape(AppMotionSpec.BACK_RADIUS_DP.dp * backProgress)
+                                clip = true
+                            }
+                        },
+                    ) {
+                        AnimatedContent(
+                            targetState = diagnostics,
+                            transitionSpec = { settingsMotionTransition() },
+                            label = "settingsDiagnosticsRoute",
+                        ) { showingDiagnostics ->
+                            settings(showingDiagnostics)
+                        }
                     }
                 } else {
-                    music()
+                    // Compose-содержимое остаётся под shared-element, но TalkBack не видит его.
+                    Box(Modifier.fillMaxSize().then(
+                        if (playerExpanded) Modifier.clearAndSetSemantics {} else Modifier,
+                    )) {
+                        music()
+                    }
                 }
             }
             AnimatedVisibility(
