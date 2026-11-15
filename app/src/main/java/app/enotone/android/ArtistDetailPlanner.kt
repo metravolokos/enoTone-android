@@ -43,8 +43,8 @@ internal object ArtistDetailPlanner {
                 .then(Comparator { a, b -> LibraryText.compare(a.group.name, b.group.name) })
                 .thenBy { it.group.key })
 
-        // Альбом без Album Artist с разными трековыми Artist — сборник, а не
-        // сольный релиз каждого исполнителя (признак уже вычислен в индексе).
+        // Исключаем из сольных только альбомы с явной меткой сборника.
+        // Одноимённые альбомы без Album Artist не являются доказательством сборника.
         val compilationIds = index.albumArtists
             .firstOrNull { it.key == OfflineLibraryGrouping.COMPILATIONS_KEY }
             ?.trackIds.orEmpty()
