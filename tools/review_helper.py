@@ -71,7 +71,7 @@ def check(path: str) -> int:
     text = open(path, encoding="utf-8").read()
     errors: list[str] = []
     for title in ("Версия и границы", "Триггеры", "Новое поведение и тесты", "Замечания",
-                  "Отклонения от утверждённого", "Что проверено"):
+                  "Отклонения от утверждённого", "Что проверено", "Итог"):
         if not re.search(rf"^##\s+.*{re.escape(title)}", text, re.M | re.I):
             errors.append(f"нет раздела «{title}»")
     if not re.search(r"blob/[0-9a-f]{40}|\b[0-9a-f]{40}\b", text):
@@ -111,6 +111,26 @@ def check(path: str) -> int:
             errors.append(f"{ident}: решение вне {sorted(DECISION)}")
         if not re.search(r"blob/[0-9a-f]{40}/", s):
             errors.append(f"{ident}: в «Ссылки» нужны строки конкретного коммита blob/<SHA>/путь#Lnn")
+    verdict = re.search(r"Вердикт:\*{0,2}\s*(MERGE_PROPOSED|FIX_REQUIRED|OWNER_DECISION)\b", text)
+    if not verdict:
+        errors.append("нет строки «Вердикт: MERGE_PROPOSED / FIX_REQUIRED / OWNER_DECISION»")
+    else:
+        decisions = set()
+        for f in findings:
+            m = re.search(r"Решение\*{0,2}\s*[:|]\*{0,2}\s*([^\n|]*)", f)
+            if m:
+                decisions.add(m.group(1).strip().strip("*").strip().split(" ")[0].upper().strip("`"))
+        blocking = bool(decisions & {"BLOCK", "VERIFY_REQUIRED"})
+        asking = "OWNER" in decisions
+        v = verdict.group(1)
+        if v == "MERGE_PROPOSED" and (blocking or asking):
+            errors.append("вердикт MERGE_PROPOSED при замечаниях BLOCK/VERIFY_REQUIRED/OWNER")
+        if v == "FIX_REQUIRED" and not blocking:
+            errors.append("вердикт FIX_REQUIRED без замечаний BLOCK/VERIFY_REQUIRED")
+        if v == "FIX_REQUIRED" and not re.search(r"^#{2,4}\s+Задание исполнителю", text, re.M):
+            errors.append("FIX_REQUIRED без раздела «Задание исполнителю»")
+        if v == "MERGE_PROPOSED" and not re.search(r"CI[^\n]*(зелён|success|passed)", text, re.I):
+            errors.append("MERGE_PROPOSED без указания зелёного CI точного HEAD")
     for e in errors:
         print("ОШИБКА:", e)
     print(f"Замечаний в отчёте: {len(findings)}. Ошибок формы: {len(errors)}.")
