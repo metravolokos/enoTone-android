@@ -38,6 +38,20 @@ class ArtistDetailPlannerTest {
         assertEquals(listOf("one"), plan.songs.map { it.id })
     }
 
+    @Test fun albumWithoutAlbumArtistAndTwoPerformersIsCompilationForEach() {
+        val rows = listOf(
+            song("one", "Общий сборник").copy(artist = "Певец"),
+            song("two", "Общий сборник").copy(artist = "Другой певец"),
+        )
+        val index = LibraryGroupIndex.build(rows, "Неизвестный альбом")
+        for (artist in index.artists) {
+            val plan = ArtistDetailPlanner.plan(artist, index)
+            assertTrue(plan.compilationsOnly)
+            assertTrue(plan.albums.isEmpty())
+            assertEquals(1, plan.songs.size)
+        }
+    }
+
     @Test fun albumsWithUnknownYearComeLast() {
         val tracks = listOf(song("a", "Без года", "Певец"),
             song("b", "Известный", "Певец", 2015))
