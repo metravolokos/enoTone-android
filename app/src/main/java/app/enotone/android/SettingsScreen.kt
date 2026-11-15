@@ -19,7 +19,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
@@ -81,9 +80,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val searchRegistry = remember { AppSearchBackRegistry() }
     val activeSearchBack = searchRegistry.handler(appRouteKey(nav))
     val backTarget = appBackTarget(expanded, nav, activeSearchBack != null)
-    var backProgress by remember { mutableFloatStateOf(0f) }
-    var previewTarget by remember { mutableStateOf<AppBackTarget?>(null) }
-    var previewRoute by remember { mutableStateOf<AppRouteKey?>(null) }
+    val backController = remember { AppBackController() }
     var playerDragProgress by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val resetJob = remember { arrayOfNulls<Job>(1) }
@@ -92,33 +89,25 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         enabled = backTarget != AppBackTarget.EXIT,
         onPreview = { progress ->
             resetJob[0]?.cancel()
-            if (previewTarget == null) {
-                previewTarget = backTarget
-                previewRoute = appRouteKey(nav)
-            }
-            backProgress = progress
+            backController.preview(backTarget, nav, progress)
         },
         onCommit = {
-            dispatchAppBack(
+            backController.commit(
                 target = backTarget,
+                nav = nav,
                 closePlayer = { playerModel.onNowPlaying(false) },
-                navigateBack = { AppNavigator.back(nav)?.let { nav = it } },
+                updateNav = { nav = it },
                 closeSearch = { activeSearchBack?.invoke() },
             )
-            // Уходящий экран сохраняет preview transform до завершения 250-мс exit;
-            // новый маршрут масштабируется отдельно и остаётся в масштабе 1.
+            // Не сбрасываем preview в момент pop: сначала завершаем уход старого экрана.
             resetJob[0] = scope.launch {
                 delay(AppMotionSpec.PAGE_CLOSE_MS.toLong())
-                backProgress = 0f
-                previewTarget = null
-                previewRoute = null
+                backController.finishTransition()
             }
         },
         onCancel = {
             resetJob[0]?.cancel()
-            backProgress = 0f
-            previewTarget = null
-            previewRoute = null
+            backController.cancel()
         },
     )
     // Музыка остаётся под полным плеером: shared element не может перелететь
@@ -127,7 +116,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         inSettings = inSettings,
         diagnostics = nav.overlay == AppOverlay.DIAGNOSTICS,
         playerExpanded = expanded,
-        backProgress = if (!expanded && previewTarget == AppBackTarget.OVERLAY) backProgress else 0f,
+        backProgress = backController.settingsProgress(expanded),
         music = {
             AppMusicShell(
                 nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
@@ -136,18 +125,16 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
                 onBackDetail = { nav = AppNavigator.pop(nav) },
                 onSettings = { nav = AppNavigator.openSettings(nav) },
-                playerExpanded = expanded && backProgress <= 0f && playerDragProgress <= 0f,
-                backProgress = if (!expanded && previewTarget in setOf(
-                        AppBackTarget.DETAIL, AppBackTarget.TAB,
-                    )) backProgress else 0f,
-                backPreviewRoute = previewRoute,
+                playerExpanded = expanded && backController.progress <= 0f && playerDragProgress <= 0f,
+                backProgress = backController.musicProgress(expanded),
+                backPreviewRoute = backController.previewRoute,
                 searchRegistry = searchRegistry,
             )
         },
         player = {
             AppNowPlaying(
                 player, playerModel,
-                predictiveBackProgress = if (previewTarget == AppBackTarget.PLAYER) backProgress else 0f,
+                predictiveBackProgress = backController.playerProgress(),
                 onDragProgress = { playerDragProgress = it },
             )
         },
