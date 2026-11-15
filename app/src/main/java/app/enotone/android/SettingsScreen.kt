@@ -1,6 +1,5 @@
 package app.enotone.android
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -74,29 +74,37 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         if (openNowPlayingRequest > 0) playerModel.onNowPlaying(true)
     }
     val back = AppNavigator.back(nav)
-    BackHandler(enabled = player.nowPlaying || back != null) {
-        if (player.nowPlaying) playerModel.onNowPlaying(false) else back?.let { nav = it }
-    }
-    if (player.nowPlaying && player.playback.queueTotal > 0) {
-        AppNowPlaying(player, playerModel)
-        return
-    }
-    if (!inSettings) {
-        AppMusicShell(
-            nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
-            libraryStateHolder = libraryStateHolder,
-            onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
-            onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
-            onBackDetail = { nav = AppNavigator.pop(nav) },
-            onSettings = { nav = AppNavigator.openSettings(nav) },
-        )
-        return
-    }
-    val showingDiagnostics = nav.overlay == AppOverlay.DIAGNOSTICS
-
-    // Мини-плеера в «Настройках» и «Диагностике» нет (O-10 уточнено владельцем 2026-11-13):
-    // он нужен только на экранах музыки. Отдельная прокрутка для основного экрана и подэкрана.
-    key(showingDiagnostics) {
+    val expanded = player.nowPlaying && player.playback.queueTotal > 0
+    var backProgress by remember { mutableFloatStateOf(0f) }
+    AppBackGesture(
+        enabled = expanded || back != null,
+        onPreview = { progress -> backProgress = progress },
+        onCommit = {
+            if (expanded) playerModel.onNowPlaying(false) else back?.let { nav = it }
+        },
+    )
+    // Музыка остаётся под полным плеером: shared element не может перелететь
+    // из Composable, который был удалён из дерева (как было в D3).
+    AppMotionRoot(
+        inSettings = inSettings,
+        diagnostics = nav.overlay == AppOverlay.DIAGNOSTICS,
+        playerExpanded = expanded,
+        music = {
+            AppMusicShell(
+                nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
+                libraryStateHolder = libraryStateHolder,
+                onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
+                onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
+                onBackDetail = { nav = AppNavigator.pop(nav) },
+                onSettings = { nav = AppNavigator.openSettings(nav) },
+                playerExpanded = expanded,
+                backProgress = if (nav.details.isNotEmpty()) backProgress else 0f,
+            )
+        },
+        player = { AppNowPlaying(player, playerModel) },
+        settings = { showingDiagnostics ->
+            // Мини-плеера в настройках и диагностике нет (O-10).
+            key(showingDiagnostics) {
     Column(
         modifier = Modifier.fillMaxSize().systemBarsPadding()
             .verticalScroll(rememberScrollState()).padding(16.dp),
@@ -132,8 +140,9 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             }
             SettingsDiagnosticsEntry { nav = AppNavigator.openDiagnostics(nav) }
         }
-    }
-    }
+            }
+        },
+    )
 }
 
 @Composable
