@@ -11,24 +11,24 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
@@ -37,22 +37,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
@@ -61,15 +61,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import app.enotone.android.core.ui.component.enoBlurSource
 import app.enotone.android.core.ui.component.EnoBlurState
 import app.enotone.android.core.ui.component.EnoCollapsingStrip
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
-import app.enotone.android.core.ui.component.enoTopBarBackground
 import app.enotone.android.core.ui.component.EnoTrackRow
 import app.enotone.android.core.ui.component.EnoTrackRowVariant
+import app.enotone.android.core.ui.component.enoBlurSource
+import app.enotone.android.core.ui.component.enoTopBarBackground
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoRadii
@@ -226,10 +226,10 @@ internal fun LibraryScreenContent(
                 AnimatedContent(
                     targetState = searchOpen,
                     transitionSpec = {
-                        (expandHorizontally(tween(250), expandFrom = Alignment.End) +
-                            fadeIn(tween(250))).togetherWith(
-                            shrinkHorizontally(tween(250), shrinkTowards = Alignment.End) +
-                                fadeOut(tween(150)),
+                        (expandHorizontally(tween(AppMotionSpec.SEARCH_EXPAND_MS), expandFrom = Alignment.End) +
+                            fadeIn(tween(AppMotionSpec.SEARCH_EXPAND_MS))).togetherWith(
+                            shrinkHorizontally(tween(AppMotionSpec.SEARCH_EXPAND_MS), shrinkTowards = Alignment.End) +
+                                fadeOut(tween(AppMotionSpec.SEARCH_COLLAPSE_MS)),
                         )
                     },
                     label = "librarySearch",

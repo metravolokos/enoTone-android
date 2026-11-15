@@ -25,6 +25,8 @@ internal object AppMotionSpec {
     const val DOCK_FADE_MS = 150
     const val MINI_UP_DENOMINATOR = 3
     const val SNACKBAR_MS = 200
+    const val SEARCH_EXPAND_MS = 250
+    const val SEARCH_COLLAPSE_MS = 150
 
     const val BACK_SCALE_REDUCTION = 0.1f
     const val BACK_TRANSLATION_RATIO = 0.12f
