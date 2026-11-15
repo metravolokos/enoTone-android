@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import app.enotone.library.LibraryPage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -59,6 +60,60 @@ class AppBackGestureUiTest {
         }
         rule.runOnIdle { dispatcher.onBackPressed() }
         rule.runOnIdle { assertEquals(root, nav) }
+    }
+
+    @Test
+    @Config(sdk = [35])
+    fun nextPredictiveGestureUsesNewRouteBeforePreviousExitCompletes() {
+        val root = AppNavState(tab = AppTab.Library(LibraryPage.ARTISTS))
+        val artist = AppNavigator.push(root, LibraryDetail.Artist("author"))
+        val album = AppNavigator.push(artist, LibraryDetail.Album("album"))
+        var nav by mutableStateOf(album)
+        val controller = AppBackController()
+        lateinit var dispatcher: OnBackPressedDispatcher
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            val owner = requireNotNull(LocalOnBackPressedDispatcherOwner.current)
+            SideEffect { dispatcher = owner.onBackPressedDispatcher }
+            val target = appBackTarget(false, nav, false)
+            AppBackGesture(
+                enabled = target != AppBackTarget.EXIT,
+                onPreview = { controller.preview(target, nav, it) },
+                onCommit = {
+                    controller.commit(target, nav, closePlayer = {},
+                        updateNav = { nav = it }, closeSearch = {})
+                },
+                onCancel = controller::cancel,
+            )
+            Text("Active route")
+        }
+        rule.mainClock.advanceTimeByFrame()
+        halfPredictiveBack(dispatcher)
+        rule.runOnIdle { assertEquals(appRouteKey(album), controller.previewRoute) }
+        rule.runOnIdle { dispatcher.onBackPressed() }
+        rule.mainClock.advanceTimeByFrame()
+        rule.runOnIdle { assertEquals(artist, nav) }
+        halfPredictiveBack(dispatcher)
+        rule.runOnIdle {
+            assertEquals(appRouteKey(artist), controller.previewRoute)
+            assertEquals(0.5f, controller.musicProgressFor(artist, false), 0f)
+            assertEquals(0.5f, controller.musicProgressFor(album, false), 0f)
+            dispatcher.dispatchOnBackCancelled()
+        }
+        rule.mainClock.advanceTimeByFrame()
+        rule.runOnIdle {
+            assertEquals(artist, nav)
+            assertNull(controller.previewRoute)
+        }
+    }
+
+    private fun halfPredictiveBack(dispatcher: OnBackPressedDispatcher) {
+        rule.runOnIdle {
+            dispatcher.dispatchOnBackStarted(BackEventCompat(0f, 0f, 0f, BackEventCompat.EDGE_LEFT))
+            dispatcher.dispatchOnBackProgressed(BackEventCompat(0f, 0f, 0.5f, BackEventCompat.EDGE_LEFT))
+        }
+        rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
     }
 
     @Test
