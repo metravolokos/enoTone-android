@@ -28,6 +28,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -66,6 +67,7 @@ internal fun AppMusicShell(
     val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
     val selecting = library?.selecting == true
     val miniVisible = player.playback.queueTotal > 0
+    val snackbarLift = with(LocalDensity.current) { 16.dp.roundToPx() }
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     // Последняя строка списка поднимается над панелью и мини-плеером (вариант B).
     val contentPadding = PaddingValues(bottom = dockHeight(miniVisible) + navBar)
@@ -129,7 +131,16 @@ internal fun AppMusicShell(
                     .padding(start = DOCK_SIDE, end = DOCK_SIDE, bottom = DOCK_SIDE),
                 verticalArrangement = Arrangement.spacedBy(DOCK_GAP),
             ) {
-                SnackbarHost(queueSnackbar)
+                // D3.4: Snackbar поднимается на 16 dp и проявляется за 200 мс.
+                AnimatedVisibility(
+                    visible = queueSnackbar.currentSnackbarData != null,
+                    enter = fadeIn(tween(200)) +
+                        slideInVertically(tween(200), initialOffsetY = { snackbarLift }),
+                    exit = fadeOut(tween(200)) +
+                        slideOutVertically(tween(200), targetOffsetY = { snackbarLift }),
+                ) {
+                    SnackbarHost(queueSnackbar)
+                }
 
                 AnimatedVisibility(
                     visible = miniVisible && !playerExpanded,
