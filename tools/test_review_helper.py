@@ -154,6 +154,9 @@ class ReviewHelperTests(unittest.TestCase):
     def test_recheck_new_finding_missing_link(self):
         report = recheck_report(extra="\n## Замечания\n" + finding("N-1").replace("- **Ссылки:** " + SOURCE_LINK + "\n", ""))
         self.assert_bad(report, "N-1: нет поля «Ссылки»")
+        # Поля следующего ##-раздела не могут принадлежать новому замечанию.
+        report = report.replace("## Итог", f"## Итог\n- **Ссылки:** {SOURCE_LINK}")
+        self.assert_bad(report, "N-1: нет поля «Ссылки»")
 
     def test_recheck_code_changed_requires_trigger_reassessment(self):
         self.assert_bad(recheck_report(changes="Код изменён в контроллере, тесты обновлены."),
