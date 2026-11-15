@@ -739,10 +739,37 @@ class PreviewAudioPlayback(
     fun pause() = player.pause()
 
     fun resume() {
+        // Ошибка оставляет плеер в IDLE с сохранённым playerError: обычный play()
+        // не готовит источник, и Play перестаёт работать до смены трека.
+        if (player.playerError != null) {
+            recoverAfterError()
+            return
+        }
         if (deferredPrepare && player.playbackState == Player.STATE_IDLE) {
             deferredPrepare = false
             player.prepare()
         }
+        player.play()
+    }
+
+    /**
+     * Владелец 2026-11-15: Play после ошибки идёт к следующему треку; если
+     * переходить некуда или включён повтор одного — текущий с начала.
+     * Ошибку очищаем до prepare(), иначе он не сбросит состояние.
+     */
+    private fun recoverAfterError() {
+        val action = PlaybackErrorRecoveryPolicy.actionFor(
+            hasError = true,
+            hasNext = player.hasNextMediaItem(),
+            repeatOne = player.repeatMode == Player.REPEAT_MODE_ONE,
+        )
+        deferredPrepare = false
+        when (action) {
+            PlaybackErrorAction.NEXT -> player.seekToNextMediaItem()
+            PlaybackErrorAction.RESTART_CURRENT -> player.seekToDefaultPosition()
+            PlaybackErrorAction.PLAY -> Unit
+        }
+        player.prepare()
         player.play()
     }
 
