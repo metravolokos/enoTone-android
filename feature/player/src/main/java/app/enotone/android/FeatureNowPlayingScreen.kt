@@ -81,7 +81,7 @@ import app.enotone.playback.PlaybackSeekPolicy
  * All visible actions call the existing Media3 service. No in-app volume
  * control: system volume keys only (owner decision 2026-11-12, REQUIREMENTS O-12).
  */
- // Существующее дерево D3 сохраняем для точных Roborazzi; ветвления Media3 не меняем в задаче движения.
+// Существующее дерево D3 сохраняем для точных Roborazzi; ветвления Media3 не меняем в задаче движения.
 @Suppress("CyclomaticComplexMethod")
 @Composable
 fun FeatureNowPlayingScreen(
