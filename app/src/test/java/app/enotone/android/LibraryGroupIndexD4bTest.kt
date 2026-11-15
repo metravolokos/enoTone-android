@@ -24,6 +24,19 @@ class LibraryGroupIndexD4bTest {
         assertFalse(detail.compilationsOnly)
     }
 
+    @Test fun explicitAliasesWithOneAlbumTitleCountAsTwoSeparateReleases() {
+        val rows = listOf(
+            song("one", "Первый", "Greatest Hits", "VA"),
+            song("two", "Второй", "Greatest Hits", "Various Artists"),
+        )
+        val index = LibraryGroupIndex.build(rows, "Неизвестный альбом")
+        val compilation = index.albumArtists.single()
+        assertEquals(OfflineLibraryGrouping.COMPILATIONS_KEY, compilation.key)
+        assertEquals(setOf("one", "two"), compilation.trackIds)
+        assertEquals(2, index.albums.size)
+        assertEquals(2, index.albumArtistAlbumCounts[compilation.key])
+    }
+
     @Test fun authorsCountUniqueAlbumsAndCompilationsOnlyOnce() {
         val rows = listOf(
             song("a", "Первый", "Общий", null),
@@ -35,8 +48,9 @@ class LibraryGroupIndexD4bTest {
         val index = LibraryGroupIndex.build(rows, "Неизвестный альбом", "Разные исполнители")
         val compilation = index.albumArtists.first()
         assertEquals(OfflineLibraryGrouping.COMPILATIONS_KEY, compilation.key)
-        assertEquals(setOf("a", "b", "e"), compilation.trackIds)
-        assertEquals(2, index.albumArtistAlbumCounts[compilation.key])
+        assertEquals(setOf("e"), compilation.trackIds)
+        assertEquals(1, index.albumArtistAlbumCounts[compilation.key])
+        assertEquals(2, index.albums.count { it.name == "Общий" })
         val solo = index.albumArtists.single { it.name == "Солист" }
         assertEquals(1, index.albumArtistAlbumCounts[solo.key])
     }
