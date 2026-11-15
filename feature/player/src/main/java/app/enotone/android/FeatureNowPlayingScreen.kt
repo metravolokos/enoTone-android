@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import app.enotone.android.core.ui.component.EnoIcons
+import app.enotone.android.core.ui.component.enoSharedArtwork
 import app.enotone.android.core.ui.component.enoShadow
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
@@ -179,7 +180,7 @@ fun FeatureNowPlayingScreen(
                 // D3.2 (владелец): тень крупнее и плотнее, тонкая обводка — белая в «Графите»,
                 // чёрная в «Фарфоре» (палитра v1.5). Тень рисуется под обложкой и не обрезается.
                 Box(
-                    modifier = Modifier.size(coverSide)
+                    modifier = Modifier.enoSharedArtwork().size(coverSide)
                         .graphicsLayer { scaleX = coverScale; scaleY = coverScale }
                         .enoShadow(EnoElevation.nowPlaying, EnoColors.shadowStrong, EnoRadii.l)
                         .clip(RoundedCornerShape(EnoRadii.l))
