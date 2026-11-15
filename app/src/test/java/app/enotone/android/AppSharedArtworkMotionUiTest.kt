@@ -130,6 +130,7 @@ class AppSharedArtworkMotionUiTest {
         rule.mainClock.advanceTimeBy(450)
         val miniAgain = cover()
 
+        println("ARTWORK mini=$mini opening=$opening full=$full closing=$closing miniAgain=$miniAgain")
         assertTrue("Full artwork must be larger than mini", full.width > mini.width * 2)
         assertIntermediate("opening", mini, opening, full)
         assertIntermediate("closing", mini, closing, full)

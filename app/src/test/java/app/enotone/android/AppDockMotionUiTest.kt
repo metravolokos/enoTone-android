@@ -97,6 +97,7 @@ class AppDockMotionUiTest {
         rule.runOnIdle { host.drag = 0.5f }
         rule.mainClock.advanceTimeBy(48)
         val half = position()
+        println("DOCK drag hidden=$hidden quarter=$quarter half=$half")
         // Bottom bar enters from below, mini player from above. Both follow gesture progression.
         assertTrue("Bottom bar at 25%: $hidden -> $quarter", hidden.bar > quarter.bar)
         assertTrue("Bottom bar at 50%: $quarter -> $half", quarter.bar > half.bar)
@@ -126,6 +127,7 @@ class AppDockMotionUiTest {
         rule.runOnIdle { host.controller.preview(AppBackTarget.PLAYER, host.nav, 0.5f) }
         rule.mainClock.advanceTimeBy(48)
         val half = position()
+        println("DOCK predictive hidden=$hidden half=$half")
         assertTrue("Predictive dock: $hidden -> $half",
             hidden.bar > half.bar && hidden.mini < half.mini)
         rule.runOnIdle { host.controller.cancel() }
@@ -150,6 +152,7 @@ class AppDockMotionUiTest {
             rule.runOnIdle { host.expanded = false }
             rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 50)
             val shown = position()
+            println("DOCK scale0 hidden=$hidden mid=$mid shown=$shown")
             assertTrue(mid.bar < hidden.bar && shown.bar < hidden.bar)
         } finally {
             Settings.Global.putFloat(context.contentResolver,
