@@ -1,6 +1,8 @@
 package app.enotone.android
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,13 +10,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import app.enotone.android.core.ui.component.EnoBottomBar
@@ -39,6 +40,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [35], qualifiers = "w393dp-h852dp")
 class AppSharedArtworkMotionUiTest {
     @get:Rule val rule = createComposeRule()
+    private var renderView: View? = null
 
     private data class Cover(val width: Int, val components: Int)
 
@@ -54,6 +56,8 @@ class AppSharedArtworkMotionUiTest {
         val player = SharedPlayerUiState(playback = playback, artwork = bitmap)
         rule.mainClock.autoAdvance = false
         rule.setContent {
+            val view = LocalView.current
+            SideEffect { renderView = view }
             EnoToneTheme {
                 AppMotionRoot(
                     inSettings = false, diagnostics = false, playerExpanded = expanded.value,
@@ -145,17 +149,26 @@ class AppSharedArtworkMotionUiTest {
      */
     private fun cover(): Cover {
         rule.mainClock.advanceTimeByFrame()
-        val pixels = rule.onRoot().captureToImage().toPixelMap()
-        val width = pixels.width
-        val height = pixels.height
+        lateinit var captured: Bitmap
+        rule.runOnIdle {
+            val view = requireNotNull(renderView)
+            check(view.width > 0 && view.height > 0) { "Compose view not measured" }
+            captured = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            view.draw(Canvas(captured))
+        }
+        val width = captured.width
+        val height = captured.height
         val marked = BooleanArray(width * height)
         var minX = width
         var maxX = -1
         var count = 0
         for (y in 0 until height) {
             for (x in 0 until width) {
-                val color = pixels[x, y]
-                if (color.green > 0.85f && color.red < 0.15f && color.blue < 0.15f) {
+                val pixel = captured.getPixel(x, y)
+                val red = (pixel ushr 16) and 255
+                val green = (pixel ushr 8) and 255
+                val blue = pixel and 255
+                if (green > 217 && red < 38 && blue < 38) {
                     marked[y * width + x] = true
                     minX = minOf(minX, x)
                     maxX = maxOf(maxX, x)

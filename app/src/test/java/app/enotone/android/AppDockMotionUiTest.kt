@@ -44,7 +44,8 @@ class AppDockMotionUiTest {
     private class HostState {
         var expanded by mutableStateOf(true)
         var drag by mutableFloatStateOf(0f)
-        var back by mutableFloatStateOf(0f)
+        val nav = AppNavState()
+        val controller = AppBackController()
     }
 
     private fun render(): HostState {
@@ -66,7 +67,7 @@ class AppDockMotionUiTest {
                             playerExpanded = host.expanded,
                             miniVisible = true,
                             dragProgress = host.drag,
-                            backProgress = host.back,
+                            backProgress = host.controller.playerProgress(),
                             miniPlayer = {
                                 EnoToneMiniPlayer(
                                     player = player, onOpen = {}, onPlayPause = {}, onNext = {},
@@ -122,12 +123,12 @@ class AppDockMotionUiTest {
     @Test fun predictivePlayerBackDrivesDockAndCancelReturnsIt() {
         val host = render()
         val hidden = position()
-        rule.runOnIdle { host.back = 0.5f }
+        rule.runOnIdle { host.controller.preview(AppBackTarget.PLAYER, host.nav, 0.5f) }
         rule.mainClock.advanceTimeBy(48)
         val half = position()
         assertTrue("Predictive dock: $hidden -> $half",
             hidden.bar > half.bar && hidden.mini < half.mini)
-        rule.runOnIdle { host.back = 0f }
+        rule.runOnIdle { host.controller.cancel() }
         rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 50)
         val cancelled = position()
         assertEquals(hidden.bar, cancelled.bar, 2f)
@@ -143,7 +144,7 @@ class AppDockMotionUiTest {
                 Settings.Global.ANIMATOR_DURATION_SCALE, 0f)
             val host = render()
             val hidden = position()
-            rule.runOnIdle { host.back = 0.5f }
+            rule.runOnIdle { host.controller.preview(AppBackTarget.PLAYER, host.nav, 0.5f) }
             rule.mainClock.advanceTimeByFrame()
             val mid = position()
             rule.runOnIdle { host.expanded = false }

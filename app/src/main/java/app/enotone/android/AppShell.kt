@@ -215,7 +215,7 @@ private const val LIBRARY_STATE_KEY = "library"
 private val DOCK_SIDE = 12.dp
 private val DOCK_GAP = 8.dp
 private val BAR_HEIGHT = 70.dp
-private val MINI_HEIGHT = 64.dp
+internal val MINI_HEIGHT = 64.dp
 private val CONTENT_AIR = 16.dp
 
 /** «Сейчас играет» — слой поверх любого экрана; сворачивается в мини-плеер (D3). */

@@ -2,6 +2,8 @@ package app.enotone.android
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -9,16 +11,29 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.IntOffset
+import app.enotone.android.core.ui.component.LocalEnoSharedTransition
+import kotlin.math.roundToInt
 
 /**
- * Реальный док AppMusicShell. Свайп и predictive Back с целью PLAYER ведут обе
- * панели за жестом; отмена и commit завершаются за существующие 250 мс.
- * Анимация входа очереди и scope общего artwork остаются прежними.
+ * Shared artwork exits in its own AnimatedVisibilityScope, while the dock
+ * moves by layout offset so gesture previews remain proportional.
+ * A separate non-shared mini is revealed behind the player during a partial swipe.
  */
 @Composable
 internal fun AppDockMotion(
@@ -31,35 +46,58 @@ internal fun AppDockMotion(
 ) {
     val gestureProgress = maxOf(dragProgress, backProgress).coerceIn(0f, 1f)
     val targetReveal = if (playerExpanded) gestureProgress else 1f
-    // Движение пальца без задержки; отмена/commit и открытие — плавное завершение.
     val reveal by animateFloatAsState(
         targetValue = targetReveal,
         animationSpec = if (playerExpanded && gestureProgress > 0f) snap()
             else tween(AppMotionSpec.PLAYER_CLOSE_MS),
         label = "dockGestureReveal",
     )
-    AnimatedVisibility(
-        visible = miniVisible,
-        modifier = Modifier.graphicsLayer {
-            translationY = -size.height * (1f - reveal) / AppMotionSpec.MINI_UP_DENOMINATOR
-            alpha = reveal
-        }.testTag("app-mini-dock"),
-        enter = fadeIn(tween(AppMotionSpec.DOCK_FADE_MS)) +
-            slideInVertically(
-                tween(AppMotionSpec.PLAYER_CLOSE_MS),
-                initialOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR },
-            ),
-        exit = fadeOut(tween(AppMotionSpec.DOCK_FADE_MS)) +
-            slideOutVertically(
-                tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
-                targetOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR },
-            ),
-    ) { miniPlayer() }
+    val miniHeightPx = with(LocalDensity.current) { MINI_HEIGHT.toPx() }
+    if (miniVisible) {
+        Box(
+            Modifier.fillMaxWidth().height(MINI_HEIGHT)
+                .offset {
+                    IntOffset(0, (-miniHeightPx * (1f - reveal) /
+                        AppMotionSpec.MINI_UP_DENOMINATOR).roundToInt())
+                }
+                .graphicsLayer { alpha = reveal }
+                .testTag("app-mini-dock"),
+        ) {
+            // This source *exits* when Now Playing opens: sharedBounds needs
+            // a departing AnimatedVisibilityScope to animate 44 -> 320 dp.
+            AnimatedVisibility(
+                visible = !playerExpanded,
+                enter = fadeIn(tween(AppMotionSpec.DOCK_FADE_MS)) +
+                    slideInVertically(
+                        tween(AppMotionSpec.PLAYER_CLOSE_MS),
+                        initialOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR },
+                    ),
+                exit = fadeOut(tween(AppMotionSpec.DOCK_FADE_MS)) +
+                    slideOutVertically(
+                        tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
+                        targetOffsetY = { -it / AppMotionSpec.MINI_UP_DENOMINATOR },
+                    ),
+            ) { miniPlayer() }
+            // During a partial drag/predictive PLAYER Back the dock can peek out
+            // without registering a second source for shared artwork.
+            AnimatedVisibility(
+                visible = playerExpanded && gestureProgress > 0f,
+                enter = EnterTransition.None,
+                exit = ExitTransition.None,
+            ) {
+                CompositionLocalProvider(LocalEnoSharedTransition provides null) {
+                    miniPlayer()
+                }
+            }
+        }
+    }
+    var bottomHeightPx by remember { mutableIntStateOf(0) }
     AnimatedVisibility(
         visible = true,
-        modifier = Modifier.graphicsLayer {
-            translationY = size.height * (1f - reveal)
-        }.testTag("app-bottom-dock"),
+        modifier = Modifier
+            .offset { IntOffset(0, (bottomHeightPx * (1f - reveal)).roundToInt()) }
+            .onSizeChanged { bottomHeightPx = it.height }
+            .testTag("app-bottom-dock"),
         enter = slideInVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), initialOffsetY = { it }),
         exit = slideOutVertically(tween(AppMotionSpec.PLAYER_CLOSE_MS), targetOffsetY = { it }),
     ) { bottomBar() }
