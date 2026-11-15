@@ -175,7 +175,6 @@ fun EnoActionSheet(
     }
 }
 
-
 /**
  * Material3 ModalBottomSheet открывает отдельное Dialog-окно. Edge-to-edge и цвета
  * MainActivity на него не действуют: на Huawei исчезали часы и белела полоса жестов.
