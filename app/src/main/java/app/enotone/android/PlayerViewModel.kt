@@ -101,6 +101,9 @@ internal class PlayerViewModel(
                 }
                 val old = mutable.value.playback
                 mutable.update { it.copy(playback = current) }
+                connection.setNowPlayingVisible(
+                    mutable.value.nowPlaying && current.queueTotal > 0,
+                )
                 saveKnownDuration(current)
                 if (current.currentTrackId != old.currentTrackId ||
                     (current.queueTotal > 0 && old.queueTotal == 0)) {
@@ -159,6 +162,7 @@ internal class PlayerViewModel(
         restoreAllowed = false
         artworkJob?.cancel()
         mutable.update { it.copy(nowPlaying = false, artwork = null, largeArtwork = null) }
+        connection.setNowPlayingVisible(false)
     }
 
     fun onSignOutFailed() {
@@ -177,6 +181,7 @@ internal class PlayerViewModel(
         loadingAccount = null
         artworkJob?.cancel()
         mutable.value = SharedPlayerUiState()
+        connection.setNowPlayingVisible(false)
     }
 
     private fun ensureCatalog(saved: StoredWebDavLogin) {
@@ -343,6 +348,7 @@ internal class PlayerViewModel(
 
     fun onNowPlaying(open: Boolean) {
         mutable.update { it.copy(nowPlaying = open) }
+        connection.setNowPlayingVisible(open && mutable.value.playback.queueTotal > 0)
         if (open) loadArtwork()
     }
     fun onPlayPause() = connection.playPause()

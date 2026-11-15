@@ -263,6 +263,8 @@ class PreviewAudioPlayback(
     private var latestSetup = PlaybackSetupTimings(0L, 0L, 0L, 0L, 0L)
 
     val logicalQueueSize: Int get() = expectedQueueSize
+    val currentTrackFullyCached: Boolean
+        get() = player.currentMediaItem?.mediaId?.let { it == fullyCachedCurrentId } == true
     val logicalQueuePosition: Int get() {
         val id = player.currentMediaItem?.mediaId ?: return 0
         return mediaIdIndices[id] ?: 0

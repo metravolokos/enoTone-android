@@ -248,6 +248,7 @@ class EnoTonePlaybackService : MediaSessionService() {
     val queueSize: Int get() = playback.logicalQueueSize
     val queuePosition: Int get() = playback.logicalQueuePosition
     val loadedQueueSize: Int get() = playback.loadedQueueSize
+    val currentTrackFullyCached: Boolean get() = playback.currentTrackFullyCached
     val displayDurationMs: Long get() = playback.displayDurationMs
     val activeSourceKey: String? get() = playback.activeSourceKey
     fun setupTimings(): PlaybackSetupTimings = playback.setupTimings()

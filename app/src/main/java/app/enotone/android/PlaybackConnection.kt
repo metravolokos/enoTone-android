@@ -10,6 +10,7 @@ import androidx.media3.common.Player
 import app.enotone.playback.CachePhase
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.HandoffSnapshot
+import app.enotone.playback.NextBufferState
 import app.enotone.playback.PersistedQueueState
 import app.enotone.playback.PlaybackDataIssue
 import app.enotone.playback.PlaybackDataIssueClassifier
@@ -18,6 +19,8 @@ import app.enotone.playback.QueueEditResult
 import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueTrack
 import app.enotone.playback.TransientCacheStatus
+import app.enotone.playback.resolveBufferedPositionMs
+import app.enotone.playback.resolveNextBufferState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -40,6 +43,7 @@ internal data class PlaybackSnapshot(
     val title: String? = null,
     val artist: String? = null,
     val positionMs: Long = 0,
+    val bufferedPositionMs: Long = positionMs,
     val durationMs: Long = 0,
     /** Media3 duration, null until the current media item has a known duration. */
     val knownDurationMs: Long? = null,
@@ -57,6 +61,7 @@ internal data class PlaybackSnapshot(
     val handoffInfo: HandoffSnapshot? = null,
     val cacheInfo: TransientCacheStatus = TransientCacheStatus(CachePhase.IDLE, 0L, 0L),
     val nextCacheInfo: TransientCacheStatus = TransientCacheStatus(CachePhase.IDLE, 0L, 0L),
+    val nextBufferState: NextBufferState = NextBufferState.NONE,
 )
 
 /** Service connection is active only for the owning ViewModel's lifetime. */
@@ -66,6 +71,7 @@ internal interface PlaybackConnection {
     val state: StateFlow<PlaybackSnapshot>
     fun connect()
     fun disconnect()
+    fun setNowPlayingVisible(visible: Boolean) = Unit
     fun playQueue(email: String, password: String, queue: List<QueueTrack>,
                   selectedId: String, useCache: Boolean, sourceKey: String)
     fun restoreQueue(email: String, password: String, queue: List<QueueTrack>,
@@ -109,7 +115,20 @@ internal class AndroidPlaybackConnection(
     private val scope = CoroutineScope(SupervisorJob() + main)
     private var service: EnoTonePlaybackService? = null
     private var bound = false
+    private var nowPlayingVisible = false
     private var ticker: Job? = null
+
+    private data class BufferingSnapshot(
+        val positionMs: Long,
+        val bufferedPositionMs: Long,
+        val durationMs: Long,
+        val knownDurationMs: Long?,
+        val repeatMode: Int,
+        val hasNext: Boolean,
+        val nextCacheInfo: TransientCacheStatus,
+        val nextBufferState: NextBufferState,
+    )
+
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = publish()
     }
@@ -150,12 +169,56 @@ internal class AndroidPlaybackConnection(
     override fun disconnect() {
         ticker?.cancel()
         ticker = null
+        nowPlayingVisible = false
         service?.player?.removeListener(listener)
         if (bound) runCatching { context.unbindService(connection) }
         bound = false
         service = null
         // The container is process-scoped; future ViewModels can reconnect.
         mutable.value = PlaybackSnapshot()
+    }
+
+    override fun setNowPlayingVisible(visible: Boolean) {
+        if (nowPlayingVisible == visible) return
+        nowPlayingVisible = visible
+        publish()
+    }
+
+    private fun bufferingSnapshot(
+        active: EnoTonePlaybackService,
+        player: Player,
+    ): BufferingSnapshot {
+        val positionMs = player.currentPosition.coerceAtLeast(0L)
+        val durationMs = active.displayDurationMs.coerceAtLeast(0L)
+        val knownDurationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0L }
+        val currentTrackFullyCached = active.currentTrackFullyCached
+        val queueFullyCollected = active.queueSize > 0 &&
+            active.loadedQueueSize >= active.queueSize
+        val nextCacheInfo = active.nextCacheSnapshot()
+        val repeatMode = active.repeatMode
+        val nextMediaItemIndex = player.nextMediaItemIndex
+        val bufferedPositionMs = resolveBufferedPositionMs(
+            positionMs = positionMs,
+            durationMs = knownDurationMs ?: durationMs,
+            playerBufferedPositionMs = if (nowPlayingVisible) player.bufferedPosition else positionMs,
+            currentTrackFullyCached = currentTrackFullyCached,
+        )
+        return BufferingSnapshot(
+            positionMs = positionMs,
+            bufferedPositionMs = bufferedPositionMs,
+            durationMs = durationMs,
+            knownDurationMs = knownDurationMs,
+            repeatMode = repeatMode,
+            hasNext = nextMediaItemIndex != C.INDEX_UNSET,
+            nextCacheInfo = nextCacheInfo,
+            nextBufferState = resolveNextBufferState(
+                nextMediaItemIndex = nextMediaItemIndex,
+                repeatMode = repeatMode,
+                nextCacheInfo = nextCacheInfo,
+                currentTrackFullyCached = currentTrackFullyCached,
+                queueFullyCollected = queueFullyCollected,
+            ),
+        )
     }
 
     private fun publish() {
@@ -166,6 +229,7 @@ internal class AndroidPlaybackConnection(
         }
         val p = active.player
         val error = p.playerError
+        val buffering = bufferingSnapshot(active, p)
         mutable.value = PlaybackSnapshot(
             connected = true,
             playbackState = playbackLabel(p),
@@ -173,27 +237,27 @@ internal class AndroidPlaybackConnection(
             sourceKey = active.activeSourceKey,
             title = p.currentMediaItem?.mediaMetadata?.title?.toString(),
             artist = p.currentMediaItem?.mediaMetadata?.artist?.toString(),
-            positionMs = p.currentPosition.coerceAtLeast(0L),
+            positionMs = buffering.positionMs,
+            bufferedPositionMs = buffering.bufferedPositionMs,
             // Includes the saved duration of a restored, not yet prepared item.
-            durationMs = active.displayDurationMs,
-            knownDurationMs = p.duration.takeIf {
-                it != C.TIME_UNSET && it > 0L
-            },
+            durationMs = buffering.durationMs,
+            knownDurationMs = buffering.knownDurationMs,
             canSeek = active.canSeekCurrent,
             queuePosition = active.queuePosition + 1,
             queueTotal = active.queueSize,
             loadedQueueSources = active.loadedQueueSize,
-            repeatMode = active.repeatMode,
+            repeatMode = buffering.repeatMode,
             shuffleEnabled = active.shuffleEnabled,
             hasPrevious = active.hasPrevious,
-            hasNext = active.hasNext,
+            hasNext = buffering.hasNext,
             errorCode = error?.errorCode ?: 0,
             errorReadIssue = if (error == null) PlaybackDataIssue.UNKNOWN
                 else PlaybackDataIssueClassifier.classify(error),
             setupTimings = active.setupTimings(),
             handoffInfo = active.handoffSnapshot(),
             cacheInfo = active.cacheSnapshot(),
-            nextCacheInfo = active.nextCacheSnapshot(),
+            nextCacheInfo = buffering.nextCacheInfo,
+            nextBufferState = buffering.nextBufferState,
         )
     }
 
