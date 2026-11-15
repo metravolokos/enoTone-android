@@ -91,6 +91,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         inSettings = inSettings,
         diagnostics = nav.overlay == AppOverlay.DIAGNOSTICS,
         playerExpanded = expanded,
+        backProgress = backProgress,
         music = {
             AppMusicShell(
                 nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
