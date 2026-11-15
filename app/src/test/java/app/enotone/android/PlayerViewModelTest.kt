@@ -63,6 +63,7 @@ class PlayerViewModelTest {
         override val state: StateFlow<PlaybackSnapshot> = snapshots
         var connects = 0
         var disconnects = 0
+        var nowPlayingVisibleValue = false
         var plays = 0
         var restores = 0
         var lastRestored: PersistedQueueState? = null
@@ -70,6 +71,7 @@ class PlayerViewModelTest {
         fun emit(snapshot: PlaybackSnapshot) { snapshots.value = snapshot }
         override fun connect() { connects++ }
         override fun disconnect() { disconnects++ }
+        override fun setNowPlayingVisible(visible: Boolean) { nowPlayingVisibleValue = visible }
         override fun playQueue(email: String, password: String, queue: List<QueueTrack>,
             selectedId: String, useCache: Boolean, sourceKey: String) { plays++ }
         override fun restoreQueue(email: String, password: String, queue: List<QueueTrack>,
@@ -146,6 +148,26 @@ class PlayerViewModelTest {
             model.onShuffle()
             advanceUntilIdle()
             assertFalse(model.state.value.playback.shuffleEnabled)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun bufferingVisibilityFollowsExpandedNowPlayingWithAQueue() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val connection = Connection()
+            val model = PlayerViewModel(
+                connection, Repo(catalog()), CredentialsProvider { null }, NoArtwork,
+                StandardTestDispatcher(testScheduler), { true })
+            advanceUntilIdle()
+            model.onNowPlaying(true)
+            assertFalse(connection.nowPlayingVisibleValue)
+
+            connection.emit(PlaybackSnapshot(connected = true, queueTotal = 3))
+            advanceUntilIdle()
+            assertTrue(connection.nowPlayingVisibleValue)
+
+            model.onNowPlaying(false)
+            assertFalse(connection.nowPlayingVisibleValue)
         } finally { Dispatchers.resetMain() }
     }
 
