@@ -60,11 +60,14 @@ class AlbumArtistBackRegressionUiTest {
             val state = model.state.value
             !state.loading && state.derivedRoute == (page to null) && state.shownGroups.isNotEmpty()
         }
+        val key = model.state.value.groupIndex.albumArtists.single().key
         rule.onNodeWithText("Author Alpha").performClick()
-        rule.waitUntil(10000) {
-            val state = model.state.value
-            state.selectedGroup != null && state.derivedRoute == (page to state.selectedGroupKey)
+        rule.runOnIdle {
+            assertEquals("Выбор автора должен быть в навигационном стеке",
+                LibraryDetail.AlbumArtist(key), nav.details.lastOrNull())
         }
+        rule.waitUntil(10000) { model.state.value.selectedGroupKey == key }
+        rule.waitUntil(10000) { model.state.value.derivedRoute == (page to key) }
         assertNotNull(model.state.value.selectedGroup)
         rule.onNodeWithText("Song Alpha").assertExists()
         rule.runOnIdle { dispatcher.onBackPressed() }
