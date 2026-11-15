@@ -99,7 +99,6 @@ internal fun LibraryScreenContent(
     blur: EnoBlurState? = null,
     detail: LibraryDetail? = null,
     onOpenDetail: (LibraryDetail) -> Unit = {},
-    onBackDetail: () -> Unit = {},
 ) {
     val section = state.section
     val visiblePages = state.visiblePages

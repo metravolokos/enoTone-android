@@ -287,7 +287,7 @@ class AppScreensScreenshotTest {
             artworkRepository = remember(context) { ArtworkPreviewRepository(context) },
             accountEmail = "", appPassword = "x",
             contentPadding = PaddingValues(bottom = 186.dp),
-            onOpenDetail = {}, onBackDetail = {},
+            onOpenDetail = {},
         )
     }
 

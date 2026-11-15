@@ -74,7 +74,6 @@ class AppLibraryRouteTransitionUiTest {
                             appPassword = "",
                             contentPadding = PaddingValues(),
                             onOpenDetail = {},
-                            onBackDetail = {},
                         )
                     } else {
                         LibraryScreenContent(

@@ -56,7 +56,6 @@ internal fun OfflineLibraryScreen(
     page: LibraryPage,
     detail: LibraryDetail? = null,
     onOpenDetail: (LibraryDetail) -> Unit = {},
-    onBackDetail: () -> Unit = {},
     visiblePages: List<LibraryPage>,
     accountEmail: String,
     appPassword: String,
@@ -91,7 +90,6 @@ internal fun OfflineLibraryScreen(
             appPassword = appPassword,
             contentPadding = contentPadding,
             onOpenDetail = onOpenDetail,
-            onBackDetail = onBackDetail,
             blur = blur,
         )
     } else LibraryScreenContent(
@@ -99,7 +97,6 @@ internal fun OfflineLibraryScreen(
         actions = model,
         detail = detail,
         onOpenDetail = onOpenDetail,
-        onBackDetail = onBackDetail,
         artworkRepository = container.artworkPreviewRepository,
         accountEmail = accountEmail,
         appPassword = appPassword,

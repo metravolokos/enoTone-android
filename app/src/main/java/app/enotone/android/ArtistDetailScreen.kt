@@ -58,7 +58,6 @@ internal fun ArtistDetailScreen(
     appPassword: String,
     contentPadding: PaddingValues,
     onOpenDetail: (LibraryDetail) -> Unit,
-    onBackDetail: () -> Unit,
     blur: EnoBlurState? = null,
 ) {
     val blurState = blur ?: rememberEnoBlurState()

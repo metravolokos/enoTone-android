@@ -124,7 +124,6 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 libraryStateHolder = libraryStateHolder,
                 onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
                 onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
-                onBackDetail = { nav = AppNavigator.pop(nav) },
                 onSettings = { nav = AppNavigator.openSettings(nav) },
                 playerExpanded = expanded && backController.progress <= 0f && playerDragProgress <= 0f,
                 backProgress = backController.musicProgress(expanded),
