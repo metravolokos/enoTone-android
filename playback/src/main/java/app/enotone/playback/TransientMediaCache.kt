@@ -56,6 +56,8 @@ class TransientMediaCache(context: Context) : AutoCloseable {
     @Volatile private var activeNextWriter: CacheWriter? = null
 
     init {
+        // Constructor work is heavy and can fail (see createTransientCacheSafely):
+        // callers must never run this on the main thread.
         if (directory.exists() && !directory.deleteRecursively()) {
             throw IllegalStateException("Temporary cache reset failed")
         }
