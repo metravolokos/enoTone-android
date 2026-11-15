@@ -4,16 +4,6 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 
 /**
- * Readiness of the item that will play after the current one.
- * This is playback state; the feature layer chooses how each value looks.
- */
-enum class NextBufferState {
-    NONE,
-    LOADING,
-    READY,
-}
-
-/**
  * Pure policy for the next-item indicator.
  *
  * `nextMediaItemIndex` is Media3's resolved decision, so it already accounts
@@ -27,18 +17,16 @@ fun resolveNextBufferState(
     currentTrackFullyCached: Boolean,
     queueFullyCollected: Boolean,
 ): NextBufferState {
-    if (repeatMode == Player.REPEAT_MODE_ONE) {
-        return if (currentTrackFullyCached) NextBufferState.READY else NextBufferState.NONE
-    }
-    if (nextMediaItemIndex == C.INDEX_UNSET ||
-        !currentTrackFullyCached || !queueFullyCollected) {
-        return NextBufferState.NONE
-    }
-
-    return when (nextCacheInfo.phase) {
-        CachePhase.DOWNLOADING, CachePhase.FAILED -> NextBufferState.LOADING
-        CachePhase.COMPLETE -> NextBufferState.READY
-        CachePhase.IDLE, CachePhase.SKIPPED -> NextBufferState.NONE
+    return when {
+        repeatMode == Player.REPEAT_MODE_ONE && currentTrackFullyCached -> NextBufferState.READY
+        repeatMode == Player.REPEAT_MODE_ONE -> NextBufferState.NONE
+        nextMediaItemIndex == C.INDEX_UNSET || !currentTrackFullyCached || !queueFullyCollected ->
+            NextBufferState.NONE
+        else -> when (nextCacheInfo.phase) {
+            CachePhase.DOWNLOADING, CachePhase.FAILED -> NextBufferState.LOADING
+            CachePhase.COMPLETE -> NextBufferState.READY
+            CachePhase.IDLE, CachePhase.SKIPPED -> NextBufferState.NONE
+        }
     }
 }
 

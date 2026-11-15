@@ -117,6 +117,18 @@ internal class AndroidPlaybackConnection(
     private var bound = false
     private var nowPlayingVisible = false
     private var ticker: Job? = null
+
+    private data class BufferingSnapshot(
+        val positionMs: Long,
+        val bufferedPositionMs: Long,
+        val durationMs: Long,
+        val knownDurationMs: Long?,
+        val repeatMode: Int,
+        val hasNext: Boolean,
+        val nextCacheInfo: TransientCacheStatus,
+        val nextBufferState: NextBufferState,
+    )
+
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = publish()
     }
@@ -172,61 +184,32 @@ internal class AndroidPlaybackConnection(
         publish()
     }
 
-    private fun publish() {
-        val active = service ?: run {
-            // Preserve a bind error instead of replacing it with IDLE.
-            if (mutable.value.playbackState != "ERROR") mutable.value = PlaybackSnapshot()
-            return
-        }
-        val p = active.player
-        val error = p.playerError
-        val positionMs = p.currentPosition.coerceAtLeast(0L)
+    private fun bufferingSnapshot(
+        active: EnoTonePlaybackService,
+        player: Player,
+    ): BufferingSnapshot {
+        val positionMs = player.currentPosition.coerceAtLeast(0L)
         val durationMs = active.displayDurationMs.coerceAtLeast(0L)
-        val knownDurationMs = p.duration.takeIf {
-            it != C.TIME_UNSET && it > 0L
-        }
-        val bufferDurationMs = knownDurationMs ?: durationMs
+        val knownDurationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0L }
         val currentTrackFullyCached = active.currentTrackFullyCached
         val queueFullyCollected = active.queueSize > 0 &&
             active.loadedQueueSize >= active.queueSize
         val nextCacheInfo = active.nextCacheSnapshot()
         val repeatMode = active.repeatMode
-        val nextMediaItemIndex = p.nextMediaItemIndex
-        val hasNext = nextMediaItemIndex != C.INDEX_UNSET
-        // The old position ticker remains; do not sample ahead while Now Playing is closed.
-        val playerBufferedPositionMs = if (nowPlayingVisible) p.bufferedPosition else positionMs
+        val nextMediaItemIndex = player.nextMediaItemIndex
         val bufferedPositionMs = resolveBufferedPositionMs(
             positionMs = positionMs,
-            durationMs = bufferDurationMs,
-            playerBufferedPositionMs = playerBufferedPositionMs,
+            durationMs = knownDurationMs ?: durationMs,
+            playerBufferedPositionMs = if (nowPlayingVisible) player.bufferedPosition else positionMs,
             currentTrackFullyCached = currentTrackFullyCached,
         )
-        mutable.value = PlaybackSnapshot(
-            connected = true,
-            playbackState = playbackLabel(p),
-            currentTrackId = p.currentMediaItem?.mediaId,
-            sourceKey = active.activeSourceKey,
-            title = p.currentMediaItem?.mediaMetadata?.title?.toString(),
-            artist = p.currentMediaItem?.mediaMetadata?.artist?.toString(),
+        return BufferingSnapshot(
             positionMs = positionMs,
             bufferedPositionMs = bufferedPositionMs,
-            // Includes the saved duration of a restored, not yet prepared item.
             durationMs = durationMs,
             knownDurationMs = knownDurationMs,
-            canSeek = active.canSeekCurrent,
-            queuePosition = active.queuePosition + 1,
-            queueTotal = active.queueSize,
-            loadedQueueSources = active.loadedQueueSize,
             repeatMode = repeatMode,
-            shuffleEnabled = active.shuffleEnabled,
-            hasPrevious = active.hasPrevious,
-            hasNext = hasNext,
-            errorCode = error?.errorCode ?: 0,
-            errorReadIssue = if (error == null) PlaybackDataIssue.UNKNOWN
-                else PlaybackDataIssueClassifier.classify(error),
-            setupTimings = active.setupTimings(),
-            handoffInfo = active.handoffSnapshot(),
-            cacheInfo = active.cacheSnapshot(),
+            hasNext = nextMediaItemIndex != C.INDEX_UNSET,
             nextCacheInfo = nextCacheInfo,
             nextBufferState = resolveNextBufferState(
                 nextMediaItemIndex = nextMediaItemIndex,
@@ -235,6 +218,46 @@ internal class AndroidPlaybackConnection(
                 currentTrackFullyCached = currentTrackFullyCached,
                 queueFullyCollected = queueFullyCollected,
             ),
+        )
+    }
+
+    private fun publish() {
+        val active = service ?: run {
+            // Preserve a bind error instead of replacing it with IDLE.
+            if (mutable.value.playbackState != "ERROR") mutable.value = PlaybackSnapshot()
+            return
+        }
+        val p = active.player
+        val error = p.playerError
+        val buffering = bufferingSnapshot(active, p)
+        mutable.value = PlaybackSnapshot(
+            connected = true,
+            playbackState = playbackLabel(p),
+            currentTrackId = p.currentMediaItem?.mediaId,
+            sourceKey = active.activeSourceKey,
+            title = p.currentMediaItem?.mediaMetadata?.title?.toString(),
+            artist = p.currentMediaItem?.mediaMetadata?.artist?.toString(),
+            positionMs = buffering.positionMs,
+            bufferedPositionMs = buffering.bufferedPositionMs,
+            // Includes the saved duration of a restored, not yet prepared item.
+            durationMs = buffering.durationMs,
+            knownDurationMs = buffering.knownDurationMs,
+            canSeek = active.canSeekCurrent,
+            queuePosition = active.queuePosition + 1,
+            queueTotal = active.queueSize,
+            loadedQueueSources = active.loadedQueueSize,
+            repeatMode = buffering.repeatMode,
+            shuffleEnabled = active.shuffleEnabled,
+            hasPrevious = active.hasPrevious,
+            hasNext = buffering.hasNext,
+            errorCode = error?.errorCode ?: 0,
+            errorReadIssue = if (error == null) PlaybackDataIssue.UNKNOWN
+                else PlaybackDataIssueClassifier.classify(error),
+            setupTimings = active.setupTimings(),
+            handoffInfo = active.handoffSnapshot(),
+            cacheInfo = active.cacheSnapshot(),
+            nextCacheInfo = buffering.nextCacheInfo,
+            nextBufferState = buffering.nextBufferState,
         )
     }
 
