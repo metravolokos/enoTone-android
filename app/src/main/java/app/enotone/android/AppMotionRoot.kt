@@ -14,6 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
 import app.enotone.android.core.ui.component.LocalEnoSharedTransition
 
@@ -28,6 +31,7 @@ internal fun AppMotionRoot(
     inSettings: Boolean,
     diagnostics: Boolean,
     playerExpanded: Boolean,
+    backProgress: Float = 0f,
     music: @Composable () -> Unit,
     settings: @Composable (Boolean) -> Unit,
     player: @Composable () -> Unit,
@@ -38,7 +42,15 @@ internal fun AppMotionRoot(
                 targetState = inSettings,
                 transitionSpec = { settingsMotionTransition() },
                 label = "mainSettingsRoute",
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    if (backProgress > 0f && inSettings && !playerExpanded) {
+                        scaleX = 1f - backProgress * 0.1f
+                        scaleY = 1f - backProgress * 0.1f
+                        translationX = size.width * backProgress * 0.12f
+                        shape = RoundedCornerShape(28.dp * backProgress)
+                        clip = true
+                    }
+                },
             ) { settingsVisible ->
                 if (settingsVisible) {
                     AnimatedContent(
