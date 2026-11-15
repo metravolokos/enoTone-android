@@ -2,7 +2,6 @@ package app.enotone.android
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.ExperimentalActivityComposeApi
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.runtime.Composable
 import kotlinx.coroutines.CancellationException
@@ -12,7 +11,6 @@ import kotlinx.coroutines.flow.collect
  * На Android 14+ получает промежуточное положение системного жеста.
  * Только завершённый жест меняет навигацию; отмена возвращает экран без pop.
  */
-@OptIn(ExperimentalActivityComposeApi::class)
 @Composable
 internal fun AppBackGesture(
     enabled: Boolean,
