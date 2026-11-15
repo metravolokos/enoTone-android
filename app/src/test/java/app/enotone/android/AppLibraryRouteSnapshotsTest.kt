@@ -10,6 +10,12 @@ class AppLibraryRouteSnapshotsTest {
         val home = AppNavState()
         val library = LibraryUiState(section = LibraryPage.ALBUM_ARTISTS)
         val snapshots = AppLibraryRouteSnapshots()
-        assertNull(snapshots.stateFor(home, home, library))
+        val otherRoutes = listOf(
+            home, AppNavigator.openSettings(home), AppNavigator.openDiagnostics(home),
+        )
+        otherRoutes.forEach { route ->
+            assertNull(route.libraryTarget())
+            assertNull(snapshots.stateFor(route, route, library))
+        }
     }
 }
