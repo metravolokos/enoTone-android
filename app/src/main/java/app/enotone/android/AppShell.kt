@@ -57,6 +57,7 @@ internal fun AppMusicShell(
     backProgress: Float = 0f,
     backPreviewRoute: AppRouteKey? = null,
     searchRegistry: AppSearchBackRegistry? = null,
+    backController: AppBackController? = null,
 ) {
     val login = account.libraryLogin
     val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
@@ -83,6 +84,11 @@ internal fun AppMusicShell(
                 backProgress = backProgress,
                 backPreviewRoute = backPreviewRoute,
                 searchRegistry = searchRegistry,
+                previewForRoute = backController?.let { controller ->
+                    { route -> controller.musicProgressFor(
+                        route, player.nowPlaying && player.playback.queueTotal > 0,
+                    ) }
+                },
             ) { route, snapshot, active ->
             when (val tab = route.tab) {
                 AppTab.Home -> EnoToneHomeScreen(

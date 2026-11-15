@@ -84,15 +84,15 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val backController = remember { AppBackController() }
     var playerDragProgress by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
-    val resetJob = remember { arrayOfNulls<Job>(1) }
+    val resetJobs = remember { mutableMapOf<AppRouteKey, Job>() }
     LaunchedEffect(expanded) { if (!expanded) playerDragProgress = 0f }
     AppBackGesture(
         enabled = backTarget != AppBackTarget.EXIT,
         onPreview = { progress ->
-            resetJob[0]?.cancel()
             backController.preview(backTarget, nav, progress)
         },
         onCommit = {
+            val completedRoute = backController.previewRoute
             backController.commit(
                 target = backTarget,
                 nav = nav,
@@ -100,16 +100,17 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 updateNav = { nav = it },
                 closeSearch = { activeSearchBack?.invoke() },
             )
-            // Не сбрасываем preview в момент pop: сначала завершаем уход старого экрана.
-            resetJob[0] = scope.launch {
-                delay(AppMotionSpec.PAGE_CLOSE_MS.toLong())
-                backController.finishTransition()
+            // Таймер привязан к уходящему маршруту, а не к активному второму жесту.
+            if (completedRoute != null) {
+                resetJobs.remove(completedRoute)?.cancel()
+                resetJobs[completedRoute] = scope.launch {
+                    delay(AppMotionSpec.PAGE_CLOSE_MS.toLong())
+                    backController.finishCommittedRoute(completedRoute)
+                    resetJobs.remove(completedRoute)
+                }
             }
         },
-        onCancel = {
-            resetJob[0]?.cancel()
-            backController.cancel()
-        },
+        onCancel = backController::cancel,
     )
     // Музыка остаётся под полным плеером: shared element не может перелететь
     // из Composable, который был удалён из дерева (как было в D3).
@@ -129,6 +130,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 backProgress = backController.musicProgress(expanded),
                 backPreviewRoute = backController.previewRoute,
                 searchRegistry = searchRegistry,
+                backController = backController,
             )
         },
         player = {

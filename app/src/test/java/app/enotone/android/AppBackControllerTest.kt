@@ -91,6 +91,22 @@ class AppBackControllerTest {
         assertEquals(0f, controller.progress, 0f)
     }
 
+    @Test fun previousExitRemainsUntilItsTimerWhileSecondGestureIsActive() {
+        val controller = AppBackController()
+        val first = AppNavigator.push(detail, LibraryDetail.Album("album"))
+        controller.preview(AppBackTarget.DETAIL, first, 0.8f)
+        var current = first
+        controller.commit(AppBackTarget.DETAIL, current, closePlayer = {},
+            updateNav = { current = it }, closeSearch = {})
+        controller.preview(AppBackTarget.DETAIL, current, 0.5f)
+        assertEquals(0.8f, controller.musicProgressFor(first, false), 0f)
+        assertEquals(0.5f, controller.musicProgressFor(current, false), 0f)
+        controller.cancel()
+        assertEquals(0.8f, controller.musicProgressFor(first, false), 0f)
+        controller.finishCommittedRoute(appRouteKey(first))
+        assertEquals(0f, controller.musicProgressFor(first, false), 0f)
+    }
+
     @Test fun oldAnimatedRouteCannotUnregisterNewSearchCallback() {
         val registry = AppSearchBackRegistry()
         val key = appRouteKey(detail)

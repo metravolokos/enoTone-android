@@ -19,9 +19,10 @@ internal fun AppRouteBackLayer(
     playerExpanded: Boolean,
     previewRoute: AppRouteKey?,
     progress: Float,
+    resolvedProgress: Float? = null,
     content: @Composable () -> Unit,
 ) {
-    val visualProgress = appMusicPreviewProgress(playerExpanded, previewRoute, route, progress)
+    val visualProgress = resolvedProgress ?: appMusicPreviewProgress(playerExpanded, previewRoute, route, progress)
     Box(
         Modifier.fillMaxSize()
             .semantics { appBackScale = 1f - visualProgress * AppMotionSpec.BACK_SCALE_REDUCTION }
@@ -50,6 +51,7 @@ internal fun AppLibraryRouteTransition(
     backProgress: Float,
     backPreviewRoute: AppRouteKey?,
     searchRegistry: AppSearchBackRegistry?,
+    previewForRoute: ((AppNavState) -> Float)? = null,
     content: @Composable (route: AppNavState, state: LibraryUiState?, active: Boolean) -> Unit,
 ) {
     AnimatedContent(
@@ -69,6 +71,7 @@ internal fun AppLibraryRouteTransition(
             playerExpanded = playerExpanded,
             previewRoute = backPreviewRoute,
             progress = backProgress,
+            resolvedProgress = previewForRoute?.invoke(route),
         ) {
             CompositionLocalProvider(
                 LocalAppSearchBackRegistry provides searchRegistry,

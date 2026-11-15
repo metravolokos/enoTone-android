@@ -2,6 +2,7 @@ package app.enotone.android
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
@@ -17,10 +18,18 @@ internal class AppBackController {
     var previewRoute by mutableStateOf<AppRouteKey?>(null)
         private set
 
+    private data class CompletedPreview(val target: AppBackTarget, val progress: Float)
+
+    // Старый маршрут продолжает exit даже после начала следующего жеста.
+    private val outgoing = mutableStateMapOf<AppRouteKey, CompletedPreview>()
+    private var committed = false
+
     fun preview(target: AppBackTarget, nav: AppNavState, value: Float) {
-        if (previewTarget == null) {
+        val route = appRouteKey(nav)
+        if (previewTarget == null || committed || previewRoute != route || previewTarget != target) {
             previewTarget = target
-            previewRoute = appRouteKey(nav)
+            previewRoute = route
+            committed = false
         }
         progress = value.coerceIn(0f, 1f)
     }
@@ -32,6 +41,11 @@ internal class AppBackController {
         updateNav: (AppNavState) -> Unit,
         closeSearch: () -> Unit,
     ) {
+        val route = previewRoute
+        if (route != null && previewTarget != null && progress > 0f) {
+            outgoing[route] = CompletedPreview(requireNotNull(previewTarget), progress)
+        }
+        committed = true
         dispatchAppBack(
             target = target,
             closePlayer = closePlayer,
@@ -40,12 +54,39 @@ internal class AppBackController {
         )
     }
 
-    fun cancel() = finishTransition()
+    fun cancel() {
+        // Отмена второго жеста не снимает exit уже завершённого первого.
+        if (!committed) clearCurrent()
+    }
 
     fun finishTransition() {
+        outgoing.clear()
+        clearCurrent()
+    }
+
+    /** Завершение конкретного exit не должно сбросить новый активный preview. */
+    fun finishCommittedRoute(route: AppRouteKey) {
+        outgoing.remove(route)
+        if (committed && previewRoute == route) clearCurrent()
+    }
+
+    private fun clearCurrent() {
         progress = 0f
         previewTarget = null
         previewRoute = null
+        committed = false
+    }
+
+    fun musicProgressFor(route: AppNavState, playerExpanded: Boolean): Float {
+        if (playerExpanded) return 0f
+        val key = appRouteKey(route)
+        if (previewRoute == key && previewTarget in setOf(AppBackTarget.DETAIL, AppBackTarget.TAB)) {
+            return progress
+        }
+        val completed = outgoing[key]
+        return if (completed?.target in setOf(AppBackTarget.DETAIL, AppBackTarget.TAB)) {
+            completed?.progress ?: 0f
+        } else 0f
     }
 
     fun musicProgress(playerExpanded: Boolean): Float =
