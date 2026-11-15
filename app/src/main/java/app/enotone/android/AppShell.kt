@@ -97,7 +97,12 @@ internal fun AppMusicShell(
                     // Состояние прокрутки переживает «Сейчас играет» (регрессия Huawei после #92).
                     val routeKey = LIBRARY_STATE_KEY + tab.page.name + ":" +
                         route.details.joinToString("/") { detail ->
-                            (if (detail is LibraryDetail.Album) "a" else "r") + detail.key.length + ":" + detail.key
+                            val kind = when (detail) {
+                                is LibraryDetail.Album -> "a"
+                                is LibraryDetail.Artist -> "r"
+                                is LibraryDetail.AlbumArtist -> "u"
+                            }
+                            kind + detail.key.length + ":" + detail.key
                         }
                     libraryStateHolder.SaveableStateProvider(routeKey) {
                         OfflineLibraryScreen(

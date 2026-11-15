@@ -10,6 +10,7 @@ internal fun AppNavState.libraryTarget(): Pair<LibraryPage, String?>? {
     return when (detail) {
         is LibraryDetail.Album -> LibraryPage.ALBUMS to detail.key
         is LibraryDetail.Artist -> LibraryPage.ARTISTS to detail.key
+        is LibraryDetail.AlbumArtist -> LibraryPage.ALBUM_ARTISTS to detail.key
         null -> tab.page to null
     }
 }
@@ -31,15 +32,16 @@ internal class AppLibraryRouteSnapshots {
     }
 
     fun stateFor(route: AppNavState, active: AppNavState, live: LibraryUiState?): LibraryUiState? {
+        // Home и другие маршруты вне библиотеки не должны вызывать pendingRoute.
+        val target = route.libraryTarget() ?: return null
         val key = appRouteKey(route)
-        if (key == appRouteKey(active) && live != null && live.matchesRoute(route)) return live
-        return snapshots[key] ?: live?.pendingRoute(route)
+        if (key == appRouteKey(active) && live?.derivedRoute == target) return live
+        return snapshots[key] ?: live?.pendingRoute(target)
     }
 }
 
 /** Не показываем заголовок/песни другого исполнителя, пока входящий маршрут рассчитывается. */
-private fun LibraryUiState.pendingRoute(route: AppNavState): LibraryUiState {
-    val target = requireNotNull(route.libraryTarget())
+private fun LibraryUiState.pendingRoute(target: Pair<LibraryPage, String?>): LibraryUiState {
     return copy(
         section = target.first,
         selectedGroupKey = target.second,

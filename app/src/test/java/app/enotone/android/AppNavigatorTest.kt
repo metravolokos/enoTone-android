@@ -97,6 +97,15 @@ class AppNavigatorTest {
         assertEquals(state, AppNavigator.push(state, LibraryDetail.Album("a:10")))
     }
 
+    @Test fun albumArtistGroupIsARealDetailAndSurvivesRestore() {
+        val tab = AppTab.Library(LibraryPage.ALBUM_ARTISTS)
+        val root = AppNavState(tab = tab)
+        val detail = AppNavigator.push(root, LibraryDetail.AlbumArtist("author:opaque"))
+        assertEquals(LibraryDetail.AlbumArtist("author:opaque"), detail.details.single())
+        assertEquals(detail, AppNavigator.restore(AppNavigator.save(detail)))
+        assertEquals(root, AppNavigator.back(detail))
+    }
+
     @Test fun newFormatRoundTripsOpaqueKeysAndReadsOldThreeFields() {
         val initial = AppNavState(tab = albums, details = listOf(
             LibraryDetail.Artist("artist:А|Б/В"),

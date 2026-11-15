@@ -374,10 +374,11 @@ internal fun LibraryScreenContent(
                                 artistPlan = state.artistPlans[group.key],
                                 albumCount = state.groupIndex.albumArtistAlbumCounts[group.key] ?: 0,
                                 onClick = {
-                                    if (section == LibraryPage.ARTISTS) {
-                                        onOpenDetail(LibraryDetail.Artist(group.key))
-                                    } else {
-                                        actions.onGroupSelected(group.key)
+                                    when (section) {
+                                        LibraryPage.ARTISTS -> onOpenDetail(LibraryDetail.Artist(group.key))
+                                        LibraryPage.ALBUM_ARTISTS ->
+                                            onOpenDetail(LibraryDetail.AlbumArtist(group.key))
+                                        else -> actions.onGroupSelected(group.key)
                                     }
                                 },
                             )

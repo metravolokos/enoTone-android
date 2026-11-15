@@ -74,6 +74,7 @@ internal fun OfflineLibraryScreen(
         val targetPage = when (detail) {
             is LibraryDetail.Album -> LibraryPage.ALBUMS
             is LibraryDetail.Artist -> LibraryPage.ARTISTS
+            is LibraryDetail.AlbumArtist -> LibraryPage.ALBUM_ARTISTS
             null -> page
         }
         model.onRouteSelected(targetPage, detail?.key)

@@ -47,7 +47,9 @@ internal fun AppMotionRoot(
             ) { settingsVisible ->
                 if (settingsVisible) {
                     Box(
-                        Modifier.fillMaxSize().graphicsLayer {
+                        Modifier.fillMaxSize()
+                            .then(if (playerExpanded) Modifier.clearAndSetSemantics {} else Modifier)
+                            .graphicsLayer {
                             if (backProgress > 0f && !playerExpanded) {
                                 scaleX = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
                                 scaleY = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
