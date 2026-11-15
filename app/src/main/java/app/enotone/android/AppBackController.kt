@@ -84,7 +84,7 @@ internal class AppBackController {
         val value = if (previewRoute == key && targetIsMusic) {
             progress
         } else if (completed?.target in setOf(AppBackTarget.DETAIL, AppBackTarget.TAB)) {
-            completed.progress
+            completed?.progress ?: 0f
         } else 0f
         return if (playerExpanded) 0f else value
     }
