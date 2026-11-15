@@ -15,14 +15,19 @@ internal fun AppBackGesture(
     enabled: Boolean,
     onPreview: (Float) -> Unit,
     onCommit: () -> Unit,
+    onCancel: () -> Unit = {},
 ) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
         PredictiveBackHandler(enabled = enabled) { events ->
+            var committed = false
             try {
                 events.collect { onPreview(it.progress.coerceIn(0f, 1f)) }
+                committed = true
                 onCommit()
             } finally {
-                onPreview(0f)
+                // После commit прежний маршрут ещё уходит из AnimatedContent.
+                // Сбрасывать прогресс здесь — визуальный скачок во время exit.
+                if (!committed) onCancel()
             }
         }
     } else {
