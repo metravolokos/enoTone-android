@@ -27,6 +27,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /**
  * R-2: настоящее дерево SharedTransitionLayout + AppDockMotion +
@@ -34,6 +35,7 @@ import org.robolectric.annotation.Config
  * а не проверка наличия текста/ключа sharedBounds.
  */
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w393dp-h852dp")
 class AppSharedArtworkMotionUiTest {
     @get:Rule val rule = createComposeRule()
@@ -142,6 +144,7 @@ class AppSharedArtworkMotionUiTest {
      * Component count catches simultaneous separated source + destination covers.
      */
     private fun cover(): Cover {
+        rule.mainClock.advanceTimeByFrame()
         val pixels = rule.onRoot().captureToImage().toPixelMap()
         val width = pixels.width
         val height = pixels.height

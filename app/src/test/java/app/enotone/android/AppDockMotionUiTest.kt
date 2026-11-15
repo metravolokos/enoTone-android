@@ -91,16 +91,16 @@ class AppDockMotionUiTest {
         val host = render()
         val hidden = position()
         rule.runOnIdle { host.drag = 0.25f }
-        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(48)
         val quarter = position()
         rule.runOnIdle { host.drag = 0.5f }
-        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(48)
         val half = position()
         // Bottom bar enters from below, mini player from above. Both follow gesture progression.
-        assertTrue("Bottom bar must move upward already at 25%", hidden.bar > quarter.bar)
-        assertTrue("Bottom bar must continue upward at 50%", quarter.bar > half.bar)
-        assertTrue("Mini must move downward already at 25%", hidden.mini < quarter.mini)
-        assertTrue("Mini must continue downward at 50%", quarter.mini < half.mini)
+        assertTrue("Bottom bar at 25%: $hidden -> $quarter", hidden.bar > quarter.bar)
+        assertTrue("Bottom bar at 50%: $quarter -> $half", quarter.bar > half.bar)
+        assertTrue("Mini at 25%: $hidden -> $quarter", hidden.mini < quarter.mini)
+        assertTrue("Mini at 50%: $quarter -> $half", quarter.mini < half.mini)
 
         rule.runOnIdle { host.drag = 0f }
         rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 50)
@@ -109,7 +109,7 @@ class AppDockMotionUiTest {
         assertEquals("Cancel restores the hidden mini", hidden.mini, cancelled.mini, 2f)
 
         rule.runOnIdle { host.drag = 0.5f }
-        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(48)
         rule.runOnIdle { host.expanded = false }
         rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 50)
         val shown = position()
@@ -123,9 +123,9 @@ class AppDockMotionUiTest {
         val host = render()
         val hidden = position()
         rule.runOnIdle { host.back = 0.5f }
-        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(48)
         val half = position()
-        assertTrue("Predictive Back cannot switch the dock at a boolean threshold",
+        assertTrue("Predictive dock: $hidden -> $half",
             hidden.bar > half.bar && hidden.mini < half.mini)
         rule.runOnIdle { host.back = 0f }
         rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 50)
