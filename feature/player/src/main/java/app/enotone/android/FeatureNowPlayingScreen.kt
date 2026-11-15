@@ -171,7 +171,7 @@ fun FeatureNowPlayingScreen(
             .graphicsLayer {
                 translationY = shownDragPx
                 scaleX = 1f - predictiveBackProgress * BACK_SCALE_REDUCTION
-                scaleY = 1f - predictiveBackProgress * 0.1f
+                scaleY = 1f - predictiveBackProgress * BACK_SCALE_REDUCTION
                 translationX = size.width * BACK_TRANSLATION_RATIO * predictiveBackProgress
                 if (predictiveBackProgress > 0f) {
                     shape = RoundedCornerShape(BACK_RADIUS_DP.dp * predictiveBackProgress)
