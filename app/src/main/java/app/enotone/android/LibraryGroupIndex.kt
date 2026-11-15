@@ -26,15 +26,11 @@ internal data class LibraryGroupIndex(
             val albumByTrack = byTrack(albums)
             val byId = tracks.associateBy { it.id }
             val counts = authors.associate { group ->
-                val keys = if (group.key == OfflineLibraryGrouping.COMPILATIONS_KEY) {
-                    // Один релиз без Album Artist может иметь несколько исполнителей треков.
-                    group.trackIds.mapNotNull { byId[it]?.album?.trim()?.takeIf(String::isNotEmpty) }
-                        .map { it.lowercase(java.util.Locale.ROOT) }.toSet()
-                } else {
-                    group.trackIds.mapNotNull { albumByTrack[it]?.key }
-                        .filterNot { it == "album:missing" }.toSet()
-                }
-                group.key to keys.size
+                // Один и тот же заголовок может принадлежать разным релизам;
+                // считаем точно те же ключи, что использует вкладка «Альбомы».
+                val albumKeys = group.trackIds.mapNotNull { albumByTrack[it]?.key }
+                    .filterNot { it == "album:missing" }.toSet()
+                group.key to albumKeys.size
             }
             return LibraryGroupIndex(
                 tracksById = byId, albums = albums, artists = artists,
