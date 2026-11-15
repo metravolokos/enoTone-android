@@ -73,9 +73,8 @@ class AlbumArtistBackRegressionUiTest {
         assertNotNull(model.state.value.selectedGroup)
         rule.onNodeWithText("Song Alpha").assertExists()
         rule.runOnIdle { dispatcher.onBackPressed() }
-        rule.waitUntil(10000) {
-            nav == root && model.state.value.derivedRoute == (page to null)
-        }
+        rule.runOnIdle { assertEquals("Back должен сделать pop, а не Home", root, nav) }
+        rule.waitUntil(10000) { model.state.value.derivedRoute == (page to null) }
         rule.onNodeWithText("Author Alpha").assertExists()
         rule.runOnIdle { assertEquals(root.tab, nav.tab) }
     }
