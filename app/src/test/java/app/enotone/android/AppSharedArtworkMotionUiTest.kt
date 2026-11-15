@@ -15,7 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
@@ -123,6 +123,8 @@ class AppSharedArtworkMotionUiTest {
         assertEquals(1, mini.components)
 
         rule.runOnIdle { expanded.value = true }
+        rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
         rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_OPEN_MS.toLong() / 2)
         val opening = cover()
         rule.mainClock.advanceTimeBy(450)
@@ -130,6 +132,8 @@ class AppSharedArtworkMotionUiTest {
         assertEquals(1, full.components)
 
         rule.runOnIdle { expanded.value = false }
+        rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
         rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() / 2)
         val closing = cover()
         rule.mainClock.advanceTimeBy(450)
@@ -160,6 +164,7 @@ class AppSharedArtworkMotionUiTest {
      */
     private fun cover(): Cover {
         rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
         lateinit var captured: Bitmap
         rule.runOnIdle {
             val view = requireNotNull(renderView)

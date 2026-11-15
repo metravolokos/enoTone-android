@@ -13,7 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -36,10 +36,13 @@ class AppDockMotionUiTest {
 
     private data class Position(val bar: Float, val mini: Float)
 
-    private fun position(): Position = Position(
-        rule.onNodeWithTag("app-bottom-dock").fetchSemanticsNode().config[AppDockOffsetKey],
-        rule.onNodeWithTag("app-mini-dock").fetchSemanticsNode().config[AppDockOffsetKey],
-    )
+    private fun position(): Position {
+        rule.waitForIdle()
+        return Position(
+            rule.onNodeWithTag("app-bottom-dock").fetchSemanticsNode().config[AppDockOffsetKey],
+            rule.onNodeWithTag("app-mini-dock").fetchSemanticsNode().config[AppDockOffsetKey],
+        )
+    }
 
     private class HostState {
         var expanded by mutableStateOf(true)
