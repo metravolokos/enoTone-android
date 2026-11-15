@@ -105,5 +105,4 @@ class AppBackGestureUiTest {
             assertEquals(null, controller.previewTarget)
         }
     }
-
 }
