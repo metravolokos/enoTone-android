@@ -16,6 +16,10 @@ import android.content.Context
  * поддержан. Теперь сбой означает «играем без кэша», а не «музыки нет».
  */
 object TransientCacheFactory {
+    /** Тестовый шов; в продакшене `null`. Не читается вне `createTransientCacheSafely`. */
+    @Volatile
+    var testOverride: ((Context) -> Decision)? = null
+
     /** Что делать с кэшем для текущей очереди. */
     sealed interface Decision {
         /** Кэш доступен и будет использован. */
@@ -46,6 +50,10 @@ enum class TransientCacheFailure {
  */
 @Suppress("TooGenericExceptionCaught")
 fun createTransientCacheSafely(context: Context): TransientCacheFactory.Decision =
+    TransientCacheFactory.testOverride?.invoke(context) ?: createTransientCacheReal(context)
+
+@Suppress("TooGenericExceptionCaught")
+private fun createTransientCacheReal(context: Context): TransientCacheFactory.Decision =
     try {
         TransientCacheFactory.Decision.UseCache(TransientMediaCache(context))
     } catch (failure: IllegalStateException) {
@@ -60,3 +68,13 @@ fun createTransientCacheSafely(context: Context): TransientCacheFactory.Decision
     } catch (_: Exception) {
         TransientCacheFactory.Decision.PlayWithoutCache(TransientCacheFailure.OPEN_FAILED)
     }
+
+/**
+ * Тестовый шов: позволяет детерминированно смоделировать недоступный кэш.
+ * В продакшене всегда `null` — поведение не меняется.
+ */
+fun setTransientCacheOverrideForTests(
+    override: ((Context) -> TransientCacheFactory.Decision)?,
+) {
+    TransientCacheFactory.testOverride = override
+}

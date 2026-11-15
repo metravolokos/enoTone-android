@@ -498,6 +498,13 @@ class PreviewAudioPlayback(
     fun transientCacheFailure(): TransientCacheFailure? = transientCacheFailure
 
     /**
+     * Включён ли кэш для собранной очереди. Решение принимается один раз при
+     * сборке (`CacheModeDecision`) и не пересматривается, даже если кэш появится
+     * позже — иначе предзагрузка работала бы без маршрутов и настроек источника.
+     */
+    fun cacheEnabledForCurrentQueue(): Boolean = cacheEnabledForQueue
+
+    /**
      * Готовит кэш вне главного потока. Удаление каталога до 512 МиБ и открытие
      * `SimpleCache` с SQLite — тяжёлые операции: на UI-потоке они давали фриз
      * и ANR при холодном старте воспроизведения.
@@ -549,7 +556,6 @@ class PreviewAudioPlayback(
         fullyCachedCurrentId = null
         scheduledNextId = null
         temporaryCache?.stopCurrent()
-        cacheEnabledForQueue = useTemporaryCache
 
         val t0 = SystemClock.elapsedRealtime()
         restoredDuration = null
@@ -559,7 +565,11 @@ class PreviewAudioPlayback(
         // Кэш не создаётся здесь: его готовит prepareTransientCache() вне главного
         // потока. Если он не готов или недоступен — играем через сеть, а не падаем.
         val diskCache = temporaryCache
-        val sourceFactory = if (useTemporaryCache && diskCache != null) {
+        // Режим кэша решается ОДИН раз рядом с готовностью кэша: очередь,
+        // собранная без кэша, не включает предзагрузку, даже если кэш появится позже.
+        cacheEnabledForQueue = CacheModeDecision.cacheEnabledForQueue(
+            requested = useTemporaryCache, cacheAvailable = diskCache != null)
+        val sourceFactory = if (cacheEnabledForQueue && diskCache != null) {
             diskCache.forPlayback(factory)
         } else factory
         if (useTemporaryCache && diskCache == null && transientCacheFailure == null) {
@@ -571,9 +581,9 @@ class PreviewAudioPlayback(
         mediaSourceFactory = mediaFactory
         val t2 = SystemClock.elapsedRealtime()
 
-        activeRoutes = if (useTemporaryCache) queue.items.associateBy { it.id }
+        activeRoutes = if (cacheEnabledForQueue) queue.items.associateBy { it.id }
             else emptyMap()
-        upstreamFactory = if (useTemporaryCache) factory else null
+        upstreamFactory = if (cacheEnabledForQueue) factory else null
         expectedQueueSize = queue.size
         mediaIdIndices = queue.items.mapIndexed { index, item -> item.id to index }.toMap()
         originalTrackIds = queue.items.map { it.id }
@@ -721,7 +731,6 @@ class PreviewAudioPlayback(
         fullyCachedCurrentId = null
         scheduledNextId = null
         temporaryCache?.stopCurrent()
-        cacheEnabledForQueue = useTemporaryCache
 
         val queue = PlaybackQueue.create(tracks, state.selectedTrackId)
         val t1 = SystemClock.elapsedRealtime()
@@ -729,7 +738,9 @@ class PreviewAudioPlayback(
         // Кэш не создаётся здесь: его готовит prepareTransientCache() вне главного
         // потока. Если он не готов или недоступен — играем через сеть, а не падаем.
         val diskCache = temporaryCache
-        val sourceFactory = if (useTemporaryCache && diskCache != null) {
+        cacheEnabledForQueue = CacheModeDecision.cacheEnabledForQueue(
+            requested = useTemporaryCache, cacheAvailable = diskCache != null)
+        val sourceFactory = if (cacheEnabledForQueue && diskCache != null) {
             diskCache.forPlayback(factory)
         } else factory
         if (useTemporaryCache && diskCache == null && transientCacheFailure == null) {
@@ -740,8 +751,8 @@ class PreviewAudioPlayback(
         routesFactory = factory
         mediaSourceFactory = mediaFactory
         val t2 = SystemClock.elapsedRealtime()
-        activeRoutes = if (useTemporaryCache) queue.items.associateBy { it.id } else emptyMap()
-        upstreamFactory = if (useTemporaryCache) factory else null
+        activeRoutes = if (cacheEnabledForQueue) queue.items.associateBy { it.id } else emptyMap()
+        upstreamFactory = if (cacheEnabledForQueue) factory else null
         expectedQueueSize = queue.size
         originalTrackIds = queue.items.map { it.id }
         sourceKeyForQueue = state.sourceKey

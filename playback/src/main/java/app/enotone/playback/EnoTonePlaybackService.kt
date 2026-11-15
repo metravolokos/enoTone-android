@@ -323,9 +323,9 @@ class EnoTonePlaybackService : MediaSessionService() {
         handler.removeCallbacks(periodicSave)
         pendingPositionSave?.let(handler::removeCallbacks)
         pendingPositionSave = null
-        // Фиксация до shutdown: после destroy submitIo ничего не поставит, поэтому
-        // позиция, ожидавшая throttle или layout, должна уйти сейчас.
-        layoutWritePending = false
+        // Если запись структуры ещё ожидает, финальная позиция уже входит в пару
+        // layout+position (writeLayoutAndPosition), поэтому savePosition сам её
+        // пропустит по layoutWritePending: отдельная запись позиции не нужна.
         savePosition(urgent = true)
         playback.player.removeListener(persistenceListener)
         playback.onShuffleLayoutReady = null
