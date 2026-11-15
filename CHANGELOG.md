@@ -1,8 +1,8 @@
 # CHANGELOG
 
-## D3.4 — Draft PR #155 (2026-11-15)
+## D3.4 — PR #155 (2026-11-15)
 
-Анимации Android v2 по `design/docs/MOTION_ANDROID_V2.md`: fade through вкладок, сдвиг страниц и Настроек, predictive back Android 14+, `SharedTransitionLayout` с перелётом обложки мини-/полного плеера, движение нижней панели и жест закрытия за пальцем (25% высоты или высокая скорость). Поведение покрывается `AppMotionTest` и `AppMotionRootUiTest`; системное отключение анимаций оставлено Compose. Макеты, ресурсы и действия песни не меняются. CI точного HEAD, независимое ревью Claude и Huawei NAV-15…17 ожидают; без аппаратного PASS.
+Анимации Android v2 по `design/docs/MOTION_ANDROID_V2.md`: fade through вкладок, сдвиг страниц и Настроек, predictive back Android 14+, `SharedTransitionLayout` с перелётом обложки мини-/полного плеера, движение нижней панели и жест закрытия за пальцем (25% высоты или высокая скорость). Поведение покрывается `AppMotionTest`, `AppBackControllerTest`, `AppMotionRootUiTest` и `AppLibraryRouteTransitionUiTest`; централизован Back, маршрутные снимки изолированы, скрыта семантика медиатеки под плеером; системное отключение анимаций оставлено Compose. Макеты, ресурсы и действия песни не меняются. Аппаратные NAV-15…17 проверяет владелец; без Huawei PASS.
 
 ## D4b — Draft PR #149 (2026-11-15)
 
