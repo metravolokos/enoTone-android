@@ -30,19 +30,20 @@ class D4bScreensScreenshotTest {
 
     private val longName = "Очень длинное вымышленное имя музыкального артиста"
     private val songs = listOf(
-        song("a1", "Первая песня", longName, "Придуманный альбом", longName, 1, 183_000L),
-        song("a2", "Вторая песня", longName, "Придуманный альбом", longName, 2, null),
-        song("c1", "Песня сборника", "Гость сборника", "Общий сборник", "VA", 1, 200_000L),
-        song("c2", "Ещё песня", "Другой гость", "Сборник без автора", null, 1, null),
-        song("c3", "Заключительная", "Третий гость", "Сборник без автора", null, 2, 154_000L),
+        song("a1", "Первая песня", longName, "Придуманный альбом", longName, 183_000L),
+        song("a2", "Вторая песня", longName, "Придуманный альбом", longName, null),
+        song("c1", "Песня сборника", "Гость сборника", "Общий сборник", "VA", 200_000L),
+        song("c2", "Ещё песня", "Другой гость", "Сборник без автора", null, null),
+        song("c3", "Заключительная", "Третий гость", "Сборник без автора", null, 154_000L),
     )
 
     private fun song(
         id: String, title: String, artist: String, album: String,
-        albumArtist: String?, number: Int, duration: Long?,
+        albumArtist: String?, duration: Long?,
     ) = OfflineTrackRow(
         id = id, title = title, artist = artist, album = album,
-        albumArtist = albumArtist, year = 2024, trackNumber = number,
+        albumArtist = albumArtist, year = 2024,
+        trackNumber = if (id == "a2" || id == "c3") 2 else 1,
         genre = "Инди", durationMs = duration, hasStoredTagData = true,
     )
 
@@ -103,9 +104,14 @@ class D4bScreensScreenshotTest {
     private fun theme(dark: Boolean) = if (dark) "graphite" else "porcelain"
 
     @Test fun artistsGraphite() = performers(LibraryPage.ARTISTS, true)
+
     @Test fun artistsPorcelain() = performers(LibraryPage.ARTISTS, false)
+
     @Test fun authorsGraphite() = performers(LibraryPage.ALBUM_ARTISTS, true)
+
     @Test fun authorsPorcelain() = performers(LibraryPage.ALBUM_ARTISTS, false)
+
     @Test fun albumGraphite() = album(true)
+
     @Test fun albumPorcelain() = album(false)
 }
