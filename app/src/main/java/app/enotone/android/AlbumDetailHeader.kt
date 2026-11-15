@@ -28,19 +28,19 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.pluralStringResource
-import app.enotone.android.core.ui.theme.EnoColors
+import androidx.compose.ui.unit.sp
 import app.enotone.android.core.ui.component.EnoAction
 import app.enotone.android.core.ui.component.EnoIcon
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
+import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
 
@@ -169,11 +169,7 @@ internal fun AlbumDetailHeader(
                 )
             }
         }
-        if (refreshMessage.isNotBlank()) {
-            Text(refreshMessage, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center)
-        }
+        AlbumRefreshFeedback(refreshMessage)
     }
     if (actionsExpanded) {
         val refresh = if (canRefreshTags && !refreshingTags) listOf(
@@ -186,6 +182,17 @@ internal fun AlbumDetailHeader(
                 EnoIcon(EnoIcons.ALBUMS, null)
             }
         }
+    }
+}
+
+
+/** Декоративный текст статуса не усложняет обработчики меню альбома. */
+@Composable
+private fun AlbumRefreshFeedback(message: String) {
+    if (message.isNotBlank()) {
+        Text(message, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center)
     }
 }
 
