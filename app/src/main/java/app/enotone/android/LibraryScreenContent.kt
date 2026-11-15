@@ -1,6 +1,13 @@
 package app.enotone.android
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -215,7 +222,19 @@ internal fun LibraryScreenContent(
     val header: @Composable () -> Unit = {
         Column(modifier = Modifier.padding(horizontal = HEADER_EXTRA_PADDING)) {
             if (selectedGroupKey == null) {
-                if (searchOpen) {
+                // D3.4: раскрытие поля из правого края значка без изменения конечной вёрстки.
+                AnimatedContent(
+                    targetState = searchOpen,
+                    transitionSpec = {
+                        (expandHorizontally(tween(250), expandFrom = Alignment.End) +
+                            fadeIn(tween(250))).togetherWith(
+                            shrinkHorizontally(tween(250), shrinkTowards = Alignment.End) +
+                                fadeOut(tween(150)),
+                        )
+                    },
+                    label = "librarySearch",
+                ) { searchExpanded ->
+                if (searchExpanded) {
                     LibrarySearchField(
                         value = search,
                         hint = stringResource(when (section) {
@@ -248,6 +267,7 @@ internal fun LibraryScreenContent(
                             iconSize = 26.dp,
                         )
                     }
+                }
                 }
                 // Счётчик под заголовком; при поиске — «Найдено N альбомов/артистов/…» (D3.2).
                 val countText = when {
