@@ -2,7 +2,6 @@ package app.enotone.android
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color as AndroidColor
 import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -60,10 +59,10 @@ class AppSimpleOpacityUiTest {
                 try {
                     host.draw(Canvas(bitmap))
                     val pixel = bitmap.getPixel(host.width / 2, host.height * 3 / 4)
-                    val red = AndroidColor.red(pixel)
-                    val green = AndroidColor.green(pixel)
-                    val blue = AndroidColor.blue(pixel)
-                    val alpha = AndroidColor.alpha(pixel)
+                    val red = android.graphics.Color.red(pixel)
+                    val green = android.graphics.Color.green(pixel)
+                    val blue = android.graphics.Color.blue(pixel)
+                    val alpha = android.graphics.Color.alpha(pixel)
                     assertTrue("Frame $frame: opaque canvas expected, ARGB=${Integer.toHexString(pixel)}",
                         alpha >= 250)
                     val solidRed = red > 220 && blue < 40 && green < 40
