@@ -4,6 +4,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.media3.common.Player
@@ -43,8 +44,8 @@ class AppNowPlayingGestureUiTest {
         rule.mainClock.advanceTimeByFrame()
         val origin = top()
         val compositions = hostCompositions
-        rule.onAllNodesWithTag("now-playing-gesture-root", useUnmergedTree = true)
-            .onFirst().performTouchInput {
+        rule.onNodeWithTag("now-playing-gesture-root", useUnmergedTree = true)
+            .performTouchInput {
                 swipe(Offset(center.x, top + 70f), Offset(center.x, top + 115f),
                     durationMillis = 600)
             }
@@ -55,8 +56,8 @@ class AppNowPlayingGestureUiTest {
             assertTrue("Cancelled swipe must restore root",
                 kotlin.math.abs(top() - origin) <= 4f)
         }
-        rule.onAllNodesWithTag("now-playing-gesture-root", useUnmergedTree = true)
-            .onFirst().performTouchInput {
+        rule.onNodeWithTag("now-playing-gesture-root", useUnmergedTree = true)
+            .performTouchInput {
                 swipe(Offset(center.x, top + 50f), Offset(center.x, bottom - 80f),
                     durationMillis = 600)
             }
