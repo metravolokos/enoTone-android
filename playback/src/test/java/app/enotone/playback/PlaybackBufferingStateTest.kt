@@ -3,6 +3,8 @@ package app.enotone.playback
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackBufferingStateTest {
@@ -27,7 +29,7 @@ class PlaybackBufferingStateTest {
             nextMediaItemIndex = C.INDEX_UNSET, phase = CachePhase.COMPLETE))
     }
 
-    @Test fun repeatAllUsesMedia3ResolvedNextItem() {
+    @Test fun repeatAllUsesProvidedResolvedNextItemIndex() {
         assertEquals(NextBufferState.READY, nextState(
             repeatMode = Player.REPEAT_MODE_ALL,
             phase = CachePhase.COMPLETE,
@@ -47,8 +49,8 @@ class PlaybackBufferingStateTest {
         ))
     }
 
-    @Test fun shuffleResolvedNextIndexCanBeLoadingOrAbsent() {
-        // The index supplied by Media3 is already in shuffle order.
+    @Test fun suppliedShuffleNextIndexCanBeLoadingOrAbsent() {
+        // The policy trusts the resolved index it is given; it does not query Media3.
         assertEquals(NextBufferState.LOADING, nextState(
             nextMediaItemIndex = 3, phase = CachePhase.DOWNLOADING))
         assertEquals(NextBufferState.NONE, nextState(
@@ -110,5 +112,22 @@ class PlaybackBufferingStateTest {
             playerBufferedPositionMs = 500L,
             currentTrackFullyCached = false,
         ))
+    }
+
+    @Test fun hiddenNowPlayingDoesNotReadMedia3BufferedPosition() {
+        var read = false
+        assertEquals(700L, resolveVisiblePlayerBufferPositionMs(
+            nowPlayingVisible = false,
+            positionMs = 700L,
+            readPlayerBufferedPositionMs = { read = true; 900L },
+        ))
+        assertFalse(read)
+
+        assertEquals(900L, resolveVisiblePlayerBufferPositionMs(
+            nowPlayingVisible = true,
+            positionMs = 700L,
+            readPlayerBufferedPositionMs = { read = true; 900L },
+        ))
+        assertTrue(read)
     }
 }

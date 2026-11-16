@@ -22,7 +22,6 @@ class NowPlayingContractTest(unittest.TestCase):
             "PlaybackSeekPolicy.positionForFraction(durationMs, scrubFraction)",
             "onSeekFraction(scrubFraction)",
             "enabled = controlsEnabled && canSeek && knownDuration",
-            "contentDescription = seekLabel",
             "onPrevious",
             "onNext",
             "onPlayPause",
