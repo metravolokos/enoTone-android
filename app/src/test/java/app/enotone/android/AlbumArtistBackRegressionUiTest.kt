@@ -102,8 +102,7 @@ class AlbumArtistBackRegressionUiTest {
         val artwork = remember { ArtworkPreviewRepository(context) }
         AppLibraryRouteTransition(
             nav = nav, liveState = state, snapshots = snapshots,
-            playerExpanded = false, backProgress = 0f,
-            backPreviewRoute = null, searchRegistry = null,
+            searchRegistry = null,
         ) { route, routeState, active ->
             if (active) {
                 LaunchedEffect(model, route) {

@@ -33,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.enotone.android.core.ui.component.EnoBottomBar
 import app.enotone.android.core.ui.component.EnoBottomBarItem
 import app.enotone.android.core.ui.component.EnoIcons
-import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
 import app.enotone.android.core.ui.component.LocalEnoDockBlur
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
@@ -53,13 +52,7 @@ internal fun AppMusicShell(
     onSelectTab: (AppTab) -> Unit,
     onOpenDetail: (LibraryDetail) -> Unit,
     onSettings: () -> Unit,
-    playerExpanded: Boolean = false,
-    playerDragProgress: Float = 0f,
-    playerBackProgress: Float = 0f,
-    backProgress: Float = 0f,
-    backPreviewRoute: AppRouteKey? = null,
     searchRegistry: AppSearchBackRegistry? = null,
-    backController: AppBackController? = null,
 ) {
     val login = account.libraryLogin
     val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
@@ -82,15 +75,7 @@ internal fun AppMusicShell(
                 nav = nav,
                 liveState = library,
                 snapshots = snapshots,
-                playerExpanded = playerExpanded,
-                backProgress = backProgress,
-                backPreviewRoute = backPreviewRoute,
                 searchRegistry = searchRegistry,
-                previewForRoute = backController?.let { controller ->
-                    { route -> controller.musicProgressFor(
-                        route, player.nowPlaying && player.playback.queueTotal > 0,
-                    ) }
-                },
             ) { route, snapshot, active ->
             when (val tab = route.tab) {
                 AppTab.Home -> EnoToneHomeScreen(
@@ -141,20 +126,15 @@ internal fun AppMusicShell(
                 }
 
                 AppDockMotion(
-                    playerExpanded = playerExpanded,
                     miniVisible = miniVisible,
-                    dragProgress = playerDragProgress,
-                    backProgress = playerBackProgress,
                     miniPlayer = {
-                        CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {
-                            EnoToneMiniPlayer(
-                                player = player,
-                                selecting = selecting,
-                                onOpen = { playerModel.onNowPlaying(true) },
-                                onPlayPause = playerModel::onPlayPause,
-                                onNext = playerModel::onNext,
-                            )
-                        }
+                        EnoToneMiniPlayer(
+                            player = player,
+                            selecting = selecting,
+                            onOpen = { playerModel.onNowPlaying(true) },
+                            onPlayPause = playerModel::onPlayPause,
+                            onNext = playerModel::onNext,
+                        )
                     },
                     bottomBar = {
                         AppBottomBar(
@@ -223,8 +203,6 @@ private val CONTENT_AIR = 16.dp
 internal fun AppNowPlaying(
     player: SharedPlayerUiState,
     playerModel: PlayerViewModel,
-    predictiveBackProgress: Float = 0f,
-    onDragProgress: (Float) -> Unit = {},
 ) {
     val playback = player.playback
     NowPlayingScreen(
@@ -258,7 +236,5 @@ internal fun AppNowPlaying(
         onNext = playerModel::onNext,
         onCycleRepeat = playerModel::onRepeat,
         onToggleShuffle = playerModel::onShuffle,
-        predictiveBackProgress = predictiveBackProgress,
-        onDragProgress = onDragProgress,
     )
 }

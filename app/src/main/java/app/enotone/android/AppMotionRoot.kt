@@ -2,95 +2,120 @@ package app.enotone.android
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.unit.dp
-import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
-import app.enotone.android.core.ui.component.LocalEnoSharedTransition
+import kotlin.math.roundToInt
 
 /**
- * Каркас переходов D3.4. Основной экран не удаляется при открытии полного плеера:
- * иначе теряются исходная обложка shared element и состояние прокрутки медиатеки.
- * Сам вид экранов остаётся неизменным.
+ * Три маршрута используют один appPageTransition; единственный движущийся слой — шторка плеера.
+ * Подложка продолжает жить для прокрутки, но скрыта от TalkBack под раскрытым плеером.
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun AppMotionRoot(
     inSettings: Boolean,
     diagnostics: Boolean,
     playerExpanded: Boolean,
-    backProgress: Float = 0f,
+    playerBackProgress: Float = 0f,
     music: @Composable () -> Unit,
     settings: @Composable (Boolean) -> Unit,
     player: @Composable () -> Unit,
 ) {
-    SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
-        CompositionLocalProvider(LocalEnoSharedTransition provides this) {
-            AnimatedContent(
-                targetState = inSettings,
-                transitionSpec = { settingsMotionTransition() },
-                label = "mainSettingsRoute",
-                modifier = Modifier.fillMaxSize(),
-            ) { settingsVisible ->
+    val previewSettle = remember { Animatable(0f) }
+    val latestBackProgress = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(playerBackProgress) {
+        if (playerBackProgress > 0f) {
+            previewSettle.snapTo(playerBackProgress.coerceIn(0f, 1f))
+        } else {
+            // LaunchedEffect is asynchronous: snapTo(progress) can be cancelled before it
+            // stores the preview value. Reapply the last rendered progress before settling.
+            val cancelFrom = latestBackProgress.floatValue.coerceIn(0f, 1f)
+            if (cancelFrom > 0f) {
+                previewSettle.snapTo(cancelFrom)
+            }
+            previewSettle.animateTo(0f, animationSpec = tween(AppMotionSpec.PLAYER_CLOSE_MS))
+        }
+    }
+    SideEffect {
+        if (playerBackProgress > 0f) {
+            latestBackProgress.floatValue = playerBackProgress.coerceIn(0f, 1f)
+        }
+    }
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        AnimatedContent(
+            targetState = inSettings,
+            transitionSpec = { appPageTransition() },
+            label = "mainSettingsRoute",
+            modifier = Modifier.fillMaxSize(),
+        ) { settingsVisible ->
+            Box(
+                Modifier.fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .then(if (playerExpanded) Modifier.clearAndSetSemantics {} else Modifier),
+            ) {
                 if (settingsVisible) {
-                    Box(
-                        Modifier.fillMaxSize()
-                            .then(if (playerExpanded) Modifier.clearAndSetSemantics {} else Modifier)
-                            .graphicsLayer {
-                            if (backProgress > 0f && !playerExpanded) {
-                                scaleX = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
-                                scaleY = 1f - backProgress * AppMotionSpec.BACK_SCALE_REDUCTION
-                                translationX = size.width * backProgress * AppMotionSpec.BACK_TRANSLATION_RATIO
-                                shape = RoundedCornerShape(AppMotionSpec.BACK_RADIUS_DP.dp * backProgress)
-                                clip = true
-                            }
-                        },
-                    ) {
-                        AnimatedContent(
-                            targetState = diagnostics,
-                            transitionSpec = { settingsMotionTransition() },
-                            label = "settingsDiagnosticsRoute",
-                        ) { showingDiagnostics ->
+                    AnimatedContent(
+                        targetState = diagnostics,
+                        transitionSpec = { appPageTransition() },
+                        label = "settingsDiagnosticsRoute",
+                        modifier = Modifier.fillMaxSize(),
+                    ) { showingDiagnostics ->
+                        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                             settings(showingDiagnostics)
                         }
                     }
                 } else {
-                    // Compose-содержимое остаётся под shared-element, но TalkBack не видит его.
-                    Box(Modifier.fillMaxSize().then(
-                        if (playerExpanded) Modifier.clearAndSetSemantics {} else Modifier,
-                    )) {
-                        music()
-                    }
+                    music()
                 }
             }
-            AnimatedVisibility(
-                visible = playerExpanded,
-                enter = slideInVertically(
-                    tween(AppMotionSpec.PLAYER_OPEN_MS, easing = AppMotionSpec.emphasizedDecelerate),
-                    initialOffsetY = { it },
-                ) + fadeIn(tween(AppMotionSpec.PLAYER_OPEN_MS)),
-                exit = slideOutVertically(
-                    tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
-                    targetOffsetY = { it },
-                ) + fadeOut(tween(AppMotionSpec.PLAYER_CLOSE_MS)),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {
-                    player()
+        }
+        AnimatedVisibility(
+            visible = playerExpanded,
+            enter = slideInVertically(
+                tween(AppMotionSpec.PLAYER_OPEN_MS, easing = AppMotionSpec.emphasizedDecelerate),
+                initialOffsetY = { it },
+            ),
+            exit = slideOutVertically(
+                tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
+                // Preview уже сдвинул шторку; exit проходит лишь оставшийся путь.
+                targetOffsetY = { height ->
+                    (height * (1f - playerBackProgress.coerceIn(0f, 1f))).roundToInt()
+                },
+            ),
+            // Системный preview сдвигает размещение всей шторки, а не только её RenderNode:
+            // это видимо и в реальных кадрах, и для координат ввода/доступности.
+            // Animatable читается в placement, поэтому cancel не рекомпозирует плеер по кадрам.
+            // The layer block observes Animatable values on every animation frame without
+            // recomposing or remeasuring the player subtree.
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                val back = if (playerBackProgress > 0f) {
+                    playerBackProgress
+                } else {
+                    previewSettle.value
                 }
+                translationY = size.height * back
+            },
+        ) {
+            Box(
+                Modifier.fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .testTag("app-player-sheet"),
+            ) {
+                player()
             }
         }
     }

@@ -92,9 +92,6 @@ class AppLibraryRouteTransitionUiTest {
                 nav = nav,
                 liveState = live,
                 snapshots = snapshots,
-                playerExpanded = false,
-                backProgress = 0f,
-                backPreviewRoute = null,
                 searchRegistry = null,
             ) { route, frozen, _ ->
                 val state = requireNotNull(frozen)

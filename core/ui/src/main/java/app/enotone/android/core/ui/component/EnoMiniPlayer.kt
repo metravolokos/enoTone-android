@@ -94,7 +94,7 @@ fun EnoMiniPlayer(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Box(
-                    modifier = Modifier.enoSharedArtwork().size(44.dp)
+                    modifier = Modifier.size(44.dp)
                         .clip(RoundedCornerShape(EnoRadii.xs))
                         .background(EnoColors.surface2),
                 ) {
