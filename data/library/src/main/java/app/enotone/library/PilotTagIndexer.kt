@@ -47,6 +47,10 @@ internal object PilotFailures {
                 "FAILED_METADATA", "PARSER", code.name, stats?.httpStatus ?: 0)
             FastTagCode.FAST_BUDGET_EXCEEDED -> PilotFailure(
                 "FAILED_BUDGET", "PARSER", code.name, stats?.httpStatus ?: 0)
+            // R-A7: a refused layout is a parser verdict, not a completed empty
+            // tag check. Recording it as "no tags" hid real format regressions.
+            FastTagCode.UNSUPPORTED_LAYOUT, FastTagCode.UNSUPPORTED_FORMAT -> PilotFailure(
+                "FAILED_LAYOUT", "PARSER", code.name, stats?.httpStatus ?: 0)
             else -> null
         }
 

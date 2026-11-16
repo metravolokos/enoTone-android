@@ -1,12 +1,10 @@
 package app.enotone.library
 
-import java.io.ByteArrayOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Test
 
 /**
@@ -43,6 +41,24 @@ class TagReaderFixtureTest {
             fileSize = bytes.size.toLong(),
             readAt = source,
             readCachedAt = if (useCache) source else null,
+        )
+    }
+
+    /**
+     * Same as [read], but lets a test poke one byte so a *valid* fixture can be
+     * turned into the layout the parser is expected to refuse. Needed because
+     * `id3v23_ext_header.mp3` became readable when the extended-header defect
+     * was fixed, so it can no longer play the "refused" role by itself.
+     */
+    private fun readMutated(name: String, mutate: (ByteArray) -> Unit): FastTagRead {
+        val bytes = fixture(name)
+        mutate(bytes)
+        val source = reader(bytes)
+        return FastAudioTagReader().read(
+            fileName = name,
+            fileSize = bytes.size.toLong(),
+            readAt = source,
+            readCachedAt = source,
         )
     }
 
@@ -106,7 +122,10 @@ class TagReaderFixtureTest {
         assertEquals(FastTagCode.NO_EMBEDDED_TAGS, absent.code)
         assertNull(absent.tags)
 
-        val refused = read("id3v23_ext_header.mp3")
+        // Tag-level unsynchronisation on an ID3v2.3 tag is still refused: v2.3
+        // stores whole-tag sizes before unsync, so the byte count cannot be
+        // trusted. Flip the extended-header flag to the unsync flag.
+        val refused = readMutated("id3v23_ext_header.mp3") { it[5] = 0x80.toByte() }
         assertNull(refused.tags)
         // Property, not a pinned enum value: the exact refusal code may change
         // with the fix, but "refused" must never look like "nothing was there".
@@ -115,17 +134,16 @@ class TagReaderFixtureTest {
 
     /**
      * Defect (R-A7): the parsing layer knows the tag exists and was refused, but
-     * [PilotFailures.fromParserResult] maps every parse refusal except
+     * [PilotFailures.fromParserResult] used to map every parse refusal except
      * INVALID_METADATA / FAST_BUDGET_EXCEEDED to `null`, so the indexing record
-     * looks like a completed check with zero tags. The user sees a track with no
+     * looked like a completed check with zero tags. The user saw a track with no
      * title and no retry, exactly as if the file never had tags.
      *
-     * Required API change (must be decided separately, not invented here): either
-     * add a `FAILED_LAYOUT` failure for [FastTagCode.UNSUPPORTED_LAYOUT] and
-     * [FastTagCode.UNSUPPORTED_FORMAT], or make [FastTagRead] expose an explicit
-     * `refused` flag next to `code` so callers can tell "absent" from "rejected".
+     * Fixed by the least invasive option: [FastTagCode.UNSUPPORTED_LAYOUT] and
+     * [FastTagCode.UNSUPPORTED_FORMAT] now yield an explicit `FAILED_LAYOUT`
+     * failure, so `FastTagRead` keeps its shape and callers stop treating a
+     * verdict as an empty result.
      */
-    @Ignore("R-A7: blocked until the pipeline can express 'refused' separately from 'absent'")
     @Test fun refusedLayoutIsNotRecordedAsACompletedEmptyCheck() {
         assertNotNull("A refused tag layout must be reported as a parser failure",
             PilotFailures.fromParserResult(FastTagCode.UNSUPPORTED_LAYOUT, null))

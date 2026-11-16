@@ -1,9 +1,71 @@
 package app.enotone.library
 
+import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.nio.charset.Charset
 import java.util.Locale
 
 private const val MILLIS_PER_SECOND = 1_000L
+
+// ID3v2 tag header, frame header and flag bits.
+private const val ID3_HEADER_BYTES = 10
+private const val ID3_FRAME_HEADER_BYTES = 10
+private const val ID3_HEADER_FLAG_MASK = 0xF0
+private const val ID3_FLAG_UNSYNC = 0x80
+private const val ID3_FLAG_EXTENDED_HEADER = 0x40
+private const val ID3_EXTENDED_HEADER_BYTES = 4
+private const val ID3_EXTENDED_HEADER_MIN = 6
+private const val ID3_MAX_FRAMES = 256
+private const val ID3_MAX_TEXT_FRAME_BYTES = 8192L
+private const val ID3_MAX_UNSYNC_TAG_BYTES = 65536
+private const val ID3_FRAME_V23_GROUPING = 0x20
+private const val ID3_FRAME_V23_COMPRESSION = 0x80
+private const val ID3_FRAME_V23_ENCRYPTION = 0x40
+private const val ID3_FRAME_GROUPING = 0x40
+private const val ID3_FRAME_COMPRESSION = 0x08
+private const val ID3_FRAME_ENCRYPTION = 0x04
+private const val ID3_FRAME_UNSYNC = 0x02
+private const val ID3_FRAME_DATA_LENGTH = 0x01
+private const val ID3_DATA_LENGTH_BYTES = 4
+
+// FLAC metadata block chain.
+private const val FLAC_MARKER_BYTES = 4
+private const val FLAC_BLOCK_HEADER_BYTES = 4
+private const val FLAC_STREAMINFO_BYTES = 34
+private const val FLAC_MAX_BLOCKS = 128
+private const val FLAC_MAX_COMMENT_BYTES = 65536
+private const val FLAC_PROBE_BYTES = 65536
+private const val FLAC_LAST_BLOCK = 0x80
+private const val FLAC_TYPE_MASK = 0x7F
+private const val FLAC_TYPE_STREAMINFO = 0
+private const val FLAC_TYPE_VORBIS = 4
+private const val FLAC_TYPE_INVALID = 127
+private const val FLAC_MARKER = "fLaC"
+
+// MPEG-1/2 layer III frame geometry for constant-bitrate duration.
+private const val MPEG1_LAYER3_COEFFICIENT = 144
+private const val MPEG2_LAYER3_COEFFICIENT = 72
+
+// Windows-1251 detection for text frames that declare ISO-8859-1.
+private const val CP1251_ASCII_END = 0x80
+private const val CP1251_CAPITAL_YO = 0xA8
+private const val CP1251_SMALL_YO = 0xB8
+private const val CP1251_CYRILLIC_START = 0xC0
+private const val CP1251_MIN_HIGH_BYTES = 4
+
+private val flacContinuationTypes = 1..6
+private val wantedTextFrames = setOf(
+    "TIT2", "TPE1", "TALB", "TPE2", "TDRC", "TYER", "TRCK", "TPOS", "TCON",
+)
+private val mpeg1Layer3Kbps = intArrayOf(
+    0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0,
+)
+private val mpeg2Layer3Kbps = intArrayOf(
+    0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0,
+)
+private val windows1251: Charset by lazy {
+    runCatching { Charset.forName("windows-1251") }.getOrDefault(Charsets.ISO_8859_1)
+}
 
 /** Fixed diagnostic codes: safe to display, never include titles or remote paths. */
 enum class FastTagCode {
@@ -28,6 +90,12 @@ data class FastTagRead(
  * a full-file reader. Only one caller-chosen file. At most six distinct 64-KiB
  * blocks and 96 KiB of requested metadata (actual GET uses 64-KiB blocks).
  * Large artwork is skipped by byte offsets without downloading its contents.
+ *
+ * Supported layouts: ID3v2.3 with an extended header, ID3v2.4 with an extended
+ * header and/or tag-level and frame-level unsynchronisation, FLAC behind an
+ * ID3v2 preamble, and a corrupt STREAMINFO followed by valid comments. A
+ * tag-level ID3v2.3 unsynchronised tag stays refused: decoding it needs a
+ * whole-tag copy that the read budget cannot guarantee.
  */
 class FastAudioTagReader {
     fun read(
@@ -51,10 +119,10 @@ class FastAudioTagReader {
         }
     }
 
-    @Suppress("LongMethod", "CyclomaticComplexMethod", "ReturnCount")
+    @Suppress("LongMethod", "CyclomaticComplexMethod", "ReturnCount", "MagicNumber")
     private fun readMp3(source: BoundedBytes, name: String): FastTagRead {
-        val first = source.bytes(0L, minOf(10L, source.size).toInt())
-        if (first.size < 10 || ascii(first, 0, 3) != "ID3") {
+        val first = source.bytes(0L, minOf(ID3_HEADER_BYTES.toLong(), source.size).toInt())
+        if (first.size < ID3_HEADER_BYTES || ascii(first, 0, 3) != "ID3") {
             if (source.size < 128) {
                 return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS,
                     durationMs = mp3DurationMs(source, 0L))
@@ -76,40 +144,22 @@ class FastAudioTagReader {
         if (major !in 3..4 || u(first[4]) != 0) {
             return FastTagRead(FastTagCode.UNSUPPORTED_LAYOUT)
         }
-        // Unsynchronisation, extended header, and compressed/encrypted layouts
-        // must be handled in a separate tested parser before being accepted.
-        if ((u(first[5]) and 0xF0) != 0) return FastTagRead(FastTagCode.UNSUPPORTED_LAYOUT)
+        val flags = u(first[5])
+        // v2.3: the extended header is understood. Tag-level unsynchronisation
+        // needs a whole-tag copy and stays refused under the 64-KiB budget.
+        // v2.4: tag-level unsynchronisation is supported, a footer is not.
+        val supported = if (major == 3) ID3_FLAG_EXTENDED_HEADER
+            else ID3_FLAG_EXTENDED_HEADER or ID3_FLAG_UNSYNC
+        if ((flags and ID3_HEADER_FLAG_MASK and supported.inv()) != 0) {
+            return FastTagRead(FastTagCode.UNSUPPORTED_LAYOUT)
+        }
         val tagSize = synchsafe(first, 6)
-        val end = 10L + tagSize
+        val end = ID3_HEADER_BYTES + tagSize
         if (end > source.size) return FastTagRead(FastTagCode.INVALID_METADATA)
-        var pos = 10L
-        var frames = 0
-        val tags = mutableMapOf<String, String>()
-        while (pos + 10L <= end) {
-            if (++frames > 256) return FastTagRead(FastTagCode.FAST_BUDGET_EXCEEDED)
-            val hdr = source.bytes(pos, 10)
-            if (hdr.slice(0..3).all { it == 0.toByte() }) break
-            val id = ascii(hdr, 0, 4)
-            if (!id.all { it in 'A'..'Z' || it in '0'..'9' }) {
-                return FastTagRead(FastTagCode.INVALID_METADATA)
-            }
-            val length = if (major == 4) synchsafe(hdr, 4) else big32(hdr, 4)
-            val next = pos + 10L + length
-            if (length <= 0L || next > end) return FastTagRead(FastTagCode.INVALID_METADATA)
-            if (id in setOf("TIT2", "TPE1", "TALB", "TPE2",
-                "TDRC", "TYER", "TRCK", "TPOS", "TCON") && !tags.containsKey(id)) {
-                // Ignore tag layouts requiring decrypt/decompress/unsynchronisation.
-                if (u(hdr[8]) != 0 || u(hdr[9]) != 0) {
-                    return FastTagRead(FastTagCode.UNSUPPORTED_LAYOUT)
-                }
-                if (length > 8192L) return FastTagRead(FastTagCode.FAST_BUDGET_EXCEEDED)
-                val payload = source.bytes(pos + 10L, length.toInt())
-                val value = decodeId3Text(payload, major)
-                    ?: return FastTagRead(FastTagCode.UNSUPPORTED_LAYOUT)
-                if (value.isNotBlank()) tags[id] = value
-            }
-            // APIC/other frames can be huge: seek over them, never download them.
-            pos = next
+        val tags = if (major == 4 && (flags and ID3_FLAG_UNSYNC) != 0) {
+            unsynchronisedTag(source, flags, tagSize, major)
+        } else {
+            streamingTag(source, flags, end, major)
         }
         return result(if (major == 3) FastTagCode.MP3_ID3V23 else FastTagCode.MP3_ID3V24,
             name, tags["TIT2"], tags["TPE1"], tags["TALB"], tags["TPE2"],
@@ -120,33 +170,161 @@ class FastAudioTagReader {
             durationMs = mp3DurationMs(source, end))
     }
 
-    private fun readFlac(source: BoundedBytes, name: String): FastTagRead {
-        if (ascii(source.bytes(0, 4), 0, 4) != "fLaC") {
-            return FastTagRead(FastTagCode.UNSUPPORTED_LAYOUT)
+    private fun streamingTag(
+        source: BoundedBytes, flags: Int, end: Long, major: Int,
+    ): Map<String, String> {
+        val read: (Long, Int) -> ByteArray = { at, count -> source.bytes(at, count) }
+        var start = ID3_HEADER_BYTES.toLong()
+        if ((flags and ID3_FLAG_EXTENDED_HEADER) != 0) {
+            start = extendedHeaderEnd(read, start, end, major)
         }
-        var pos = 4L
+        return collectId3Tags(major, start, end, false, read)
+    }
+
+    @Suppress("ThrowsCount")
+    private fun unsynchronisedTag(
+        source: BoundedBytes, flags: Int, tagSize: Long, major: Int,
+    ): Map<String, String> {
+        // The whole tag body is decoded in memory, so its size must fit the
+        // same 64-KiB ceiling as a single metadata block.
+        if (tagSize > ID3_MAX_UNSYNC_TAG_BYTES) {
+            throw FastStop(FastTagCode.FAST_BUDGET_EXCEEDED)
+        }
+        val body = deUnsynchronise(source.bytes(ID3_HEADER_BYTES.toLong(), tagSize.toInt()))
+        val read = arrayReader(body)
+        val end = body.size.toLong()
+        var start = 0L
+        if ((flags and ID3_FLAG_EXTENDED_HEADER) != 0) {
+            start = extendedHeaderEnd(read, start, end, major)
+        }
+        return collectId3Tags(major, start, end, true, read)
+    }
+
+    @Suppress("MagicNumber", "ThrowsCount")
+    private fun arrayReader(data: ByteArray): (Long, Int) -> ByteArray = { at, count ->
+        if (at < 0L || count < 0 || at + count > data.size) {
+            throw FastStop(FastTagCode.INVALID_METADATA)
+        }
+        data.copyOfRange(at.toInt(), (at + count).toInt())
+    }
+
+    @Suppress("MagicNumber", "ThrowsCount")
+    private fun extendedHeaderEnd(
+        read: (Long, Int) -> ByteArray, pos: Long, end: Long, major: Int,
+    ): Long {
+        if (pos + ID3_EXTENDED_HEADER_BYTES > end) {
+            throw FastStop(FastTagCode.INVALID_METADATA)
+        }
+        val size = read(pos, ID3_EXTENDED_HEADER_BYTES)
+        // v2.3 stores a plain size that excludes its own four bytes; v2.4 stores
+        // a synchsafe size that already includes itself.
+        val declared = if (major == 4) synchsafe(size, 0) else big32(size, 0)
+        val next = pos + if (major == 4) declared else declared + ID3_EXTENDED_HEADER_BYTES
+        if (declared < ID3_EXTENDED_HEADER_MIN || next > end) {
+            throw FastStop(FastTagCode.INVALID_METADATA)
+        }
+        return next
+    }
+
+    @Suppress("CyclomaticComplexMethod", "ReturnCount", "ThrowsCount", "MagicNumber")
+    private fun collectId3Tags(
+        major: Int,
+        start: Long,
+        end: Long,
+        tagLevelUnsynced: Boolean,
+        read: (Long, Int) -> ByteArray,
+    ): Map<String, String> {
+        var pos = start
+        var frames = 0
+        val tags = linkedMapOf<String, String>()
+        while (pos + ID3_FRAME_HEADER_BYTES <= end) {
+            if (++frames > ID3_MAX_FRAMES) throw FastStop(FastTagCode.FAST_BUDGET_EXCEEDED)
+            val header = read(pos, ID3_FRAME_HEADER_BYTES)
+            if (header.all { it == 0.toByte() }) break
+            val id = ascii(header, 0, 4)
+            if (!id.all { it in 'A'..'Z' || it in '0'..'9' }) {
+                throw FastStop(FastTagCode.INVALID_METADATA)
+            }
+            val length = if (major == 4) synchsafe(header, 4) else big32(header, 4)
+            val next = pos + ID3_FRAME_HEADER_BYTES + length
+            if (length <= 0L || next > end) throw FastStop(FastTagCode.INVALID_METADATA)
+            if (id in wantedTextFrames && !tags.containsKey(id)) {
+                val (skip, unsynchronised) = frameLayout(major, u(header[9]), tagLevelUnsynced)
+                val payloadLength = length - skip
+                if (payloadLength > ID3_MAX_TEXT_FRAME_BYTES) {
+                    throw FastStop(FastTagCode.FAST_BUDGET_EXCEEDED)
+                }
+                val raw = read(pos + ID3_FRAME_HEADER_BYTES + skip, payloadLength.toInt())
+                val payload = if (unsynchronised) deUnsynchronise(raw) else raw
+                val value = decodeId3Text(payload, major)
+                    ?: throw FastStop(FastTagCode.UNSUPPORTED_LAYOUT)
+                if (value.isNotBlank()) tags[id] = value
+            }
+            // APIC/other frames can be huge: seek over them, never download them.
+            pos = next
+        }
+        return tags
+    }
+
+    /** Returns the payload prefix to skip and whether the payload needs de-unsync. */
+    @Suppress("MagicNumber", "ThrowsCount")
+    private fun frameLayout(
+        major: Int, formatFlags: Int, tagLevelUnsynced: Boolean,
+    ): Pair<Int, Boolean> {
+        val rejected = if (major == 4) {
+            ID3_FRAME_GROUPING or ID3_FRAME_COMPRESSION or ID3_FRAME_ENCRYPTION
+        } else {
+            ID3_FRAME_V23_GROUPING or ID3_FRAME_V23_COMPRESSION or ID3_FRAME_V23_ENCRYPTION
+        }
+        if ((formatFlags and rejected) != 0) throw FastStop(FastTagCode.UNSUPPORTED_LAYOUT)
+        val skip = if (major == 4 && (formatFlags and ID3_FRAME_DATA_LENGTH) != 0) {
+            ID3_DATA_LENGTH_BYTES
+        } else {
+            0
+        }
+        val unsynchronised = !tagLevelUnsynced && major == 4 &&
+            (formatFlags and ID3_FRAME_UNSYNC) != 0
+        return skip to unsynchronised
+    }
+
+    @Suppress("ReturnCount", "CyclomaticComplexMethod", "ThrowsCount", "MagicNumber")
+    private fun readFlac(source: BoundedBytes, name: String): FastTagRead {
+        val marker = flacMarkerOffset(source)
+            ?: return FastTagRead(FastTagCode.UNSUPPORTED_LAYOUT)
+        var pos = marker + FLAC_MARKER_BYTES
         var durationMs: Long? = null
-        repeat(128) { index ->
-            if (pos > source.size - 4) return FastTagRead(FastTagCode.INVALID_METADATA)
-            val hdr = source.bytes(pos, 4)
-            val last = (u(hdr[0]) and 0x80) != 0
-            val type = u(hdr[0]) and 0x7F
-            val size = (u(hdr[1]) shl 16) or (u(hdr[2]) shl 8) or u(hdr[3])
-            // FLAC requires STREAMINFO to be the first block, of size 34.
-            if (index == 0 && (type != 0 || size != 34)) {
+        repeat(FLAC_MAX_BLOCKS) { index ->
+            val header = flacBlockHeader(source, pos)
+                ?: return FastTagRead(FastTagCode.INVALID_METADATA)
+            val type = u(header[0]) and FLAC_TYPE_MASK
+            val size = (u(header[1]) shl 16) or (u(header[2]) shl 8) or u(header[3])
+            val contentStart = pos + FLAC_BLOCK_HEADER_BYTES
+            if (type == FLAC_TYPE_INVALID || size.toLong() > source.size - contentStart) {
                 return FastTagRead(FastTagCode.INVALID_METADATA)
             }
-            val contentStart = pos + 4
-            if (size.toLong() > source.size - contentStart || type == 127) {
-                return FastTagRead(FastTagCode.INVALID_METADATA)
-            }
+            val last = (u(header[0]) and FLAC_LAST_BLOCK) != 0
             if (index == 0) {
-                durationMs = source.cachedBytes(contentStart, 34)?.let(::flacDurationMs)
-            }
-            if (type == 4) {
-                if (size > 65536) return FastTagRead(FastTagCode.FAST_BUDGET_EXCEEDED)
-                val data = source.bytes(contentStart, size)
-                val values = parseVorbis(data)
+                if (type != FLAC_TYPE_STREAMINFO) {
+                    return FastTagRead(FastTagCode.INVALID_METADATA)
+                }
+                val declaredEnd = contentStart + size
+                val intact = last || flacHeaderIsPlausible(source, declaredEnd)
+                durationMs = streamInfoDuration(source, contentStart, size, intact)
+                if (last) {
+                    return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS,
+                        durationMs = durationMs)
+                }
+                // A broken STREAMINFO must not cost the following comments:
+                // resynchronise on the first plausible block inside its span.
+                pos = if (intact) declaredEnd else {
+                    locateFlacBlock(source, contentStart, declaredEnd)
+                        ?: return FastTagRead(FastTagCode.INVALID_METADATA)
+                }
+            } else if (type == FLAC_TYPE_VORBIS) {
+                if (size > FLAC_MAX_COMMENT_BYTES) {
+                    return FastTagRead(FastTagCode.FAST_BUDGET_EXCEEDED)
+                }
+                val values = parseVorbis(source.bytes(contentStart, size))
                 return result(FastTagCode.FLAC_VORBIS, name,
                     values["TITLE"], values["ARTIST"], values["ALBUM"], values["ALBUMARTIST"],
                     rawYear = values["DATE"] ?: values["YEAR"],
@@ -154,13 +332,74 @@ class FastAudioTagReader {
                     rawDiscNumber = values["DISCNUMBER"],
                     rawGenre = values["GENRE"],
                     durationMs = durationMs)
+            } else {
+                pos = contentStart + size
+                if (last) {
+                    return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS,
+                        durationMs = durationMs)
+                }
             }
-            // PICTURE, padding, seek table: skip by encoded size, no bulk reads.
-            pos = contentStart + size
-            if (last) return FastTagRead(FastTagCode.NO_EMBEDDED_TAGS,
-                durationMs = durationMs)
         }
         return FastTagRead(FastTagCode.FAST_BUDGET_EXCEEDED)
+    }
+
+    /**
+     * The first four bytes are read unconditionally to keep the common case at
+     * one Range request. Only when `fLaC` is missing is a bounded window probed,
+     * because some taggers prepend an ID3v2 block to a native FLAC stream.
+     */
+    @Suppress("MagicNumber", "ReturnCount")
+    private fun flacMarkerOffset(source: BoundedBytes): Long? {
+        val head = source.bytes(0L, minOf(FLAC_MARKER_BYTES.toLong(), source.size).toInt())
+        if (ascii(head, 0, FLAC_MARKER_BYTES) == FLAC_MARKER) return 0L
+        val windowLength = minOf(FLAC_PROBE_BYTES.toLong(), source.size - FLAC_MARKER_BYTES)
+        if (windowLength < FLAC_MARKER_BYTES) return null
+        val window = String(source.bytes(0L, windowLength.toInt()), Charsets.ISO_8859_1)
+        val found = window.indexOf(FLAC_MARKER)
+        return if (found >= 0) found.toLong() else null
+    }
+
+    @Suppress("MagicNumber")
+    private fun flacBlockHeader(source: BoundedBytes, at: Long): ByteArray? {
+        if (at < 0L || at > source.size - FLAC_BLOCK_HEADER_BYTES) return null
+        return source.bytes(at, FLAC_BLOCK_HEADER_BYTES)
+    }
+
+    @Suppress("MagicNumber", "ReturnCount")
+    private fun flacHeaderIsPlausible(source: BoundedBytes, at: Long): Boolean {
+        val header = flacBlockHeader(source, at) ?: return false
+        val type = u(header[0]) and FLAC_TYPE_MASK
+        if (type !in flacContinuationTypes) return false
+        val size = (u(header[1]) shl 16) or (u(header[2]) shl 8) or u(header[3])
+        return size.toLong() <= source.size - (at + FLAC_BLOCK_HEADER_BYTES)
+    }
+
+    @Suppress("MagicNumber", "ReturnCount")
+    private fun locateFlacBlock(source: BoundedBytes, from: Long, until: Long): Long? {
+        val length = minOf(until - from, FLAC_PROBE_BYTES.toLong())
+        if (length < FLAC_BLOCK_HEADER_BYTES) return null
+        val window = source.bytes(from, length.toInt())
+        var index = 0
+        while (index + FLAC_BLOCK_HEADER_BYTES <= window.size) {
+            val type = u(window[index]) and FLAC_TYPE_MASK
+            val size = (u(window[index + 1]) shl 16) or
+                (u(window[index + 2]) shl 8) or u(window[index + 3])
+            val contentStart = from + index + FLAC_BLOCK_HEADER_BYTES
+            if (type in flacContinuationTypes && size.toLong() <= source.size - contentStart) {
+                return from + index
+            }
+            index++
+        }
+        return null
+    }
+
+    /** Duration is trusted only for a spec-sized STREAMINFO inside an intact chain. */
+    @Suppress("ReturnCount")
+    private fun streamInfoDuration(
+        source: BoundedBytes, contentStart: Long, size: Int, intact: Boolean,
+    ): Long? {
+        if (!intact || size != FLAC_STREAMINFO_BYTES) return null
+        return source.cachedBytes(contentStart, FLAC_STREAMINFO_BYTES)?.let(::flacDurationMs)
     }
 
     private fun parseVorbis(data: ByteArray): Map<String, String> {
@@ -275,9 +514,31 @@ class FastAudioTagReader {
                 return durationMs(xing.readUnsignedInt(8), samplesPerFrame, sampleRate)
             }
         }
-        val vbri = source.cachedBytes(frameStart + 36L, 18) ?: return null
-        if (ascii(vbri, 0, 4) != "VBRI") return null
-        return durationMs(vbri.readUnsignedInt(14), samplesPerFrame, sampleRate)
+        val vbri = source.cachedBytes(frameStart + 36L, 18)
+        if (vbri != null && ascii(vbri, 0, 4) == "VBRI") {
+            return durationMs(vbri.readUnsignedInt(14), samplesPerFrame, sampleRate)
+        }
+        // No frame count in the stream: derive it from the constant bitrate and
+        // the real audio size, still without a single extra Range request.
+        return constantBitrateDurationMs(
+            source.size - frameStart, bits, version, sampleRate, samplesPerFrame)
+    }
+
+    @Suppress("MagicNumber", "ReturnCount")
+    private fun constantBitrateDurationMs(
+        audioBytes: Long, headerBits: Int, version: Int,
+        sampleRate: Int, samplesPerFrame: Int,
+    ): Long? {
+        if (audioBytes <= 0L || sampleRate <= 0) return null
+        val index = (headerBits ushr 12) and 0xF
+        val kbps = if (version == 3) mpeg1Layer3Kbps.getOrNull(index)
+        else mpeg2Layer3Kbps.getOrNull(index)
+        if (kbps == null || kbps <= 0) return null
+        val coefficient = if (version == 3) MPEG1_LAYER3_COEFFICIENT else MPEG2_LAYER3_COEFFICIENT
+        val padding = (headerBits ushr 9) and 1
+        val frameBytes = coefficient * kbps * MILLIS_PER_SECOND / sampleRate + padding
+        if (frameBytes <= 0L) return null
+        return durationMs(audioBytes / frameBytes, samplesPerFrame, sampleRate)
     }
 
     private fun durationMs(frames: Long, samplesPerFrame: Int, sampleRate: Int): Long? {
@@ -312,13 +573,69 @@ class FastAudioTagReader {
         val encoding = u(payload[0])
         val data = payload.copyOfRange(1, payload.size)
         val charset = when (encoding) {
-            0 -> Charsets.ISO_8859_1
+            0 -> null
             1 -> Charsets.UTF_16
             2 -> Charsets.UTF_16BE
             3 -> if (version == 4) Charsets.UTF_8 else return null
             else -> return null
         }
-        return String(data, charset).substringBefore('\u0000').trim()
+        val text = if (charset == null) legacySingleByteText(data) else String(data, charset)
+        return text.substringBefore('\u0000').trim()
+    }
+
+    /**
+     * Encoding byte 0 means ISO-8859-1, but many real taggers write Windows-1251
+     * bytes there while keeping the declared encoding. Detection is cheap and
+     * deterministic: keep the ISO-8859-1 reading unless the payload has no ASCII
+     * letters, at least four bytes in the Cyrillic range, and Windows-1251 maps
+     * every letter to Cyrillic. Nothing is guessed from the file name or locale.
+     *
+     * Known limitation: a word built only from high Latin-1 letters (for example
+     * `ÅÄÖÅÄÖ`) is byte-identical to a Cyrillic CP1251 word and is decoded as
+     * Cyrillic; the two encodings cannot be separated without guessing.
+     */
+    @Suppress("MagicNumber", "ReturnCount")
+    private fun legacySingleByteText(data: ByteArray): String {
+        val latin1 = String(data, Charsets.ISO_8859_1)
+        if (latin1.any { it in 'a'..'z' || it in 'A'..'Z' }) return latin1
+        var highBytes = 0
+        var cyrillicRange = true
+        for (byte in data) {
+            val value = u(byte)
+            if (value < CP1251_ASCII_END) continue
+            highBytes++
+            if (value < CP1251_CYRILLIC_START && value != CP1251_CAPITAL_YO &&
+                value != CP1251_SMALL_YO) {
+                cyrillicRange = false
+            }
+        }
+        if (highBytes < CP1251_MIN_HIGH_BYTES || !cyrillicRange) return latin1
+        val cyrillic = String(data, windows1251)
+        if (cyrillic.none { it in '\u0400'..'\u04FF' }) return latin1
+        if (cyrillic.any { it.isLetter() && it !in '\u0400'..'\u04FF' }) return latin1
+        return cyrillic
+    }
+
+    /**
+     * Removes ID3 unsynchronisation: a 0x00 inserted after 0xFF keeps the next
+     * byte from looking like an MPEG sync. A byte is dropped only when the
+     * stuffed zero is followed by a value the writer had to escape, so ordinary
+     * `FF 00` payloads are left untouched.
+     */
+    @Suppress("MagicNumber")
+    private fun deUnsynchronise(data: ByteArray): ByteArray {
+        val out = ByteArrayOutputStream(data.size)
+        var index = 0
+        while (index < data.size) {
+            val value = u(data[index])
+            out.write(value)
+            index++
+            if (value == 0xFF && index + 1 < data.size && u(data[index]) == 0x00) {
+                val following = u(data[index + 1])
+                if (following == 0x00 || following >= 0xE0) index++
+            }
+        }
+        return out.toByteArray()
     }
 
     private fun synchsafe(bytes: ByteArray, at: Int): Long {
