@@ -53,8 +53,6 @@ internal fun AppMusicShell(
     onOpenDetail: (LibraryDetail) -> Unit,
     onSettings: () -> Unit,
     playerExpanded: Boolean = false,
-    playerDragProgress: Float = 0f,
-    playerBackProgress: Float = 0f,
     backProgress: Float = 0f,
     backPreviewRoute: AppRouteKey? = null,
     searchRegistry: AppSearchBackRegistry? = null,

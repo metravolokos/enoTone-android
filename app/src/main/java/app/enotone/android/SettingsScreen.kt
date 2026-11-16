@@ -18,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,10 +81,8 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val activeSearchBack = searchRegistry.handler(appRouteKey(nav))
     val backTarget = appBackTarget(expanded, nav, activeSearchBack != null)
     val backController = remember { AppBackController() }
-    var playerDragProgress by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val resetJobs = remember { mutableMapOf<AppRouteKey, Job>() }
-    LaunchedEffect(expanded) { if (!expanded) playerDragProgress = 0f }
     AppBackGesture(
         enabled = backTarget != AppBackTarget.EXIT,
         onPreview = { progress ->
@@ -126,8 +123,6 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
                 onSettings = { nav = AppNavigator.openSettings(nav) },
                 playerExpanded = expanded,
-                playerDragProgress = playerDragProgress,
-                playerBackProgress = backController.playerProgress(),
                 backProgress = backController.musicProgress(expanded),
                 backPreviewRoute = backController.previewRoute,
                 searchRegistry = searchRegistry,
@@ -138,7 +133,6 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             AppNowPlaying(
                 player, playerModel,
                 predictiveBackProgress = backController.playerProgress(),
-                onDragProgress = { playerDragProgress = it },
             )
         },
         settings = { showingDiagnostics ->
