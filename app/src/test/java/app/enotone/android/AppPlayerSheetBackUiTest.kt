@@ -5,6 +5,8 @@ import android.graphics.Canvas
 import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
@@ -151,10 +153,10 @@ class AppPlayerSheetBackUiTest {
     }
 
     @Test fun reopeningDuringCommitExitClearsBackProgressAndMatchesEntryFrame() {
-        val expanded = mutableStateOf(false)
+        val expanded = mutableStateOf(true)
         val progress = mutableFloatStateOf(0f)
         val exitComplete = mutableStateOf(false)
-        var renderedExpanded = false
+        var renderedExpanded = true
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
@@ -165,36 +167,48 @@ class AppPlayerSheetBackUiTest {
                 renderedExpanded = expandedForFrame
             }
             EnoToneTheme {
-                AppMotionRoot(
-                    inSettings = false,
-                    diagnostics = false,
-                    playerExpanded = expandedForFrame,
-                    playerBackProgress = progressForFrame,
-                    onPlayerExitComplete = {
-                        Snapshot.withMutableSnapshot {
-                            progress.floatValue = 0f
-                            exitComplete.value = true
-                        }
-                    },
-                    music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
-                    settings = {},
-                    player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
-                )
+                Row(Modifier.fillMaxSize()) {
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                        AppMotionRoot(
+                            inSettings = false,
+                            diagnostics = false,
+                            playerExpanded = expandedForFrame,
+                            playerBackProgress = 0f,
+                            music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
+                            settings = {},
+                            player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
+                        )
+                    }
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                        AppMotionRoot(
+                            inSettings = false,
+                            diagnostics = false,
+                            playerExpanded = expandedForFrame,
+                            playerBackProgress = progressForFrame,
+                            onPlayerExitComplete = {
+                                Snapshot.withMutableSnapshot {
+                                    progress.floatValue = 0f
+                                    exitComplete.value = true
+                                }
+                            },
+                            music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
+                            settings = {},
+                            player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
+                        )
+                    }
+                }
             }
         }
         val height = requireNotNull(host).height
-        rule.runOnIdle {
-            Snapshot.withMutableSnapshot { expanded.value = true }
-        }
-        rule.mainClock.advanceTimeBy(50)
-        val baseline = blueStartAfterRasterSync()
         rule.mainClock.advanceTimeBy(400)
 
         rule.runOnIdle {
             Snapshot.withMutableSnapshot { progress.floatValue = 0.5f }
         }
         rule.mainClock.advanceTimeByFrame()
-        val beforeCommit = blueStartAfterRasterSync()
+        val (normalPreview, beforeCommit) =
+            blueStartsAt(requireNotNull(host).width / 4, requireNotNull(host).width * 3 / 4)
+        assertTrue("Reference sheet should remain at rest: $normalPreview", normalPreview <= 4)
         assertTrue("Preview must be visible before commit: $beforeCommit / $height",
             beforeCommit.toFloat() / height in 0.40f..0.60f)
 
@@ -202,31 +216,29 @@ class AppPlayerSheetBackUiTest {
             Snapshot.withMutableSnapshot { expanded.value = false }
         }
         // Publish the close target and confirm Compose applied it before reopening.
-        // Reopen on the following controlled frame, within PLAYER_CLOSE_MS.
         rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
         rule.runOnIdle {
             assertEquals("Close target must be applied before reopening", false, renderedExpanded)
+            assertTrue("Exit callback must still be pending", !exitComplete.value)
         }
-        val exitFrame = blueStart()
-        rule.runOnIdle { assertTrue("Exit callback must still be pending", !exitComplete.value) }
+        val (normalExit, subjectExit) =
+            blueStartsAt(requireNotNull(host).width / 4, requireNotNull(host).width * 3 / 4)
         assertTrue(
-            "Sheet must remain in its exit path before reopening: $beforeCommit → $exitFrame / $height",
-            exitFrame in (beforeCommit - 5)..(height - 5),
+            "Subject sheet must remain in its exit path: $beforeCommit → $subjectExit / $height",
+            subjectExit in (beforeCommit - 5)..(height - 5),
         )
 
         rule.runOnIdle {
             Snapshot.withMutableSnapshot { expanded.value = true }
         }
-        // The next frame applies the reopened target; the root's paired SideEffect records it.
         rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
         rule.runOnIdle {
             assertEquals("Reopen target must be applied", true, renderedExpanded)
         }
         rule.mainClock.advanceTimeBy(50)
-        val reopened = blueStartAfterRasterSync()
-        println("R1 pixels: baseline=$baseline reopened=$reopened height=$height")
+        val (normalEarlyFrame, reopened) = blueStartsInSameBitmap()
         var callbackRan = false
         var remainingProgress = -1f
         rule.runOnIdle {
@@ -238,8 +250,8 @@ class AppPlayerSheetBackUiTest {
         assertEquals("Back progress must be reset on interrupted exit", 0f, remainingProgress, 0f)
         assertTrue(
             "Reopened sheet should match the ordinary early frame: " +
-                "baseline=$baseline, reopened=$reopened, height=$height",
-            reopened in (baseline - 5)..(baseline + 5),
+                "normal=$normalEarlyFrame, reopened=$reopened, height=$height",
+            reopened in (normalEarlyFrame - 5)..(normalEarlyFrame + 5),
         )
     }
 
@@ -254,25 +266,37 @@ class AppPlayerSheetBackUiTest {
         return blueStart()
     }
 
-    /** Обход по одному столбцу Bitmap без golden-файлов, только реально нарисованные кадры. */
-    private fun blueStart(): Int {
-        var result = -1
+    /** Обход по столбцам Bitmap без golden-файлов, все координаты из одного кадра. */
+    private fun blueStartsInSameBitmap(): Pair<Int, Int> {
+        val width = requireNotNull(host).width
+        blueStartsAt(width / 4, width * 3 / 4)
+        rule.mainClock.advanceTimeByFrame()
+        val starts = blueStartsAt(width / 4, width * 3 / 4)
+        return starts[0] to starts[1]
+    }
+
+    private fun blueStartsAt(vararg xPositions: Int): List<Int> {
+        var results = emptyList<Int>()
         rule.runOnIdle {
             val view = requireNotNull(host)
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
             try {
                 view.draw(Canvas(bitmap))
-                val x = view.width / 2
-                result = (0 until bitmap.height).firstOrNull { y ->
-                    val pixel = bitmap.getPixel(x, y)
-                    android.graphics.Color.blue(pixel) > 210 &&
-                        android.graphics.Color.red(pixel) < 60 &&
-                        android.graphics.Color.green(pixel) < 60
-                } ?: bitmap.height
+                results = xPositions.map { x ->
+                    (0 until bitmap.height).firstOrNull { y ->
+                        val pixel = bitmap.getPixel(x, y)
+                        android.graphics.Color.blue(pixel) > 210 &&
+                            android.graphics.Color.red(pixel) < 60 &&
+                            android.graphics.Color.green(pixel) < 60
+                    } ?: bitmap.height
+                }
             } finally {
                 bitmap.recycle()
             }
         }
-        return result
+        return results
     }
+
+    /** Обход по одному столбцу центральной половины для существующих сценариев. */
+    private fun blueStart(): Int = blueStartsAt(requireNotNull(host).width / 2).single()
 }
