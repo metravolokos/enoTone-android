@@ -26,11 +26,11 @@ import kotlin.math.roundToInt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
-import org.junit.runner.RunWith
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import org.robolectric.RobolectricTestRunner
 
 /** Uses transport callbacks, not Media3/network, to verify the rendered controls. */
 @RunWith(RobolectricTestRunner::class)
