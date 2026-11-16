@@ -186,9 +186,9 @@ class AppPlayerSheetBackUiTest {
         }
         val height = requireNotNull(host).height
         rule.runOnIdle { expanded.value = true }
+        rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
         rule.onNodeWithTag("player-expanded-marker").assertExists()
-        rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeBy(50)
         val baseline = blueStartAfterRasterSync()
         rule.mainClock.advanceTimeBy(400)
@@ -200,10 +200,10 @@ class AppPlayerSheetBackUiTest {
             beforeCommit.toFloat() / height in 0.40f..0.60f)
 
         rule.runOnIdle { expanded.value = false }
+        // The first frame applies expanded=false; reopen immediately after the second exit frame.
+        rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
         rule.onNodeWithTag("player-collapsed-marker").assertExists()
-        // Reopen after two exit frames, while the 250 ms close transition is still running.
-        rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
         val exitFrame = blueStart()
         rule.runOnIdle { assertTrue("Exit callback must still be pending", !exitComplete.value) }
@@ -213,9 +213,9 @@ class AppPlayerSheetBackUiTest {
         )
 
         rule.runOnIdle { expanded.value = true }
+        rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
         rule.onNodeWithTag("player-expanded-marker").assertExists()
-        rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         var callbackRan = false
