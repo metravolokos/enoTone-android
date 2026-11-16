@@ -10,11 +10,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertLeftPositionInRootIsEqualTo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.unit.dp
 import app.enotone.library.LibraryPage
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -68,8 +66,15 @@ class AppSimpleMotionUiTest {
         rule.mainClock.advanceTimeByFrame()
         rule.runOnIdle { settingsOpen.value = true }
         rule.mainClock.advanceTimeBy(48)
-        rule.onNodeWithTag("motion-settings", useUnmergedTree = true)
-            .assertLeftPositionInRootIsEqualTo(0.dp)
+        val at48ms = rule.onNodeWithTag("motion-settings", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot.left
+        rule.mainClock.advanceTimeBy(300)
+        val settled = rule.onNodeWithTag("motion-settings", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot.left
+        org.junit.Assert.assertEquals(
+            "Настройки не должны смещаться по горизонтали в промежуточном кадре",
+            settled, at48ms, 1f,
+        )
     }
 
     @Test fun playerOpensAsOneVerticalSheetWithoutRecreatingUnderlyingRoute() {
