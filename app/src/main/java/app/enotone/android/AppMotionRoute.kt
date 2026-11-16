@@ -21,27 +21,29 @@ internal fun appMotionRoute(from: AppNavState, to: AppNavState): AppMotionRoute 
 internal fun appRouteKey(state: AppNavState): Pair<AppTab, List<LibraryDetail>> =
     state.tab to state.details
 
-private fun <T> AnimatedContentTransitionScope<T>.fadeThrough(): ContentTransform =
-    (
-        fadeIn(tween(
+private fun <T> AnimatedContentTransitionScope<T>.fadeThrough(scaleTab: Boolean): ContentTransform {
+    val appearance = fadeIn(tween(
+        AppMotionSpec.TAB_ENTER_MS,
+        delayMillis = AppMotionSpec.TAB_ENTER_DELAY_MS,
+        easing = AppMotionSpec.standard,
+    ))
+    val enter = if (scaleTab) appearance + scaleIn(
+        tween(
             AppMotionSpec.TAB_ENTER_MS,
             delayMillis = AppMotionSpec.TAB_ENTER_DELAY_MS,
             easing = AppMotionSpec.standard,
-        )) + scaleIn(
-            tween(
-                AppMotionSpec.TAB_ENTER_MS,
-                delayMillis = AppMotionSpec.TAB_ENTER_DELAY_MS,
-                easing = AppMotionSpec.standard,
-            ),
-            initialScale = AppMotionSpec.TAB_START_SCALE,
-        )
-    ).togetherWith(fadeOut(tween(AppMotionSpec.TAB_EXIT_MS, easing = AppMotionSpec.standard)))
+        ),
+        initialScale = AppMotionSpec.TAB_START_SCALE,
+    ) else appearance
+    return enter.togetherWith(fadeOut(tween(AppMotionSpec.TAB_EXIT_MS, easing = AppMotionSpec.standard)))
+}
 
 internal fun AnimatedContentTransitionScope<AppNavState>.appMotionTransition(): ContentTransform =
     when (appMotionRoute(initialState, targetState)) {
         AppMotionRoute.STAY -> fadeIn(tween(0)).togetherWith(fadeOut(tween(0)))
-        AppMotionRoute.TAB, AppMotionRoute.FORWARD, AppMotionRoute.BACK -> fadeThrough()
+        AppMotionRoute.TAB -> fadeThrough(scaleTab = true)
+        AppMotionRoute.FORWARD, AppMotionRoute.BACK -> fadeThrough(scaleTab = false)
     }
 
 internal fun AnimatedContentTransitionScope<Boolean>.settingsMotionTransition(): ContentTransform =
-    fadeThrough()
+    fadeThrough(scaleTab = false)
