@@ -242,18 +242,16 @@ class NowPlayingUiTest {
             context.getString(R.string.now_playing_next_loading),
         )
         loading.assertExists()
+        assertEquals(0f, android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f), 0f)
         val initial = loadingDotPixel()
         rule.mainClock.advanceTimeBy(550, ignoreFrameDuration = true)
-        val later = loadingDotPixel(requireNotNull(hostView))
+        val later = loadingDotPixel()
         assertEquals("LOADING remains visually static at animator scale 0", initial, later)
     }
 
     @Test fun loadingDotPulsesAtNormalSystemAnimationScale() = withAnimatorDurationScale(1f) {
-        var hostView: View? = null
         rule.mainClock.autoAdvance = false
         rule.setContent {
-            val current = LocalView.current
-            SideEffect { hostView = current }
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
@@ -274,10 +272,11 @@ class NowPlayingUiTest {
             context.getString(R.string.now_playing_next_loading),
         )
         loading.assertExists()
-        val atStart = loadingDotPixel(requireNotNull(hostView))
-        rule.mainClock.advanceTimeBy(550)
-        val afterHalfPeriod = loadingDotPixel(requireNotNull(hostView))
-        assertTrue("LOADING dot should change pixels at 550 ms", atStart != afterHalfPeriod)
+        assertEquals(1f, android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 0f), 0f)
+        val atStart = loadingDotPixel()
+        rule.mainClock.advanceTimeBy(550, ignoreFrameDuration = true)
+        val afterHalfPeriod = loadingDotPixel()
+        assertTrue("LOADING dot should change pixels from $atStart to $afterHalfPeriod at 550 ms", atStart != afterHalfPeriod)
     }
 
     @Test fun unknownDurationOmitsBufferedPercentage() {
