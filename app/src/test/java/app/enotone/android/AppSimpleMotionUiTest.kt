@@ -12,7 +12,9 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.assertLeftPositionInRootIsEqualTo
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.unit.dp
 import app.enotone.library.LibraryPage
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -48,9 +50,8 @@ class AppSimpleMotionUiTest {
         rule.onAllNodes(SemanticsMatcher.expectValue(AppBackScaleKey, 1f)).assertCountEquals(1)
     }
 
-    @Test fun settingsEnterWithoutHorizontalOffset() {
+    @Test fun settingsRouteSettlesAtTheRootWithoutHorizontalOffset() {
         val settingsOpen = mutableStateOf(false)
-        rule.mainClock.autoAdvance = false
         rule.setContent {
             EnoToneTheme {
                 AppMotionRoot(
@@ -63,19 +64,12 @@ class AppSimpleMotionUiTest {
                 )
             }
         }
-        rule.mainClock.advanceTimeByFrame()
         rule.runOnIdle { settingsOpen.value = true }
-        // Fade-through: вход начинается после 90 мс, поэтому проверяем видимый кадр 140 мс.
-        rule.mainClock.advanceTimeBy(140)
-        val at140ms = rule.onNodeWithTag("motion-settings", useUnmergedTree = true)
-            .fetchSemanticsNode().boundsInRoot.left
-        rule.mainClock.advanceTimeBy(300)
-        val settled = rule.onNodeWithTag("motion-settings", useUnmergedTree = true)
-            .fetchSemanticsNode().boundsInRoot.left
-        org.junit.Assert.assertEquals(
-            "Настройки не должны смещаться по горизонтали в промежуточном кадре",
-            settled, at140ms, 1f,
-        )
+        rule.waitForIdle()
+        rule.onNodeWithTag("motion-settings", useUnmergedTree = true)
+            .assertLeftPositionInRootIsEqualTo(0.dp)
+        rule.onNodeWithTag("motion-library", useUnmergedTree = true)
+            .assertDoesNotExist()
     }
 
     @Test fun playerOpensAsOneVerticalSheetWithoutRecreatingUnderlyingRoute() {
