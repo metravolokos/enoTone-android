@@ -65,8 +65,8 @@ class AppDockMotionUiTest {
         assertEquals(beforeBar,
             rule.onAllNodesWithTag("app-bottom-dock", useUnmergedTree = true)
                 .fetchSemanticsNodes().single().boundsInRoot)
-        rule.onAllNodesWithTag("app-mini-dock").assertCountEquals(1)
-        rule.onAllNodesWithTag("app-bottom-dock").assertCountEquals(1)
+        rule.onAllNodesWithTag("app-mini-dock", useUnmergedTree = true).assertCountEquals(1)
+        rule.onAllNodesWithTag("app-bottom-dock", useUnmergedTree = true).assertCountEquals(1)
     }
 
     @Test fun dockAlwaysContainsOneMiniAndOneBottomBar() {
