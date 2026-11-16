@@ -156,7 +156,8 @@ fun FeatureNowPlayingScreen(
     val motionScale = Settings.Global.getFloat(
         context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f,
     )
-    val loadingPulse = nextTrackState == NowPlayingNextTrackState.LOADING && motionScale > 0f
+    val loadingPulse = nextTrackState == NowPlayingNextTrackState.LOADING &&
+        NextTrackLoadingMotion.shouldPulse(motionScale)
     val pulseAlpha = if (loadingPulse) {
         val pulseTransition = rememberInfiniteTransition(label = "nextTrackLoading")
         val animatedPulseAlpha by pulseTransition.animateFloat(
@@ -168,9 +169,9 @@ fun FeatureNowPlayingScreen(
             ),
             label = "nextTrackLoadingAlpha",
         )
-        animatedPulseAlpha
+        NextTrackLoadingMotion.alpha(motionScale, animatedPulseAlpha)
     } else {
-        NO_MOTION_LOADING_ALPHA
+        NextTrackLoadingMotion.alpha(motionScale, NO_MOTION_LOADING_ALPHA)
     }
     val bufferOverlayColor = EnoColors.textSecondary.copy(alpha = BUFFER_LAYER_ALPHA)
     val readyGlowColor = EnoColors.accentText.copy(alpha = READY_GLOW_ALPHA)

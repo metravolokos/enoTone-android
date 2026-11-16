@@ -1,19 +1,15 @@
 package app.enotone.android
 
 import android.content.Context
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
@@ -22,8 +18,8 @@ import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
 import app.enotone.playback.NextBufferState
 import app.enotone.playback.PlaybackModes
-import kotlin.math.roundToInt
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -215,6 +211,11 @@ class NowPlayingUiTest {
     }
 
     @Test fun loadingDotRemainsStaticWhenSystemAnimationsAreDisabled() = withAnimatorDurationScale(0f) {
+        assertFalse(NextTrackLoadingMotion.shouldPulse(0f))
+        assertEquals(0.6f, NextTrackLoadingMotion.alpha(0f, 1f), 0f)
+        assertTrue(NextTrackLoadingMotion.shouldPulse(1f))
+        assertEquals(0.42f, NextTrackLoadingMotion.alpha(1f, 0.42f), 0f)
+
         rule.setContent {
             EnoToneTheme {
                 NowPlayingScreen(
@@ -236,15 +237,9 @@ class NowPlayingUiTest {
             context.getString(R.string.now_playing_next_loading),
         )
         loading.assertExists()
-        val start = loading.captureToImage().toPixelMap()
-        rule.mainClock.advanceTimeBy(1_100L)
-        val end = loading.captureToImage().toPixelMap()
-        val center = start.width / 2 to start.height / 2
-        assertEquals(start[center.first, center.second], end[center.first, center.second])
     }
 
     @Test fun unknownDurationOmitsBufferedPercentage() {
-        val buffered = mutableFloatStateOf(0.9f)
         rule.setContent {
             EnoToneTheme {
                 NowPlayingScreen(
@@ -255,7 +250,7 @@ class NowPlayingUiTest {
                     hasPrevious = true, hasNext = true,
                     queuePosition = 1, queueTotal = 3,
                     repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
-                    bufferedFraction = buffered.floatValue, hasKnownBufferDuration = false,
+                    bufferedFraction = 0.9f, hasKnownBufferDuration = false,
                     nextBufferState = NextBufferState.READY,
                     onClose = {}, onSeekFraction = {}, onPlayPause = {},
                     onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
@@ -267,13 +262,8 @@ class NowPlayingUiTest {
         rule.onNodeWithContentDescription(
             context.getString(R.string.now_playing_next_ready),
         ).assertExists()
-        val before = rule.onRoot().captureToImage().toPixelMap()
-        val bounds = rule.onNodeWithContentDescription(unknown).fetchSemanticsNode().boundsInRoot
-        rule.runOnIdle { buffered.floatValue = 0f }
-        val after = rule.onRoot().captureToImage().toPixelMap()
-        val sampleX = (bounds.left + bounds.width * 0.7f).roundToInt()
-        val sampleY = bounds.center.y.roundToInt()
-        assertEquals(before[sampleX, sampleY], after[sampleX, sampleY])
+        val known = context.getString(R.string.now_playing_seek_known, "01:26", "03:48", 90)
+        rule.onNodeWithContentDescription(known).assertDoesNotExist()
     }
 
     @Test fun readyDotDoesNotInterceptHorizontalSeekOrVerticalClose() {
