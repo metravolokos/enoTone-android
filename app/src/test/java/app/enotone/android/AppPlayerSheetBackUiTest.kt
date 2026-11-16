@@ -36,7 +36,6 @@ class AppPlayerSheetBackUiTest {
     @Test fun previewCancelAndCommitKeepContinuousSheetOffset() {
         val expanded = mutableStateOf(true)
         val progress = mutableFloatStateOf(0f)
-        val exitComplete = mutableStateOf(false)
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
@@ -47,10 +46,7 @@ class AppPlayerSheetBackUiTest {
                     diagnostics = false,
                     playerExpanded = expanded.value,
                     playerBackProgress = progress.floatValue,
-                    onPlayerExitComplete = {
-                        progress.floatValue = 0f
-                        exitComplete.value = true
-                    },
+                    onPlayerExitComplete = { progress.floatValue = 0f },
                     music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
                     settings = {},
                     player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
@@ -101,6 +97,7 @@ class AppPlayerSheetBackUiTest {
     @Test fun committedBackReopensSheetFromBottomAfterExit() {
         val expanded = mutableStateOf(true)
         val progress = mutableFloatStateOf(0f)
+        val exitComplete = mutableStateOf(false)
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
@@ -111,7 +108,10 @@ class AppPlayerSheetBackUiTest {
                     diagnostics = false,
                     playerExpanded = expanded.value,
                     playerBackProgress = progress.floatValue,
-                    onPlayerExitComplete = { progress.floatValue = 0f },
+                    onPlayerExitComplete = {
+                        progress.floatValue = 0f
+                        exitComplete.value = true
+                    },
                     music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
                     settings = {},
                     player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
