@@ -150,17 +150,13 @@ class AppPlayerSheetBackUiTest {
     }
 
     @Test fun reopeningDuringCommitExitClearsBackProgressAndMatchesEntryFrame() {
-        val expanded = mutableStateOf(true)
+        val expanded = mutableStateOf(false)
         val progress = mutableFloatStateOf(0f)
         val exitComplete = mutableStateOf(false)
-        var renderedExpanded = false
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
-            SideEffect {
-                host = current
-                renderedExpanded = expanded.value
-            }
+            SideEffect { host = current }
             EnoToneTheme {
                 AppMotionRoot(
                     inSettings = false,
@@ -177,43 +173,40 @@ class AppPlayerSheetBackUiTest {
                 )
             }
         }
-        rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
         val height = requireNotNull(host).height
+        rule.runOnIdle { expanded.value = true }
+        rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeBy(50)
         val baseline = blueStartAfterRasterSync()
-        var expandedOnNormalOpen = false
-        rule.runOnIdle { expandedOnNormalOpen = renderedExpanded }
-        assertTrue("Compose must observe the ordinary open state", expandedOnNormalOpen)
         rule.mainClock.advanceTimeBy(400)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
         rule.mainClock.advanceTimeByFrame()
-        blueStartAfterRasterSync()
+        val beforeCommit = blueStartAfterRasterSync()
+        assertTrue("Preview must be visible before commit: $beforeCommit / $height",
+            beforeCommit.toFloat() / height in 0.40f..0.60f)
+
         rule.runOnIdle { expanded.value = false }
-        // Reopen after two exit frames, before the 250 ms close transition can finish.
+        // Reopen after two exit frames, while the 250 ms close transition is still running.
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
-        var expandedDuringExit = true
-        rule.runOnIdle {
-            expandedDuringExit = renderedExpanded
-            assertTrue("Exit must still be pending", !exitComplete.value)
-        }
-        assertTrue("Compose must observe expanded=false before reopening", !expandedDuringExit)
+        val exitFrame = blueStart()
+        rule.runOnIdle { assertTrue("Exit callback must still be pending", !exitComplete.value) }
+        assertTrue(
+            "Sheet must remain in its exit path before reopening: $beforeCommit → $exitFrame / $height",
+            exitFrame in (beforeCommit - 5)..(height - 5),
+        )
+
         rule.runOnIdle { expanded.value = true }
         rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         var callbackRan = false
         var remainingProgress = -1f
-        var expandedAfterReopen = false
         rule.runOnIdle {
-            expandedAfterReopen = renderedExpanded
             callbackRan = exitComplete.value
             remainingProgress = progress.floatValue
         }
-        assertTrue("Compose must observe expanded=true after reopening", expandedAfterReopen)
 
         assertTrue("Interrupted exit must finish the Back transition", callbackRan)
         assertEquals("Back progress must be reset on interrupted exit", 0f, remainingProgress, 0f)
