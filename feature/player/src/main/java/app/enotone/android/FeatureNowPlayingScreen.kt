@@ -342,6 +342,8 @@ fun FeatureNowPlayingScreen(
                     thumb = {
                         SliderDefaults.Thumb(
                             interactionSource = sliderInteraction,
+                            // До #174 Robolectric рисовал центр бегунка на 8 px выше дорожки
+                            // (плотность около 4 px/dp); Roborazzi verify страхует обновления Compose BOM.
                             modifier = Modifier.offset(y = TRACK_HEIGHT / 2),
                             colors = sliderColors,
                             enabled = controlsEnabled && canSeek && knownDuration,

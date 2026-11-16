@@ -3,6 +3,7 @@ package app.enotone.android
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -15,10 +16,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 
 /**
@@ -31,23 +34,43 @@ internal fun AppMotionRoot(
     diagnostics: Boolean,
     playerExpanded: Boolean,
     playerBackProgress: Float = 0f,
+    onPlayerExitComplete: () -> Unit = {},
     music: @Composable () -> Unit,
     settings: @Composable (Boolean) -> Unit,
     player: @Composable () -> Unit,
 ) {
     val previewSettle = remember { Animatable(0f) }
     val latestBackProgress = remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(playerBackProgress) {
+    val playerVisibility = remember { MutableTransitionState(false) }
+    val playerWasExpanded = remember { mutableStateOf(false) }
+    SideEffect { playerVisibility.targetState = playerExpanded }
+    LaunchedEffect(playerBackProgress, playerExpanded) {
         if (playerBackProgress > 0f) {
             previewSettle.snapTo(playerBackProgress.coerceIn(0f, 1f))
-        } else {
+        } else if (playerExpanded) {
             // LaunchedEffect is asynchronous: snapTo(progress) can be cancelled before it
             // stores the preview value. Reapply the last rendered progress before settling.
             val cancelFrom = latestBackProgress.floatValue.coerceIn(0f, 1f)
             if (cancelFrom > 0f) {
                 previewSettle.snapTo(cancelFrom)
+                previewSettle.animateTo(0f, animationSpec = tween(AppMotionSpec.PLAYER_CLOSE_MS))
             }
-            previewSettle.animateTo(0f, animationSpec = tween(AppMotionSpec.PLAYER_CLOSE_MS))
+        } else {
+            // Commit закрывает шторку её exit-анимацией; сброс здесь не должен запускать cancel.
+            previewSettle.snapTo(0f)
+            latestBackProgress.floatValue = 0f
+        }
+    }
+    LaunchedEffect(playerExpanded) {
+        if (playerExpanded) {
+            playerWasExpanded.value = true
+        } else if (playerWasExpanded.value) {
+            snapshotFlow { playerVisibility.isIdle && !playerVisibility.currentState }
+                .first { it }
+            previewSettle.snapTo(0f)
+            latestBackProgress.floatValue = 0f
+            playerWasExpanded.value = false
+            onPlayerExitComplete()
         }
     }
     SideEffect {
@@ -84,7 +107,7 @@ internal fun AppMotionRoot(
             }
         }
         AnimatedVisibility(
-            visible = playerExpanded,
+            visibleState = playerVisibility,
             enter = slideInVertically(
                 tween(AppMotionSpec.PLAYER_OPEN_MS, easing = AppMotionSpec.emphasizedDecelerate),
                 initialOffsetY = { it },
@@ -96,11 +119,8 @@ internal fun AppMotionRoot(
                     (height * (1f - playerBackProgress.coerceIn(0f, 1f))).roundToInt()
                 },
             ),
-            // Системный preview сдвигает размещение всей шторки, а не только её RenderNode:
-            // это видимо и в реальных кадрах, и для координат ввода/доступности.
-            // Animatable читается в placement, поэтому cancel не рекомпозирует плеер по кадрам.
-            // The layer block observes Animatable values on every animation frame without
-            // recomposing or remeasuring the player subtree.
+            // Системный preview сдвигает всю шторку в graphicsLayer; дочерний экран не
+            // пересоздаётся и не перемеряется на каждом кадре жеста.
             modifier = Modifier.fillMaxSize().graphicsLayer {
                 val back = if (playerBackProgress > 0f) {
                     playerBackProgress

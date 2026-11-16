@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.junit4.createComposeRule
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -45,6 +46,7 @@ class AppPlayerSheetBackUiTest {
                     diagnostics = false,
                     playerExpanded = expanded.value,
                     playerBackProgress = progress.floatValue,
+                    onPlayerExitComplete = { progress.floatValue = 0f },
                     music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
                     settings = {},
                     player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
@@ -105,6 +107,7 @@ class AppPlayerSheetBackUiTest {
                     diagnostics = false,
                     playerExpanded = expanded.value,
                     playerBackProgress = progress.floatValue,
+                    onPlayerExitComplete = { progress.floatValue = 0f },
                     music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
                     settings = {},
                     player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
@@ -121,9 +124,7 @@ class AppPlayerSheetBackUiTest {
         rule.runOnIdle { expanded.value = false }
         rule.mainClock.advanceTimeBy(260)
         assertTrue("Committed sheet must finish exiting", blueStart() >= height - 4)
-
-        // Mirrors the close-delay reset currently owned by SettingsScreen.
-        rule.runOnIdle { progress.floatValue = 0f }
+        rule.runOnIdle { assertEquals(0f, progress.floatValue, 0f) }
         rule.mainClock.advanceTimeByFrame()
         rule.runOnIdle { expanded.value = true }
         rule.mainClock.advanceTimeBy(50)
