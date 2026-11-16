@@ -52,11 +52,7 @@ internal fun AppMusicShell(
     onSelectTab: (AppTab) -> Unit,
     onOpenDetail: (LibraryDetail) -> Unit,
     onSettings: () -> Unit,
-    playerExpanded: Boolean = false,
-    backProgress: Float = 0f,
-    backPreviewRoute: AppRouteKey? = null,
     searchRegistry: AppSearchBackRegistry? = null,
-    backController: AppBackController? = null,
 ) {
     val login = account.libraryLogin
     val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
@@ -79,15 +75,7 @@ internal fun AppMusicShell(
                 nav = nav,
                 liveState = library,
                 snapshots = snapshots,
-                playerExpanded = playerExpanded,
-                backProgress = backProgress,
-                backPreviewRoute = backPreviewRoute,
                 searchRegistry = searchRegistry,
-                previewForRoute = backController?.let { controller ->
-                    { route -> controller.musicProgressFor(
-                        route, player.nowPlaying && player.playback.queueTotal > 0,
-                    ) }
-                },
             ) { route, snapshot, active ->
             when (val tab = route.tab) {
                 AppTab.Home -> EnoToneHomeScreen(
@@ -138,7 +126,6 @@ internal fun AppMusicShell(
                 }
 
                 AppDockMotion(
-                    playerExpanded = playerExpanded,
                     miniVisible = miniVisible,
                     miniPlayer = {
                         EnoToneMiniPlayer(
@@ -216,8 +203,6 @@ private val CONTENT_AIR = 16.dp
 internal fun AppNowPlaying(
     player: SharedPlayerUiState,
     playerModel: PlayerViewModel,
-    predictiveBackProgress: Float = 0f,
-    onDragProgress: (Float) -> Unit = {},
 ) {
     val playback = player.playback
     NowPlayingScreen(
@@ -245,7 +230,5 @@ internal fun AppNowPlaying(
         onNext = playerModel::onNext,
         onCycleRepeat = playerModel::onRepeat,
         onToggleShuffle = playerModel::onShuffle,
-        predictiveBackProgress = predictiveBackProgress,
-        onDragProgress = onDragProgress,
     )
 }

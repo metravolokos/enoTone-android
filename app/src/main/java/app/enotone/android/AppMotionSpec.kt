@@ -2,15 +2,13 @@ package app.enotone.android
 
 import androidx.compose.animation.core.CubicBezierEasing
 
-/** D3.5: единые токены мягкой смены экранов и вертикальной шторки. */
+/** D3.5: одни токены для каждой страницы; шторка плеера имеет отдельное вертикальное движение. */
 internal object AppMotionSpec {
-    const val TAB_EXIT_MS = 90
-    const val TAB_ENTER_MS = 160
-    const val TAB_ENTER_DELAY_MS = 90
-    const val TAB_START_SCALE = 0.96f
+    const val PAGE_EXIT_MS = 90
+    const val PAGE_ENTER_MS = 160
+    const val PAGE_ENTER_DELAY_MS = 90
+    const val PAGE_START_SCALE = 0.96f
 
-    // Оставлено для времени окончания зарегистрированного Back у предыдущего маршрута.
-    const val PAGE_CLOSE_MS = 250
     const val PLAYER_OPEN_MS = 350
     const val PLAYER_CLOSE_MS = 250
     const val SNACKBAR_MS = 200

@@ -20,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -34,9 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.enotone.library.LibraryPageVisibility
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
@@ -81,15 +78,12 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val activeSearchBack = searchRegistry.handler(appRouteKey(nav))
     val backTarget = appBackTarget(expanded, nav, activeSearchBack != null)
     val backController = remember { AppBackController() }
-    val scope = rememberCoroutineScope()
-    val resetJobs = remember { mutableMapOf<AppRouteKey, Job>() }
     AppBackGesture(
         enabled = backTarget != AppBackTarget.EXIT,
         onPreview = { progress ->
             backController.preview(backTarget, nav, progress)
         },
         onCommit = {
-            val completedRoute = backController.previewRoute
             backController.commit(
                 target = backTarget,
                 nav = nav,
@@ -97,24 +91,19 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 updateNav = { nav = it },
                 closeSearch = { activeSearchBack?.invoke() },
             )
-            // Таймер привязан к уходящему маршруту, а не к активному второму жесту.
-            if (completedRoute != null) {
-                resetJobs.remove(completedRoute)?.cancel()
-                resetJobs[completedRoute] = scope.launch {
-                    delay(AppMotionSpec.PAGE_CLOSE_MS.toLong())
-                    backController.finishCommittedRoute(completedRoute)
-                    resetJobs.remove(completedRoute)
-                }
-            }
         },
         onCancel = backController::cancel,
     )
-    // Музыка остаётся под полным плеером: shared element не может перелететь
-    // из Composable, который был удалён из дерева (как было в D3).
+    // PLAYER-preview удерживается на время exit; при cancel анимация возвращается к 0.
+    LaunchedEffect(expanded) {
+        if (!expanded) delay(AppMotionSpec.PLAYER_CLOSE_MS.toLong())
+        backController.finishTransition()
+    }
     AppMotionRoot(
         inSettings = inSettings,
         diagnostics = nav.overlay == AppOverlay.DIAGNOSTICS,
         playerExpanded = expanded,
+        playerBackProgress = backController.playerProgress(),
         music = {
             AppMusicShell(
                 nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
@@ -122,18 +111,11 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
                 onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
                 onSettings = { nav = AppNavigator.openSettings(nav) },
-                playerExpanded = expanded,
-                backProgress = backController.musicProgress(expanded),
-                backPreviewRoute = backController.previewRoute,
                 searchRegistry = searchRegistry,
-                backController = backController,
             )
         },
         player = {
-            AppNowPlaying(
-                player, playerModel,
-                predictiveBackProgress = backController.playerProgress(),
-            )
+            AppNowPlaying(player, playerModel)
         },
         settings = { showingDiagnostics ->
             // Мини-плеера в настройках и диагностике нет (O-10).

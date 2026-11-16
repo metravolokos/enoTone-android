@@ -110,8 +110,6 @@ fun FeatureNowPlayingScreen(
     onCycleRepeat: () -> Unit,
     onToggleShuffle: () -> Unit,
     ids: NowPlayingIds,
-    predictiveBackProgress: Float = 0f,
-    onDragProgress: (Float) -> Unit = {},
 ) {
     val color = MaterialTheme.colorScheme
 
@@ -149,8 +147,7 @@ fun FeatureNowPlayingScreen(
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
             .graphicsLayer {
-                translationY = dragOffset.floatValue +
-                    size.height * predictiveBackProgress.coerceIn(0f, 1f)
+                translationY = dragOffset.floatValue
             }
             .background(Brush.verticalGradient(listOf(color.surfaceContainerHigh, color.background)))
             .onSizeChanged { playerHeightPx = it.height.toFloat().coerceAtLeast(1f) }
@@ -163,7 +160,6 @@ fun FeatureNowPlayingScreen(
                         Animatable(dragOffset.floatValue).animateTo(
                             0f, animationSpec = tween(RETURN_DURATION_MS),
                         ) { dragOffset.floatValue = value }
-                        onDragProgress(0f)
                     }
                 }
                 detectVerticalDragGestures(

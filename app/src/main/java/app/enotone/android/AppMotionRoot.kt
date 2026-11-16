@@ -2,6 +2,7 @@ package app.enotone.android
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -10,27 +11,40 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import kotlin.math.roundToInt
 
 /**
- * D3.5: только одна непрозрачная поверхность текущего маршрута.
- * Музыка остаётся смонтированной под плеером, чтобы не терять scroll/search.
- * Полный плеер — единая шторка снизу, без shared-element и затухания фона.
+ * Три маршрута используют один appPageTransition; единственный движущийся слой — шторка плеера.
+ * Подложка продолжает жить для прокрутки, но скрыта от TalkBack под раскрытым плеером.
  */
 @Composable
 internal fun AppMotionRoot(
     inSettings: Boolean,
     diagnostics: Boolean,
     playerExpanded: Boolean,
+    playerBackProgress: Float = 0f,
     music: @Composable () -> Unit,
     settings: @Composable (Boolean) -> Unit,
     player: @Composable () -> Unit,
 ) {
+    val previewSettle = remember { Animatable(0f) }
+    LaunchedEffect(playerBackProgress) {
+        if (playerBackProgress > 0f) {
+            previewSettle.snapTo(playerBackProgress.coerceIn(0f, 1f))
+        } else {
+            previewSettle.animateTo(0f, animationSpec = tween(AppMotionSpec.PLAYER_CLOSE_MS))
+        }
+    }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         AnimatedContent(
             targetState = inSettings,
-            transitionSpec = { settingsMotionTransition() },
+            transitionSpec = { appPageTransition() },
             label = "mainSettingsRoute",
             modifier = Modifier.fillMaxSize(),
         ) { settingsVisible ->
@@ -42,7 +56,7 @@ internal fun AppMotionRoot(
                 if (settingsVisible) {
                     AnimatedContent(
                         targetState = diagnostics,
-                        transitionSpec = { settingsMotionTransition() },
+                        transitionSpec = { appPageTransition() },
                         label = "settingsDiagnosticsRoute",
                         modifier = Modifier.fillMaxSize(),
                     ) { showingDiagnostics ->
@@ -63,11 +77,27 @@ internal fun AppMotionRoot(
             ),
             exit = slideOutVertically(
                 tween(AppMotionSpec.PLAYER_CLOSE_MS, easing = AppMotionSpec.emphasizedAccelerate),
-                targetOffsetY = { it },
+                // Preview уже сдвинул шторку; exit проходит лишь оставшийся путь.
+                targetOffsetY = { height ->
+                    (height * (1f - playerBackProgress.coerceIn(0f, 1f))).roundToInt()
+                },
             ),
             modifier = Modifier.fillMaxSize(),
         ) {
-            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            Box(
+                Modifier.fillMaxSize()
+                    .graphicsLayer {
+                        // Один владелец predictive-смещения; отмена плавно возвращает его к нулю.
+                        val back = if (playerBackProgress > 0f) {
+                            playerBackProgress
+                        } else {
+                            previewSettle.value
+                        }
+                        translationY = size.height * back
+                    }
+                    .background(MaterialTheme.colorScheme.background)
+                    .testTag("app-player-sheet"),
+            ) {
                 player()
             }
         }
