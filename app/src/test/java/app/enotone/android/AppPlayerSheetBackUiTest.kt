@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -59,7 +60,18 @@ class AppPlayerSheetBackUiTest {
         rule.runOnIdle { progress.floatValue = 0.5f }
         rule.mainClock.advanceTimeByFrame()
         val half = blueStart()
-        assertTrue("Preview must reveal music at about half height: $half / $height",
+        // Временная диагностика: первоначальное утверждение сохраняем без ослабления.
+        // Измеряем реальные кадры и семантическую геометрию, чтобы найти источник нулевого offset.
+        val firstBounds = rule.onAllNodesWithTag("app-player-sheet", useUnmergedTree = true)
+            .fetchSemanticsNodes().singleOrNull()?.boundsInRoot?.top
+        val followingFrames = (1..6).map {
+            rule.mainClock.advanceTimeByFrame()
+            blueStart()
+        }
+        val lastBounds = rule.onAllNodesWithTag("app-player-sheet", useUnmergedTree = true)
+            .fetchSemanticsNodes().singleOrNull()?.boundsInRoot?.top
+        assertTrue("Preview must reveal music at about half height: $half / $height; " +
+            "frames=$followingFrames, bounds=$firstBounds→$lastBounds, state=${progress.floatValue}",
             half.toFloat() / height in 0.40f..0.60f)
 
         rule.runOnIdle { progress.floatValue = 0f }
