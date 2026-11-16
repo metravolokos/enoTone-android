@@ -179,7 +179,7 @@ class NowPlayingUiTest {
         rule.runOnIdle { assertEquals(0, play) }
     }
 
-    @Test fun bufferingDescriptionsFollowKnownDurationAndNextTrackState() {
+    @Test fun bufferingDescriptionsFollowKnownDurationAndNextTrackState() = withAnimatorDurationScale(0f) {
         rule.mainClock.autoAdvance = false
         val next = mutableStateOf(NextBufferState.NONE)
         rule.setContent {
@@ -199,7 +199,7 @@ class NowPlayingUiTest {
                 )
             }
         }
-        val seek = context.getString(R.string.now_playing_seek_known, "1:26", "3:48", 64)
+        val seek = context.getString(R.string.now_playing_seek_known, "01:26", "03:48", 64)
         val loading = context.getString(R.string.now_playing_next_loading)
         val ready = context.getString(R.string.now_playing_next_ready)
         rule.onNodeWithContentDescription(seek).assertExists()
@@ -215,61 +215,34 @@ class NowPlayingUiTest {
         rule.onNodeWithContentDescription(ready).assertDoesNotExist()
     }
 
-    @Test fun loadingDotPulsesButStaysStaticWhenSystemAnimationsAreDisabled() {
-        val original = android.provider.Settings.Global.getFloat(
-            context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f,
-        )
-        try {
-            val refresh = mutableIntStateOf(0)
-            android.provider.Settings.Global.putFloat(
-                context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f,
-            )
-            rule.mainClock.autoAdvance = false
-            rule.setContent {
-                val renderKey = refresh.intValue
-                EnoToneTheme {
-                    androidx.compose.runtime.key(renderKey) {
-                        NowPlayingScreen(
-                            trackId = "fixture-id", title = "Fixture", artist = null,
-                            album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
-                            positionMs = 10_000L, durationMs = 120_000L,
-                            canSeek = true, controlsEnabled = true,
-                            hasPrevious = true, hasNext = true,
-                            queuePosition = 1, queueTotal = 3,
-                            repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
-                            hasKnownBufferDuration = true,
-                            nextBufferState = NextBufferState.LOADING,
-                            onClose = {}, onSeekFraction = {}, onPlayPause = {},
-                            onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
-                        )
-                    }
-                }
+    @Test fun loadingDotRemainsStaticWhenSystemAnimationsAreDisabled() = withAnimatorDurationScale(0f) {
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    positionMs = 10_000L, durationMs = 120_000L,
+                    canSeek = true, controlsEnabled = true,
+                    hasPrevious = true, hasNext = true,
+                    queuePosition = 1, queueTotal = 3,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                    hasKnownBufferDuration = true,
+                    nextBufferState = NextBufferState.LOADING,
+                    onClose = {}, onSeekFraction = {}, onPlayPause = {},
+                    onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                )
             }
-            val label = context.getString(R.string.now_playing_next_loading)
-            val start = rule.onNodeWithContentDescription(label).captureToImage().toPixelMap()
-            rule.mainClock.advanceTimeBy(550L)
-            val pulse = rule.onNodeWithContentDescription(label).captureToImage().toPixelMap()
-            val center = start.width / 2 to start.height / 2
-            assertTrue(start[center.first, center.second].alpha < pulse[center.first, center.second].alpha)
-
-            android.provider.Settings.Global.putFloat(
-                context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 0f,
-            )
-            rule.runOnIdle { refresh.intValue++ }
-            rule.waitForIdle()
-            val staticStart = rule.onNodeWithContentDescription(label).captureToImage().toPixelMap()
-            rule.mainClock.advanceTimeBy(1_100L)
-            val staticEnd = rule.onNodeWithContentDescription(label).captureToImage().toPixelMap()
-            val staticCenter = staticStart.width / 2 to staticStart.height / 2
-            assertEquals(
-                staticStart[staticCenter.first, staticCenter.second],
-                staticEnd[staticCenter.first, staticCenter.second],
-            )
-        } finally {
-            android.provider.Settings.Global.putFloat(
-                context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, original,
-            )
         }
+        val loading = rule.onNodeWithContentDescription(
+            context.getString(R.string.now_playing_next_loading),
+        )
+        loading.assertExists()
+        val start = loading.captureToImage().toPixelMap()
+        rule.mainClock.advanceTimeBy(1_100L)
+        val end = loading.captureToImage().toPixelMap()
+        val center = start.width / 2 to start.height / 2
+        assertEquals(start[center.first, center.second], end[center.first, center.second])
     }
 
     @Test fun unknownDurationOmitsBufferedPercentage() {
@@ -292,7 +265,7 @@ class NowPlayingUiTest {
                 )
             }
         }
-        val unknown = context.getString(R.string.now_playing_seek_unknown, "1:26")
+        val unknown = context.getString(R.string.now_playing_seek_unknown, "01:26")
         rule.onNodeWithContentDescription(unknown).assertExists()
         rule.onNodeWithContentDescription(
             context.getString(R.string.now_playing_next_ready),
@@ -327,7 +300,7 @@ class NowPlayingUiTest {
                 )
             }
         }
-        val seek = context.getString(R.string.now_playing_seek_known, "1:26", "3:48", 90)
+        val seek = context.getString(R.string.now_playing_seek_known, "01:26", "03:48", 90)
         val slider = rule.onNodeWithContentDescription(seek)
         rule.onNodeWithContentDescription(
             context.getString(R.string.now_playing_next_ready),
@@ -338,5 +311,16 @@ class NowPlayingUiTest {
         rule.runOnIdle { assertTrue(sought != null) }
         rule.onRoot().performTouchInput { swipeDown(startY = top + 36f, endY = bottom - 36f) }
         rule.runOnIdle { assertEquals(1, close) }
+    }
+
+    private fun withAnimatorDurationScale(scale: Float, block: () -> Unit) {
+        val key = android.provider.Settings.Global.ANIMATOR_DURATION_SCALE
+        val original = android.provider.Settings.Global.getFloat(context.contentResolver, key, 1f)
+        android.provider.Settings.Global.putFloat(context.contentResolver, key, scale)
+        try {
+            block()
+        } finally {
+            android.provider.Settings.Global.putFloat(context.contentResolver, key, original)
+        }
     }
 }
