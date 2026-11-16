@@ -4,10 +4,16 @@
 package app.enotone.android
 
 import android.graphics.Bitmap
+import android.provider.Settings
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,9 +30,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +56,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -56,6 +68,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -73,6 +86,7 @@ import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
 import app.enotone.android.core.ui.theme.EnoRadii
 import app.enotone.playback.PlaybackSeekPolicy
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -103,6 +117,9 @@ fun FeatureNowPlayingScreen(
     queueTotal: Int,
     repeatMode: Int,
     shuffleEnabled: Boolean,
+    bufferedFraction: Float = 0f,
+    hasKnownBufferDuration: Boolean = false,
+    nextTrackState: NowPlayingNextTrackState = NowPlayingNextTrackState.NONE,
     onClose: () -> Unit,
     onSeekFraction: (Float) -> Unit,
     onPlayPause: () -> Unit,
@@ -114,7 +131,6 @@ fun FeatureNowPlayingScreen(
 ) {
     val color = MaterialTheme.colorScheme
 
-    val seekLabel = stringResource(ids.playbackSeekSlider)
     val knownDuration = PlaybackSeekPolicy.isKnownDuration(durationMs)
     var scrubbing by remember(trackId) { mutableStateOf(false) }
     var scrubFraction by remember(trackId) { mutableFloatStateOf(0f) }
@@ -123,6 +139,41 @@ fun FeatureNowPlayingScreen(
     val shownPosition = if (scrubbing)
         PlaybackSeekPolicy.positionForFraction(durationMs, scrubFraction) ?: 0L
         else positionMs
+    val knownBufferDuration = hasKnownBufferDuration && durationMs > 0L
+    val safeBufferedFraction = bufferedFraction.coerceIn(0f, 1f)
+    val seekContentDescription = if (knownBufferDuration) {
+        stringResource(
+            ids.nowPlayingSeekKnown,
+            PlaybackSeekPolicy.formatTime(shownPosition),
+            PlaybackSeekPolicy.formatTime(durationMs),
+            (safeBufferedFraction * BUFFERED_PERCENT_MULTIPLIER).roundToInt(),
+        )
+    } else {
+        stringResource(ids.nowPlayingSeekUnknown, PlaybackSeekPolicy.formatTime(shownPosition))
+    }
+    val context = LocalContext.current
+    val motionScale = Settings.Global.getFloat(
+        context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f,
+    )
+    val loadingPulse = nextTrackState == NowPlayingNextTrackState.LOADING &&
+        NextTrackLoadingMotion.shouldPulse(motionScale)
+    val pulseAlpha = if (loadingPulse) {
+        val pulseTransition = rememberInfiniteTransition(label = "nextTrackLoading")
+        val animatedPulseAlpha by pulseTransition.animateFloat(
+            initialValue = LOADING_MIN_ALPHA,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(LOADING_HALF_PERIOD_MS, easing = loadingEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "nextTrackLoadingAlpha",
+        )
+        NextTrackLoadingMotion.alpha(motionScale, animatedPulseAlpha)
+    } else {
+        NextTrackLoadingMotion.alpha(motionScale, NO_MOTION_LOADING_ALPHA)
+    }
+    val bufferOverlayColor = EnoColors.textSecondary.copy(alpha = BUFFER_LAYER_ALPHA)
+    val readyGlowColor = EnoColors.accentText.copy(alpha = READY_GLOW_ALPHA)
     val isPlaying = playbackState == "PLAYING" || playbackState == "BUFFERING"
     val realError = when (playbackState) {
         "ERROR" -> stringResource(ids.playbackError, errorCode)
@@ -257,54 +308,118 @@ fun FeatureNowPlayingScreen(
                 )
             }
             Spacer(Modifier.height(12.dp))
-            // D3.1 (01_now_playing): тонкая линия; сыграно и бегунок — цвет текста, остальное — surface2.
-            // Слой буфера и точка следующего трека — D5 (SPEC_now_playing_buffering).
+            // D5 (01_now_playing): Slider retains its 48dp gesture target; the
+            // reserved 20dp right slot places the dot center 16dp after the track.
             val sliderColors = SliderDefaults.colors(
                 thumbColor = EnoColors.text,
                 activeTrackColor = EnoColors.text,
-                inactiveTrackColor = EnoColors.surface2,
+                inactiveTrackColor = EnoColors.line,
                 disabledThumbColor = EnoColors.textSecondary,
                 disabledActiveTrackColor = EnoColors.textSecondary,
-                disabledInactiveTrackColor = EnoColors.surface2,
+                disabledInactiveTrackColor = EnoColors.line,
             )
             val sliderInteraction = remember { MutableInteractionSource() }
-            Slider(
-                value = shownFraction.coerceIn(0f, 1f),
-                enabled = controlsEnabled && canSeek && knownDuration,
-                onValueChange = { next ->
-                    scrubFraction = next
-                    scrubbing = true
-                },
-                onValueChangeFinished = {
-                    if (controlsEnabled && canSeek && knownDuration) {
-                        onSeekFraction(scrubFraction)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Slider(
+                    value = shownFraction.coerceIn(0f, 1f),
+                    enabled = controlsEnabled && canSeek && knownDuration,
+                    onValueChange = { next ->
+                        scrubFraction = next
+                        scrubbing = true
+                    },
+                    onValueChangeFinished = {
+                        if (controlsEnabled && canSeek && knownDuration) {
+                            onSeekFraction(scrubFraction)
+                        }
+                        scrubbing = false
+                    },
+                    colors = sliderColors,
+                    interactionSource = sliderInteraction,
+                    thumb = {
+                        SliderDefaults.Thumb(
+                            interactionSource = sliderInteraction,
+                            colors = sliderColors,
+                            enabled = controlsEnabled && canSeek && knownDuration,
+                            thumbSize = DpSize(THUMB_SIZE, THUMB_SIZE),
+                        )
+                    },
+                    track = { sliderState ->
+                        val trackShape = RoundedCornerShape(TRACK_HEIGHT / 2)
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(TRACK_HEIGHT)
+                                .clip(trackShape),
+                        ) {
+                            SliderDefaults.Track(
+                                sliderState = sliderState,
+                                colors = sliderColors,
+                                enabled = controlsEnabled && canSeek && knownDuration,
+                                thumbTrackGapSize = 0.dp,
+                                drawStopIndicator = null,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            if (knownBufferDuration) {
+                                Canvas(Modifier.fillMaxSize()) {
+                                    val trackInset = THUMB_SIZE.toPx() / 2f
+                                    val trackWidth = (size.width - trackInset * 2f).coerceAtLeast(0f)
+                                    val played = trackInset +
+                                        sliderState.value.coerceIn(0f, 1f) * trackWidth
+                                    val buffered = maxOf(
+                                        played,
+                                        trackInset + safeBufferedFraction * trackWidth,
+                                    )
+                                    if (buffered > played) {
+                                        drawRoundRect(
+                                            color = bufferOverlayColor,
+                                            topLeft = Offset(played, 0f),
+                                            size = Size(buffered - played, size.height),
+                                            cornerRadius = CornerRadius(size.height / 2f),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.weight(1f).heightIn(min = SEEK_TOUCH_HEIGHT)
+                        .semantics { contentDescription = seekContentDescription },
+                )
+                Box(
+                    modifier = Modifier.width(DOT_GAP_WIDTH).height(SEEK_TOUCH_HEIGHT),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when (nextTrackState) {
+                        NowPlayingNextTrackState.NONE -> Unit
+                        NowPlayingNextTrackState.LOADING,
+                        NowPlayingNextTrackState.READY -> {
+                            val ready = nextTrackState == NowPlayingNextTrackState.READY
+                            val dotColor = if (ready) {
+                                EnoColors.accentText
+                            } else {
+                                EnoColors.textSecondary
+                            }
+                            val dotDescription = stringResource(
+                                if (ready) ids.nowPlayingNextReady else ids.nowPlayingNextLoading,
+                            )
+                            Box(
+                                modifier = Modifier.size(NEXT_DOT_SIZE)
+                                    .drawBehind {
+                                        if (ready) {
+                                            drawCircle(
+                                                color = readyGlowColor,
+                                                radius = size.minDimension / 2f + READY_GLOW_RADIUS.toPx(),
+                                            )
+                                        }
+                                    }
+                                    .background(dotColor, CircleShape)
+                                    .graphicsLayer { alpha = if (ready) 1f else pulseAlpha }
+                                    .semantics { contentDescription = dotDescription },
+                            )
+                        }
                     }
-                    scrubbing = false
-                },
-                colors = sliderColors,
-                interactionSource = sliderInteraction,
-                thumb = {
-                    SliderDefaults.Thumb(
-                        interactionSource = sliderInteraction,
-                        colors = sliderColors,
-                        enabled = controlsEnabled && canSeek && knownDuration,
-                        thumbSize = DpSize(THUMB_SIZE, THUMB_SIZE),
-                    )
-                },
-                track = { sliderState ->
-                    SliderDefaults.Track(
-                        sliderState = sliderState,
-                        colors = sliderColors,
-                        enabled = controlsEnabled && canSeek && knownDuration,
-                        thumbTrackGapSize = 0.dp,
-                        drawStopIndicator = null,
-                        modifier = Modifier.height(TRACK_HEIGHT),
-                    )
-                },
-                modifier = Modifier.fillMaxWidth().semantics {
-                    contentDescription = seekLabel
-                },
-            )
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -428,8 +543,19 @@ private fun NowPlayingToggle(
     }
 }
 
-private val THUMB_SIZE = 14.dp
+private val THUMB_SIZE = 12.dp
 private val TRACK_HEIGHT = 4.dp
+private val SEEK_TOUCH_HEIGHT = 48.dp
+private val DOT_GAP_WIDTH = 20.dp
+private val NEXT_DOT_SIZE = 8.dp
+private val READY_GLOW_RADIUS = 3.dp
+private const val BUFFER_LAYER_ALPHA = 0.38f
+private const val READY_GLOW_ALPHA = 0.22f
+private const val LOADING_MIN_ALPHA = 0.25f
+private const val NO_MOTION_LOADING_ALPHA = 0.6f
+private const val BUFFERED_PERCENT_MULTIPLIER = 100f
+private const val LOADING_HALF_PERIOD_MS = 550
+private val loadingEasing = CubicBezierEasing(0.42f, 0f, 0.58f, 1f)
 
 private const val RETURN_DURATION_MS = 250
 private const val COLLAPSE_THRESHOLD_FRACTION = 0.25f

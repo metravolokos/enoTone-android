@@ -15,6 +15,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -30,6 +31,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.enotone.library.LibraryPageVisibility
@@ -57,6 +61,24 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val playerModel: PlayerViewModel = viewModel(factory = remember(appContext) {
         PlayerViewModel.factory(container)
     })
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, playerModel) {
+        val lifecycle = lifecycleOwner.lifecycle
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> playerModel.onHostResumed(true)
+                Lifecycle.Event.ON_PAUSE,
+                Lifecycle.Event.ON_STOP -> playerModel.onHostResumed(false)
+                else -> Unit
+            }
+        }
+        playerModel.onHostResumed(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            playerModel.onHostResumed(false)
+        }
+    }
     val player by playerModel.state.collectAsStateWithLifecycle()
     val libraryStateHolder = rememberSaveableStateHolder()
     val inSettings = nav.overlay != null

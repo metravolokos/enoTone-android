@@ -215,6 +215,12 @@ internal fun AppNowPlaying(
         errorCode = playback.errorCode,
         positionMs = playback.positionMs,
         durationMs = playback.durationMs,
+        bufferedFraction = playback.knownDurationMs
+            ?.takeIf { it > 0L }
+            ?.let { (playback.bufferedPositionMs.toFloat() / it).coerceIn(0f, 1f) }
+            ?: 0f,
+        hasKnownBufferDuration = playback.knownDurationMs?.let { it > 0L } == true,
+        nextBufferState = playback.nextBufferState,
         canSeek = playback.canSeek,
         controlsEnabled = playback.connected,
         hasPrevious = playback.hasPrevious,
