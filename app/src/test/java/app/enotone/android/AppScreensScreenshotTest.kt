@@ -238,7 +238,6 @@ class AppScreensScreenshotTest {
         label: String = state.name.lowercase(),
     ) {
         withAnimatorDurationScale(0f) {
-            rule.mainClock.autoAdvance = false
             rule.setContent {
                 Screen(dark) {
                     NowPlayingScreen(
