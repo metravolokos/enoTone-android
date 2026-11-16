@@ -197,12 +197,12 @@ class AppPlayerSheetBackUiTest {
             remainingProgress = progress.floatValue
         }
 
+        assertTrue("Interrupted exit must finish the Back transition", callbackRan)
+        assertEquals("Back progress must be reset on interrupted exit", 0f, remainingProgress, 0f)
         assertTrue(
-            "Interrupted exit should finish the Back transition and reopen normally: " +
-                "baseline=$baseline, reopened=$reopened, progress=$remainingProgress, " +
-                "callback=$callbackRan, height=$height",
-            callbackRan && remainingProgress == 0f &&
-                reopened in (baseline - 5)..(baseline + 5),
+            "Reopened sheet should match the ordinary early frame: " +
+                "baseline=$baseline, reopened=$reopened, height=$height",
+            reopened in (baseline - 5)..(baseline + 5),
         )
     }
 
