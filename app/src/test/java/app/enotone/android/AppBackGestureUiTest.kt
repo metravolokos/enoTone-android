@@ -148,7 +148,7 @@ class AppBackGestureUiTest {
         rule.waitForIdle()
         rule.runOnIdle {
             assertEquals(AppBackTarget.DETAIL, controller.previewTarget)
-            assertEquals(0.5f, controller.musicProgress(false), 0f)
+            assertEquals(0.5f, controller.progress, 0f)
             assertTrue(controller.previewRoute == appRouteKey(detail))
             assertEquals(detail, nav)
             dispatcher.dispatchOnBackCancelled()
