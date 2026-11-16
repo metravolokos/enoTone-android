@@ -141,6 +141,8 @@ class AppPlayerSheetBackUiTest {
         assertTrue("Committed sheet must finish exiting: $exited / $height", exited >= height - 4)
         rule.runOnIdle { assertEquals(0f, progress.floatValue, 0f) }
         rule.runOnIdle { expanded.value = true }
+        // The interrupted-exit effect creates a fresh visibility state on its first frame.
+        rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         assertTrue(
