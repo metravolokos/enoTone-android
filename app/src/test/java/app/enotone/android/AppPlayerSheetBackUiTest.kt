@@ -197,6 +197,8 @@ class AppPlayerSheetBackUiTest {
         }
         assertTrue("Compose must observe expanded=false before reopening", !expandedDuringExit)
         rule.runOnIdle { expanded.value = true }
+        rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         var callbackRan = false
