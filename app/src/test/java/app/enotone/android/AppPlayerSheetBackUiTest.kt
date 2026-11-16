@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
@@ -153,19 +154,27 @@ class AppPlayerSheetBackUiTest {
         val expanded = mutableStateOf(false)
         val progress = mutableFloatStateOf(0f)
         val exitComplete = mutableStateOf(false)
+        var renderedExpanded = false
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
-            SideEffect { host = current }
+            val expandedForFrame = expanded.value
+            val progressForFrame = progress.floatValue
+            SideEffect {
+                host = current
+                renderedExpanded = expandedForFrame
+            }
             EnoToneTheme {
                 AppMotionRoot(
                     inSettings = false,
                     diagnostics = false,
-                    playerExpanded = expanded.value,
-                    playerBackProgress = progress.floatValue,
+                    playerExpanded = expandedForFrame,
+                    playerBackProgress = progressForFrame,
                     onPlayerExitComplete = {
-                        progress.floatValue = 0f
-                        exitComplete.value = true
+                        Snapshot.withMutableSnapshot {
+                            progress.floatValue = 0f
+                            exitComplete.value = true
+                        }
                     },
                     music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
                     settings = {},
@@ -174,22 +183,31 @@ class AppPlayerSheetBackUiTest {
             }
         }
         val height = requireNotNull(host).height
-        rule.runOnIdle { expanded.value = true }
+        rule.runOnIdle {
+            Snapshot.withMutableSnapshot { expanded.value = true }
+        }
         rule.mainClock.advanceTimeBy(50)
         val baseline = blueStartAfterRasterSync()
         rule.mainClock.advanceTimeBy(400)
 
-        rule.runOnIdle { progress.floatValue = 0.5f }
+        rule.runOnIdle {
+            Snapshot.withMutableSnapshot { progress.floatValue = 0.5f }
+        }
         rule.mainClock.advanceTimeByFrame()
         val beforeCommit = blueStartAfterRasterSync()
         assertTrue("Preview must be visible before commit: $beforeCommit / $height",
             beforeCommit.toFloat() / height in 0.40f..0.60f)
 
-        rule.runOnIdle { expanded.value = false }
-        // Reopen after exactly two controlled frames, while the 250 ms exit is pending.
-        rule.mainClock.advanceTimeByFrame()
+        rule.runOnIdle {
+            Snapshot.withMutableSnapshot { expanded.value = false }
+        }
+        // Publish the close target and confirm Compose applied it before reopening.
+        // Reopen on the following controlled frame, within PLAYER_CLOSE_MS.
         rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
+        rule.runOnIdle {
+            assertEquals("Close target must be applied before reopening", false, renderedExpanded)
+        }
         val exitFrame = blueStart()
         rule.runOnIdle { assertTrue("Exit callback must still be pending", !exitComplete.value) }
         assertTrue(
@@ -197,9 +215,15 @@ class AppPlayerSheetBackUiTest {
             exitFrame in (beforeCommit - 5)..(height - 5),
         )
 
-        rule.runOnIdle { expanded.value = true }
-        // Restarting visibility is launched after recomposition, one frame after the state change.
+        rule.runOnIdle {
+            Snapshot.withMutableSnapshot { expanded.value = true }
+        }
+        // The next frame applies the reopened target; the root's paired SideEffect records it.
         rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
+        rule.runOnIdle {
+            assertEquals("Reopen target must be applied", true, renderedExpanded)
+        }
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         var callbackRan = false
