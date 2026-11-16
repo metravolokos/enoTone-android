@@ -242,7 +242,12 @@ class NowPlayingUiTest {
             context.getString(R.string.now_playing_next_loading),
         )
         loading.assertExists()
-        assertEquals(0f, android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f), 0f)
+        val animatorScale = android.provider.Settings.Global.getFloat(
+            context.contentResolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        )
+        assertEquals(0f, animatorScale, 0f)
         val initial = loadingDotPixel()
         rule.mainClock.advanceTimeBy(550, ignoreFrameDuration = true)
         val later = loadingDotPixel()
@@ -272,11 +277,19 @@ class NowPlayingUiTest {
             context.getString(R.string.now_playing_next_loading),
         )
         loading.assertExists()
-        assertEquals(1f, android.provider.Settings.Global.getFloat(context.contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 0f), 0f)
+        val animatorScale = android.provider.Settings.Global.getFloat(
+            context.contentResolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+            0f,
+        )
+        assertEquals(1f, animatorScale, 0f)
         val atStart = loadingDotPixel()
         rule.mainClock.advanceTimeBy(550, ignoreFrameDuration = true)
         val afterHalfPeriod = loadingDotPixel()
-        assertTrue("LOADING dot should change pixels from $atStart to $afterHalfPeriod at 550 ms", atStart != afterHalfPeriod)
+        assertTrue(
+            "LOADING dot should change pixels from $atStart to $afterHalfPeriod at 550 ms",
+            atStart != afterHalfPeriod,
+        )
     }
 
     @Test fun unknownDurationOmitsBufferedPercentage() {
