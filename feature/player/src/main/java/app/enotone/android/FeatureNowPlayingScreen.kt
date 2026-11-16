@@ -342,6 +342,8 @@ fun FeatureNowPlayingScreen(
                     thumb = {
                         SliderDefaults.Thumb(
                             interactionSource = sliderInteraction,
+                            // До #174 Robolectric рисовал центр бегунка на 8 px выше дорожки
+                            // (плотность около 4 px/dp); Roborazzi verify страхует обновления Compose BOM.
                             modifier = Modifier.offset(y = TRACK_HEIGHT / 2),
                             colors = sliderColors,
                             enabled = controlsEnabled && canSeek && knownDuration,
@@ -401,6 +403,15 @@ fun FeatureNowPlayingScreen(
                             val dotDescription = stringResource(
                                 if (ready) ids.nowPlayingNextReady else ids.nowPlayingNextLoading,
                             )
+                            val dotRendering = if (loadingPulse) {
+                                Modifier.background(
+                                    dotColor.copy(alpha = dotColor.alpha * pulseAlpha),
+                                    CircleShape,
+                                )
+                            } else {
+                                Modifier.background(dotColor, CircleShape)
+                                    .graphicsLayer { alpha = if (ready) 1f else pulseAlpha }
+                            }
                             Box(
                                 modifier = Modifier.size(NEXT_DOT_SIZE)
                                     .drawBehind {
@@ -411,8 +422,7 @@ fun FeatureNowPlayingScreen(
                                             )
                                         }
                                     }
-                                    .background(dotColor, CircleShape)
-                                    .graphicsLayer { alpha = if (ready) 1f else pulseAlpha }
+                                    .then(dotRendering)
                                     .semantics { contentDescription = dotDescription },
                             )
                         }

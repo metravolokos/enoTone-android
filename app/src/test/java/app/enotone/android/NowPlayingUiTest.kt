@@ -1,9 +1,14 @@
 package app.enotone.android
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.view.View
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -217,7 +222,11 @@ class NowPlayingUiTest {
         assertTrue(NextTrackLoadingMotion.shouldPulse(1f))
         assertEquals(0.42f, NextTrackLoadingMotion.alpha(1f, 0.42f), 0f)
 
+        var hostView: View? = null
+        rule.mainClock.autoAdvance = false
         rule.setContent {
+            val current = LocalView.current
+            SideEffect { hostView = current }
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
@@ -238,6 +247,62 @@ class NowPlayingUiTest {
             context.getString(R.string.now_playing_next_loading),
         )
         loading.assertExists()
+        val animatorScale = android.provider.Settings.Global.getFloat(
+            context.contentResolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        )
+        assertEquals(0f, animatorScale, 0f)
+        rule.mainClock.advanceTimeBy(0, ignoreFrameDuration = true)
+        val initial = loadingDotPixel(requireNotNull(hostView))
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(550)
+        val later = loadingDotPixel(requireNotNull(hostView))
+        assertEquals("LOADING remains visually static at animator scale 0", initial, later)
+    }
+
+    @Test fun loadingDotPulsesAtNormalSystemAnimationScale() = withAnimatorDurationScale(1f) {
+        var hostView: View? = null
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            val current = LocalView.current
+            SideEffect { hostView = current }
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    positionMs = 10_000L, durationMs = 120_000L,
+                    canSeek = true, controlsEnabled = true,
+                    hasPrevious = true, hasNext = true,
+                    queuePosition = 1, queueTotal = 3,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                    hasKnownBufferDuration = true,
+                    nextBufferState = NextBufferState.LOADING,
+                    onClose = {}, onSeekFraction = {}, onPlayPause = {},
+                    onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                )
+            }
+        }
+        val loading = rule.onNodeWithContentDescription(
+            context.getString(R.string.now_playing_next_loading),
+        )
+        loading.assertExists()
+        val animatorScale = android.provider.Settings.Global.getFloat(
+            context.contentResolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+            0f,
+        )
+        assertEquals(1f, animatorScale, 0f)
+        rule.mainClock.advanceTimeBy(0, ignoreFrameDuration = true)
+        val atStart = loadingDotPixel(requireNotNull(hostView))
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(550)
+        val afterHalfPeriod = loadingDotPixel(requireNotNull(hostView))
+        assertTrue(
+            "LOADING dot should change pixels from 0x${Integer.toHexString(atStart)} to " +
+                "0x${Integer.toHexString(afterHalfPeriod)} at 550 ms",
+            atStart != afterHalfPeriod,
+        )
     }
 
     @Test fun unknownDurationOmitsBufferedPercentage() {
@@ -309,5 +374,22 @@ class NowPlayingUiTest {
         } finally {
             android.provider.Settings.Global.putFloat(context.contentResolver, key, original)
         }
+    }
+
+    private fun loadingDotPixel(view: View): Int {
+        val bounds = rule.onNodeWithContentDescription(
+            context.getString(R.string.now_playing_next_loading),
+        ).fetchSemanticsNode().boundsInRoot
+        var pixel = 0
+        rule.runOnIdle {
+            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+            try {
+                view.draw(Canvas(bitmap))
+                pixel = bitmap.getPixel(bounds.center.x.toInt(), bounds.center.y.toInt())
+            } finally {
+                bitmap.recycle()
+            }
+        }
+        return pixel
     }
 }

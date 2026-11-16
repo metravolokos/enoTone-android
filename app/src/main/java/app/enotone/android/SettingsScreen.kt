@@ -37,7 +37,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.enotone.library.LibraryPageVisibility
-import kotlinx.coroutines.delay
 
 @Composable
 internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
@@ -116,16 +115,12 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         },
         onCancel = backController::cancel,
     )
-    // PLAYER-preview удерживается на время exit; при cancel анимация возвращается к 0.
-    LaunchedEffect(expanded) {
-        if (!expanded) delay(AppMotionSpec.PLAYER_CLOSE_MS.toLong())
-        backController.finishTransition()
-    }
     AppMotionRoot(
         inSettings = inSettings,
         diagnostics = nav.overlay == AppOverlay.DIAGNOSTICS,
         playerExpanded = expanded,
         playerBackProgress = backController.playerProgress(),
+        onPlayerExitComplete = backController::finishTransition,
         music = {
             AppMusicShell(
                 nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
