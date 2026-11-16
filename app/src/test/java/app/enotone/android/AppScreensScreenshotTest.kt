@@ -35,7 +35,6 @@ import app.enotone.android.core.ui.component.EnoMiniPlayer
 import app.enotone.android.core.ui.component.EnoMiniPlayerLabels
 import app.enotone.android.core.ui.component.LocalEnoDockBlur
 import app.enotone.android.core.ui.component.rememberEnoBlurState
-import app.enotone.android.core.ui.theme.EnoToneTheme as EnoTheme
 import app.enotone.library.LibraryPage
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
@@ -47,6 +46,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import app.enotone.android.core.ui.theme.EnoToneTheme as EnoTheme
 
 /**
  * Экраны D3.1 на эталонном размере Huawei Nova 15 Pro (377 × 816 dp) в обеих темах — для сверки

@@ -147,7 +147,7 @@ fun FeatureNowPlayingScreen(
             ids.nowPlayingSeekKnown,
             PlaybackSeekPolicy.formatTime(shownPosition),
             PlaybackSeekPolicy.formatTime(durationMs),
-            (safeBufferedFraction * 100f).roundToInt(),
+            (safeBufferedFraction * BUFFERED_PERCENT_MULTIPLIER).roundToInt(),
         )
     } else {
         stringResource(ids.nowPlayingSeekUnknown, PlaybackSeekPolicy.formatTime(shownPosition))
@@ -576,6 +576,7 @@ private const val BUFFER_LAYER_ALPHA = 0.38f
 private const val READY_GLOW_ALPHA = 0.22f
 private const val LOADING_MIN_ALPHA = 0.25f
 private const val NO_MOTION_LOADING_ALPHA = 0.6f
+private const val BUFFERED_PERCENT_MULTIPLIER = 100f
 private const val LOADING_HALF_PERIOD_MS = 550
 private val loadingEasing = CubicBezierEasing(0.42f, 0f, 0.58f, 1f)
 
