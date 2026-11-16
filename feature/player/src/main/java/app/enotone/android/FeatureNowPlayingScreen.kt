@@ -56,6 +56,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -145,7 +146,7 @@ fun FeatureNowPlayingScreen(
     val settleJob = remember { mutableStateOf<Job?>(null) }
     var playerHeightPx by remember { mutableFloatStateOf(1f) }
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().testTag("now-playing-gesture-root")
             .graphicsLayer {
                 translationY = dragOffset.floatValue
             }
