@@ -21,6 +21,7 @@ import app.enotone.playback.QueueTrack
 import app.enotone.playback.TransientCacheStatus
 import app.enotone.playback.resolveBufferedPositionMs
 import app.enotone.playback.resolveNextBufferState
+import app.enotone.playback.resolveVisiblePlayerBufferPositionMs
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -100,6 +101,59 @@ private fun playbackLabel(player: Player): String {
     }
 }
 
+/** Pure assembly of the Media3 reads and the UI-ready buffering values. */
+internal data class PlaybackBufferingSnapshot(
+    val positionMs: Long,
+    val bufferedPositionMs: Long,
+    val durationMs: Long,
+    val knownDurationMs: Long?,
+    val repeatMode: Int,
+    val hasNext: Boolean,
+    val nextCacheInfo: TransientCacheStatus,
+    val nextBufferState: NextBufferState,
+)
+
+@Suppress("LongParameterList")
+internal fun resolvePlaybackBufferingSnapshot(
+    positionMs: Long,
+    durationMs: Long,
+    knownDurationMs: Long?,
+    nowPlayingVisible: Boolean,
+    readPlayerBufferedPositionMs: () -> Long,
+    currentTrackFullyCached: Boolean,
+    repeatMode: Int,
+    nextMediaItemIndex: Int,
+    nextCacheInfo: TransientCacheStatus,
+    queueFullyCollected: Boolean,
+): PlaybackBufferingSnapshot {
+    val playerBuffer = resolveVisiblePlayerBufferPositionMs(
+        nowPlayingVisible = nowPlayingVisible,
+        positionMs = positionMs,
+        readPlayerBufferedPositionMs = readPlayerBufferedPositionMs,
+    )
+    return PlaybackBufferingSnapshot(
+        positionMs = positionMs,
+        bufferedPositionMs = resolveBufferedPositionMs(
+            positionMs = positionMs,
+            durationMs = knownDurationMs ?: durationMs,
+            playerBufferedPositionMs = playerBuffer,
+            currentTrackFullyCached = currentTrackFullyCached,
+        ),
+        durationMs = durationMs,
+        knownDurationMs = knownDurationMs,
+        repeatMode = repeatMode,
+        hasNext = nextMediaItemIndex != C.INDEX_UNSET,
+        nextCacheInfo = nextCacheInfo,
+        nextBufferState = resolveNextBufferState(
+            nextMediaItemIndex = nextMediaItemIndex,
+            repeatMode = repeatMode,
+            nextCacheInfo = nextCacheInfo,
+            currentTrackFullyCached = currentTrackFullyCached,
+            queueFullyCollected = queueFullyCollected,
+        ),
+    )
+}
+
 /**
  * Main-thread binder and Media3 listener, with the previous 500ms position
  * polling. Unbind never calls stopPlayback: audio stays in MediaSessionService.
@@ -117,17 +171,6 @@ internal class AndroidPlaybackConnection(
     private var bound = false
     private var nowPlayingVisible = false
     private var ticker: Job? = null
-
-    private data class BufferingSnapshot(
-        val positionMs: Long,
-        val bufferedPositionMs: Long,
-        val durationMs: Long,
-        val knownDurationMs: Long?,
-        val repeatMode: Int,
-        val hasNext: Boolean,
-        val nextCacheInfo: TransientCacheStatus,
-        val nextBufferState: NextBufferState,
-    )
 
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = publish()
@@ -187,7 +230,7 @@ internal class AndroidPlaybackConnection(
     private fun bufferingSnapshot(
         active: EnoTonePlaybackService,
         player: Player,
-    ): BufferingSnapshot {
+    ): PlaybackBufferingSnapshot {
         val positionMs = player.currentPosition.coerceAtLeast(0L)
         val durationMs = active.displayDurationMs.coerceAtLeast(0L)
         val knownDurationMs = player.duration.takeIf { it != C.TIME_UNSET && it > 0L }
@@ -197,27 +240,17 @@ internal class AndroidPlaybackConnection(
         val nextCacheInfo = active.nextCacheSnapshot()
         val repeatMode = active.repeatMode
         val nextMediaItemIndex = player.nextMediaItemIndex
-        val bufferedPositionMs = resolveBufferedPositionMs(
+        return resolvePlaybackBufferingSnapshot(
             positionMs = positionMs,
-            durationMs = knownDurationMs ?: durationMs,
-            playerBufferedPositionMs = if (nowPlayingVisible) player.bufferedPosition else positionMs,
-            currentTrackFullyCached = currentTrackFullyCached,
-        )
-        return BufferingSnapshot(
-            positionMs = positionMs,
-            bufferedPositionMs = bufferedPositionMs,
             durationMs = durationMs,
             knownDurationMs = knownDurationMs,
+            nowPlayingVisible = nowPlayingVisible,
+            readPlayerBufferedPositionMs = { player.bufferedPosition },
+            currentTrackFullyCached = currentTrackFullyCached,
             repeatMode = repeatMode,
-            hasNext = nextMediaItemIndex != C.INDEX_UNSET,
+            nextMediaItemIndex = nextMediaItemIndex,
             nextCacheInfo = nextCacheInfo,
-            nextBufferState = resolveNextBufferState(
-                nextMediaItemIndex = nextMediaItemIndex,
-                repeatMode = repeatMode,
-                nextCacheInfo = nextCacheInfo,
-                currentTrackFullyCached = currentTrackFullyCached,
-                queueFullyCollected = queueFullyCollected,
-            ),
+            queueFullyCollected = queueFullyCollected,
         )
     }
 

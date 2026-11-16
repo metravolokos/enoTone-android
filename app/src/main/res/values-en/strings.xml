@@ -74,7 +74,10 @@
     <string name="handoff_failed">failed</string>
     <string name="handoff_yes">yes</string>
     <string name="handoff_no">no</string>
-    <string name="playback_seek_slider">Seek within current track</string>
+    <string name="now_playing_seek_known">%1$s of %2$s, %3$d%% buffered</string>
+    <string name="now_playing_seek_unknown">%1$s, duration unknown</string>
+    <string name="now_playing_next_loading">Next track is loading</string>
+    <string name="now_playing_next_ready">Next track is ready</string>
     <string name="playback_duration_unknown">--:--</string>
     <string name="playback_error_stage">Failure source: %1$s (safe code only)</string>
     <string name="credential_vault_explanation">Sign-in is encrypted on this device. Sign out removes credentials and library data.</string>

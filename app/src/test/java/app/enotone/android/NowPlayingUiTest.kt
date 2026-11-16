@@ -17,16 +17,21 @@ import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeDown
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
+import app.enotone.playback.NextBufferState
 import app.enotone.playback.PlaybackModes
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 
 /** Uses transport callbacks, not Media3/network, to verify the rendered controls. */
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [35], qualifiers = "w393dp-h852dp")
 class NowPlayingUiTest {
     @get:Rule val rule = createComposeRule()
@@ -169,5 +174,140 @@ class NowPlayingUiTest {
         rule.onNodeWithText("-01:30").assertExists()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_resume)).assertExists()
         rule.runOnIdle { assertEquals(0, play) }
+    }
+
+    @Test fun bufferingDescriptionsFollowKnownDurationAndNextTrackState() = withAnimatorDurationScale(0f) {
+        val next = mutableStateOf(NextBufferState.NONE)
+        rule.setContent {
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    positionMs = 86_000L, durationMs = 228_000L,
+                    canSeek = true, controlsEnabled = true,
+                    hasPrevious = true, hasNext = true,
+                    queuePosition = 1, queueTotal = 3,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                    bufferedFraction = 0.64f, hasKnownBufferDuration = true,
+                    nextBufferState = next.value,
+                    onClose = {}, onSeekFraction = {}, onPlayPause = {},
+                    onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                )
+            }
+        }
+        val seek = context.getString(R.string.now_playing_seek_known, "01:26", "03:48", 64)
+        val loading = context.getString(R.string.now_playing_next_loading)
+        val ready = context.getString(R.string.now_playing_next_ready)
+        rule.onNodeWithContentDescription(seek).assertExists()
+        rule.onNodeWithContentDescription(loading).assertDoesNotExist()
+        rule.onNodeWithContentDescription(ready).assertDoesNotExist()
+
+        rule.runOnIdle { next.value = NextBufferState.LOADING }
+        rule.onNodeWithContentDescription(loading).assertExists()
+        rule.runOnIdle { next.value = NextBufferState.READY }
+        rule.onNodeWithContentDescription(ready).assertExists()
+        rule.onNodeWithContentDescription(loading).assertDoesNotExist()
+        rule.runOnIdle { next.value = NextBufferState.NONE }
+        rule.onNodeWithContentDescription(ready).assertDoesNotExist()
+    }
+
+    @Test fun loadingDotRemainsStaticWhenSystemAnimationsAreDisabled() = withAnimatorDurationScale(0f) {
+        assertFalse(NextTrackLoadingMotion.shouldPulse(0f))
+        assertEquals(0.6f, NextTrackLoadingMotion.alpha(0f, 1f), 0f)
+        assertTrue(NextTrackLoadingMotion.shouldPulse(1f))
+        assertEquals(0.42f, NextTrackLoadingMotion.alpha(1f, 0.42f), 0f)
+
+        rule.setContent {
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    positionMs = 10_000L, durationMs = 120_000L,
+                    canSeek = true, controlsEnabled = true,
+                    hasPrevious = true, hasNext = true,
+                    queuePosition = 1, queueTotal = 3,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                    hasKnownBufferDuration = true,
+                    nextBufferState = NextBufferState.LOADING,
+                    onClose = {}, onSeekFraction = {}, onPlayPause = {},
+                    onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                )
+            }
+        }
+        val loading = rule.onNodeWithContentDescription(
+            context.getString(R.string.now_playing_next_loading),
+        )
+        loading.assertExists()
+    }
+
+    @Test fun unknownDurationOmitsBufferedPercentage() {
+        rule.setContent {
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    positionMs = 86_000L, durationMs = 0L,
+                    canSeek = false, controlsEnabled = true,
+                    hasPrevious = true, hasNext = true,
+                    queuePosition = 1, queueTotal = 3,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                    bufferedFraction = 0.9f, hasKnownBufferDuration = false,
+                    nextBufferState = NextBufferState.READY,
+                    onClose = {}, onSeekFraction = {}, onPlayPause = {},
+                    onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                )
+            }
+        }
+        val unknown = context.getString(R.string.now_playing_seek_unknown, "01:26")
+        rule.onNodeWithContentDescription(unknown).assertExists()
+        rule.onNodeWithContentDescription(
+            context.getString(R.string.now_playing_next_ready),
+        ).assertExists()
+        val known = context.getString(R.string.now_playing_seek_known, "01:26", "03:48", 90)
+        rule.onNodeWithContentDescription(known).assertDoesNotExist()
+    }
+
+    @Test fun readyDotDoesNotInterceptHorizontalSeekOrVerticalClose() {
+        var close = 0
+        var sought: Float? = null
+        rule.setContent {
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    positionMs = 86_000L, durationMs = 228_000L,
+                    canSeek = true, controlsEnabled = true,
+                    hasPrevious = true, hasNext = true,
+                    queuePosition = 1, queueTotal = 3,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                    bufferedFraction = 0.9f, hasKnownBufferDuration = true,
+                    nextBufferState = NextBufferState.READY,
+                    onClose = { close++ }, onSeekFraction = { sought = it }, onPlayPause = {},
+                    onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                )
+            }
+        }
+        val seek = context.getString(R.string.now_playing_seek_known, "01:26", "03:48", 90)
+        val slider = rule.onNodeWithContentDescription(seek)
+        rule.onNodeWithContentDescription(
+            context.getString(R.string.now_playing_next_ready),
+        ).assertExists()
+        slider.performTouchInput {
+            swipe(Offset(left + 24f, center.y), Offset(right - 24f, center.y), durationMillis = 300)
+        }
+        rule.runOnIdle { assertTrue(sought != null) }
+        rule.onRoot().performTouchInput { swipeDown(startY = top + 36f, endY = bottom - 36f) }
+        rule.runOnIdle { assertEquals(1, close) }
+    }
+
+    private fun withAnimatorDurationScale(scale: Float, block: () -> Unit) {
+        val key = android.provider.Settings.Global.ANIMATOR_DURATION_SCALE
+        val original = android.provider.Settings.Global.getFloat(context.contentResolver, key, 1f)
+        android.provider.Settings.Global.putFloat(context.contentResolver, key, scale)
+        try {
+            block()
+        } finally {
+            android.provider.Settings.Global.putFloat(context.contentResolver, key, original)
+        }
     }
 }

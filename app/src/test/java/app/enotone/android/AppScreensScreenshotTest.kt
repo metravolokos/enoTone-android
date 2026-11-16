@@ -1,5 +1,7 @@
 package app.enotone.android
 
+import android.content.Context
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +26,7 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
+import androidx.test.core.app.ApplicationProvider
 import app.enotone.android.core.ui.component.EnoBlurState
 import app.enotone.android.core.ui.component.EnoBottomBar
 import app.enotone.android.core.ui.component.EnoBottomBarItem
@@ -35,6 +38,7 @@ import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
+import app.enotone.playback.NextBufferState
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -212,25 +216,57 @@ class AppScreensScreenshotTest {
         capture("home_${theme(dark)}")
     }
 
-    @Test fun nowPlayingGraphite() = nowPlaying(dark = true)
+    @Test fun nowPlayingBufferGraphite() = nowPlayingBuffer(
+        dark = true, state = NextBufferState.NONE, label = "buffer",
+    )
 
-    @Test fun nowPlayingPorcelain() = nowPlaying(dark = false)
+    @Test fun nowPlayingBufferPorcelain() = nowPlayingBuffer(
+        dark = false, state = NextBufferState.NONE, label = "buffer",
+    )
 
-    private fun nowPlaying(dark: Boolean) {
-        rule.setContent {
-            Screen(dark) {
-                NowPlayingScreen(
-                    trackId = "t0", title = "Вымышленная песня", artist = "Выдуманный артист",
-                    album = "Придуманный альбом", artwork = null, playbackState = "PLAYING", errorCode = 0,
-                    positionMs = 3_000L, durationMs = 200_000L, canSeek = true, controlsEnabled = true,
-                    hasPrevious = true, hasNext = true, queuePosition = 34, queueTotal = 3647,
-                    repeatMode = Player.REPEAT_MODE_ONE, shuffleEnabled = true,
-                    onClose = {}, onSeekFraction = {}, onPlayPause = {}, onPrevious = {}, onNext = {},
-                    onCycleRepeat = {}, onToggleShuffle = {},
-                )
+    @Test fun nowPlayingLoadingGraphite() = nowPlayingBuffer(dark = true, state = NextBufferState.LOADING)
+
+    @Test fun nowPlayingLoadingPorcelain() = nowPlayingBuffer(dark = false, state = NextBufferState.LOADING)
+
+    @Test fun nowPlayingReadyGraphite() = nowPlayingBuffer(dark = true, state = NextBufferState.READY)
+
+    @Test fun nowPlayingReadyPorcelain() = nowPlayingBuffer(dark = false, state = NextBufferState.READY)
+
+    private fun nowPlayingBuffer(
+        dark: Boolean,
+        state: NextBufferState,
+        label: String = state.name.lowercase(),
+    ) {
+        withAnimatorDurationScale(0f) {
+            rule.setContent {
+                Screen(dark) {
+                    NowPlayingScreen(
+                        trackId = "t0", title = "Вымышленная песня", artist = "Выдуманный артист",
+                        album = "Придуманный альбом", artwork = null, playbackState = "PLAYING", errorCode = 0,
+                        positionMs = 3_000L, durationMs = 200_000L, canSeek = true, controlsEnabled = true,
+                        hasPrevious = true, hasNext = true, queuePosition = 34, queueTotal = 3647,
+                        repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = true,
+                        bufferedFraction = 0.46f, hasKnownBufferDuration = true,
+                        nextBufferState = state,
+                        onClose = {}, onSeekFraction = {}, onPlayPause = {}, onPrevious = {}, onNext = {},
+                        onCycleRepeat = {}, onToggleShuffle = {},
+                    )
+                }
             }
+            capture("now_playing_${label}_${theme(dark)}")
         }
-        capture("now_playing_${theme(dark)}")
+    }
+
+    private fun withAnimatorDurationScale(scale: Float, block: () -> Unit) {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val key = Settings.Global.ANIMATOR_DURATION_SCALE
+        val original = Settings.Global.getFloat(context.contentResolver, key, 1f)
+        Settings.Global.putFloat(context.contentResolver, key, scale)
+        try {
+            block()
+        } finally {
+            Settings.Global.putFloat(context.contentResolver, key, original)
+        }
     }
 
     @Test fun songActionsGraphite() = songActions(true)

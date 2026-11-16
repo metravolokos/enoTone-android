@@ -69,6 +69,7 @@ internal class PlayerViewModel(
     private var covers: AlbumArtworkCatalog? = null
     private var artworkJob: Job? = null
     private var restoredAccount: String? = null
+    private var hostResumed = false
 
     // Ключ включает длительность: если файл заменили (импорт сбросил durationMs в null) и у новой
     // версии другая длительность, запись повторится без пересоздания ViewModel (ревью #125).
@@ -101,9 +102,7 @@ internal class PlayerViewModel(
                 }
                 val old = mutable.value.playback
                 mutable.update { it.copy(playback = current) }
-                connection.setNowPlayingVisible(
-                    mutable.value.nowPlaying && current.queueTotal > 0,
-                )
+                updateNowPlayingBufferVisibility()
                 saveKnownDuration(current)
                 if (current.currentTrackId != old.currentTrackId ||
                     (current.queueTotal > 0 && old.queueTotal == 0)) {
@@ -348,8 +347,21 @@ internal class PlayerViewModel(
 
     fun onNowPlaying(open: Boolean) {
         mutable.update { it.copy(nowPlaying = open) }
-        connection.setNowPlayingVisible(open && mutable.value.playback.queueTotal > 0)
+        updateNowPlayingBufferVisibility()
         if (open) loadArtwork()
+    }
+
+    /** Buffer sampling is active only while both the host and Now Playing are visible. */
+    fun onHostResumed(resumed: Boolean) {
+        hostResumed = resumed
+        updateNowPlayingBufferVisibility()
+    }
+
+    private fun updateNowPlayingBufferVisibility() {
+        val ui = mutable.value
+        connection.setNowPlayingVisible(
+            hostResumed && ui.nowPlaying && ui.playback.queueTotal > 0,
+        )
     }
     fun onPlayPause() = connection.playPause()
     fun onNext() = connection.playNext()

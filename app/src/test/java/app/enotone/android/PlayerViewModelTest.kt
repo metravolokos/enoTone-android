@@ -159,11 +159,17 @@ class PlayerViewModelTest {
                 connection, Repo(catalog()), CredentialsProvider { null }, NoArtwork,
                 StandardTestDispatcher(testScheduler), { true })
             advanceUntilIdle()
+            model.onHostResumed(true)
             model.onNowPlaying(true)
             assertFalse(connection.nowPlayingVisibleValue)
 
             connection.emit(PlaybackSnapshot(connected = true, queueTotal = 3))
             advanceUntilIdle()
+            assertTrue(connection.nowPlayingVisibleValue)
+
+            model.onHostResumed(false)
+            assertFalse(connection.nowPlayingVisibleValue)
+            model.onHostResumed(true)
             assertTrue(connection.nowPlayingVisibleValue)
 
             model.onNowPlaying(false)
