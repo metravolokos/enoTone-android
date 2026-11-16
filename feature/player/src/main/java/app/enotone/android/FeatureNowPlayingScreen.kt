@@ -11,7 +11,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -157,20 +156,23 @@ fun FeatureNowPlayingScreen(
         context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f,
     )
     val loadingPulse = nextTrackState == NowPlayingNextTrackState.LOADING && motionScale > 0f
-    val pulseTransition = rememberInfiniteTransition(label = "nextTrackLoading")
-    val pulseAlpha by pulseTransition.animateFloat(
-        initialValue = if (loadingPulse) LOADING_MIN_ALPHA else NO_MOTION_LOADING_ALPHA,
-        targetValue = if (loadingPulse) 1f else NO_MOTION_LOADING_ALPHA,
-        animationSpec = if (loadingPulse) {
-            infiniteRepeatable(
+    val pulseAlpha = if (loadingPulse) {
+        val pulseTransition = rememberInfiniteTransition(label = "nextTrackLoading")
+        val animatedPulseAlpha by pulseTransition.animateFloat(
+            initialValue = LOADING_MIN_ALPHA,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
                 animation = tween(LOADING_HALF_PERIOD_MS, easing = loadingEasing),
                 repeatMode = RepeatMode.Reverse,
-            )
-        } else {
-            snap()
-        },
-        label = "nextTrackLoadingAlpha",
-    )
+            ),
+            label = "nextTrackLoadingAlpha",
+        )
+        animatedPulseAlpha
+    } else {
+        NO_MOTION_LOADING_ALPHA
+    }
+    val bufferOverlayColor = EnoColors.textSecondary.copy(alpha = BUFFER_LAYER_ALPHA)
+    val readyGlowColor = EnoColors.accentText.copy(alpha = READY_GLOW_ALPHA)
     val isPlaying = playbackState == "PLAYING" || playbackState == "BUFFERING"
     val realError = when (playbackState) {
         "ERROR" -> stringResource(ids.playbackError, errorCode)
@@ -391,9 +393,7 @@ fun FeatureNowPlayingScreen(
                                     )
                                     if (buffered > played) {
                                         drawRoundRect(
-                                            color = EnoColors.textSecondary.copy(
-                                                alpha = BUFFER_LAYER_ALPHA,
-                                            ),
+                                            color = bufferOverlayColor,
                                             topLeft = Offset(played, 0f),
                                             size = Size(buffered - played, size.height),
                                             cornerRadius = CornerRadius(size.height / 2f),
@@ -428,9 +428,7 @@ fun FeatureNowPlayingScreen(
                                     .drawBehind {
                                         if (ready) {
                                             drawCircle(
-                                                color = EnoColors.accentText.copy(
-                                                    alpha = READY_GLOW_ALPHA,
-                                                ),
+                                                color = readyGlowColor,
                                                 radius = size.minDimension / 2f + READY_GLOW_RADIUS.toPx(),
                                             )
                                         }
