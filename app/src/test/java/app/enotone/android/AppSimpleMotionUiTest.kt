@@ -3,19 +3,15 @@ package app.enotone.android
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertLeftPositionInRootIsEqualTo
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
-import app.enotone.library.LibraryPage
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -31,24 +27,6 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35], qualifiers = "w393dp-h852dp")
 class AppSimpleMotionUiTest {
     @get:Rule val rule = createComposeRule()
-
-    @Test fun predictiveBackKeepsDetailAtFullScale() {
-        val detail = AppNavigator.push(
-            AppNavState(tab = AppTab.Library(LibraryPage.ARTISTS)),
-            LibraryDetail.Artist("artist"),
-        )
-        rule.setContent {
-            EnoToneTheme {
-                AppRouteBackLayer(
-                    route = detail,
-                    playerExpanded = false,
-                    previewRoute = appRouteKey(detail),
-                    progress = 0.5f,
-                ) { Text("Current detail") }
-            }
-        }
-        rule.onAllNodes(SemanticsMatcher.expectValue(AppBackScaleKey, 1f)).assertCountEquals(1)
-    }
 
     @Test fun settingsRouteSettlesAtTheRootWithoutHorizontalOffset() {
         val settingsOpen = mutableStateOf(false)

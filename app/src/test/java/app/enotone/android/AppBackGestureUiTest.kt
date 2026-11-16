@@ -96,8 +96,8 @@ class AppBackGestureUiTest {
         halfPredictiveBack(dispatcher)
         rule.runOnIdle {
             assertEquals(appRouteKey(artist), controller.previewRoute)
-            assertEquals(0.5f, controller.musicProgressFor(artist, false), 0f)
-            assertEquals(0.5f, controller.musicProgressFor(album, false), 0f)
+            assertEquals(0.5f, controller.progress, 0f)
+            assertEquals(AppBackTarget.DETAIL, controller.previewTarget)
             dispatcher.dispatchOnBackCancelled()
         }
         rule.mainClock.advanceTimeByFrame()

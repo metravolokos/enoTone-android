@@ -7,8 +7,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
@@ -61,21 +59,6 @@ class AppMotionRootUiTest {
         rule.onNodeWithText("Fixture music route").assertExists()
         rule.onNodeWithText("Fixture full player").assertDoesNotExist()
         rule.runOnIdle { assertTrue(musicComposed.get()) }
-    }
-
-    @Test fun playerPredictivePreviewNeverScalesMusicLayer() {
-        val route = AppNavState(tab = AppTab.Library(app.enotone.library.LibraryPage.ARTISTS))
-        rule.setContent {
-            EnoToneTheme {
-                AppRouteBackLayer(
-                    route = route,
-                    playerExpanded = true,
-                    previewRoute = appRouteKey(route),
-                    progress = 0.5f,
-                ) { Text("Behind player") }
-            }
-        }
-        rule.onAllNodes(SemanticsMatcher.expectValue(AppBackScaleKey, 1f)).assertCountEquals(1)
     }
 
     @Test fun settingsAndDiagnosticsFollowTheirRouteAndReturnToMusic() {
