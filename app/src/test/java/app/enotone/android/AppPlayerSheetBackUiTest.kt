@@ -120,7 +120,7 @@ class AppPlayerSheetBackUiTest {
         }
         val height = requireNotNull(host).height
         rule.runOnIdle { expanded.value = true }
-        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(50)
         val baseline = blueStartAfterRasterSync()
         rule.mainClock.advanceTimeBy(400)
 
@@ -141,9 +141,7 @@ class AppPlayerSheetBackUiTest {
         assertTrue("Committed sheet must finish exiting: $exited / $height", exited >= height - 4)
         rule.runOnIdle { assertEquals(0f, progress.floatValue, 0f) }
         rule.runOnIdle { expanded.value = true }
-        // The first frame resets visibility; the next starts enter. Compare one frame into each enter.
-        rule.mainClock.advanceTimeByFrame()
-        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         assertTrue(
             "Reopened sheet should match a normal early frame: $baseline → $reopened",
@@ -159,15 +157,16 @@ class AppPlayerSheetBackUiTest {
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
+            val expandedForFrame = expanded.value
             SideEffect {
                 host = current
-                renderedExpanded = expanded.value
+                renderedExpanded = expandedForFrame
             }
             EnoToneTheme {
                 AppMotionRoot(
                     inSettings = false,
                     diagnostics = false,
-                    playerExpanded = expanded.value,
+                    playerExpanded = expandedForFrame,
                     playerBackProgress = progress.floatValue,
                     onPlayerExitComplete = {
                         progress.floatValue = 0f
@@ -207,6 +206,8 @@ class AppPlayerSheetBackUiTest {
         )
 
         rule.runOnIdle { expanded.value = true }
+        // Restarting visibility is launched after recomposition, one frame after the state change.
+        rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         var callbackRan = false
