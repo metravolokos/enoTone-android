@@ -1,14 +1,12 @@
 package app.enotone.android
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.view.View
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -222,11 +220,8 @@ class NowPlayingUiTest {
         assertTrue(NextTrackLoadingMotion.shouldPulse(1f))
         assertEquals(0.42f, NextTrackLoadingMotion.alpha(1f, 0.42f), 0f)
 
-        var hostView: View? = null
         rule.mainClock.autoAdvance = false
         rule.setContent {
-            val current = LocalView.current
-            SideEffect { hostView = current }
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
@@ -247,8 +242,8 @@ class NowPlayingUiTest {
             context.getString(R.string.now_playing_next_loading),
         )
         loading.assertExists()
-        val initial = loadingDotPixel(requireNotNull(hostView))
-        rule.mainClock.advanceTimeBy(550)
+        val initial = loadingDotPixel()
+        rule.mainClock.advanceTimeBy(550, ignoreFrameDuration = true)
         val later = loadingDotPixel(requireNotNull(hostView))
         assertEquals("LOADING remains visually static at animator scale 0", initial, later)
     }
@@ -356,20 +351,11 @@ class NowPlayingUiTest {
         }
     }
 
-    private fun loadingDotPixel(view: View): Int {
-        val bounds = rule.onNodeWithContentDescription(
+    private fun loadingDotPixel(): Color {
+        val image = rule.onNodeWithContentDescription(
             context.getString(R.string.now_playing_next_loading),
-        ).fetchSemanticsNode().boundsInRoot
-        var pixel = 0
-        rule.runOnIdle {
-            val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
-            try {
-                view.draw(Canvas(bitmap))
-                pixel = bitmap.getPixel(bounds.center.x.toInt(), bounds.center.y.toInt())
-            } finally {
-                bitmap.recycle()
-            }
-        }
-        return pixel
+        ).captureToImage()
+        val pixels = image.toPixelMap()
+        return pixels[image.width / 2, image.height / 2]
     }
 }
