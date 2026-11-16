@@ -152,19 +152,41 @@ class AppPlayerSheetBackUiTest {
         )
     }
 
-    @Test fun reopeningDuringCommitExitClearsBackProgressAndMatchesEntryFrame() {
+    private class ReopenDuringExitState {
         val expanded = mutableStateOf(true)
         val progress = mutableFloatStateOf(0f)
         val exitComplete = mutableStateOf(false)
         var renderedExpanded = true
+    }
+
+    @Test fun reopeningDuringCommitExitClearsBackProgressAndMatchesEntryFrame() {
+        val state = ReopenDuringExitState()
         rule.mainClock.autoAdvance = false
+        installPairedPlayerRoots(state)
+        val height = requireNotNull(host).height
+        rule.mainClock.advanceTimeBy(400)
+
+        rule.runOnIdle {
+            Snapshot.withMutableSnapshot { state.progress.floatValue = 0.5f }
+        }
+        rule.mainClock.advanceTimeByFrame()
+        val (normalPreview, beforeCommit) = currentPairedStarts()
+        assertTrue("Reference sheet should remain at rest: $normalPreview", normalPreview <= 4)
+        assertTrue("Preview must be visible before commit: $beforeCommit / $height",
+            beforeCommit.toFloat() / height in 0.40f..0.60f)
+
+        closeDuringOneExitFrame(state, beforeCommit, height)
+        reopenAndCompareWithReference(state, height)
+    }
+
+    private fun installPairedPlayerRoots(state: ReopenDuringExitState) {
         rule.setContent {
             val current = LocalView.current
-            val expandedForFrame = expanded.value
-            val progressForFrame = progress.floatValue
+            val expandedForFrame = state.expanded.value
+            val progressForFrame = state.progress.floatValue
             SideEffect {
                 host = current
-                renderedExpanded = expandedForFrame
+                state.renderedExpanded = expandedForFrame
             }
             EnoToneTheme {
                 Row(Modifier.fillMaxSize()) {
@@ -187,8 +209,8 @@ class AppPlayerSheetBackUiTest {
                             playerBackProgress = progressForFrame,
                             onPlayerExitComplete = {
                                 Snapshot.withMutableSnapshot {
-                                    progress.floatValue = 0f
-                                    exitComplete.value = true
+                                    state.progress.floatValue = 0f
+                                    state.exitComplete.value = true
                                 }
                             },
                             music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
@@ -199,51 +221,46 @@ class AppPlayerSheetBackUiTest {
                 }
             }
         }
-        val height = requireNotNull(host).height
-        rule.mainClock.advanceTimeBy(400)
+    }
 
+    private fun closeDuringOneExitFrame(
+        state: ReopenDuringExitState,
+        beforeCommit: Int,
+        height: Int,
+    ) {
         rule.runOnIdle {
-            Snapshot.withMutableSnapshot { progress.floatValue = 0.5f }
+            Snapshot.withMutableSnapshot { state.expanded.value = false }
         }
-        rule.mainClock.advanceTimeByFrame()
-        val (normalPreview, beforeCommit) =
-            blueStartsAt(requireNotNull(host).width / 4, requireNotNull(host).width * 3 / 4)
-        assertTrue("Reference sheet should remain at rest: $normalPreview", normalPreview <= 4)
-        assertTrue("Preview must be visible before commit: $beforeCommit / $height",
-            beforeCommit.toFloat() / height in 0.40f..0.60f)
-
-        rule.runOnIdle {
-            Snapshot.withMutableSnapshot { expanded.value = false }
-        }
-        // Publish the close target and confirm Compose applied it before reopening.
         rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
         rule.runOnIdle {
-            assertEquals("Close target must be applied before reopening", false, renderedExpanded)
-            assertTrue("Exit callback must still be pending", !exitComplete.value)
+            assertEquals("Close target must be applied before reopening", false, state.renderedExpanded)
+            assertTrue("Exit callback must still be pending", !state.exitComplete.value)
         }
-        val (normalExit, subjectExit) =
-            blueStartsAt(requireNotNull(host).width / 4, requireNotNull(host).width * 3 / 4)
+        val (normalExit, subjectExit) = currentPairedStarts()
+        assertTrue("Reference remains visible during its exit: $normalExit", normalExit in 0 until height)
         assertTrue(
             "Subject sheet must remain in its exit path: $beforeCommit → $subjectExit / $height",
             subjectExit in (beforeCommit - 5)..(height - 5),
         )
+    }
 
+    private fun reopenAndCompareWithReference(state: ReopenDuringExitState, height: Int) {
         rule.runOnIdle {
-            Snapshot.withMutableSnapshot { expanded.value = true }
+            Snapshot.withMutableSnapshot { state.expanded.value = true }
         }
         rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
         rule.runOnIdle {
-            assertEquals("Reopen target must be applied", true, renderedExpanded)
+            assertEquals("Reopen target must be applied", true, state.renderedExpanded)
         }
         rule.mainClock.advanceTimeBy(50)
         val (normalEarlyFrame, reopened) = blueStartsInSameBitmap()
         var callbackRan = false
         var remainingProgress = -1f
         rule.runOnIdle {
-            callbackRan = exitComplete.value
-            remainingProgress = progress.floatValue
+            callbackRan = state.exitComplete.value
+            remainingProgress = state.progress.floatValue
         }
 
         assertTrue("Interrupted exit must finish the Back transition", callbackRan)
