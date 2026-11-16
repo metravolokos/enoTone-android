@@ -153,10 +153,14 @@ class AppPlayerSheetBackUiTest {
         val expanded = mutableStateOf(false)
         val progress = mutableFloatStateOf(0f)
         val exitComplete = mutableStateOf(false)
+        var renderedExpanded = false
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
-            SideEffect { host = current }
+            SideEffect {
+                host = current
+                renderedExpanded = expanded.value
+            }
             EnoToneTheme {
                 AppMotionRoot(
                     inSettings = false,
@@ -186,16 +190,24 @@ class AppPlayerSheetBackUiTest {
         // Reopen after two exit frames, before the 250 ms close transition can finish.
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
-        rule.runOnIdle { assertTrue("Exit must still be pending", !exitComplete.value) }
+        var expandedDuringExit = true
+        rule.runOnIdle {
+            expandedDuringExit = renderedExpanded
+            assertTrue("Exit must still be pending", !exitComplete.value)
+        }
+        assertTrue("Compose must observe expanded=false before reopening", !expandedDuringExit)
         rule.runOnIdle { expanded.value = true }
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         var callbackRan = false
         var remainingProgress = -1f
+        var expandedAfterReopen = false
         rule.runOnIdle {
+            expandedAfterReopen = renderedExpanded
             callbackRan = exitComplete.value
             remainingProgress = progress.floatValue
         }
+        assertTrue("Compose must observe expanded=true after reopening", expandedAfterReopen)
 
         assertTrue("Interrupted exit must finish the Back transition", callbackRan)
         assertEquals("Back progress must be reset on interrupted exit", 0f, remainingProgress, 0f)
