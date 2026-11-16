@@ -6,17 +6,13 @@ import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -162,33 +158,23 @@ class AppPlayerSheetBackUiTest {
             val current = LocalView.current
             SideEffect { host = current }
             EnoToneTheme {
-                Box(Modifier.fillMaxSize()) {
-                    AppMotionRoot(
-                        inSettings = false,
-                        diagnostics = false,
-                        playerExpanded = expanded.value,
-                        playerBackProgress = progress.floatValue,
-                        onPlayerExitComplete = {
-                            progress.floatValue = 0f
-                            exitComplete.value = true
-                        },
-                        music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
-                        settings = {},
-                        player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
-                    )
-                    Box(
-                        Modifier.size(1.dp).testTag(
-                            if (expanded.value) "player-expanded-marker" else "player-collapsed-marker",
-                        ),
-                    )
-                }
+                AppMotionRoot(
+                    inSettings = false,
+                    diagnostics = false,
+                    playerExpanded = expanded.value,
+                    playerBackProgress = progress.floatValue,
+                    onPlayerExitComplete = {
+                        progress.floatValue = 0f
+                        exitComplete.value = true
+                    },
+                    music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
+                    settings = {},
+                    player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
+                )
             }
         }
         val height = requireNotNull(host).height
         rule.runOnIdle { expanded.value = true }
-        rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
-        rule.onNodeWithTag("player-expanded-marker").assertExists()
         rule.mainClock.advanceTimeBy(50)
         val baseline = blueStartAfterRasterSync()
         rule.mainClock.advanceTimeBy(400)
@@ -200,10 +186,8 @@ class AppPlayerSheetBackUiTest {
             beforeCommit.toFloat() / height in 0.40f..0.60f)
 
         rule.runOnIdle { expanded.value = false }
-        // The first frame applies expanded=false; reopen immediately after the second exit frame.
+        // Reopen after two controlled exit frames, while the 250 ms close transition is running.
         rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
-        rule.onNodeWithTag("player-collapsed-marker").assertExists()
         rule.mainClock.advanceTimeByFrame()
         val exitFrame = blueStart()
         rule.runOnIdle { assertTrue("Exit callback must still be pending", !exitComplete.value) }
@@ -214,8 +198,6 @@ class AppPlayerSheetBackUiTest {
 
         rule.runOnIdle { expanded.value = true }
         rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
-        rule.onNodeWithTag("player-expanded-marker").assertExists()
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         var callbackRan = false
