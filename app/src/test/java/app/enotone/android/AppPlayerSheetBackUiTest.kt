@@ -226,6 +226,7 @@ class AppPlayerSheetBackUiTest {
         }
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
+        println("R1 pixels: baseline=$baseline reopened=$reopened height=$height")
         var callbackRan = false
         var remainingProgress = -1f
         rule.runOnIdle {
