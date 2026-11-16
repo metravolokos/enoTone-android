@@ -414,7 +414,9 @@ fun FeatureNowPlayingScreen(
                                         }
                                     }
                                     .background(
-                                        dotColor.copy(alpha = if (ready) 1f else pulseAlpha),
+                                        dotColor.copy(
+                                            alpha = dotColor.alpha * (if (ready) 1f else pulseAlpha),
+                                        ),
                                         CircleShape,
                                     )
                                     .semantics { contentDescription = dotDescription },
