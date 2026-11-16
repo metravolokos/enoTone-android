@@ -10,7 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.click
-import androidx.compose.ui.test.fetchSemanticsNode
+import androidx.compose.ui.test.fetchSemanticsNodes
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -360,7 +360,7 @@ class NowPlayingUiTest {
     private fun loadingDotPixel(view: View): Int {
         val bounds = rule.onNodeWithContentDescription(
             context.getString(R.string.now_playing_next_loading),
-        ).fetchSemanticsNode().boundsInRoot
+        ).fetchSemanticsNodes().single().boundsInRoot
         var pixel = 0
         rule.runOnIdle {
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
