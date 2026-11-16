@@ -24,6 +24,20 @@ class AppMotionTest {
         assertEquals(AppMotionRoute.BACK, appMotionRoute(album, root))
     }
 
+    @Test fun everyNavigationChangeChoosesSameMotion() {
+        val root = AppNavState(tab = albums)
+        val newTab = AppNavState(tab = songs)
+        val album = AppNavigator.push(root, LibraryDetail.Album("album"))
+        val artist = AppNavigator.push(album, LibraryDetail.Artist("artist"))
+        val settings = AppNavigator.openSettings(root)
+        val diagnostics = AppNavigator.openDiagnostics(settings)
+        val tabMotion = appMotionRoute(root, newTab)
+        assertEquals("Detail entry must use same motion as category", tabMotion, appMotionRoute(root, album))
+        assertEquals("Detail Back must use same motion as category", tabMotion, appMotionRoute(artist, album))
+        assertEquals("Settings must use same motion as category", tabMotion, appMotionRoute(root, settings))
+        assertEquals("Diagnostics must use same motion as category", tabMotion, appMotionRoute(settings, diagnostics))
+    }
+
     @Test fun scrollRequestAndSameTabDoNotReanimate() {
         val initial = AppNavState(tab = songs)
         val repeat = AppNavigator.select(initial, songs)

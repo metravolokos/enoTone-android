@@ -20,6 +20,36 @@ import org.robolectric.annotation.Config
 class AppDockMotionUiTest {
     @get:Rule val rule = createComposeRule()
 
+    @Test fun dockRemainsVisibleAndStationaryWhilePlayerIsExpanded() {
+        val expanded = mutableStateOf(false)
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            EnoToneTheme {
+                Box(Modifier.fillMaxSize()) {
+                    AppDockMotion(
+                        playerExpanded = expanded.value,
+                        miniVisible = true,
+                        miniPlayer = { Text("Persistent mini") },
+                        bottomBar = { Text("Persistent navigation") },
+                    )
+                }
+            }
+        }
+        rule.mainClock.advanceTimeBy(300)
+        val beforeMini = rule.onAllNodesWithTag("app-mini-dock").fetchSemanticsNodes().single().boundsInRoot
+        val beforeBar = rule.onAllNodesWithTag("app-bottom-dock").fetchSemanticsNodes().single().boundsInRoot
+        rule.runOnIdle { expanded.value = true }
+        repeat(7) {
+            rule.mainClock.advanceTimeBy(50)
+            val mini = rule.onAllNodesWithTag("app-mini-dock").fetchSemanticsNodes()
+            val bar = rule.onAllNodesWithTag("app-bottom-dock").fetchSemanticsNodes()
+            org.junit.Assert.assertEquals("Mini must remain composed during sheet", 1, mini.size)
+            org.junit.Assert.assertEquals("Navigation must remain composed during sheet", 1, bar.size)
+            org.junit.Assert.assertEquals("Mini must not move", beforeMini, mini.single().boundsInRoot)
+            org.junit.Assert.assertEquals("Navigation must not move", beforeBar, bar.single().boundsInRoot)
+        }
+    }
+
     @Test fun thereIsNeverMoreThanOneMiniPlayerWhenSheetAppears() {
         val expanded = mutableStateOf(false)
         rule.mainClock.autoAdvance = false
