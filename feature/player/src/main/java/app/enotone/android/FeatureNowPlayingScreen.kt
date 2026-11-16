@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
@@ -364,6 +365,7 @@ fun FeatureNowPlayingScreen(
                     thumb = {
                         SliderDefaults.Thumb(
                             interactionSource = sliderInteraction,
+                            modifier = Modifier.offset(y = TRACK_HEIGHT / 2),
                             colors = sliderColors,
                             enabled = controlsEnabled && canSeek && knownDuration,
                             thumbSize = DpSize(THUMB_SIZE, THUMB_SIZE),
@@ -385,13 +387,10 @@ fun FeatureNowPlayingScreen(
                             )
                             if (knownBufferDuration) {
                                 Canvas(Modifier.fillMaxSize()) {
-                                    val trackInset = THUMB_SIZE.toPx() / 2f
-                                    val trackWidth = (size.width - trackInset * 2f).coerceAtLeast(0f)
-                                    val played = trackInset +
-                                        sliderState.value.coerceIn(0f, 1f) * trackWidth
+                                    val played = sliderState.value.coerceIn(0f, 1f) * size.width
                                     val buffered = maxOf(
                                         played,
-                                        trackInset + safeBufferedFraction * trackWidth,
+                                        safeBufferedFraction.coerceIn(0f, 1f) * size.width,
                                     )
                                     if (buffered > played) {
                                         drawRoundRect(

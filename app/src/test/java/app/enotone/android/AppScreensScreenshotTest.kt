@@ -224,6 +224,14 @@ class AppScreensScreenshotTest {
         dark = false, state = NextBufferState.NONE, label = "buffer",
     )
 
+    @Test fun nowPlayingFullyBufferedGraphite() = nowPlayingBuffer(
+        dark = true, state = NextBufferState.NONE, label = "full_buffer", bufferedFraction = 1f,
+    )
+
+    @Test fun nowPlayingFullyBufferedPorcelain() = nowPlayingBuffer(
+        dark = false, state = NextBufferState.NONE, label = "full_buffer", bufferedFraction = 1f,
+    )
+
     @Test fun nowPlayingLoadingGraphite() = nowPlayingBuffer(dark = true, state = NextBufferState.LOADING)
 
     @Test fun nowPlayingLoadingPorcelain() = nowPlayingBuffer(dark = false, state = NextBufferState.LOADING)
@@ -236,6 +244,7 @@ class AppScreensScreenshotTest {
         dark: Boolean,
         state: NextBufferState,
         label: String = state.name.lowercase(),
+        bufferedFraction: Float = 0.46f,
     ) {
         withAnimatorDurationScale(0f) {
             rule.setContent {
@@ -246,7 +255,7 @@ class AppScreensScreenshotTest {
                         positionMs = 3_000L, durationMs = 200_000L, canSeek = true, controlsEnabled = true,
                         hasPrevious = true, hasNext = true, queuePosition = 34, queueTotal = 3647,
                         repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = true,
-                        bufferedFraction = 0.46f, hasKnownBufferDuration = true,
+                        bufferedFraction = bufferedFraction, hasKnownBufferDuration = true,
                         nextBufferState = state,
                         onClose = {}, onSeekFraction = {}, onPlayPause = {}, onPrevious = {}, onNext = {},
                         onCycleRepeat = {}, onToggleShuffle = {},
