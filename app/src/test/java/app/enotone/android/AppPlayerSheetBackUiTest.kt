@@ -122,7 +122,7 @@ class AppPlayerSheetBackUiTest {
         blueStartAfterRasterSync()
 
         rule.runOnIdle { expanded.value = false }
-        rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS + 32)
+        rule.mainClock.advanceTimeBy(AppMotionSpec.PLAYER_CLOSE_MS.toLong() + 32L)
         assertTrue("Committed sheet must finish exiting", blueStartAfterRasterSync() >= height - 4)
         rule.runOnIdle { assertEquals(0f, progress.floatValue, 0f) }
         rule.mainClock.advanceTimeByFrame()
