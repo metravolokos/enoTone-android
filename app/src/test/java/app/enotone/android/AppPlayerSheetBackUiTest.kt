@@ -57,8 +57,10 @@ class AppPlayerSheetBackUiTest {
         assertTrue("Sheet must cover music at rest: $rest", rest <= 4)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
-        // CI #904: первый кадр применяет состояние, следующий уже рисует границу на 0,5H.
+        // CI #904: Robolectric обновляет raster View только после первой отрисовки
+        // нового состояния; один кадр нужен на sync, следующий — на проверку пикселей.
         rule.mainClock.advanceTimeByFrame()
+        blueStart() // синхронизация слоя без проверки его геометрии
         rule.mainClock.advanceTimeByFrame()
         val half = blueStart()
         assertTrue("Preview must reveal music at about half height: $half / $height",
@@ -74,8 +76,10 @@ class AppPlayerSheetBackUiTest {
         assertTrue("Cancel restores origin: $rest → $restored", restored <= rest + 5)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
-        // CI #904: первый кадр применяет состояние, следующий уже рисует границу на 0,5H.
+        // CI #904: Robolectric обновляет raster View только после первой отрисовки
+        // нового состояния; один кадр нужен на sync, следующий — на проверку пикселей.
         rule.mainClock.advanceTimeByFrame()
+        blueStart() // синхронизация слоя без проверки его геометрии
         rule.mainClock.advanceTimeByFrame()
         val beforeCommit = blueStart()
         rule.runOnIdle { expanded.value = false }
