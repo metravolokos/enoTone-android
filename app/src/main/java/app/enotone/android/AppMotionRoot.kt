@@ -16,7 +16,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.layout
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import kotlin.math.roundToInt
@@ -99,16 +99,15 @@ internal fun AppMotionRoot(
             // Системный preview сдвигает размещение всей шторки, а не только её RenderNode:
             // это видимо и в реальных кадрах, и для координат ввода/доступности.
             // Animatable читается в placement, поэтому cancel не рекомпозирует плеер по кадрам.
-            modifier = Modifier.fillMaxSize().layout { measurable, constraints ->
-                val sheet = measurable.measure(constraints)
-                layout(sheet.width, sheet.height) {
-                    val back = if (playerBackProgress > 0f) {
-                        playerBackProgress
-                    } else {
-                        previewSettle.value
-                    }
-                    sheet.placeRelative(0, (sheet.height * back).roundToInt())
+            // The layer block observes Animatable values on every animation frame without
+            // recomposing or remeasuring the player subtree.
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                val back = if (playerBackProgress > 0f) {
+                    playerBackProgress
+                } else {
+                    previewSettle.value
                 }
+                translationY = size.height * back
             },
         ) {
             Box(
