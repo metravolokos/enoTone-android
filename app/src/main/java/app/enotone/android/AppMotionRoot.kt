@@ -82,19 +82,20 @@ internal fun AppMotionRoot(
                     (height * (1f - playerBackProgress.coerceIn(0f, 1f))).roundToInt()
                 },
             ),
-            modifier = Modifier.fillMaxSize(),
+            // Сдвигаем весь контейнер AnimatedVisibility, а не вложенную площадку.
+            // Так системный preview и встроенный exit имеют одну поверхность и координаты:
+            // не появляется вложенный RenderNode, обрезающий/теряющий preview при draw.
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                val back = if (playerBackProgress > 0f) {
+                    playerBackProgress
+                } else {
+                    previewSettle.value
+                }
+                translationY = size.height * back
+            },
         ) {
             Box(
                 Modifier.fillMaxSize()
-                    .graphicsLayer {
-                        // Один владелец predictive-смещения; отмена плавно возвращает его к нулю.
-                        val back = if (playerBackProgress > 0f) {
-                            playerBackProgress
-                        } else {
-                            previewSettle.value
-                        }
-                        translationY = size.height * back
-                    }
                     .background(MaterialTheme.colorScheme.background)
                     .testTag("app-player-sheet"),
             ) {
