@@ -69,13 +69,10 @@ internal fun AppMotionRoot(
     LaunchedEffect(playerExpanded) {
         if (playerExpanded) {
             if (playerWasExpanded.value) {
-                // Finish Back before suspension, then restart the sheet's enter transition.
+                // Finish the interrupted Back transition and clear its local preview.
                 latestBackProgress.floatValue = 0f
                 onPlayerExitComplete()
                 previewSettle.snapTo(0f)
-                playerVisibility.value = MutableTransitionState(false).apply {
-                    targetState = true
-                }
             }
             playerWasExpanded.value = true
         } else if (playerWasExpanded.value) {
