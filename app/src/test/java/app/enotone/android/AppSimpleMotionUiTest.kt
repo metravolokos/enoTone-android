@@ -65,15 +65,16 @@ class AppSimpleMotionUiTest {
         }
         rule.mainClock.advanceTimeByFrame()
         rule.runOnIdle { settingsOpen.value = true }
-        rule.mainClock.advanceTimeBy(48)
-        val at48ms = rule.onNodeWithTag("motion-settings", useUnmergedTree = true)
+        // Fade-through: вход начинается после 90 мс, поэтому проверяем видимый кадр 140 мс.
+        rule.mainClock.advanceTimeBy(140)
+        val at140ms = rule.onNodeWithTag("motion-settings", useUnmergedTree = true)
             .fetchSemanticsNode().boundsInRoot.left
         rule.mainClock.advanceTimeBy(300)
         val settled = rule.onNodeWithTag("motion-settings", useUnmergedTree = true)
             .fetchSemanticsNode().boundsInRoot.left
         org.junit.Assert.assertEquals(
             "Настройки не должны смещаться по горизонтали в промежуточном кадре",
-            settled, at48ms, 1f,
+            settled, at140ms, 1f,
         )
     }
 
