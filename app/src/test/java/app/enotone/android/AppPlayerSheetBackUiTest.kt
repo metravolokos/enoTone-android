@@ -189,6 +189,7 @@ class AppPlayerSheetBackUiTest {
         // Reopen after exactly two controlled frames, while the 250 ms exit is pending.
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
         val exitFrame = blueStart()
         rule.runOnIdle { assertTrue("Exit callback must still be pending", !exitComplete.value) }
         assertTrue(
