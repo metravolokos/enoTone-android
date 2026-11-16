@@ -47,7 +47,11 @@ internal fun AppMotionRoot(
     SideEffect { playerVisibility.targetState = playerExpanded }
     LaunchedEffect(playerBackProgress, playerExpanded) {
         if (playerBackProgress > 0f) {
-            previewSettle.snapTo(playerBackProgress.coerceIn(0f, 1f))
+            // While expanded, graphicsLayer renders progress directly. Do not race the
+            // interrupted-exit reset by copying the stale controller value into Animatable.
+            if (!playerExpanded) {
+                previewSettle.snapTo(playerBackProgress.coerceIn(0f, 1f))
+            }
         } else if (playerExpanded) {
             // LaunchedEffect is asynchronous: snapTo(progress) can be cancelled before it
             // stores the preview value. Reapply the last rendered progress before settling.
@@ -65,10 +69,10 @@ internal fun AppMotionRoot(
     LaunchedEffect(playerExpanded) {
         if (playerExpanded) {
             if (playerWasExpanded.value) {
-                // Clear the interrupted preview before finishing the Back transition.
+                // Clear the controller first, before suspending on the local preview reset.
                 latestBackProgress.floatValue = 0f
-                previewSettle.snapTo(0f)
                 onPlayerExitComplete()
+                previewSettle.snapTo(0f)
             }
             playerWasExpanded.value = true
         } else if (playerWasExpanded.value) {
