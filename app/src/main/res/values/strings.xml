@@ -74,7 +74,10 @@
     <string name="handoff_failed">ошибка</string>
     <string name="handoff_yes">да</string>
     <string name="handoff_no">нет</string>
-    <string name="playback_seek_slider">Перемотка внутри текущего трека</string>
+    <string name="now_playing_seek_known">%1$s из %2$s, загружено %3$d %%</string>
+    <string name="now_playing_seek_unknown">%1$s, длительность неизвестна</string>
+    <string name="now_playing_next_loading">Следующий трек загружается</string>
+    <string name="now_playing_next_ready">Следующий трек готов</string>
     <string name="playback_duration_unknown">--:--</string>
     <string name="playback_error_stage">Источник ошибки: %1$s (только безопасный код)</string>
     <string name="credential_vault_explanation">Вход хранится зашифрованно на этом устройстве. «Выйти» удаляет его и данные медиатеки.</string>

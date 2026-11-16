@@ -35,6 +35,7 @@ import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
+import app.enotone.playback.NextBufferState
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -212,11 +213,28 @@ class AppScreensScreenshotTest {
         capture("home_${theme(dark)}")
     }
 
-    @Test fun nowPlayingGraphite() = nowPlaying(dark = true)
+    @Test fun nowPlayingBufferGraphite() = nowPlayingBuffer(
+        dark = true, state = NextBufferState.NONE, label = "buffer",
+    )
 
-    @Test fun nowPlayingPorcelain() = nowPlaying(dark = false)
+    @Test fun nowPlayingBufferPorcelain() = nowPlayingBuffer(
+        dark = false, state = NextBufferState.NONE, label = "buffer",
+    )
 
-    private fun nowPlaying(dark: Boolean) {
+    @Test fun nowPlayingLoadingGraphite() = nowPlayingBuffer(dark = true, state = NextBufferState.LOADING)
+
+    @Test fun nowPlayingLoadingPorcelain() = nowPlayingBuffer(dark = false, state = NextBufferState.LOADING)
+
+    @Test fun nowPlayingReadyGraphite() = nowPlayingBuffer(dark = true, state = NextBufferState.READY)
+
+    @Test fun nowPlayingReadyPorcelain() = nowPlayingBuffer(dark = false, state = NextBufferState.READY)
+
+    private fun nowPlayingBuffer(
+        dark: Boolean,
+        state: NextBufferState,
+        label: String = state.name.lowercase(),
+    ) {
+        rule.mainClock.autoAdvance = false
         rule.setContent {
             Screen(dark) {
                 NowPlayingScreen(
@@ -224,13 +242,15 @@ class AppScreensScreenshotTest {
                     album = "Придуманный альбом", artwork = null, playbackState = "PLAYING", errorCode = 0,
                     positionMs = 3_000L, durationMs = 200_000L, canSeek = true, controlsEnabled = true,
                     hasPrevious = true, hasNext = true, queuePosition = 34, queueTotal = 3647,
-                    repeatMode = Player.REPEAT_MODE_ONE, shuffleEnabled = true,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = true,
+                    bufferedFraction = 0.46f, hasKnownBufferDuration = true,
+                    nextBufferState = state,
                     onClose = {}, onSeekFraction = {}, onPlayPause = {}, onPrevious = {}, onNext = {},
                     onCycleRepeat = {}, onToggleShuffle = {},
                 )
             }
         }
-        capture("now_playing_${theme(dark)}")
+        capture("now_playing_${label}_${theme(dark)}")
     }
 
     @Test fun songActionsGraphite() = songActions(true)

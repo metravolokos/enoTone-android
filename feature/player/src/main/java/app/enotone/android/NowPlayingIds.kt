@@ -1,10 +1,12 @@
 package app.enotone.android
 
+/** UI-only state; :feature:player stays independent of the Media3 playback module. */
+enum class NowPlayingNextTrackState { NONE, LOADING, READY }
+
 /** UI resource IDs come from :app; no feature module may depend on application R. */
 /** Ресурсные идентификаторы перечислены явно: дизайн остаётся в :app. */
 @Suppress("LongParameterList")
 data class NowPlayingIds(
-    val playbackSeekSlider: Int,
     val playbackError: Int,
     val playbackMissingPassword: Int,
     val playbackMissingTrack: Int,
@@ -29,4 +31,8 @@ data class NowPlayingIds(
     val playbackShuffleOff: Int,
     val nowPlayingQueueShort: Int,
     val playbackRepeatControl: Int,
+    val nowPlayingSeekKnown: Int,
+    val nowPlayingSeekUnknown: Int,
+    val nowPlayingNextLoading: Int,
+    val nowPlayingNextReady: Int,
 )

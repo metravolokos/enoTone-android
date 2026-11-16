@@ -2,10 +2,10 @@ package app.enotone.android
 
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
+import app.enotone.playback.NextBufferState
 
 /** App-owned string/drawable IDs; neither translations nor icons move before D2. */
 private val nowPlayingIds = NowPlayingIds(
-    playbackSeekSlider = R.string.playback_seek_slider,
     playbackError = R.string.playback_error,
     playbackMissingPassword = R.string.playback_missing_password,
     playbackMissingTrack = R.string.playback_missing_track,
@@ -30,9 +30,13 @@ private val nowPlayingIds = NowPlayingIds(
     playbackShuffleOff = R.string.playback_shuffle_off,
     nowPlayingQueueShort = R.string.now_playing_queue_short,
     playbackRepeatControl = R.string.playback_repeat_control,
+    nowPlayingSeekKnown = R.string.now_playing_seek_known,
+    nowPlayingSeekUnknown = R.string.now_playing_seek_unknown,
+    nowPlayingNextLoading = R.string.now_playing_next_loading,
+    nowPlayingNextReady = R.string.now_playing_next_ready,
 )
 
-/** Keeps existing callers and all 5a Compose tests unchanged. */
+/** Keeps existing callers source-compatible through defaults for the new UI state. */
 @Composable
 internal fun NowPlayingScreen(
     trackId: String,
@@ -52,6 +56,9 @@ internal fun NowPlayingScreen(
     queueTotal: Int,
     repeatMode: Int,
     shuffleEnabled: Boolean,
+    bufferedFraction: Float = 0f,
+    hasKnownBufferDuration: Boolean = false,
+    nextBufferState: NextBufferState = NextBufferState.NONE,
     onClose: () -> Unit,
     onSeekFraction: (Float) -> Unit,
     onPlayPause: () -> Unit,
@@ -80,6 +87,13 @@ internal fun NowPlayingScreen(
         queueTotal = queueTotal,
         repeatMode = repeatMode,
         shuffleEnabled = shuffleEnabled,
+        bufferedFraction = bufferedFraction,
+        hasKnownBufferDuration = hasKnownBufferDuration,
+        nextTrackState = when (nextBufferState) {
+            NextBufferState.NONE -> NowPlayingNextTrackState.NONE
+            NextBufferState.LOADING -> NowPlayingNextTrackState.LOADING
+            NextBufferState.READY -> NowPlayingNextTrackState.READY
+        },
         onClose = onClose,
         onSeekFraction = onSeekFraction,
         onPlayPause = onPlayPause,
