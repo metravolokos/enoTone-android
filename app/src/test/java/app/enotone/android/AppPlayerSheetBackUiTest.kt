@@ -92,6 +92,48 @@ class AppPlayerSheetBackUiTest {
         assertTrue("Sheet must disappear after exit", blueStart() >= height - 4)
     }
 
+    @Test fun committedBackReopensSheetFromBottomAfterExit() {
+        val expanded = mutableStateOf(true)
+        val progress = mutableFloatStateOf(0f)
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            val current = LocalView.current
+            SideEffect { host = current }
+            EnoToneTheme {
+                AppMotionRoot(
+                    inSettings = false,
+                    diagnostics = false,
+                    playerExpanded = expanded.value,
+                    playerBackProgress = progress.floatValue,
+                    music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
+                    settings = {},
+                    player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
+                )
+            }
+        }
+        rule.mainClock.advanceTimeBy(400)
+        val height = requireNotNull(host).height
+
+        rule.runOnIdle { progress.floatValue = 0.5f }
+        rule.mainClock.advanceTimeByFrame()
+        blueStartAfterRasterSync()
+
+        rule.runOnIdle { expanded.value = false }
+        rule.mainClock.advanceTimeBy(260)
+        assertTrue("Committed sheet must finish exiting", blueStart() >= height - 4)
+
+        // Mirrors the close-delay reset currently owned by SettingsScreen.
+        rule.runOnIdle { progress.floatValue = 0f }
+        rule.mainClock.advanceTimeByFrame()
+        rule.runOnIdle { expanded.value = true }
+        rule.mainClock.advanceTimeBy(50)
+        val reopened = blueStartAfterRasterSync()
+        assertTrue(
+            "Reopened sheet should enter from the bottom without stale Back preview: $reopened / $height",
+            reopened in (height * 0.5f).toInt() until (height * 0.9f).toInt(),
+        )
+    }
+
     /**
      * Robolectric native raster может отстать на один кадр от layout после смены состояния
      * (CI #904: сначала 0, на следующем кадре 426/852). Считываем следующий
