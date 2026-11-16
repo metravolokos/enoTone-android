@@ -255,7 +255,8 @@ class NowPlayingUiTest {
         assertEquals(0f, animatorScale, 0f)
         rule.mainClock.advanceTimeBy(0, ignoreFrameDuration = true)
         val initial = loadingDotPixel(requireNotNull(hostView))
-        rule.mainClock.advanceTimeBy(550, ignoreFrameDuration = true)
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(550)
         val later = loadingDotPixel(requireNotNull(hostView))
         assertEquals("LOADING remains visually static at animator scale 0", initial, later)
     }
@@ -294,7 +295,8 @@ class NowPlayingUiTest {
         assertEquals(1f, animatorScale, 0f)
         rule.mainClock.advanceTimeBy(0, ignoreFrameDuration = true)
         val atStart = loadingDotPixel(requireNotNull(hostView))
-        rule.mainClock.advanceTimeBy(550, ignoreFrameDuration = true)
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeBy(550)
         val afterHalfPeriod = loadingDotPixel(requireNotNull(hostView))
         assertTrue(
             "LOADING dot should change pixels from 0x${Integer.toHexString(atStart)} to " +
