@@ -149,6 +149,63 @@ class AppPlayerSheetBackUiTest {
         )
     }
 
+    @Test fun reopeningDuringCommitExitClearsBackProgressAndMatchesEntryFrame() {
+        val expanded = mutableStateOf(false)
+        val progress = mutableFloatStateOf(0f)
+        val exitComplete = mutableStateOf(false)
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            val current = LocalView.current
+            SideEffect { host = current }
+            EnoToneTheme {
+                AppMotionRoot(
+                    inSettings = false,
+                    diagnostics = false,
+                    playerExpanded = expanded.value,
+                    playerBackProgress = progress.floatValue,
+                    onPlayerExitComplete = {
+                        progress.floatValue = 0f
+                        exitComplete.value = true
+                    },
+                    music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
+                    settings = {},
+                    player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
+                )
+            }
+        }
+        val height = requireNotNull(host).height
+        rule.runOnIdle { expanded.value = true }
+        rule.mainClock.advanceTimeBy(50)
+        val baseline = blueStartAfterRasterSync()
+        rule.mainClock.advanceTimeBy(400)
+
+        rule.runOnIdle { progress.floatValue = 0.5f }
+        rule.mainClock.advanceTimeByFrame()
+        blueStartAfterRasterSync()
+        rule.runOnIdle { expanded.value = false }
+        // Reopen after two exit frames, before the 250 ms close transition can finish.
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        rule.runOnIdle { assertTrue("Exit must still be pending", !exitComplete.value) }
+        rule.runOnIdle { expanded.value = true }
+        rule.mainClock.advanceTimeBy(50)
+        val reopened = blueStartAfterRasterSync()
+        var callbackRan = false
+        var remainingProgress = -1f
+        rule.runOnIdle {
+            callbackRan = exitComplete.value
+            remainingProgress = progress.floatValue
+        }
+
+        assertTrue(
+            "Interrupted exit should finish the Back transition and reopen normally: " +
+                "baseline=$baseline, reopened=$reopened, progress=$remainingProgress, " +
+                "callback=$callbackRan, height=$height",
+            callbackRan && remainingProgress == 0f &&
+                reopened in (baseline - 5)..(baseline + 5),
+        )
+    }
+
     /**
      * Robolectric native raster может отстать на один кадр от layout после смены состояния
      * (CI #904: сначала 0, на следующем кадре 426/852). Считываем следующий
