@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
@@ -34,11 +36,23 @@ internal fun AppMotionRoot(
     player: @Composable () -> Unit,
 ) {
     val previewSettle = remember { Animatable(0f) }
+    val latestBackProgress = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(playerBackProgress) {
         if (playerBackProgress > 0f) {
             previewSettle.snapTo(playerBackProgress.coerceIn(0f, 1f))
         } else {
+            // LaunchedEffect is asynchronous: snapTo(progress) can be cancelled before it
+            // stores the preview value. Reapply the last rendered progress before settling.
+            val cancelFrom = latestBackProgress.floatValue.coerceIn(0f, 1f)
+            if (cancelFrom > 0f) {
+                previewSettle.snapTo(cancelFrom)
+            }
             previewSettle.animateTo(0f, animationSpec = tween(AppMotionSpec.PLAYER_CLOSE_MS))
+        }
+    }
+    SideEffect {
+        if (playerBackProgress > 0f) {
+            latestBackProgress.floatValue = playerBackProgress.coerceIn(0f, 1f)
         }
     }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {

@@ -123,11 +123,3 @@ dependencies {
     testImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)
 }
-
-// Временная диагностика D3.5: показать фактическую геометрию падающего UI-теста.
-// После анализа CI вернуть конфигурацию testLogging к исходной.
-tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
-    testLogging {
-        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-    }
-}
