@@ -118,15 +118,10 @@ class AppPlayerSheetBackUiTest {
                 )
             }
         }
-        rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
         val height = requireNotNull(host).height
         rule.runOnIdle { expanded.value = true }
         rule.mainClock.advanceTimeBy(50)
         val baseline = blueStartAfterRasterSync()
-        var expandedOnNormalOpen = false
-        rule.runOnIdle { expandedOnNormalOpen = renderedExpanded }
-        assertTrue("Compose must observe the ordinary open state", expandedOnNormalOpen)
         rule.mainClock.advanceTimeBy(400)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
@@ -182,10 +177,15 @@ class AppPlayerSheetBackUiTest {
                 )
             }
         }
+        rule.mainClock.advanceTimeByFrame()
+        rule.waitForIdle()
         val height = requireNotNull(host).height
         rule.runOnIdle { expanded.value = true }
         rule.mainClock.advanceTimeBy(50)
         val baseline = blueStartAfterRasterSync()
+        var expandedOnNormalOpen = false
+        rule.runOnIdle { expandedOnNormalOpen = renderedExpanded }
+        assertTrue("Compose must observe the ordinary open state", expandedOnNormalOpen)
         rule.mainClock.advanceTimeBy(400)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
