@@ -284,12 +284,16 @@ class AppPlayerSheetBackUiTest {
     }
 
     /** Обход по столбцам Bitmap без golden-файлов, все координаты из одного кадра. */
-    private fun blueStartsInSameBitmap(): Pair<Int, Int> {
+    private fun currentPairedStarts(): Pair<Int, Int> {
         val width = requireNotNull(host).width
-        blueStartsAt(width / 4, width * 3 / 4)
-        rule.mainClock.advanceTimeByFrame()
         val starts = blueStartsAt(width / 4, width * 3 / 4)
         return starts[0] to starts[1]
+    }
+
+    private fun blueStartsInSameBitmap(): Pair<Int, Int> {
+        currentPairedStarts()
+        rule.mainClock.advanceTimeByFrame()
+        return currentPairedStarts()
     }
 
     private fun blueStartsAt(vararg xPositions: Int): List<Int> {
