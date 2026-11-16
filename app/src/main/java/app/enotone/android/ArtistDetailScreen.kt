@@ -1,6 +1,5 @@
 package app.enotone.android
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,7 +58,6 @@ internal fun ArtistDetailScreen(
     appPassword: String,
     contentPadding: PaddingValues,
     onOpenDetail: (LibraryDetail) -> Unit,
-    onBackDetail: () -> Unit,
     blur: EnoBlurState? = null,
 ) {
     val blurState = blur ?: rememberEnoBlurState()
@@ -75,7 +74,6 @@ internal fun ArtistDetailScreen(
     val canPlay = canPlayArtist(state, plan.songs, appPassword)
     val caption = artistCountCaption(plan)
 
-    BackHandler { onBackDetail() }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         LazyColumn(
             state = listState,
@@ -84,7 +82,8 @@ internal fun ArtistDetailScreen(
         ) {
             item(key = "artist-head") {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    modifier = Modifier.fillMaxWidth().testTag("artist-detail-header")
+                        .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Spacer(Modifier.height(48.dp))

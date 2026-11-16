@@ -59,6 +59,8 @@ internal fun NowPlayingScreen(
     onNext: () -> Unit,
     onCycleRepeat: () -> Unit,
     onToggleShuffle: () -> Unit,
+    predictiveBackProgress: Float = 0f,
+    onDragProgress: (Float) -> Unit = {},
 ) {
     FeatureNowPlayingScreen(
         trackId = trackId,
@@ -86,5 +88,7 @@ internal fun NowPlayingScreen(
         onCycleRepeat = onCycleRepeat,
         onToggleShuffle = onToggleShuffle,
         ids = nowPlayingIds,
+        predictiveBackProgress = predictiveBackProgress,
+        onDragProgress = onDragProgress,
     )
 }

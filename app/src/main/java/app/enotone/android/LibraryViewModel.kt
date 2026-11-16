@@ -50,6 +50,8 @@ internal data class LibraryUiState(
     val visiblePages: List<LibraryPage> = LibraryPageVisibility.defaultOrder,
     val search: String = "",
     val selectedGroupKey: String? = null,
+    /** Маршрут, для которого группы и строки действительно рассчитаны. */
+    val derivedRoute: Pair<LibraryPage, String?>? = null,
     val tracks: List<OfflineTrackRow> = emptyList(),
     val groupIndex: LibraryGroupIndex = LibraryGroupIndex(),
     val artistPlans: Map<String, ArtistDetailPlan> = emptyMap(),
@@ -319,7 +321,8 @@ internal class LibraryViewModel(
                     current.copy(groups = result.groups, shownGroups = result.shown,
                         selectedGroup = result.group, visible = result.visible,
                         albumTracks = result.album, albumYear = result.year,
-                        albumGenre = result.genre, albumRefreshSampleIds = result.refreshIds)
+                        albumGenre = result.genre, albumRefreshSampleIds = result.refreshIds,
+                        derivedRoute = snapshot.section to snapshot.selectedGroupKey)
                 }
             }
         }
@@ -401,7 +404,7 @@ internal class LibraryViewModel(
         searchByRoute[previous.section to previous.selectedGroupKey] = previous.search
         mutable.update {
             it.copy(section = page, selectedGroupKey = groupKey,
-                search = searchByRoute[page to groupKey].orEmpty())
+                search = searchByRoute[page to groupKey].orEmpty(), derivedRoute = null)
         }
         derivePages()
     }
@@ -412,7 +415,8 @@ internal class LibraryViewModel(
         val section = LibraryPageVisibility.selectedOrFallback(mutable.value.section, pages)
         val moved = section != mutable.value.section
         mutable.update {
-            if (moved) it.copy(visiblePages = pages, section = section, search = "", selectedGroupKey = null)
+            if (moved) it.copy(visiblePages = pages, section = section, search = "",
+                selectedGroupKey = null, derivedRoute = null)
             else it.copy(visiblePages = pages)
         }
         if (moved) derivePages()

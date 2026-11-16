@@ -15,6 +15,7 @@ internal sealed interface LibraryDetail {
     val key: String
     data class Album(override val key: String) : LibraryDetail
     data class Artist(override val key: String) : LibraryDetail
+    data class AlbumArtist(override val key: String) : LibraryDetail
 }
 
 internal enum class AppOverlay { SETTINGS, DIAGNOSTICS }
@@ -77,7 +78,11 @@ internal object AppNavigator {
             is AppTab.Library -> value.page.name
         }
         val details = state.details.joinToString(DETAIL_SEPARATOR) { detail ->
-            val kind = if (detail is LibraryDetail.Album) ALBUM else ARTIST
+            val kind = when (detail) {
+                is LibraryDetail.Album -> ALBUM
+                is LibraryDetail.Artist -> ARTIST
+                is LibraryDetail.AlbumArtist -> ALBUM_ARTIST
+            }
             kind + Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(detail.key.toByteArray(StandardCharsets.UTF_8))
         }
@@ -118,6 +123,7 @@ private fun parseDetail(item: String): LibraryDetail? {
         key.isNullOrBlank() -> null
         item.first() == ALBUM -> LibraryDetail.Album(key)
         item.first() == ARTIST -> LibraryDetail.Artist(key)
+        item.first() == ALBUM_ARTIST -> LibraryDetail.AlbumArtist(key)
         else -> null
     }
 }
@@ -125,3 +131,4 @@ private fun parseDetail(item: String): LibraryDetail? {
 private const val MIN_ENCODED_DETAIL_LENGTH = 2
 private const val ALBUM = 'a'
 private const val ARTIST = 'r'
+private const val ALBUM_ARTIST = 'u'

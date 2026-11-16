@@ -1,5 +1,11 @@
 package app.enotone.android
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +25,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -26,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.enotone.android.core.ui.component.EnoBottomBar
 import app.enotone.android.core.ui.component.EnoBottomBarItem
 import app.enotone.android.core.ui.component.EnoIcons
+import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
 import app.enotone.android.core.ui.component.LocalEnoDockBlur
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
@@ -44,15 +52,23 @@ internal fun AppMusicShell(
     libraryStateHolder: SaveableStateHolder,
     onSelectTab: (AppTab) -> Unit,
     onOpenDetail: (LibraryDetail) -> Unit,
-    onBackDetail: () -> Unit,
     onSettings: () -> Unit,
+    playerExpanded: Boolean = false,
+    playerDragProgress: Float = 0f,
+    playerBackProgress: Float = 0f,
+    backProgress: Float = 0f,
+    backPreviewRoute: AppRouteKey? = null,
+    searchRegistry: AppSearchBackRegistry? = null,
+    backController: AppBackController? = null,
 ) {
     val login = account.libraryLogin
     val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
     val queueSnackbar = rememberQueueSnackbar(libraryModel)
     val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
+    val snapshots = androidx.compose.runtime.remember(libraryModel) { AppLibraryRouteSnapshots() }
     val selecting = library?.selecting == true
     val miniVisible = player.playback.queueTotal > 0
+    val snackbarLift = with(LocalDensity.current) { 16.dp.roundToPx() }
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     // Последняя строка списка поднимается над панелью и мини-плеером (вариант B).
     val contentPadding = PaddingValues(bottom = dockHeight(miniVisible) + navBar)
@@ -62,7 +78,21 @@ internal fun AppMusicShell(
     // «Прозрачные панели» (ADR-0088, D3.3): и нижние (мини-плеер, панель), и верхние (заголовок, полоска).
     CompositionLocalProvider(LocalEnoDockBlur provides blur.takeIf { UiEffects.translucentDock }) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            when (val tab = nav.tab) {
+            AppLibraryRouteTransition(
+                nav = nav,
+                liveState = library,
+                snapshots = snapshots,
+                playerExpanded = playerExpanded,
+                backProgress = backProgress,
+                backPreviewRoute = backPreviewRoute,
+                searchRegistry = searchRegistry,
+                previewForRoute = backController?.let { controller ->
+                    { route -> controller.musicProgressFor(
+                        route, player.nowPlaying && player.playback.queueTotal > 0,
+                    ) }
+                },
+            ) { route, snapshot, active ->
+            when (val tab = route.tab) {
                 AppTab.Home -> EnoToneHomeScreen(
                     connectedAccount = login != null,
                     songCount = library?.tracks?.size?.takeIf { !library.loading && it > 0 },
@@ -73,26 +103,25 @@ internal fun AppMusicShell(
                 )
                 is AppTab.Library -> if (login != null && libraryModel != null) {
                     // Состояние прокрутки переживает «Сейчас играет» (регрессия Huawei после #92).
-                    val routeKey = LIBRARY_STATE_KEY + tab.page.name + ":" +
-                        nav.details.joinToString("/") { detail ->
-                            (if (detail is LibraryDetail.Album) "a" else "r") + detail.key.length + ":" + detail.key
-                        }
+                    val routeKey = librarySaveKey(tab, route.details)
                     libraryStateHolder.SaveableStateProvider(routeKey) {
                         OfflineLibraryScreen(
                             model = libraryModel,
                             page = tab.page,
-                            detail = nav.details.lastOrNull(),
+                            detail = route.details.lastOrNull(),
                             onOpenDetail = onOpenDetail,
-                            onBackDetail = onBackDetail,
                             visiblePages = pages,
                             accountEmail = login.email,
                             appPassword = login.password,
                             contentPadding = contentPadding,
-                            scrollToTop = nav.scrollToTop,
+                            scrollToTop = route.scrollToTop,
                             blur = blur,
+                            routeActive = active,
+                            routeSnapshot = snapshot,
                         )
                     }
                 }
+            }
             }
             Column(
                 modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
@@ -100,15 +129,40 @@ internal fun AppMusicShell(
                     .padding(start = DOCK_SIDE, end = DOCK_SIDE, bottom = DOCK_SIDE),
                 verticalArrangement = Arrangement.spacedBy(DOCK_GAP),
             ) {
-                SnackbarHost(queueSnackbar)
-                EnoToneMiniPlayer(
-                    player = player,
-                    selecting = selecting,
-                    onOpen = { playerModel.onNowPlaying(true) },
-                    onPlayPause = playerModel::onPlayPause,
-                    onNext = playerModel::onNext,
+                // D3.4: Snackbar поднимается на 16 dp и проявляется за 200 мс.
+                AnimatedVisibility(
+                    visible = queueSnackbar.currentSnackbarData != null,
+                    enter = fadeIn(tween(AppMotionSpec.SNACKBAR_MS)) +
+                        slideInVertically(tween(AppMotionSpec.SNACKBAR_MS), initialOffsetY = { snackbarLift }),
+                    exit = fadeOut(tween(AppMotionSpec.SNACKBAR_MS)) +
+                        slideOutVertically(tween(AppMotionSpec.SNACKBAR_MS), targetOffsetY = { snackbarLift }),
+                ) {
+                    SnackbarHost(queueSnackbar)
+                }
+
+                AppDockMotion(
+                    playerExpanded = playerExpanded,
+                    miniVisible = miniVisible,
+                    dragProgress = playerDragProgress,
+                    backProgress = playerBackProgress,
+                    miniPlayer = {
+                        CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {
+                            EnoToneMiniPlayer(
+                                player = player,
+                                selecting = selecting,
+                                onOpen = { playerModel.onNowPlaying(true) },
+                                onPlayPause = playerModel::onPlayPause,
+                                onNext = playerModel::onNext,
+                            )
+                        }
+                    },
+                    bottomBar = {
+                        AppBottomBar(
+                            nav = nav, pages = pages,
+                            enabled = login != null, onSelectTab = onSelectTab,
+                        )
+                    },
                 )
-                AppBottomBar(nav = nav, pages = pages, enabled = login != null, onSelectTab = onSelectTab)
             }
         }
     }
@@ -146,16 +200,32 @@ private fun AppBottomBar(
 private fun dockHeight(miniVisible: Boolean): Dp =
     BAR_HEIGHT + DOCK_SIDE + CONTENT_AIR + if (miniVisible) MINI_HEIGHT + DOCK_GAP else 0.dp
 
+/** Isolate encoding of nested detail keys from the AppMusicShell Compose state machine. */
+private fun librarySaveKey(tab: AppTab.Library, details: List<LibraryDetail>): String =
+    LIBRARY_STATE_KEY + tab.page.name + ":" + details.joinToString("/") { detail ->
+        val kind = when (detail) {
+            is LibraryDetail.Album -> "a"
+            is LibraryDetail.Artist -> "r"
+            is LibraryDetail.AlbumArtist -> "u"
+        }
+        kind + detail.key.length + ":" + detail.key
+    }
+
 private const val LIBRARY_STATE_KEY = "library"
 private val DOCK_SIDE = 12.dp
 private val DOCK_GAP = 8.dp
 private val BAR_HEIGHT = 70.dp
-private val MINI_HEIGHT = 64.dp
+internal val MINI_HEIGHT = 64.dp
 private val CONTENT_AIR = 16.dp
 
 /** «Сейчас играет» — слой поверх любого экрана; сворачивается в мини-плеер (D3). */
 @Composable
-internal fun AppNowPlaying(player: SharedPlayerUiState, playerModel: PlayerViewModel) {
+internal fun AppNowPlaying(
+    player: SharedPlayerUiState,
+    playerModel: PlayerViewModel,
+    predictiveBackProgress: Float = 0f,
+    onDragProgress: (Float) -> Unit = {},
+) {
     val playback = player.playback
     NowPlayingScreen(
         trackId = playback.currentTrackId.orEmpty(),
@@ -182,5 +252,7 @@ internal fun AppNowPlaying(player: SharedPlayerUiState, playerModel: PlayerViewM
         onNext = playerModel::onNext,
         onCycleRepeat = playerModel::onRepeat,
         onToggleShuffle = playerModel::onShuffle,
+        predictiveBackProgress = predictiveBackProgress,
+        onDragProgress = onDragProgress,
     )
 }

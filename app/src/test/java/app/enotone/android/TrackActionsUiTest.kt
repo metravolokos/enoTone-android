@@ -128,7 +128,7 @@ class TrackActionsUiTest {
                     artist = artist, actions = actions,
                     artworkRepository = remember(context) { ArtworkPreviewRepository(context) },
                     accountEmail = "", appPassword = "x", contentPadding = PaddingValues(),
-                    onOpenDetail = {}, onBackDetail = {},
+                    onOpenDetail = {},
                 )
             }
         }

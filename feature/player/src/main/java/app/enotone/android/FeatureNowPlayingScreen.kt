@@ -4,7 +4,9 @@
 package app.enotone.android
 
 import android.graphics.Bitmap
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,6 +39,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,8 +53,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -63,7 +67,9 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import app.enotone.android.core.ui.component.EnoIcons
+import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
 import app.enotone.android.core.ui.component.enoShadow
+import app.enotone.android.core.ui.component.enoSharedArtwork
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
 import app.enotone.android.core.ui.theme.EnoRadii
@@ -75,6 +81,8 @@ import app.enotone.playback.PlaybackSeekPolicy
  * All visible actions call the existing Media3 service. No in-app volume
  * control: system volume keys only (owner decision 2026-11-12, REQUIREMENTS O-12).
  */
+// Существующее дерево D3 сохраняем для точных Roborazzi; ветвления Media3 не меняем в задаче движения.
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun FeatureNowPlayingScreen(
     trackId: String,
@@ -102,6 +110,8 @@ fun FeatureNowPlayingScreen(
     onCycleRepeat: () -> Unit,
     onToggleShuffle: () -> Unit,
     ids: NowPlayingIds,
+    predictiveBackProgress: Float = 0f,
+    onDragProgress: (Float) -> Unit = {},
 ) {
     val color = MaterialTheme.colorScheme
 
@@ -131,28 +141,75 @@ fun FeatureNowPlayingScreen(
         animationSpec = tween(260), label = "pausedGraphiteCover",
     )
 
-    val collapseAfterPx = with(LocalDensity.current) { COLLAPSE_DRAG.toPx() }
+    // В обычном предпросмотре экран статичен; в переходе D3.4 контент (кроме обложки)
+    // поднимается на 16 dp и проявляется с задержкой 100 мс.
+    val animatedEntrance = LocalEnoArtworkVisibility.current != null
+    var contentEntered by remember { mutableStateOf(false) }
+    LaunchedEffect(animatedEntrance) { contentEntered = true }
+    val contentEntry by animateFloatAsState(
+        targetValue = if (!animatedEntrance || contentEntered) 1f else 0f,
+        animationSpec = tween(ENTRY_DURATION_MS, delayMillis = ENTRY_DELAY_MS, easing = entryEasing),
+        label = "playerContentEntrance",
+    )
+    val contentEntryModifier = Modifier.graphicsLayer {
+        alpha = contentEntry
+        translationY = ENTRY_LIFT_DP.toPx() * (1f - contentEntry)
+    }
+    var dragPx by remember { mutableFloatStateOf(0f) }
+    var returning by remember { mutableStateOf(false) }
+    var playerHeightPx by remember { mutableFloatStateOf(1f) }
+    val shownDragPx by animateFloatAsState(
+        targetValue = if (returning) 0f else dragPx,
+        animationSpec = if (returning) tween(RETURN_DURATION_MS) else snap(),
+        label = "nowPlayingDrag",
+    )
+    LaunchedEffect(shownDragPx, playerHeightPx) {
+        onDragProgress((shownDragPx / playerHeightPx).coerceIn(0f, 1f))
+    }
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().background(
-            Brush.verticalGradient(
-                listOf(color.surfaceContainerHigh, color.background),
-            ),
-        )
-            // D3: свайп вниз сворачивает в мини-плеер. Горизонтальное перетаскивание ползунка
-            // перемотки поглощается Slider и сюда не доходит.
-            .pointerInput(onClose) {
-                var dragged = 0f
+        modifier = Modifier.fillMaxSize()
+            .graphicsLayer {
+                translationY = shownDragPx
+                scaleX = 1f - predictiveBackProgress * BACK_SCALE_REDUCTION
+                scaleY = 1f - predictiveBackProgress * BACK_SCALE_REDUCTION
+                translationX = size.width * BACK_TRANSLATION_RATIO * predictiveBackProgress
+                if (predictiveBackProgress > 0f) {
+                    shape = RoundedCornerShape(BACK_RADIUS_DP.dp * predictiveBackProgress)
+                    clip = true
+                }
+            }
+            .background(Brush.verticalGradient(listOf(color.surfaceContainerHigh, color.background)))
+            .onSizeChanged { playerHeightPx = it.height.toFloat().coerceAtLeast(1f) }
+            // D3.4: следует за пальцем; отменённый свайп возвращается к 0.
+            // Slider поглощает собственный горизонтальный жест, не закрывая экран.
+            .pointerInput(onClose, playerHeightPx) {
+                var velocity = VelocityTracker()
                 detectVerticalDragGestures(
-                    onDragStart = { dragged = 0f },
+                    onDragStart = {
+                        dragPx = 0f
+                        returning = false
+                        velocity = VelocityTracker()
+                    },
                     onVerticalDrag = { change, distance ->
-                        dragged += distance
+                        dragPx = (dragPx + distance).coerceAtLeast(0f)
+                        velocity.addPosition(change.uptimeMillis, change.position)
                         change.consume()
                     },
-                    onDragEnd = { if (dragged > collapseAfterPx) onClose() },
+                    onDragEnd = {
+                        if (dragPx >= playerHeightPx * COLLAPSE_THRESHOLD_FRACTION ||
+                            velocity.calculateVelocity().y > FAST_SWIPE_PX_PER_SECOND) {
+                            onClose()
+                        } else {
+                            returning = true
+                        }
+                    },
+                    onDragCancel = { returning = true },
                 )
             },
     ) {
         val coverSide = minOf(maxWidth - 56.dp, maxHeight * 0.38f, 320.dp)
+        val dragArtworkScale = 1f -
+            (shownDragPx / playerHeightPx).coerceIn(0f, 1f) * (1f - MINI_ARTWORK_SIDE.value / coverSide.value)
         Column(
             modifier = Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars)
@@ -160,7 +217,7 @@ fun FeatureNowPlayingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp).then(contentEntryModifier),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // D3.2 (владелец): ручки нет — экран закрывается только жестом вниз и системным «Назад».
@@ -179,8 +236,11 @@ fun FeatureNowPlayingScreen(
                 // D3.2 (владелец): тень крупнее и плотнее, тонкая обводка — белая в «Графите»,
                 // чёрная в «Фарфоре» (палитра v1.5). Тень рисуется под обложкой и не обрезается.
                 Box(
-                    modifier = Modifier.size(coverSide)
-                        .graphicsLayer { scaleX = coverScale; scaleY = coverScale }
+                    modifier = Modifier.enoSharedArtwork().size(coverSide)
+                        .graphicsLayer {
+                            scaleX = coverScale * dragArtworkScale
+                            scaleY = coverScale * dragArtworkScale
+                        }
                         .enoShadow(EnoElevation.nowPlaying, EnoColors.shadowStrong, EnoRadii.l)
                         .clip(RoundedCornerShape(EnoRadii.l))
                         .background(color.surfaceVariant)
@@ -204,7 +264,7 @@ fun FeatureNowPlayingScreen(
             }
             Spacer(Modifier.weight(.32f))
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().then(contentEntryModifier),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(title,
@@ -264,12 +324,12 @@ fun FeatureNowPlayingScreen(
                         modifier = Modifier.height(TRACK_HEIGHT),
                     )
                 },
-                modifier = Modifier.fillMaxWidth().semantics {
+                modifier = Modifier.fillMaxWidth().then(contentEntryModifier).semantics {
                     contentDescription = seekLabel
                 },
             )
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().then(contentEntryModifier),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(PlaybackSeekPolicy.formatTime(shownPosition),
@@ -285,7 +345,7 @@ fun FeatureNowPlayingScreen(
             }
             Spacer(Modifier.weight(.22f))
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().then(contentEntryModifier),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -325,7 +385,7 @@ fun FeatureNowPlayingScreen(
             Spacer(Modifier.weight(.2f))
             // A compact real action row; no inert placeholders.
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().then(contentEntryModifier),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -361,9 +421,6 @@ fun FeatureNowPlayingScreen(
     }
 }
 
-/** Свайп вниз длиннее этого сворачивает «Сейчас играет». */
-private val COLLAPSE_DRAG = 96.dp
-
 @Composable
 private fun NowPlayingToggle(
     icon: EnoIcons,
@@ -396,3 +453,16 @@ private fun NowPlayingToggle(
 
 private val THUMB_SIZE = 14.dp
 private val TRACK_HEIGHT = 4.dp
+
+private const val ENTRY_DURATION_MS = 250
+private const val ENTRY_DELAY_MS = 100
+private val ENTRY_LIFT_DP = 16.dp
+private val MINI_ARTWORK_SIDE = 44.dp
+private val entryEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+
+private const val RETURN_DURATION_MS = 250
+private const val BACK_SCALE_REDUCTION = 0.1f
+private const val BACK_TRANSLATION_RATIO = 0.12f
+private const val BACK_RADIUS_DP = 28
+private const val COLLAPSE_THRESHOLD_FRACTION = 0.25f
+private const val FAST_SWIPE_PX_PER_SECOND = 1_200f

@@ -56,27 +56,31 @@ internal fun OfflineLibraryScreen(
     page: LibraryPage,
     detail: LibraryDetail? = null,
     onOpenDetail: (LibraryDetail) -> Unit = {},
-    onBackDetail: () -> Unit = {},
     visiblePages: List<LibraryPage>,
     accountEmail: String,
     appPassword: String,
     contentPadding: PaddingValues,
     scrollToTop: Int,
     blur: EnoBlurState? = null,
+    routeActive: Boolean = true,
+    routeSnapshot: LibraryUiState? = null,
 ) {
     val context = LocalContext.current.applicationContext
     val container = (context as EnoToneApplication).container
     // Аудит п. 3: ViewModel живёт дольше экрана — страница и видимость передаются событиями.
     LaunchedEffect(model, visiblePages) { model.onVisiblePagesChanged(visiblePages) }
-    LaunchedEffect(model, page, detail) {
+    LaunchedEffect(model, page, detail, routeActive) {
+        if (!routeActive) return@LaunchedEffect
         val targetPage = when (detail) {
             is LibraryDetail.Album -> LibraryPage.ALBUMS
             is LibraryDetail.Artist -> LibraryPage.ARTISTS
+            is LibraryDetail.AlbumArtist -> LibraryPage.ALBUM_ARTISTS
             null -> page
         }
         model.onRouteSelected(targetPage, detail?.key)
     }
-    val state by model.state.collectAsStateWithLifecycle()
+    val live by model.state.collectAsStateWithLifecycle()
+    val state = routeSnapshot ?: live
     if (detail is LibraryDetail.Artist && state.selectedGroup?.key == detail.key) {
         ArtistDetailScreen(
             state = state,
@@ -87,7 +91,6 @@ internal fun OfflineLibraryScreen(
             appPassword = appPassword,
             contentPadding = contentPadding,
             onOpenDetail = onOpenDetail,
-            onBackDetail = onBackDetail,
             blur = blur,
         )
     } else LibraryScreenContent(
@@ -95,7 +98,6 @@ internal fun OfflineLibraryScreen(
         actions = model,
         detail = detail,
         onOpenDetail = onOpenDetail,
-        onBackDetail = onBackDetail,
         artworkRepository = container.artworkPreviewRepository,
         accountEmail = accountEmail,
         appPassword = appPassword,

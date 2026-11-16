@@ -1,6 +1,5 @@
 package app.enotone.android
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,8 +18,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -34,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.enotone.library.LibraryPageVisibility
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
@@ -73,30 +77,74 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     LaunchedEffect(openNowPlayingRequest) {
         if (openNowPlayingRequest > 0) playerModel.onNowPlaying(true)
     }
-    val back = AppNavigator.back(nav)
-    BackHandler(enabled = player.nowPlaying || back != null) {
-        if (player.nowPlaying) playerModel.onNowPlaying(false) else back?.let { nav = it }
-    }
-    if (player.nowPlaying && player.playback.queueTotal > 0) {
-        AppNowPlaying(player, playerModel)
-        return
-    }
-    if (!inSettings) {
-        AppMusicShell(
-            nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
-            libraryStateHolder = libraryStateHolder,
-            onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
-            onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
-            onBackDetail = { nav = AppNavigator.pop(nav) },
-            onSettings = { nav = AppNavigator.openSettings(nav) },
-        )
-        return
-    }
-    val showingDiagnostics = nav.overlay == AppOverlay.DIAGNOSTICS
-
-    // Мини-плеера в «Настройках» и «Диагностике» нет (O-10 уточнено владельцем 2026-11-13):
-    // он нужен только на экранах музыки. Отдельная прокрутка для основного экрана и подэкрана.
-    key(showingDiagnostics) {
+    val expanded = player.nowPlaying && player.playback.queueTotal > 0
+    val searchRegistry = remember { AppSearchBackRegistry() }
+    val activeSearchBack = searchRegistry.handler(appRouteKey(nav))
+    val backTarget = appBackTarget(expanded, nav, activeSearchBack != null)
+    val backController = remember { AppBackController() }
+    var playerDragProgress by remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
+    val resetJobs = remember { mutableMapOf<AppRouteKey, Job>() }
+    LaunchedEffect(expanded) { if (!expanded) playerDragProgress = 0f }
+    AppBackGesture(
+        enabled = backTarget != AppBackTarget.EXIT,
+        onPreview = { progress ->
+            backController.preview(backTarget, nav, progress)
+        },
+        onCommit = {
+            val completedRoute = backController.previewRoute
+            backController.commit(
+                target = backTarget,
+                nav = nav,
+                closePlayer = { playerModel.onNowPlaying(false) },
+                updateNav = { nav = it },
+                closeSearch = { activeSearchBack?.invoke() },
+            )
+            // Таймер привязан к уходящему маршруту, а не к активному второму жесту.
+            if (completedRoute != null) {
+                resetJobs.remove(completedRoute)?.cancel()
+                resetJobs[completedRoute] = scope.launch {
+                    delay(AppMotionSpec.PAGE_CLOSE_MS.toLong())
+                    backController.finishCommittedRoute(completedRoute)
+                    resetJobs.remove(completedRoute)
+                }
+            }
+        },
+        onCancel = backController::cancel,
+    )
+    // Музыка остаётся под полным плеером: shared element не может перелететь
+    // из Composable, который был удалён из дерева (как было в D3).
+    AppMotionRoot(
+        inSettings = inSettings,
+        diagnostics = nav.overlay == AppOverlay.DIAGNOSTICS,
+        playerExpanded = expanded,
+        backProgress = backController.settingsProgress(expanded),
+        music = {
+            AppMusicShell(
+                nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
+                libraryStateHolder = libraryStateHolder,
+                onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
+                onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
+                onSettings = { nav = AppNavigator.openSettings(nav) },
+                playerExpanded = expanded,
+                playerDragProgress = playerDragProgress,
+                playerBackProgress = backController.playerProgress(),
+                backProgress = backController.musicProgress(expanded),
+                backPreviewRoute = backController.previewRoute,
+                searchRegistry = searchRegistry,
+                backController = backController,
+            )
+        },
+        player = {
+            AppNowPlaying(
+                player, playerModel,
+                predictiveBackProgress = backController.playerProgress(),
+                onDragProgress = { playerDragProgress = it },
+            )
+        },
+        settings = { showingDiagnostics ->
+            // Мини-плеера в настройках и диагностике нет (O-10).
+            key(showingDiagnostics) {
     Column(
         modifier = Modifier.fillMaxSize().systemBarsPadding()
             .verticalScroll(rememberScrollState()).padding(16.dp),
@@ -132,8 +180,10 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             }
             SettingsDiagnosticsEntry { nav = AppNavigator.openDiagnostics(nav) }
         }
-    }
-    }
+            }
+            }
+        },
+    )
 }
 
 @Composable

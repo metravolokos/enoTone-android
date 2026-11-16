@@ -1,6 +1,12 @@
 package app.enotone.android
 
-import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,12 +36,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -91,7 +99,6 @@ internal fun LibraryScreenContent(
     blur: EnoBlurState? = null,
     detail: LibraryDetail? = null,
     onOpenDetail: (LibraryDetail) -> Unit = {},
-    onBackDetail: () -> Unit = {},
 ) {
     val section = state.section
     val visiblePages = state.visiblePages
@@ -179,10 +186,6 @@ internal fun LibraryScreenContent(
     } else {
         contentPadding
     }
-    // Системное «Назад» из альбома или исполнителя возвращает к списку страницы, а не на «Домой».
-    BackHandler(enabled = detail != null || selectedGroupKey != null) {
-        if (detail != null) onBackDetail() else actions.onGroupSelected(null)
-    }
     // Повтор активной вкладки: из группы — к списку, иначе — в начало. Обработанный номер сохраняется,
     // чтобы возврат из «Сейчас играет» (тот же номер) не прокручивал список заново.
     var handledScroll by rememberSaveable { mutableIntStateOf(scrollToTop) }
@@ -204,7 +207,17 @@ internal fun LibraryScreenContent(
         searchOpen = false
         actions.onSearch("")
     }
-    BackHandler(enabled = searchOpen && selectedGroupKey == null) { closeSearch() }
+    // Back принадлежит корневому диспетчеру; уходящий AnimatedContent не регистрируется.
+    val backRegistry = LocalAppSearchBackRegistry.current
+    val activeRoute = LocalActiveAppRoute.current
+    val currentClose = rememberUpdatedState(closeSearch)
+    DisposableEffect(backRegistry, activeRoute, searchOpen, selectedGroupKey, detail) {
+        if (backRegistry != null && activeRoute != null &&
+            searchOpen && selectedGroupKey == null && detail == null) {
+            val unregister = backRegistry.register(activeRoute) { currentClose.value() }
+            onDispose(unregister)
+        } else onDispose {}
+    }
     // Заголовок закреплён — поиск всегда на виду, прокручивать список при открытии не нужно.
     val openSearch: () -> Unit = { searchOpen = true }
     // «Играть»/«Перемешать» — только «Песни» и альбом (на «Альбомах», «Артистах», «Авторах» их нет).
@@ -215,7 +228,19 @@ internal fun LibraryScreenContent(
     val header: @Composable () -> Unit = {
         Column(modifier = Modifier.padding(horizontal = HEADER_EXTRA_PADDING)) {
             if (selectedGroupKey == null) {
-                if (searchOpen) {
+                // D3.4: раскрытие поля из правого края значка без изменения конечной вёрстки.
+                AnimatedContent(
+                    targetState = searchOpen,
+                    transitionSpec = {
+                        (expandHorizontally(tween(AppMotionSpec.SEARCH_EXPAND_MS), expandFrom = Alignment.End) +
+                            fadeIn(tween(AppMotionSpec.SEARCH_EXPAND_MS))).togetherWith(
+                            shrinkHorizontally(tween(AppMotionSpec.SEARCH_EXPAND_MS), shrinkTowards = Alignment.End) +
+                                fadeOut(tween(AppMotionSpec.SEARCH_COLLAPSE_MS)),
+                        )
+                    },
+                    label = "librarySearch",
+                ) { searchExpanded ->
+                if (searchExpanded) {
                     LibrarySearchField(
                         value = search,
                         hint = stringResource(when (section) {
@@ -248,6 +273,7 @@ internal fun LibraryScreenContent(
                             iconSize = 26.dp,
                         )
                     }
+                }
                 }
                 // Счётчик под заголовком; при поиске — «Найдено N альбомов/артистов/…» (D3.2).
                 val countText = when {
@@ -348,10 +374,11 @@ internal fun LibraryScreenContent(
                                 artistPlan = state.artistPlans[group.key],
                                 albumCount = state.groupIndex.albumArtistAlbumCounts[group.key] ?: 0,
                                 onClick = {
-                                    if (section == LibraryPage.ARTISTS) {
-                                        onOpenDetail(LibraryDetail.Artist(group.key))
-                                    } else {
-                                        actions.onGroupSelected(group.key)
+                                    when (section) {
+                                        LibraryPage.ARTISTS -> onOpenDetail(LibraryDetail.Artist(group.key))
+                                        LibraryPage.ALBUM_ARTISTS ->
+                                            onOpenDetail(LibraryDetail.AlbumArtist(group.key))
+                                        else -> actions.onGroupSelected(group.key)
                                     }
                                 },
                             )
