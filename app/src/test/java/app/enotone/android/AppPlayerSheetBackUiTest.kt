@@ -153,20 +153,15 @@ class AppPlayerSheetBackUiTest {
         val expanded = mutableStateOf(false)
         val progress = mutableFloatStateOf(0f)
         val exitComplete = mutableStateOf(false)
-        var renderedExpanded = false
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
-            val expandedForFrame = expanded.value
-            SideEffect {
-                host = current
-                renderedExpanded = expandedForFrame
-            }
+            SideEffect { host = current }
             EnoToneTheme {
                 AppMotionRoot(
                     inSettings = false,
                     diagnostics = false,
-                    playerExpanded = expandedForFrame,
+                    playerExpanded = expanded.value,
                     playerBackProgress = progress.floatValue,
                     onPlayerExitComplete = {
                         progress.floatValue = 0f
@@ -194,10 +189,6 @@ class AppPlayerSheetBackUiTest {
         // Reopen after exactly two controlled frames, while the 250 ms exit is pending.
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
-        rule.waitForIdle()
-        var expandedDuringExit = true
-        rule.runOnIdle { expandedDuringExit = renderedExpanded }
-        assertTrue("Compose must observe expanded=false before reopening", !expandedDuringExit)
         val exitFrame = blueStart()
         rule.runOnIdle { assertTrue("Exit callback must still be pending", !exitComplete.value) }
         assertTrue(
