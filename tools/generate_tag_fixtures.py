@@ -108,11 +108,33 @@ def build_id3v23_ext_header() -> bytes:
     return id3_tag(3, 0x40, body) + mpeg1_layer3_frames(40, seed=5)
 
 
+def unsynchronised_id3_frame(major: int, frame_id: str, data: bytes) -> bytes:
+    """Frame whose declared size counts the stored bytes, not the decoded ones.
+
+    ID3v2.4 structure, 3.3: the frame size is "the size of the data in the
+    final frame, after encryption, compression and unsynchronisation". A writer
+    stuffs 0x00 into the frame data first and then declares the length that is
+    physically on disk; tag-level flag 0x80 does not change that rule.
+    """
+    return id3_frame(major, frame_id, unsynchronise(data))
+
+
 def build_id3v24_unsync() -> bytes:
-    """ID3v2.4, unsynchronisation flag 0x80, body genuinely de-unsynchronisable."""
-    frames = (id3_frame(4, "TIT2", utf16_text("Unsync \u00ff Title")) +
-              id3_frame(4, "TPE1", utf16_text("Unsync Artist")))
-    return id3_tag(4, 0x80, unsynchronise(frames)) + mpeg1_layer3_frames(40, seed=9)
+    """ID3v2.4 (flag 0x80), per-frame unsync, two UTF-16 LE frames with BOM.
+
+    Frame sizes here count the *stored* bytes (the inserted 0x00 included),
+    which is the v2.4 model: unsync is applied to every frame and its size
+    points at the data in the final frame. Both frames start with the BOM
+    FF FE, so each one holds two sequences the writer must escape, and every
+    inserted 0x00 shifts the next frame two bytes away from where a whole-tag
+    de-unsync reader looks for it (defect R-1):
+
+      FF FE (BOM)            stores as FF 00 FE
+      FF 00 (letter U+00FF)  stores as FF 00 00
+    """
+    frames = (unsynchronised_id3_frame(4, "TIT2", utf16_text("Unsync \u00ff Title")) +
+              unsynchronised_id3_frame(4, "TPE1", utf16_text("Ансамбль \u00ff")))
+    return id3_tag(4, 0x80, frames) + mpeg1_layer3_frames(40, seed=9)
 
 
 def build_flac_id3_preamble() -> bytes:
@@ -170,6 +192,34 @@ Current behaviour: CP1251 bytes read as ISO-8859-1 produce the mojibake
 """
 
 
+ID3V24_UNSYNC_NOTE = """id3v24_unsync.mp3
+
+ID3v2.4, tag header flag 0x80 (unsynchronisation), two text frames, both UTF-16
+with BOM FF FE (encoding byte 0x01), little endian:
+
+  TIT2 = "Unsync \u00ff Title"   (14 characters, 31 stored-less bytes of data)
+  TPE1 = "\u0410\u043d\u0441\u0430\u043c\u0431\u043b\u044c \u00ff"      (10 characters)
+
+Per ID3v2.4 structure 3.3 the frame size field is "the size of the data in the
+final frame, after ... unsynchronisation": it counts the 0x00 bytes that the
+writer inserted, so the stored body is larger than the decoded body.
+
+Escaped sequences inside the frames (raw bytes on disk):
+
+  BOM            FF FE  -> FF 00 FE
+  letter U+00FF  FF 00  -> FF 00 00
+
+TIT2 declares 33 (31 decoded + 2 inserted), TPE1 declares 25 (23 decoded + 2
+inserted). Tag body size is 78 on disk, 74 after de-unsynchronisation, so a
+reader that de-unsynchronises the whole tag and then trusts the stored frame
+sizes lands two bytes past TPE1's header and loses the artist.
+
+Correct behaviour: read every frame at its stored offset, de-unsynchronise only
+that frame's data, and return title "Unsync \u00ff Title", artist
+"\u0410\u043d\u0441\u0430\u043c\u0431\u043b\u044c \u00ff".
+"""
+
+
 def generate(root: Path) -> None:
     write(root / "id3v23_ext_header.mp3", build_id3v23_ext_header())
     write(root / "id3v24_unsync.mp3", build_id3v24_unsync())
@@ -181,6 +231,10 @@ def generate(root: Path) -> None:
     note = root / "cp1251_tags.txt"
     note.write_text(CP1251_NOTE, encoding="utf-8", newline="\n")
     print(f"{note.name}: {len(CP1251_NOTE.encode('utf-8'))} bytes of expected values")
+    unsync_note = root / "id3v24_unsync.txt"
+    unsync_note.write_text(ID3V24_UNSYNC_NOTE, encoding="utf-8", newline="\n")
+    print(f"{unsync_note.name}: "
+          f"{len(ID3V24_UNSYNC_NOTE.encode('utf-8'))} bytes of expected values")
     print("Tag fixtures generated; no user music used.")
 
 

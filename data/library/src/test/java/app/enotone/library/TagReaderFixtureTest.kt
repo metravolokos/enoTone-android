@@ -70,12 +70,37 @@ class TagReaderFixtureTest {
         assertEquals("Header Ensemble", read.tags?.artist)
     }
 
-    /** ID3v2.4 with unsynchronisation (0x80); payload decodes after de-unsync. */
+    /**
+     * ID3v2.4 tag header flag 0x80 (unsynchronisation). Per id3.org/id3v2.4.0
+     * structure 3.3 a frame size is "the size of the data in the final frame,
+     * after ... unsynchronisation", so the fixture stores each frame's escaped
+     * bytes on disk and declares that stored length: TIT2 declares 33 bytes for
+     * 31 decoded ones, TPE1 declares 25 for 23.
+     *
+     * Both frames are UTF-16 LE with BOM `FF FE`, so each body contains two
+     * sequences that must be escaped (`FF FE` -> `FF 00 FE`, `FF 00` ->
+     * `FF 00 00`). The second frame therefore starts at a stored offset that a
+     * reader which de-unsynchronises the *whole tag body* and then trusts the
+     * stored frame sizes can no longer reach: its walk lands two bytes into
+     * TPE1's header and the artist is lost with [FastTagCode.INVALID_METADATA].
+     *
+     * That is defect R-1: the size is post-unsync, the walk must be post-unsync,
+     * and each frame has to be de-unsynchronised on its own.
+     */
     @Test fun id3v24UnsynchronisedFramesAreDecodedAfterDeUnsynchronisation() {
         val read = read("id3v24_unsync.mp3")
+        assertEquals(
+            "TIT2 (first frame) must keep its text; actual title=${read.tags?.title}, " +
+                "artist=${read.tags?.artist}, code=${read.code}",
+            "Unsync \u00ff Title", read.tags?.title,
+        )
+        assertEquals(
+            "TPE1 is the second frame and must survive the stored (post-unsync) " +
+                "frame size; actual artist=${read.tags?.artist}, " +
+                "title=${read.tags?.title}, code=${read.code}",
+            "Ансамбль \u00ff", read.tags?.artist,
+        )
         assertEquals(FastTagCode.MP3_ID3V24, read.code)
-        assertEquals("Unsync \u00ff Title", read.tags?.title)
-        assertEquals("Unsync Artist", read.tags?.artist)
     }
 
     /** Taggers prepend an ID3v2 block to FLAC; the fLaC marker then starts later. */
