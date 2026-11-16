@@ -180,7 +180,6 @@ class NowPlayingUiTest {
     }
 
     @Test fun bufferingDescriptionsFollowKnownDurationAndNextTrackState() = withAnimatorDurationScale(0f) {
-        rule.mainClock.autoAdvance = false
         val next = mutableStateOf(NextBufferState.NONE)
         rule.setContent {
             EnoToneTheme {
@@ -216,7 +215,6 @@ class NowPlayingUiTest {
     }
 
     @Test fun loadingDotRemainsStaticWhenSystemAnimationsAreDisabled() = withAnimatorDurationScale(0f) {
-        rule.mainClock.autoAdvance = false
         rule.setContent {
             EnoToneTheme {
                 NowPlayingScreen(
@@ -246,7 +244,6 @@ class NowPlayingUiTest {
     }
 
     @Test fun unknownDurationOmitsBufferedPercentage() {
-        rule.mainClock.autoAdvance = false
         val buffered = mutableFloatStateOf(0.9f)
         rule.setContent {
             EnoToneTheme {
@@ -282,7 +279,6 @@ class NowPlayingUiTest {
     @Test fun readyDotDoesNotInterceptHorizontalSeekOrVerticalClose() {
         var close = 0
         var sought: Float? = null
-        rule.mainClock.autoAdvance = false
         rule.setContent {
             EnoToneTheme {
                 NowPlayingScreen(
