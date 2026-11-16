@@ -6,13 +6,17 @@ import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -158,23 +162,32 @@ class AppPlayerSheetBackUiTest {
             val current = LocalView.current
             SideEffect { host = current }
             EnoToneTheme {
-                AppMotionRoot(
-                    inSettings = false,
-                    diagnostics = false,
-                    playerExpanded = expanded.value,
-                    playerBackProgress = progress.floatValue,
-                    onPlayerExitComplete = {
-                        progress.floatValue = 0f
-                        exitComplete.value = true
-                    },
-                    music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
-                    settings = {},
-                    player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
-                )
+                Box(Modifier.fillMaxSize()) {
+                    AppMotionRoot(
+                        inSettings = false,
+                        diagnostics = false,
+                        playerExpanded = expanded.value,
+                        playerBackProgress = progress.floatValue,
+                        onPlayerExitComplete = {
+                            progress.floatValue = 0f
+                            exitComplete.value = true
+                        },
+                        music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
+                        settings = {},
+                        player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
+                    )
+                    Box(
+                        Modifier.size(1.dp).testTag(
+                            if (expanded.value) "player-expanded-marker" else "player-collapsed-marker",
+                        ),
+                    )
+                }
             }
         }
         val height = requireNotNull(host).height
         rule.runOnIdle { expanded.value = true }
+        rule.waitForIdle()
+        rule.onNodeWithTag("player-expanded-marker").assertExists()
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeBy(50)
         val baseline = blueStartAfterRasterSync()
@@ -187,6 +200,8 @@ class AppPlayerSheetBackUiTest {
             beforeCommit.toFloat() / height in 0.40f..0.60f)
 
         rule.runOnIdle { expanded.value = false }
+        rule.waitForIdle()
+        rule.onNodeWithTag("player-collapsed-marker").assertExists()
         // Reopen after two exit frames, while the 250 ms close transition is still running.
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
@@ -198,6 +213,8 @@ class AppPlayerSheetBackUiTest {
         )
 
         rule.runOnIdle { expanded.value = true }
+        rule.waitForIdle()
+        rule.onNodeWithTag("player-expanded-marker").assertExists()
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
