@@ -56,8 +56,13 @@ class AppMotionFrameUiTest {
                 val b = android.graphics.Color.blue(pixel)
                 val a = android.graphics.Color.alpha(pixel)
                 assertTrue("Each frame must be opaque, x=$x", a >= 250)
-                val old = tinted(leaving, r, g, b)
-                val new = tinted(entering, r, g, b)
+                val baseline = when (setOf(leaving, entering)) {
+                    setOf(Ink.RED, Ink.BLUE) -> g
+                    setOf(Ink.BLUE, Ink.GREEN) -> r
+                    else -> b
+                }
+                val old = channel(leaving, r, g, b) > baseline + 15
+                val new = channel(entering, r, g, b) > baseline + 15
                 assertTrue("No double-tinted route surfaces at x=$x: ${Integer.toHexString(pixel)}",
                     !(old && new))
                 if (new) painted.add(x)
@@ -68,10 +73,10 @@ class AppMotionFrameUiTest {
         }
     }
 
-    private fun tinted(color: Ink, r: Int, g: Int, b: Int): Boolean = when (color) {
-        Ink.RED -> r > g + 15 && r > b + 15
-        Ink.BLUE -> b > r + 15 && b > g + 15
-        Ink.GREEN -> g > r + 15 && g > b + 15
+    private fun channel(color: Ink, r: Int, g: Int, b: Int): Int = when (color) {
+        Ink.RED -> r
+        Ink.BLUE -> b
+        Ink.GREEN -> g
     }
 
     private fun observeTransition(
