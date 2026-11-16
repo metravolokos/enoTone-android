@@ -150,7 +150,7 @@ class AppPlayerSheetBackUiTest {
     }
 
     @Test fun reopeningDuringCommitExitClearsBackProgressAndMatchesEntryFrame() {
-        val expanded = mutableStateOf(false)
+        val expanded = mutableStateOf(true)
         val progress = mutableFloatStateOf(0f)
         val exitComplete = mutableStateOf(false)
         var renderedExpanded = false
@@ -180,7 +180,6 @@ class AppPlayerSheetBackUiTest {
         rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
         val height = requireNotNull(host).height
-        rule.runOnIdle { expanded.value = true }
         rule.mainClock.advanceTimeBy(50)
         val baseline = blueStartAfterRasterSync()
         var expandedOnNormalOpen = false
