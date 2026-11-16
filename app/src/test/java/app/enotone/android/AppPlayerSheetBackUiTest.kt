@@ -95,7 +95,7 @@ class AppPlayerSheetBackUiTest {
     }
 
     @Test fun committedBackReopensSheetFromBottomAfterExit() {
-        val expanded = mutableStateOf(true)
+        val expanded = mutableStateOf(false)
         val progress = mutableFloatStateOf(0f)
         val exitComplete = mutableStateOf(false)
         rule.mainClock.autoAdvance = false
@@ -118,8 +118,11 @@ class AppPlayerSheetBackUiTest {
                 )
             }
         }
-        rule.mainClock.advanceTimeBy(400)
         val height = requireNotNull(host).height
+        rule.runOnIdle { expanded.value = true }
+        rule.mainClock.advanceTimeBy(50)
+        val baseline = blueStartAfterRasterSync()
+        rule.mainClock.advanceTimeBy(400)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
         rule.mainClock.advanceTimeByFrame()
@@ -137,13 +140,12 @@ class AppPlayerSheetBackUiTest {
         val exited = blueStartAfterRasterSync()
         assertTrue("Committed sheet must finish exiting: $exited / $height", exited >= height - 4)
         rule.runOnIdle { assertEquals(0f, progress.floatValue, 0f) }
-        rule.mainClock.advanceTimeByFrame()
         rule.runOnIdle { expanded.value = true }
         rule.mainClock.advanceTimeBy(50)
         val reopened = blueStartAfterRasterSync()
         assertTrue(
-            "Reopened sheet should enter from the bottom without stale Back preview: $reopened / $height",
-            reopened in (height * 0.1f).toInt() until (height * 0.5f).toInt(),
+            "Reopened sheet should match a normal early frame: $baseline → $reopened",
+            reopened in (baseline - 5)..(baseline + 5),
         )
     }
 
