@@ -63,10 +63,16 @@ class AppPlayerSheetBackUiTest {
             half.toFloat() / height in 0.40f..0.60f)
 
         rule.runOnIdle { progress.floatValue = 0f }
+        // Let the zero-progress composition start its asynchronous settle effect, then
+        // verify the sheet still begins at the rendered preview position.
+        rule.mainClock.advanceTimeByFrame()
+        val cancelStart = blueStartAfterRasterSync()
+        assertTrue("Cancel must begin continuously: $half → $cancelStart",
+            cancelStart in (half - 5)..(half + 5))
         rule.mainClock.advanceTimeBy(100)
         val returning = blueStartAfterRasterSync()
-        assertTrue("Cancel must animate towards origin: $half → $returning",
-            returning > rest && returning < half)
+        assertTrue("Cancel must animate towards origin: $cancelStart → $returning",
+            returning > rest && returning < cancelStart)
         rule.mainClock.advanceTimeBy(250)
         val restored = blueStartAfterRasterSync()
         assertTrue("Cancel restores origin: $rest → $restored", restored <= rest + 5)
