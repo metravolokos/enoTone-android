@@ -14,7 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import kotlin.math.roundToInt
@@ -82,16 +82,19 @@ internal fun AppMotionRoot(
                     (height * (1f - playerBackProgress.coerceIn(0f, 1f))).roundToInt()
                 },
             ),
-            // Сдвигаем весь контейнер AnimatedVisibility, а не вложенную площадку.
-            // Так системный preview и встроенный exit имеют одну поверхность и координаты:
-            // не появляется вложенный RenderNode, обрезающий/теряющий preview при draw.
-            modifier = Modifier.fillMaxSize().graphicsLayer {
-                val back = if (playerBackProgress > 0f) {
-                    playerBackProgress
-                } else {
-                    previewSettle.value
+            // Системный preview сдвигает размещение всей шторки, а не только её RenderNode:
+            // это видимо и в реальных кадрах, и для координат ввода/доступности.
+            // Animatable читается в placement, поэтому cancel не рекомпозирует плеер по кадрам.
+            modifier = Modifier.fillMaxSize().layout { measurable, constraints ->
+                val sheet = measurable.measure(constraints)
+                layout(sheet.width, sheet.height) {
+                    val back = if (playerBackProgress > 0f) {
+                        playerBackProgress
+                    } else {
+                        previewSettle.value
+                    }
+                    sheet.placeRelative(0, (sheet.height * back).roundToInt())
                 }
-                translationY = size.height * back
             },
         ) {
             Box(
