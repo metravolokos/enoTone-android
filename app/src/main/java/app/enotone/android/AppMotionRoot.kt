@@ -42,9 +42,9 @@ internal fun AppMotionRoot(
 ) {
     val previewSettle = remember { Animatable(0f) }
     val latestBackProgress = remember { mutableFloatStateOf(0f) }
-    val playerVisibility = remember { MutableTransitionState(false) }
+    val playerVisibility = remember { mutableStateOf(MutableTransitionState(false)) }
     val playerWasExpanded = remember { mutableStateOf(false) }
-    SideEffect { playerVisibility.targetState = playerExpanded }
+    SideEffect { playerVisibility.value.targetState = playerExpanded }
     LaunchedEffect(playerBackProgress, playerExpanded) {
         if (playerBackProgress > 0f) {
             // While expanded, graphicsLayer renders progress directly. Do not race the
@@ -69,14 +69,19 @@ internal fun AppMotionRoot(
     LaunchedEffect(playerExpanded) {
         if (playerExpanded) {
             if (playerWasExpanded.value) {
-                // Clear the controller first, before suspending on the local preview reset.
+                // Finish Back before suspension, then restart the sheet's enter transition.
                 latestBackProgress.floatValue = 0f
                 onPlayerExitComplete()
                 previewSettle.snapTo(0f)
+                playerVisibility.value = MutableTransitionState(false).apply {
+                    targetState = true
+                }
             }
             playerWasExpanded.value = true
         } else if (playerWasExpanded.value) {
-            snapshotFlow { playerVisibility.isIdle && !playerVisibility.currentState }
+            snapshotFlow {
+                playerVisibility.value.isIdle && !playerVisibility.value.currentState
+            }
                 .first { it }
             previewSettle.snapTo(0f)
             latestBackProgress.floatValue = 0f
@@ -118,7 +123,7 @@ internal fun AppMotionRoot(
             }
         }
         AnimatedVisibility(
-            visibleState = playerVisibility,
+            visibleState = playerVisibility.value,
             enter = slideInVertically(
                 tween(AppMotionSpec.PLAYER_OPEN_MS, easing = AppMotionSpec.emphasizedDecelerate),
                 initialOffsetY = { it },
