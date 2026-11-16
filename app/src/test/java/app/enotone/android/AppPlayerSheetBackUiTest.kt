@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -58,20 +57,11 @@ class AppPlayerSheetBackUiTest {
         assertTrue("Sheet must cover music at rest: $rest", rest <= 4)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
+        // CI #904: первый кадр применяет состояние, следующий уже рисует границу на 0,5H.
+        rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
         val half = blueStart()
-        // Временная диагностика: первоначальное утверждение сохраняем без ослабления.
-        // Измеряем реальные кадры и семантическую геометрию, чтобы найти источник нулевого offset.
-        val firstBounds = rule.onAllNodesWithTag("app-player-sheet", useUnmergedTree = true)
-            .fetchSemanticsNodes().singleOrNull()?.boundsInRoot?.top
-        val followingFrames = (1..6).map {
-            rule.mainClock.advanceTimeByFrame()
-            blueStart()
-        }
-        val lastBounds = rule.onAllNodesWithTag("app-player-sheet", useUnmergedTree = true)
-            .fetchSemanticsNodes().singleOrNull()?.boundsInRoot?.top
-        assertTrue("Preview must reveal music at about half height: $half / $height; " +
-            "frames=$followingFrames, bounds=$firstBounds→$lastBounds, state=${progress.floatValue}",
+        assertTrue("Preview must reveal music at about half height: $half / $height",
             half.toFloat() / height in 0.40f..0.60f)
 
         rule.runOnIdle { progress.floatValue = 0f }
@@ -84,6 +74,8 @@ class AppPlayerSheetBackUiTest {
         assertTrue("Cancel restores origin: $rest → $restored", restored <= rest + 5)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
+        // CI #904: первый кадр применяет состояние, следующий уже рисует границу на 0,5H.
+        rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
         val beforeCommit = blueStart()
         rule.runOnIdle { expanded.value = false }
