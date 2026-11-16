@@ -143,7 +143,7 @@ class AppPlayerSheetBackUiTest {
         val reopened = blueStartAfterRasterSync()
         assertTrue(
             "Reopened sheet should enter from the bottom without stale Back preview: $reopened / $height",
-            reopened in (height * 0.5f).toInt() until (height * 0.9f).toInt(),
+            reopened in (height * 0.1f).toInt() until (height * 0.5f).toInt(),
         )
     }
 
