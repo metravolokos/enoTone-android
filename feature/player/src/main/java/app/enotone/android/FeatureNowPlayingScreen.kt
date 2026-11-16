@@ -413,12 +413,8 @@ fun FeatureNowPlayingScreen(
                                             )
                                         }
                                     }
-                                    .background(
-                                        dotColor.copy(
-                                            alpha = dotColor.alpha * (if (ready) 1f else pulseAlpha),
-                                        ),
-                                        CircleShape,
-                                    )
+                                    .background(dotColor, CircleShape)
+                                    .graphicsLayer { alpha = if (ready) 1f else pulseAlpha }
                                     .semantics { contentDescription = dotDescription },
                             )
                         }
