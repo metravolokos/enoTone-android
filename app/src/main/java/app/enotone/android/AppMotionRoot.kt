@@ -68,12 +68,6 @@ internal fun AppMotionRoot(
     }
     LaunchedEffect(playerExpanded) {
         if (playerExpanded) {
-            if (playerWasExpanded.value) {
-                // Finish the interrupted Back transition and clear its local preview.
-                latestBackProgress.floatValue = 0f
-                onPlayerExitComplete()
-                previewSettle.snapTo(0f)
-            }
             playerWasExpanded.value = true
         } else if (playerWasExpanded.value) {
             snapshotFlow {
