@@ -24,7 +24,7 @@ TalkBack и системный reduced motion остаются.
 и Bitmap View по кадрам, `AppDockOpaqueUiTest`,
 `AppPlayerSheetBackUiTest` и `AppNowPlayingGestureUiTest`.
 Roborazzi-эталоны не перезаписывались, D5-B (#167) не переносился.
-Финальный CI, ревью и аппаратная оценка плавности Huawei ожидают.
+CI #915 прошёл на кодовом HEAD `b6f3679`; независимое ревью и аппаратная оценка плавности Huawei ожидают.
 
 
 
