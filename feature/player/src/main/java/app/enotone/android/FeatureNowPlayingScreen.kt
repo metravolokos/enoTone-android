@@ -4,7 +4,7 @@
 package app.enotone.android
 
 import android.graphics.Bitmap
-import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -39,11 +39,11 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,13 +67,13 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import app.enotone.android.core.ui.component.EnoIcons
-import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
 import app.enotone.android.core.ui.component.enoShadow
-import app.enotone.android.core.ui.component.enoSharedArtwork
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
 import app.enotone.android.core.ui.theme.EnoRadii
 import app.enotone.playback.PlaybackSeekPolicy
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /**
  * Material 3 Expressive / Graphite player. No artwork-sourced colors, fake
@@ -141,75 +141,55 @@ fun FeatureNowPlayingScreen(
         animationSpec = tween(260), label = "pausedGraphiteCover",
     )
 
-    // В обычном предпросмотре экран статичен; в переходе D3.4 контент (кроме обложки)
-    // поднимается на 16 dp и проявляется с задержкой 100 мс.
-    val animatedEntrance = LocalEnoArtworkVisibility.current != null
-    var contentEntered by remember { mutableStateOf(false) }
-    LaunchedEffect(animatedEntrance) { contentEntered = true }
-    val contentEntry by animateFloatAsState(
-        targetValue = if (!animatedEntrance || contentEntered) 1f else 0f,
-        animationSpec = tween(ENTRY_DURATION_MS, delayMillis = ENTRY_DELAY_MS, easing = entryEasing),
-        label = "playerContentEntrance",
-    )
-    val contentEntryModifier = Modifier.graphicsLayer {
-        alpha = contentEntry
-        translationY = ENTRY_LIFT_DP.toPx() * (1f - contentEntry)
-    }
-    var dragPx by remember { mutableFloatStateOf(0f) }
-    var returning by remember { mutableStateOf(false) }
+    // Жест обновляет только graphicsLayer, без рекомпозиции дерева плеера на каждом пикселе.
+    val dragOffset = remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
+    val settleJob = remember { mutableStateOf<Job?>(null) }
     var playerHeightPx by remember { mutableFloatStateOf(1f) }
-    val shownDragPx by animateFloatAsState(
-        targetValue = if (returning) 0f else dragPx,
-        animationSpec = if (returning) tween(RETURN_DURATION_MS) else snap(),
-        label = "nowPlayingDrag",
-    )
-    LaunchedEffect(shownDragPx, playerHeightPx) {
-        onDragProgress((shownDragPx / playerHeightPx).coerceIn(0f, 1f))
-    }
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
             .graphicsLayer {
-                translationY = shownDragPx
-                scaleX = 1f - predictiveBackProgress * BACK_SCALE_REDUCTION
-                scaleY = 1f - predictiveBackProgress * BACK_SCALE_REDUCTION
-                translationX = size.width * BACK_TRANSLATION_RATIO * predictiveBackProgress
-                if (predictiveBackProgress > 0f) {
-                    shape = RoundedCornerShape(BACK_RADIUS_DP.dp * predictiveBackProgress)
-                    clip = true
-                }
+                translationY = dragOffset.floatValue +
+                    size.height * predictiveBackProgress.coerceIn(0f, 1f)
             }
             .background(Brush.verticalGradient(listOf(color.surfaceContainerHigh, color.background)))
             .onSizeChanged { playerHeightPx = it.height.toFloat().coerceAtLeast(1f) }
-            // D3.4: следует за пальцем; отменённый свайп возвращается к 0.
-            // Slider поглощает собственный горизонтальный жест, не закрывая экран.
+            // Slider сохраняет горизонтальное управление seek, корневой жест — вертикальный.
             .pointerInput(onClose, playerHeightPx) {
                 var velocity = VelocityTracker()
+                fun settle() {
+                    settleJob.value?.cancel()
+                    settleJob.value = scope.launch {
+                        Animatable(dragOffset.floatValue).animateTo(
+                            0f, animationSpec = tween(RETURN_DURATION_MS),
+                        ) { dragOffset.floatValue = value }
+                        onDragProgress(0f)
+                    }
+                }
                 detectVerticalDragGestures(
                     onDragStart = {
-                        dragPx = 0f
-                        returning = false
+                        settleJob.value?.cancel()
+                        dragOffset.floatValue = 0f
                         velocity = VelocityTracker()
                     },
                     onVerticalDrag = { change, distance ->
-                        dragPx = (dragPx + distance).coerceAtLeast(0f)
+                        dragOffset.floatValue = (dragOffset.floatValue + distance).coerceAtLeast(0f)
                         velocity.addPosition(change.uptimeMillis, change.position)
                         change.consume()
                     },
                     onDragEnd = {
-                        if (dragPx >= playerHeightPx * COLLAPSE_THRESHOLD_FRACTION ||
+                        if (dragOffset.floatValue >= playerHeightPx * COLLAPSE_THRESHOLD_FRACTION ||
                             velocity.calculateVelocity().y > FAST_SWIPE_PX_PER_SECOND) {
                             onClose()
                         } else {
-                            returning = true
+                            settle()
                         }
                     },
-                    onDragCancel = { returning = true },
+                    onDragCancel = { settle() },
                 )
             },
     ) {
         val coverSide = minOf(maxWidth - 56.dp, maxHeight * 0.38f, 320.dp)
-        val dragArtworkScale = 1f -
-            (shownDragPx / playerHeightPx).coerceIn(0f, 1f) * (1f - MINI_ARTWORK_SIDE.value / coverSide.value)
         Column(
             modifier = Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars)
@@ -217,7 +197,7 @@ fun FeatureNowPlayingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().height(52.dp).then(contentEntryModifier),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 // D3.2 (владелец): ручки нет — экран закрывается только жестом вниз и системным «Назад».
@@ -236,10 +216,10 @@ fun FeatureNowPlayingScreen(
                 // D3.2 (владелец): тень крупнее и плотнее, тонкая обводка — белая в «Графите»,
                 // чёрная в «Фарфоре» (палитра v1.5). Тень рисуется под обложкой и не обрезается.
                 Box(
-                    modifier = Modifier.enoSharedArtwork().size(coverSide)
+                    modifier = Modifier.size(coverSide)
                         .graphicsLayer {
-                            scaleX = coverScale * dragArtworkScale
-                            scaleY = coverScale * dragArtworkScale
+                            scaleX = coverScale
+                            scaleY = coverScale
                         }
                         .enoShadow(EnoElevation.nowPlaying, EnoColors.shadowStrong, EnoRadii.l)
                         .clip(RoundedCornerShape(EnoRadii.l))
@@ -264,7 +244,7 @@ fun FeatureNowPlayingScreen(
             }
             Spacer(Modifier.weight(.32f))
             Column(
-                modifier = Modifier.fillMaxWidth().then(contentEntryModifier),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(title,
@@ -324,12 +304,12 @@ fun FeatureNowPlayingScreen(
                         modifier = Modifier.height(TRACK_HEIGHT),
                     )
                 },
-                modifier = Modifier.fillMaxWidth().then(contentEntryModifier).semantics {
+                modifier = Modifier.fillMaxWidth().semantics {
                     contentDescription = seekLabel
                 },
             )
             Row(
-                modifier = Modifier.fillMaxWidth().then(contentEntryModifier),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(PlaybackSeekPolicy.formatTime(shownPosition),
@@ -345,7 +325,7 @@ fun FeatureNowPlayingScreen(
             }
             Spacer(Modifier.weight(.22f))
             Row(
-                modifier = Modifier.fillMaxWidth().then(contentEntryModifier),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -385,7 +365,7 @@ fun FeatureNowPlayingScreen(
             Spacer(Modifier.weight(.2f))
             // A compact real action row; no inert placeholders.
             Row(
-                modifier = Modifier.fillMaxWidth().then(contentEntryModifier),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -454,15 +434,6 @@ private fun NowPlayingToggle(
 private val THUMB_SIZE = 14.dp
 private val TRACK_HEIGHT = 4.dp
 
-private const val ENTRY_DURATION_MS = 250
-private const val ENTRY_DELAY_MS = 100
-private val ENTRY_LIFT_DP = 16.dp
-private val MINI_ARTWORK_SIDE = 44.dp
-private val entryEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
-
 private const val RETURN_DURATION_MS = 250
-private const val BACK_SCALE_REDUCTION = 0.1f
-private const val BACK_TRANSLATION_RATIO = 0.12f
-private const val BACK_RADIUS_DP = 28
 private const val COLLAPSE_THRESHOLD_FRACTION = 0.25f
 private const val FAST_SWIPE_PX_PER_SECOND = 1_200f

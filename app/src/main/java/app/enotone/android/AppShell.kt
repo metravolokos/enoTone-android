@@ -33,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.enotone.android.core.ui.component.EnoBottomBar
 import app.enotone.android.core.ui.component.EnoBottomBarItem
 import app.enotone.android.core.ui.component.EnoIcons
-import app.enotone.android.core.ui.component.LocalEnoArtworkVisibility
 import app.enotone.android.core.ui.component.LocalEnoDockBlur
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
@@ -143,18 +142,14 @@ internal fun AppMusicShell(
                 AppDockMotion(
                     playerExpanded = playerExpanded,
                     miniVisible = miniVisible,
-                    dragProgress = playerDragProgress,
-                    backProgress = playerBackProgress,
                     miniPlayer = {
-                        CompositionLocalProvider(LocalEnoArtworkVisibility provides this) {
-                            EnoToneMiniPlayer(
-                                player = player,
-                                selecting = selecting,
-                                onOpen = { playerModel.onNowPlaying(true) },
-                                onPlayPause = playerModel::onPlayPause,
-                                onNext = playerModel::onNext,
-                            )
-                        }
+                        EnoToneMiniPlayer(
+                            player = player,
+                            selecting = selecting,
+                            onOpen = { playerModel.onNowPlaying(true) },
+                            onPlayPause = playerModel::onPlayPause,
+                            onNext = playerModel::onNext,
+                        )
                     },
                     bottomBar = {
                         AppBottomBar(

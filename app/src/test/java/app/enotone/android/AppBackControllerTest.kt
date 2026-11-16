@@ -23,8 +23,6 @@ class AppBackControllerTest {
 
         controller.preview(target, current, 0.5f)
         assertEquals(0f, controller.musicProgress(expanded), 0f)
-        val layerScale = 1f - controller.musicProgress(expanded) * AppMotionSpec.BACK_SCALE_REDUCTION
-        assertEquals(1f, layerScale, 0f)
         controller.commit(target, current, closePlayer = { expanded = false },
             updateNav = { current = it }, closeSearch = { searchClosed++ })
         assertFalse(expanded)

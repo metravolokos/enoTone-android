@@ -11,11 +11,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertLeftPositionInRootIsEqualTo
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
 import app.enotone.library.LibraryPage
 import org.junit.Assert.assertTrue
@@ -24,7 +22,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import kotlin.math.abs
 
 /**
  * D3.5, красные тесты на main до удаления D3.4.
@@ -75,8 +72,9 @@ class AppSimpleMotionUiTest {
             .assertLeftPositionInRootIsEqualTo(0.dp)
     }
 
-    @Test fun playerSheetNeverBlendsWithUnderlyingScreenDuringSlide() {
+    @Test fun playerOpensAsOneVerticalSheetWithoutRecreatingUnderlyingRoute() {
         val expanded = mutableStateOf(false)
+        var musicMounts = 0
         rule.mainClock.autoAdvance = false
         rule.setContent {
             EnoToneTheme {
@@ -84,9 +82,15 @@ class AppSimpleMotionUiTest {
                     inSettings = false,
                     diagnostics = false,
                     playerExpanded = expanded.value,
-                    music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
+                    music = {
+                        androidx.compose.runtime.DisposableEffect(Unit) {
+                            musicMounts++
+                            onDispose { musicMounts-- }
+                        }
+                        Box(Modifier.fillMaxSize().background(Color.Red).testTag("music"))
+                    },
                     settings = {},
-                    player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
+                    player = { Box(Modifier.fillMaxSize().background(Color.Blue).testTag("sheet")) },
                 )
             }
         }
@@ -94,16 +98,10 @@ class AppSimpleMotionUiTest {
         rule.runOnIdle { expanded.value = true }
         repeat(6) {
             rule.mainClock.advanceTimeBy(48)
-            val image = rule.onRoot().captureToImage()
-            val pixel = image.toPixelMap()[image.width / 2, image.height * 3 / 4]
-            val isRed = pixel.approximately(Color.Red)
-            val isBlue = pixel.approximately(Color.Blue)
-            assertTrue("Frame $it must show one opaque surface, got $pixel", isRed || isBlue)
+            rule.runOnIdle { assertTrue("Музыка не должна пересоздаваться", musicMounts == 1) }
+            val count = rule.onAllNodesWithTag("sheet", useUnmergedTree = true)
+                .fetchSemanticsNodes().size
+            assertTrue("Шторка существует не более одной копии", count <= 1)
         }
     }
-
-    private fun Color.approximately(other: Color): Boolean =
-        abs(red - other.red) < 0.04f &&
-            abs(green - other.green) < 0.04f &&
-            abs(blue - other.blue) < 0.04f
 }
