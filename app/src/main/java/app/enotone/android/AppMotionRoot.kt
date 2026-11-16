@@ -65,10 +65,10 @@ internal fun AppMotionRoot(
     LaunchedEffect(playerExpanded) {
         if (playerExpanded) {
             if (playerWasExpanded.value) {
-                // Reopening during exit cancels the wait below; finish the committed Back first.
-                previewSettle.snapTo(0f)
+                // Clear the controller value first so the progress effect cannot reapply it.
                 latestBackProgress.floatValue = 0f
                 onPlayerExitComplete()
+                previewSettle.snapTo(0f)
             }
             playerWasExpanded.value = true
         } else if (playerWasExpanded.value) {
