@@ -36,6 +36,7 @@ class AppPlayerSheetBackUiTest {
     @Test fun previewCancelAndCommitKeepContinuousSheetOffset() {
         val expanded = mutableStateOf(true)
         val progress = mutableFloatStateOf(0f)
+        val exitComplete = mutableStateOf(false)
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
@@ -46,7 +47,10 @@ class AppPlayerSheetBackUiTest {
                     diagnostics = false,
                     playerExpanded = expanded.value,
                     playerBackProgress = progress.floatValue,
-                    onPlayerExitComplete = { progress.floatValue = 0f },
+                    onPlayerExitComplete = {
+                        progress.floatValue = 0f
+                        exitComplete.value = true
+                    },
                     music = { Box(Modifier.fillMaxSize().background(Color.Red)) },
                     settings = {},
                     player = { Box(Modifier.fillMaxSize().background(Color.Blue)) },
@@ -122,11 +126,14 @@ class AppPlayerSheetBackUiTest {
         blueStartAfterRasterSync()
 
         rule.runOnIdle { expanded.value = false }
-        rule.mainClock.advanceTimeByFrame()
-        blueStartAfterRasterSync()
-        rule.mainClock.advanceTimeBy(110)
-        blueStartAfterRasterSync()
-        rule.mainClock.advanceTimeBy(240)
+        var exitFinished = false
+        repeat(24) {
+            if (!exitFinished) {
+                rule.mainClock.advanceTimeByFrame()
+                rule.runOnIdle { exitFinished = exitComplete.value }
+            }
+        }
+        assertTrue("Committed sheet exit callback must run", exitFinished)
         val exited = blueStartAfterRasterSync()
         assertTrue("Committed sheet must finish exiting: $exited / $height", exited >= height - 4)
         rule.runOnIdle { assertEquals(0f, progress.floatValue, 0f) }
