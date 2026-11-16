@@ -120,7 +120,7 @@ class AppPlayerSheetBackUiTest {
         }
         val height = requireNotNull(host).height
         rule.runOnIdle { expanded.value = true }
-        rule.mainClock.advanceTimeBy(50)
+        rule.mainClock.advanceTimeByFrame()
         val baseline = blueStartAfterRasterSync()
         rule.mainClock.advanceTimeBy(400)
 
@@ -141,9 +141,9 @@ class AppPlayerSheetBackUiTest {
         assertTrue("Committed sheet must finish exiting: $exited / $height", exited >= height - 4)
         rule.runOnIdle { assertEquals(0f, progress.floatValue, 0f) }
         rule.runOnIdle { expanded.value = true }
-        // The interrupted-exit effect creates a fresh visibility state on its first frame.
+        // The first frame resets visibility; the next starts enter. Compare one frame into each enter.
         rule.mainClock.advanceTimeByFrame()
-        rule.mainClock.advanceTimeBy(50)
+        rule.mainClock.advanceTimeByFrame()
         val reopened = blueStartAfterRasterSync()
         assertTrue(
             "Reopened sheet should match a normal early frame: $baseline → $reopened",
