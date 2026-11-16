@@ -57,41 +57,44 @@ class AppPlayerSheetBackUiTest {
         assertTrue("Sheet must cover music at rest: $rest", rest <= 4)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
-        // CI #904: Robolectric обновляет raster View только после первой отрисовки
-        // нового состояния; один кадр нужен на sync, следующий — на проверку пикселей.
         rule.mainClock.advanceTimeByFrame()
-        blueStart() // синхронизация слоя без проверки его геометрии
-        rule.mainClock.advanceTimeByFrame()
-        val half = blueStart()
+        val half = blueStartAfterRasterSync()
         assertTrue("Preview must reveal music at about half height: $half / $height",
             half.toFloat() / height in 0.40f..0.60f)
 
         rule.runOnIdle { progress.floatValue = 0f }
         rule.mainClock.advanceTimeBy(100)
-        val returning = blueStart()
+        val returning = blueStartAfterRasterSync()
         assertTrue("Cancel must animate towards origin: $half → $returning",
             returning > rest && returning < half)
         rule.mainClock.advanceTimeBy(250)
-        val restored = blueStart()
+        val restored = blueStartAfterRasterSync()
         assertTrue("Cancel restores origin: $rest → $restored", restored <= rest + 5)
 
         rule.runOnIdle { progress.floatValue = 0.5f }
-        // CI #904: Robolectric обновляет raster View только после первой отрисовки
-        // нового состояния; один кадр нужен на sync, следующий — на проверку пикселей.
         rule.mainClock.advanceTimeByFrame()
-        blueStart() // синхронизация слоя без проверки его геометрии
-        rule.mainClock.advanceTimeByFrame()
-        val beforeCommit = blueStart()
+        val beforeCommit = blueStartAfterRasterSync()
         rule.runOnIdle { expanded.value = false }
         rule.mainClock.advanceTimeByFrame()
-        val firstExit = blueStart()
+        val firstExit = blueStartAfterRasterSync()
         assertTrue("Commit must not jump: $beforeCommit → $firstExit",
             firstExit >= beforeCommit - 5 && firstExit < beforeCommit + height * 0.1f)
         rule.mainClock.advanceTimeBy(110)
-        val laterExit = blueStart()
+        val laterExit = blueStartAfterRasterSync()
         assertTrue("Exit must keep moving down: $firstExit → $laterExit", laterExit > firstExit)
         rule.mainClock.advanceTimeBy(240)
         assertTrue("Sheet must disappear after exit", blueStart() >= height - 4)
+    }
+
+    /**
+     * Robolectric native raster может отстать на один кадр от layout после смены состояния
+     * (CI #904: сначала 0, на следующем кадре 426/852). Считываем следующий
+     * фактически нарисованный кадр, не подменяя результат позицией semantics.
+     */
+    private fun blueStartAfterRasterSync(): Int {
+        blueStart() // заставляем Compose/View отрисовать текущее состояние
+        rule.mainClock.advanceTimeByFrame()
+        return blueStart()
     }
 
     /** Обход по одному столбцу Bitmap без golden-файлов, только реально нарисованные кадры. */
