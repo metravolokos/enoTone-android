@@ -64,8 +64,8 @@ internal fun AppMotionRoot(
     }
     LaunchedEffect(playerExpanded) {
         if (playerExpanded) {
-            if (playerWasExpanded.value) {
-                // Clear the controller value first so the progress effect cannot reapply it.
+            if (playerWasExpanded.value || playerBackProgress > 0f) {
+                // Clear controller progress first so its effect cannot reapply the committed preview.
                 latestBackProgress.floatValue = 0f
                 onPlayerExitComplete()
                 previewSettle.snapTo(0f)
