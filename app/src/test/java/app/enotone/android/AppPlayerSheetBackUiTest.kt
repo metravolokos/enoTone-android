@@ -191,13 +191,13 @@ class AppPlayerSheetBackUiTest {
             beforeCommit.toFloat() / height in 0.40f..0.60f)
 
         rule.runOnIdle { expanded.value = false }
-        // The first frame applies expanded=false; reopen after the second exit frame.
+        // Reopen after exactly two controlled frames, while the 250 ms exit is pending.
+        rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
         rule.waitForIdle()
         var expandedDuringExit = true
         rule.runOnIdle { expandedDuringExit = renderedExpanded }
         assertTrue("Compose must observe expanded=false before reopening", !expandedDuringExit)
-        rule.mainClock.advanceTimeByFrame()
         val exitFrame = blueStart()
         rule.runOnIdle { assertTrue("Exit callback must still be pending", !exitComplete.value) }
         assertTrue(
