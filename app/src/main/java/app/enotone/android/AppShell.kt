@@ -1,11 +1,5 @@
 package app.enotone.android
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,8 +13,6 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -31,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -56,7 +47,6 @@ internal fun AppMusicShell(
     player: SharedPlayerUiState,
     playerModel: PlayerViewModel,
     libraryModel: LibraryViewModel?,
-    queueSnackbar: SnackbarHostState,
     libraryStateHolder: SaveableStateHolder,
     onSelectTab: (AppTab) -> Unit,
     onOpenDetail: (LibraryDetail) -> Unit,
@@ -68,7 +58,6 @@ internal fun AppMusicShell(
     val snapshots = androidx.compose.runtime.remember(libraryModel) { AppLibraryRouteSnapshots() }
     val selecting = library?.selecting == true
     val miniVisible = player.playback.queueTotal > 0
-    val snackbarLift = with(LocalDensity.current) { 16.dp.roundToPx() }
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     // Последняя строка списка поднимается над панелью и мини-плеером (вариант B).
     val contentPadding = PaddingValues(bottom = dockHeight(miniVisible) + navBar)
@@ -121,18 +110,6 @@ internal fun AppMusicShell(
                     .padding(start = DOCK_SIDE, end = DOCK_SIDE, bottom = DOCK_SIDE),
                 verticalArrangement = Arrangement.spacedBy(DOCK_GAP),
             ) {
-                // D3.4: Snackbar поднимается на 16 dp и проявляется за 200 мс.
-                AnimatedVisibility(
-                    visible = !(player.nowPlaying && player.playback.queueTotal > 0) &&
-                        queueSnackbar.currentSnackbarData != null,
-                    enter = fadeIn(tween(AppMotionSpec.SNACKBAR_MS)) +
-                        slideInVertically(tween(AppMotionSpec.SNACKBAR_MS), initialOffsetY = { snackbarLift }),
-                    exit = fadeOut(tween(AppMotionSpec.SNACKBAR_MS)) +
-                        slideOutVertically(tween(AppMotionSpec.SNACKBAR_MS), targetOffsetY = { snackbarLift }),
-                ) {
-                    SnackbarHost(queueSnackbar)
-                }
-
                 AppDockMotion(
                     miniVisible = miniVisible,
                     miniPlayer = {
@@ -187,6 +164,10 @@ private fun AppBottomBar(
 /** Высота закреплённой части снизу: панель 70, мини-плеер 64 + зазор, отступ снизу и воздух. */
 private fun dockHeight(miniVisible: Boolean): Dp =
     BAR_HEIGHT + DOCK_SIDE + CONTENT_AIR + if (miniVisible) MINI_HEIGHT + DOCK_GAP else 0.dp
+
+/** Places the single root SnackbarHost just above the same dock column used by AppMusicShell. */
+internal fun snackbarBottomOffset(miniVisible: Boolean): Dp =
+    DOCK_SIDE + BAR_HEIGHT + DOCK_GAP + if (miniVisible) MINI_HEIGHT + DOCK_GAP else 0.dp
 
 /** Isolate encoding of nested detail keys from the AppMusicShell Compose state machine. */
 private fun librarySaveKey(tab: AppTab.Library, details: List<LibraryDetail>): String =

@@ -128,11 +128,13 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         playerBackProgress = backController.playerProgress(),
         onPlayerExitComplete = backController::finishTransition,
         queueSnackbar = queueSnackbar,
+        queueSnackbarBottomPadding = snackbarBottomOffset(
+            miniVisible = !inSettings && player.playback.queueTotal > 0,
+        ),
         music = {
             AppMusicShell(
                 nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
                 libraryModel = libraryModel,
-                queueSnackbar = queueSnackbar,
                 libraryStateHolder = libraryStateHolder,
                 onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
                 onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },

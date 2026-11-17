@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -25,8 +27,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
@@ -43,11 +47,13 @@ internal fun AppMotionRoot(
     playerBackProgress: Float = 0f,
     onPlayerExitComplete: () -> Unit = {},
     queueSnackbar: SnackbarHostState? = null,
+    queueSnackbarBottomPadding: Dp = 16.dp,
     music: @Composable () -> Unit,
     settings: @Composable (Boolean) -> Unit,
     player: @Composable () -> Unit,
 ) {
     val previewSettle = remember { Animatable(0f) }
+    val snackbarLift = with(LocalDensity.current) { 16.dp.roundToPx() }
     val latestBackProgress = remember { mutableFloatStateOf(0f) }
     val playerVisibility = remember { mutableStateOf(MutableTransitionState(false)) }
     val playerWasExpanded = remember { mutableStateOf(false) }
@@ -158,15 +164,25 @@ internal fun AppMotionRoot(
                 player()
             }
         }
-        if (playerExpanded && queueSnackbar != null) {
+        if (queueSnackbar != null) {
             Box(
                 Modifier.fillMaxSize().navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        bottom = if (playerExpanded) 16.dp else queueSnackbarBottomPadding,
+                    ),
             ) {
-                SnackbarHost(
-                    hostState = queueSnackbar,
+                AnimatedVisibility(
+                    visible = queueSnackbar.currentSnackbarData != null,
+                    enter = fadeIn(tween(AppMotionSpec.SNACKBAR_MS)) +
+                        slideInVertically(tween(AppMotionSpec.SNACKBAR_MS), initialOffsetY = { snackbarLift }),
+                    exit = fadeOut(tween(AppMotionSpec.SNACKBAR_MS)) +
+                        slideOutVertically(tween(AppMotionSpec.SNACKBAR_MS), targetOffsetY = { snackbarLift }),
                     modifier = Modifier.align(Alignment.BottomCenter),
-                )
+                ) {
+                    SnackbarHost(hostState = queueSnackbar)
+                }
             }
         }
     }
