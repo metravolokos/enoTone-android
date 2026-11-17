@@ -16,12 +16,15 @@
 
 Теперь каждый PR выполняет шаг `Release build (minified, unsigned)` и падает, если APK отсутствует, если задача `:app:minifyReleaseWithR8` не выполнялась или если R8 сообщил `Missing class`. Результат публикуется артефактом `enotone-release-unsigned-apk`.
 
-| Дата | Что собрано | `app-release-unsigned.apk` | Отчёты R8 | Статус |
-|---|---|---|---|---|
-| 2026-11-17 | локально, HEAD ветки `ci/r-a1-release-build` = `44fc10ce` | **4 915 809 байт** | `mapping.txt`, `seeds.txt`, `usage.txt`, `configuration.txt` | `BUILD SUCCESSFUL` за 2 м 32 с, `Missing class` не встречается |
-| 2026-11-17 | CI [run 44183251686](https://github.com/metravolokos/enoTone-android/actions/runs/44183251686), merge-ref `0237cdfd` (родители `2a425b28` + `44fc10ce`) | **4 915 813 байт** | те же четыре файла в артефакте | job `android` — success за 10 м 45 с; шаги `Release build` и `Upload unsigned release APK` — `✓` |
+| Дата | Что собрано | Вшитая ревизия | `app-release-unsigned.apk` | Отчёты R8 | Статус |
+|---|---|---|---|---|---|
+| 2026-11-17 | локально на ветке `ci/r-a1-release-build`, до коммита (`2a425b28`) | `2a425b28…` | **4 915 809 байт** | `mapping.txt`, `seeds.txt`, `usage.txt`, `configuration.txt` | `BUILD SUCCESSFUL` за 2 м 32 с, `Missing class` не встречается |
+| 2026-11-17 | CI [run 44183251686](https://github.com/metravolokos/enoTone-android/actions/runs/44183251686), merge-ref `0237cdfd` (родители `2a425b28` + `44fc10ce`) | `0237cdfd…` | **4 915 813 байт** | те же четыре файла в артефакте | job `android` — success за 10 м 45 с |
+| 2026-11-17 | CI [run 44185473883](https://github.com/metravolokos/enoTone-android/actions/runs/44185473883), merge-ref `fe09279a` (родители `2a425b28` + `84224969`) | `fe09279a…` | **4 915 813 байт** | те же четыре файла в артефакте | job `android` — success за 14 м 10 с |
 
-Размеры отличаются на 4 байта, и это ожидаемо, а не расхождение сборок: `AndroidManifest.xml` в APK несёт `META-INF/version-control-info.textproto` с `revision`, вшитым в момент сборки. Локально собирался коммит `44fc10ce`, в CI — merge-коммит `0237cdfd`, поэтому различаются ровно `version-control-info.textproto` (120 байт в обоих, сжатие 117 против 118) и `AndroidManifest.xml` (9 564 байта в обоих, сжатие 2 568 против 2 571). Состав APK совпадает: 278 записей в обоих случаях, иных отличий `Compare-Object` по `FullName|Length|CompressedLength` не нашёл. Практический вывод для R-A3: в артефакте записан SHA **merge-коммита**, а не HEAD ветки, поэтому сверять вшитую ревизию нужно с merge-ref, а не с `headRefOid`.
+Размеры различаются на 4 байта, и это ожидаемо, а не расхождение сборок. APK несёт `META-INF/version-control-info.textproto` с полем `revision`: в него вшивается SHA коммита, собранного в момент сборки. Локально это был `2a425b28` (коммита ещё не существовало), в CI — merge-коммиты `0237cdfd` и `fe09279a`. Различаются ровно `version-control-info.textproto` (120 байт во всех трёх случаях, сжатие 117 против 118) и `AndroidManifest.xml` (9 564 байта во всех трёх, сжатие 2 568 против 2 571). Состав APK совпадает: 278 записей, иных отличий `Compare-Object` по `FullName|Length|CompressedLength` не нашёл. Два разных merge-ref дали одинаковые 4 915 813 байт — то есть число зависит от сжимаемости вшитой hex-строки, а не от содержимого сборки; поэтому байт-в-байт сверять размер между локальной сборкой и CI нельзя, сверять нужно состав APK и отчёты R8.
+
+Практический вывод для R-A3: в артефакте записан SHA **merge-коммита**, а не HEAD ветки, поэтому вшитую ревизию нужно сверять с merge-ref, а не с `headRefOid`.
 
 Ограничения, которые нельзя замалчивать:
 
