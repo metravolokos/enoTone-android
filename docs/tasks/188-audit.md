@@ -30,6 +30,46 @@ library-классы — `data/library/src/main/java/app/enotone/library/`, DAO/
 `core/database/src/main/java/app/enotone/database/`, парсер —
 `core/network/src/main/java/app/enotone/network/`.
 
+## Дополнительное наблюдение владельца (2026-11-17)
+
+На скриншоте поиска во вкладке «Песни» повторяющиеся строки из одного альбома видны вне
+экрана деталей альбома. Счётчик результатов этого поиска относится только к запросу и не
+является числом групп дублей или размером медиатеки.
+
+Это сужает путь: `RoomLibraryRepository.load` читает все строки активного источника из
+`remote_tracks` (`data/library/src/main/java/app/enotone/library/LibraryRepository.kt:65–69`,
+`core/database/src/main/java/app/enotone/database/RemoteTrackDao.kt:9–10`);
+`OfflineTrackCatalog.build` преобразует каждую строку по одной без дедупликации
+(`data/library/src/main/java/app/enotone/library/OfflineTrackCatalog.kt:35–60`);
+для `LibraryPage.TRACKS` `LibraryViewModel.calculateDerivedPages` берёт весь `snapshot.tracks`,
+а поиск лишь фильтрует кандидатов
+(`app/src/main/java/app/enotone/android/LibraryViewModel.kt:347–355`,
+`data/library/src/main/java/app/enotone/library/OfflineTrackCatalog.kt:81–86`). Значит, повтор
+не объясняется только отрисовкой `AlbumDetail`: дублированные представления уже приходят
+в общий список каталога.
+
+`remote_tracks` запрещает одинаковую пару `sourceKey + encodedPath`
+(`core/database/src/main/java/app/enotone/database/RemoteTrackEntity.kt:12–19`), поэтому
+наблюдение не доказывает буквальную копию одной Room-строки. Это могут быть разные сохранённые
+пути с одинаковыми тегами, в том числе текстовые URL-варианты одного ресурса. Скриншот не
+различает эти случаи; нужны числовая диагностика по стабильному ключу и проверка Huawei.
+Названия и пути из скриншотов в отчёт не переносились.
+
+На двух скриншотах плеера один и тот же отображаемый трек находится в соседних позициях
+очереди 11/19 и 12/19, с разными позициями воспроизведения. По сообщению владельца, после
+подготовки первой копии и следующего трека переход на повторную запись воспроизводит тот же
+трек ещё раз, но подготовка следующего отличающегося трека не начинается. Это наблюдение о
+воспроизведении; экран не показывает ID/URL элементов или точное состояние фонового writer.
+
+Кодовая проверка: `PlaybackQueue.create` требует уникальные ID элементов
+(`playback/src/main/java/app/enotone/playback/PlaybackQueue.kt:46–55`), а ключ временного
+аудиокэша включает ID, размер и ETag
+(`playback/src/main/java/app/enotone/playback/TransientCachePolicy.kt:18–24`). В этой версии
+одинаковый ID не мог бы попасть в две рабочие позиции очереди; разные ID дают разные ключи
+кэша. Снимки не подтверждают, что это один физический ресурс, и не устанавливают причину
+описанного поведения prefetch. Решение о следующем элементе и запуск его загрузки находятся в
+`PreviewAudioPlayback.kt:110–147`. Изменений playback/cache в рамках #188 нет.
+
 ## Диагностика на устройстве
 
 «Настройки → Диагностика → Медиатека → Проверить дубли» читает все строки активного
