@@ -2,11 +2,11 @@
 
 > Как проверяется enoTone: автоматические проверки и правила ручной проверки. **Что** проверять — каталог сценариев [SCENARIOS](SCENARIOS.md) с последними результатами; **как** вести ревью и аудит — [AUDIT_PROTOCOL](AUDIT_PROTOCOL.md). Журналы ручных проверок: [2026-11-08…11](archive/TESTING_JOURNAL_2026-11-08_11.md), [2026-11-12…13](archive/TESTING_JOURNAL_2026-11-12_13.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`)
+## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`; `main` `f42213b`, 2026-11-17)
 
 | Шаг | Что проверяет |
 |---|---|
-| `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`) и «контрактные» тесты исходников (см. ниже) |
+| `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV и оставшиеся Python-проверки инфраструктуры/контрактов; наличие строк не заменяет поведенческие тесты |
 | Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
 | `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; после слитого #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
 | `gradle :core:ui:verifyRoborazziDebug :app:verifyRoborazziDebug` | сравнение эталонов Android v2 в обеих темах (компоненты и экраны), diff — артефакт `roborazzi-results` |
@@ -14,7 +14,7 @@
 | `tools/check_detekt_baseline.py <база>` | базовая линия detekt не выросла относительно базового коммита |
 | `tools/check_adr_index.py` | у каждого ADR есть строка в индексе |
 | `:app:compileStablePreviewKotlin` | компиляция варианта Stable Preview без секретов |
-| Room schema | экспортированные схемы v1–v5 совпадают с закоммиченными |
+| Room schema | экспортированные схемы **v1–v7** сверяются с закоммиченными JSON; в v7 нет FTS4, модель каталога/плейлистов сохранена |
 | `tools/check_no_gms.py` | дерево зависимостей и байты APK не содержат `com.google.android.gms`, `com.google.firebase`, `com.google.android.play` |
 | Stable Preview (только `main`) | подпись постоянным ключом и совпадение отпечатка сертификата |
 
@@ -53,10 +53,10 @@ git rm -r --cached -q . && git reset --hard HEAD
 
 Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopback, только для тестов); синтетические WAV с кириллическими NFC/NFD-именами — `python3 tools/generate_fixtures.py <каталог>`.
 
-### Robolectric и Compose UI (#118 слит, M6-0/5a)
+### Robolectric и Compose UI (начиная с #118, дополнены в D3.5/D5)
 
 - JVM под Robolectric 4.17 (SDK 35), **без эмулятора**: `./gradlew :core:database:testDebugUnitTest :data:playlist:testDebugUnitTest :app:testDebugUnitTest`. Экспортированные схемы Room v1–v5 читаются из `core/database/schemas` как debug assets.
-- `EnoToneMigrationTest`: последовательная v1→v2→v3→v4→v5, прямая v1→v5 и v4→v5 на 120 строках с `tagScanCode`; существующие поля сохраняются, `durationMs` остаётся NULL, новые таблицы доступны.
+- `EnoToneMigrationTest` начался с проверок миграций через v5 (длительность и модель плейлистов); актуальная схема — **Room v7** после удаления FTS4 (#143). CI сверяет экспортированные v1–v7; **на Windows локальный запуск 7 тестов миграций падает** (F-01, [аудит](audit/AUDIT_2026-11-17_local-state.md)), тогда как Linux CI проходит. Это ограничение не подтверждает поведение v6→v7 на Huawei.
 - `RemoteTrackDaoTest`: изоляция аккаунтов, CAS тегов, fast-scan, очередь выборочной/полной переиндексации без потери тегов, аудит с лимитом 30, удаление по sourceKey.
 - M6-0/6: `PlaylistRepositoryTest` проверяет конкурирующий get-or-create «Избранного», отсутствие дублей, порядок и `present`, FK-каскады и изоляцию очистки аккаунта; парсер длительности тестирует синтетические FLAC/MP3-заголовки без дополнительных Range-запросов.
 - `NowPlayingUiTest`, `SettingsActionsUiTest`, `HomeNavigationUiTest`, `LibraryVisibilityUiTest`, `MainActivitySettingsUiTest`: Compose-семантика и нажатия через фейковые действия, без WebDAV и реальной переиндексации.
@@ -65,15 +65,21 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 - `SignOutMarkerTest`, `MainActivityIntentTest`: флаг незавершённого выхода и одноразовое потребление EXTRA_OPEN_NOW_PLAYING. **Реальный Android Keystore не эмулируется** (формат проверяет `CredentialEnvelopeTest`); сценарий восстановления входа с pending-флагом покрыт `AccountSettingsViewModelTest` с фейковым gateway. Проверка интента сама по себе не подтверждает показ Now Playing при восстановленной очереди.
 - UI-тесты проверяют доступность элементов и действия, но **не заменяют** визуальное сравнение экрана с эталоном D2. После merge #118 зелёный CI #508 на `main`; новые тесты наследуются в 5b без изменения алгоритмов.
 
-### Roborazzi (D2a)
+### Roborazzi (исторический этап D2a и текущие экраны Android v2)
 
 Только `:core:ui` и `testImplementation`, не в APK. Robolectric 4.17, `@GraphicsMode(NATIVE)`, Roborazzi 1.76.0. `ThemeScreenshotTest`: синтетический specimen с палитрой, Onest 400/500/600, Unbounded, радиусами; два эталона: `core/ui/src/test/screenshots/theme_graphite.png`, `theme_porcelain.png`. Для начальной записи **в том же CI-окружении**: Actions → Android M0 → Run workflow на ветке D2a с `record_roborazzi=true`; скачать артефакт `roborazzi-results` (или восстановить PNG из строк `ROBORAZZI_PNG <путь> <sha256>` и `ROBORAZZI_B64 <путь> <часть base64>` журнала этого запуска), коммитить PNG; обычный PR запускает `:core:ui:verifyRoborazziDebug` и загружает diff. Пока golden не зафиксированы, проверка не считается завершённой. Ресурсы `tools:keep` проверяются на подписанном Stable Preview (`:app:assembleStablePreview` + `aapt2 dump resources` / `apkanalyzer`); не заявлять PASS без выполнения.
 
-D3.1 добавляет в `:app` `AppScreensScreenshotTest`: экраны «Песни» (верх и прокрутка), «Альбомы», «Домой», «Сейчас играет» на эталонном размере 377 × 816 dp, `ru`, обе темы — `app/src/test/screenshots/*.png`. Их сверяют глазами с PNG-макетами `design/assets/ui-screens/android-v2/` перед коммитом эталона; запись — тем же `record_roborazzi=true`.
+Начиная с D3.1 в `:app` действует `AppScreensScreenshotTest`: экраны «Песни» (верх и прокрутка), «Альбомы», «Домой», «Сейчас играет» на эталонном размере 377 × 816 dp, `ru`, обе темы — `app/src/test/screenshots/*.png`. Их сверяют глазами с PNG-макетами `design/assets/ui-screens/android-v2/` перед коммитом эталона; запись — тем же `record_roborazzi=true`.
 
 D2b добавляет `ComponentsScreenshotTest` (две галереи компонентов в обеих темах), `EnoLetterAvatarTest` (Unicode/grapheme/детерминированность), dual-Preview у каждого компонента. PNG-эталоны D2b: `core/ui/src/test/screenshots/components_graphite.png`, `components_porcelain.png`, записываются тем же `record_roborazzi=true` на stacked-ветке после D2a.
 
 Старый строковой `tools/test_m6_theme_contract.py` удалён: он жёстко требовал исторические значения Graphite. Режимы темы и их сохранение проверяет `UiAppearancePersistenceTest` (Robolectric), внешний вид — `ThemeScreenshotTest`. Другие исходные/политические проверки не менялись.
+
+### Текущий контур motion/Now Playing (D3.5, D5)
+
+После merge #169/#176 страницы используют единый fade-through, полный плеер — вертикальную шторку. JVM/Compose UI тесты `AppMotionTest`, `AppMotionFrameUiTest`, `AppPlayerSheetBackUiTest`, `AppNowPlayingGestureUiTest`, `AppDockOpaqueUiTest` проверяют переходы и отдельные кадры на Robolectric; Roborazzi проверяет зафиксированные PNG для Android v2 и состояний буфера. Это **не** системный predictive Back, FPS, TalkBack или время отклика на физическом Huawei: NAV-15…17 и PLAY-10 остаются за владельцем.
+
+CI на этом срезе предзагружает `kotlin-compiler-embeddable:2.3.10` при Kotlin `2.4.21` из `gradle/libs.versions.toml` — известная проблема резервного зеркала F-03, а не исправленная конфигурация.
 
 ### Известный долг тестов
 
