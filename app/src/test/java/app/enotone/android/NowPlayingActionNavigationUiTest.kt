@@ -28,6 +28,7 @@ import app.enotone.playback.QueueTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -59,6 +60,7 @@ class NowPlayingActionNavigationUiTest {
         lateinit var playerModel: PlayerViewModel
         lateinit var libraryModel: LibraryViewModel
         lateinit var dispatcher: OnBackPressedDispatcher
+        val modelsReady = AtomicBoolean(false)
 
         rule.setContent {
             EnoToneTheme {
@@ -68,13 +70,14 @@ class NowPlayingActionNavigationUiTest {
                     onModelsReady = { player, library ->
                         playerModel = player
                         libraryModel = library
+                        modelsReady.set(true)
                     },
                     onDispatcherReady = { dispatcher = it },
                 )
             }
         }
         rule.waitUntil(10_000) {
-            ::playerModel.isInitialized && ::libraryModel.isInitialized &&
+            modelsReady.get() &&
                 !libraryModel.state.value.loading &&
                 libraryModel.state.value.derivedRoute == (LibraryPage.TRACKS to null) &&
                 libraryModel.state.value.groupIndex.albumByTrackId.containsKey(track.id)
