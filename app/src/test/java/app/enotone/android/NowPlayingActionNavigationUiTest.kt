@@ -295,7 +295,21 @@ class NowPlayingActionNavigationUiTest {
     }
 
     private fun fixtureRepository(track: OfflineTrackRow) = object : LibraryRepository {
-        override suspend fun load(email: String) = LibrarySnapshot(listOf(track), emptyMap())
+        override suspend fun load(email: String) = LibrarySnapshot(
+            tracks = listOf(track),
+            // Queue edits resolve visible rows through this prepared catalogue.
+            preparedById = mapOf(
+                track.id to QueueTrack(
+                    id = track.id,
+                    title = track.title,
+                    encodedPath = "/AllMusic/${track.id}.flac",
+                    remoteSize = 1L,
+                    remoteEtag = null,
+                    artist = track.artist,
+                    album = track.album,
+                ),
+            ),
+        )
         override suspend fun refreshAlbum(
             email: String,
             password: String,
