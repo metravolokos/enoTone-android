@@ -22,9 +22,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.SaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -36,6 +41,7 @@ import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.LocalEnoDockBlur
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
+import app.enotone.library.OfflineTrackRow
 
 /**
  * Каркас D3 (ADR-0086): содержимое вкладки, над ним закреплённые мини-плеер и плавающая
@@ -203,13 +209,33 @@ private val CONTENT_AIR = 16.dp
 internal fun AppNowPlaying(
     player: SharedPlayerUiState,
     playerModel: PlayerViewModel,
+    account: AccountUiState,
+    onOpenDetail: (LibraryDetail) -> Unit,
 ) {
     val playback = player.playback
-    NowPlayingScreen(
-        trackId = playback.currentTrackId.orEmpty(),
-        title = playback.title ?: stringResource(R.string.ui_songs_title),
+    val login = account.libraryLogin
+    val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
+    val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
+    val currentTrack = playback.currentTrackId?.let { library?.groupIndex?.tracksById?.get(it) }
+    val trackId = playback.currentTrackId.orEmpty()
+    val title = currentTrack?.title ?: playback.title ?: stringResource(R.string.ui_songs_title)
+    val actionTrack = currentTrack ?: OfflineTrackRow(
+        id = trackId,
+        title = title,
         artist = playback.artist,
         album = player.album,
+    )
+    val actionHandlers: LibraryScreenActions = libraryModel ?: PreviewLibraryActions
+    val appContext = LocalContext.current.applicationContext
+    val container = (appContext as EnoToneApplication).container
+    val emptyArtworkCatalog = remember { LibraryUiState().artworkCatalog }
+    var actionsVisible by remember(trackId) { mutableStateOf(false) }
+    NowPlayingScreen(
+        trackId = trackId,
+        title = title,
+        artist = currentTrack?.artist ?: playback.artist,
+        album = currentTrack?.album ?: player.album,
+        albumYear = currentTrack?.year,
         artwork = player.largeArtwork ?: player.artwork,
         playbackState = playback.playbackState,
         errorCode = playback.errorCode,
@@ -236,5 +262,20 @@ internal fun AppNowPlaying(
         onNext = playerModel::onNext,
         onCycleRepeat = playerModel::onRepeat,
         onToggleShuffle = playerModel::onShuffle,
+        onMore = { actionsVisible = true },
     )
+    if (actionsVisible) {
+        TrackActionsHost(
+            track = actionTrack,
+            groupIndex = library?.groupIndex ?: LibraryGroupIndex(),
+            actions = actionHandlers,
+            currentDetail = null,
+            artworkCatalog = library?.artworkCatalog ?: emptyArtworkCatalog,
+            artworkRepository = container.artworkPreviewRepository,
+            accountEmail = login?.email.orEmpty(),
+            appPassword = login?.password.orEmpty(),
+            onDismiss = { actionsVisible = false },
+            onOpenDetail = onOpenDetail,
+        )
+    }
 }

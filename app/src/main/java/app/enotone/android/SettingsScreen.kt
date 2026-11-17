@@ -132,7 +132,12 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             )
         },
         player = {
-            AppNowPlaying(player, playerModel)
+            AppNowPlaying(
+                player = player,
+                playerModel = playerModel,
+                account = account,
+                onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
+            )
         },
         settings = { showingDiagnostics ->
             // Мини-плеера в настройках и диагностике нет (O-10).

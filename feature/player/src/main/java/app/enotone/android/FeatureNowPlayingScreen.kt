@@ -105,6 +105,7 @@ fun FeatureNowPlayingScreen(
     title: String,
     artist: String?,
     album: String?,
+    albumYear: Int? = null,
     artwork: Bitmap?,
     playbackState: String,
     errorCode: Int,
@@ -129,6 +130,7 @@ fun FeatureNowPlayingScreen(
     onCycleRepeat: () -> Unit,
     onToggleShuffle: () -> Unit,
     ids: NowPlayingIds,
+    onMore: () -> Unit,
 ) {
     val color = MaterialTheme.colorScheme
 
@@ -245,18 +247,6 @@ fun FeatureNowPlayingScreen(
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // D3.2 (владелец): ручки нет — экран закрывается только жестом вниз и системным «Назад».
-                Spacer(Modifier.size(48.dp))
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text(stringResource(ids.nowPlayingTitle),
-                        style = MaterialTheme.typography.titleMedium)
-                }
-                Spacer(Modifier.size(48.dp))
-            }
             Spacer(Modifier.weight(.25f))
             Box(
                 modifier = Modifier.size(coverSide + 12.dp),
@@ -296,17 +286,57 @@ fun FeatureNowPlayingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Text(title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    realError ?: artist?.takeIf { it.isNotBlank() }
-                        ?: album.orEmpty(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = color.onSurfaceVariant,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        title,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    IconButton(
+                        onClick = onMore,
+                        modifier = Modifier.size(MORE_TOUCH_SIZE),
+                    ) {
+                        Box(
+                            modifier = Modifier.size(MORE_CIRCLE_SIZE)
+                                .clip(CircleShape)
+                                .background(EnoColors.surface2),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painterResource(ids.icActionMore),
+                                contentDescription = stringResource(ids.trackActionsDescription, title),
+                                modifier = Modifier.size(24.dp),
+                                tint = color.onSurface,
+                            )
+                        }
+                    }
+                }
+                val artistLine = artist?.takeIf(String::isNotBlank)
+                if (realError != null || artistLine != null) {
+                    Text(
+                        realError ?: artistLine.orEmpty(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (realError == null) EnoColors.accentText else color.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                val albumLine = listOfNotNull(
+                    album?.takeIf(String::isNotBlank),
+                    albumYear?.toString(),
+                ).joinToString(" · ")
+                if (albumLine.isNotBlank()) {
+                    Text(
+                        albumLine,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = EnoColors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             Spacer(Modifier.height(12.dp))
             // D5 (01_now_playing): Slider retains its 48dp gesture target; the
@@ -457,12 +487,12 @@ fun FeatureNowPlayingScreen(
                 ) {
                     Icon(painterResource(ids.icActionPrevious),
                         contentDescription = stringResource(ids.playbackPrevious),
-                        modifier = Modifier.size(34.dp))
+                        modifier = Modifier.size(24.dp))
                 }
                 FilledIconButton(
                     onClick = onPlayPause,
                     enabled = controlsEnabled,
-                    shape = RoundedCornerShape(24.dp),
+                    shape = CircleShape,
                     modifier = Modifier.size(76.dp),
                 ) {
                     Icon(
@@ -470,7 +500,7 @@ fun FeatureNowPlayingScreen(
                             ids.icActionPause else ids.icActionPlay),
                         contentDescription = stringResource(if (isPlaying)
                             ids.playbackPause else ids.playbackResume),
-                        modifier = Modifier.size(38.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 }
                 IconButton(
@@ -480,7 +510,7 @@ fun FeatureNowPlayingScreen(
                 ) {
                     Icon(painterResource(ids.icActionNext),
                         contentDescription = stringResource(ids.playbackNext),
-                        modifier = Modifier.size(34.dp))
+                        modifier = Modifier.size(24.dp))
                 }
             }
             Spacer(Modifier.weight(.2f))
@@ -553,6 +583,8 @@ private fun NowPlayingToggle(
 }
 
 private val THUMB_SIZE = 12.dp
+private val MORE_TOUCH_SIZE = 48.dp
+private val MORE_CIRCLE_SIZE = 44.dp
 private val TRACK_HEIGHT = 4.dp
 private val SEEK_TOUCH_HEIGHT = 48.dp
 private val DOT_GAP_WIDTH = 20.dp
