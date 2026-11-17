@@ -61,6 +61,35 @@ class NowPlayingUiTest {
         )
     }
 
+    @Test fun queueCountHasAccessible48DpTapTargetAndOpensQueue() {
+        var opened = 0
+        rule.setContent {
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    positionMs = 0L, durationMs = 60_000L,
+                    canSeek = true, controlsEnabled = true,
+                    hasPrevious = false, hasNext = true,
+                    queuePosition = 2, queueTotal = 5,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                    onClose = {}, onSeekFraction = {}, onPlayPause = {},
+                    onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                    onOpenQueue = { opened++ },
+                )
+            }
+        }
+        val description = context.getString(R.string.now_playing_queue_description, 2, 5)
+        val queueTarget = rule.onNodeWithContentDescription(description)
+        queueTarget.assert(hasClickAction())
+        val bounds = queueTarget.fetchSemanticsNode().boundsInRoot
+        val minSizePx = 48f * context.resources.displayMetrics.density
+        assertTrue("Queue hit area must be at least 48 dp: $bounds", bounds.width >= minSizePx)
+        assertTrue("Queue hit area must be at least 48 dp: $bounds", bounds.height >= minSizePx)
+        queueTarget.performTouchInput { click() }
+        rule.runOnIdle { assertEquals(1, opened) }
+    }
+
     @Test fun transportButtonsCallTheirActionsAndVolumeIsAbsent() {
         var close = 0
         var play = 0

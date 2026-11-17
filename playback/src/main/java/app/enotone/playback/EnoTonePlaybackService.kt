@@ -247,6 +247,7 @@ class EnoTonePlaybackService : MediaSessionService() {
     val hasPrevious: Boolean get() = playback.player.hasPreviousMediaItem()
     val queueSize: Int get() = playback.logicalQueueSize
     val queuePosition: Int get() = playback.logicalQueuePosition
+    val queueSnapshot: PlaybackQueueSnapshot? get() = playback.queueSnapshot()
     val loadedQueueSize: Int get() = playback.loadedQueueSize
     val currentTrackFullyCached: Boolean get() = playback.currentTrackFullyCached
     val displayDurationMs: Long get() = playback.displayDurationMs
@@ -269,6 +270,9 @@ class EnoTonePlaybackService : MediaSessionService() {
             playback.resumeAfterManualSkip()
         }
     }
+
+    /** Select an item by its visible position in the full playback-order queue. */
+    fun skipToQueuePosition(position: Int): Boolean = playback.skipToQueuePosition(position)
 
     fun cacheSnapshot(): TransientCacheStatus = playback.cacheSnapshot()
     fun nextCacheSnapshot(): TransientCacheStatus = playback.nextCacheSnapshot()

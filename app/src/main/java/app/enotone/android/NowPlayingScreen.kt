@@ -37,6 +37,7 @@ private val nowPlayingIds = NowPlayingIds(
     nowPlayingNextReady = R.string.now_playing_next_ready,
     icActionMore = CoreUiR.drawable.ic_eno_more,
     trackActionsDescription = R.string.song_actions_description,
+    nowPlayingQueueDescription = R.string.now_playing_queue_description,
 )
 
 /** Keeps existing callers source-compatible through defaults for the new UI state. */
@@ -71,6 +72,7 @@ internal fun NowPlayingScreen(
     onCycleRepeat: () -> Unit,
     onToggleShuffle: () -> Unit,
     onMore: () -> Unit = {},
+    onOpenQueue: () -> Unit = {},
 ) {
     FeatureNowPlayingScreen(
         trackId = trackId,
@@ -107,5 +109,6 @@ internal fun NowPlayingScreen(
         onToggleShuffle = onToggleShuffle,
         ids = nowPlayingIds,
         onMore = onMore,
+        onOpenQueue = onOpenQueue,
     )
 }

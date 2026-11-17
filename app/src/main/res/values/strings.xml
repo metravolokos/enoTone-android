@@ -132,6 +132,11 @@
     <string name="now_playing_title">Сейчас играет</string>
     <string name="now_playing_no_artwork">Обложка отсутствует</string>
     <string name="now_playing_queue_short">%1$d / %2$d</string>
+    <string name="now_playing_queue_description">Очередь, %1$d из %2$d</string>
+    <string name="queue_sheet_title">Очередь</string>
+    <string name="queue_sheet_shuffle_enabled">Перемешивание включено</string>
+    <string name="queue_sheet_next">Далее</string>
+    <string name="queue_sheet_unavailable_track">Трек недоступен</string>
     <string name="library_player_title">Плеер</string>
     <string name="library_player_open">Плеер</string>
     <string name="library_player_close">Свернуть</string>

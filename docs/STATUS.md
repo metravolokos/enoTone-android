@@ -45,10 +45,20 @@ CI и актуальный Draft PR #189: [PR](https://github.com/metravolokos/e
 Независимое ревью и Huawei-проверка перехода после перезапуска ещё не отмечены владельцем.
 [ТЗ](tasks/188.md), [аудит](tasks/188-audit.md).
 
+## Q1 #192 — просмотр очереди
+
+В `feature/q1-queue-sheet` добавлен полноэкранный лист из счётчика `N / M`, снимок
+полного playback-order с учётом shuffle, выбор песни без пересоздания Media3 очереди
+и переход к песне из staged наполнения. Для обычного порядка, shuffle и позиции в
+длинной очереди добавлены Compose/Robolectric тесты и сценарии для шести Roborazzi
+снимков. Целевые локальные Compose/Robolectric проверки прошли 2026-11-18; все шесть
+снимков записаны и прошли локальную проверку Roborazzi.
+Exact-HEAD CI ожидается; Huawei QUE-01…05 ещё не проверены.
+
 ## Активные ограничения и ближайшие решения
 
 Текущие дефекты — [KNOWN_ISSUES](KNOWN_ISSUES.md), открытые вопросы — [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Из подтверждённого долга: [#182](https://github.com/metravolokos/enoTone-android/issues/182) (MP3/ID3) и F-03 (несовпадение версии предзагруженного Kotlin-компилятора в CI), а также необходимость решения владельца по `LICENSE` и сетевому слою. **F-01 снята:** `EnoToneMigrationTest` 7/7 и `:core:database` 14/14 проходят на Windows через тест-локальный обход дефекта `androidx.sqlite` ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), Issue #191). Никакой Huawei PASS из результатов CI автоматически не выводится.
 
 **Этап A «Ship-safety» (цель `0.7.0`) открыт:** R-A1 (Issue #197) — минифицированный `assembleRelease` в CI с проверкой R8 и артефактом `enotone-release-unsigned-apk`, Draft PR #198. R8 и раньше работал в `debug` и `stablePreview`; новым стала блокирующая проверка варианта `release` с `isShrinkResources = true` на каждом PR. Шаг проверяет не название задачи, а содержимое: `configuration.txt` без `-dontshrink`/`-dontoptimize` и с `-allowaccessmodification`, плюс задача `:app:convertShrunkResourcesToBinaryRelease` для сжатия ресурсов. Локально `BUILD SUCCESSFUL`, APK 4 915 809 байт без `Missing class`; в CI APK на 4 байта больше (собирается merge-коммит, его SHA вшивается в APK). Установки и запуска APK нет (R-A3), keep-правила не написаны (R-A2).
 
-**Следующий шаг по текущему коду:** аппаратная проверка новых элементов D5-C после #183, решение отдельных открытых Issues и независимое повторное ревью документации DOC-01 / PR #187. Предстоящие возможности и зависимости — [ROADMAP](ROADMAP.md).
+**Следующие шаги:** Q1 #192 — exact-HEAD CI, два независимых ревью (второго назначает владелец) и Huawei QUE-01…06/QED-01…06; также аппаратная проверка новых элементов D5-C после #183, решение отдельных открытых Issues и независимое повторное ревью документации DOC-01 / PR #187. Предстоящие возможности и зависимости — [ROADMAP](ROADMAP.md).

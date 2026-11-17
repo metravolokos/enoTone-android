@@ -6,6 +6,7 @@ import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.PersistedQueueState
+import app.enotone.playback.PlaybackQueueSnapshot
 import app.enotone.playback.QueueEditSource
 import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueStateFileStore
@@ -18,6 +19,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import org.robolectric.annotation.Config
+import java.time.Duration
 import java.util.UUID
 
 /** Real Media3 timeline and no-network paused restoration; UI belongs to 8b. */
@@ -53,9 +55,13 @@ class QueueEditServiceTest {
                 assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
                     (1..3).map(::track), initial, false, false))
                 assertEquals(id(1), service.player.currentMediaItem?.mediaId)
+                assertEquals(PlaybackQueueSnapshot((1..3).map(::id), currentIndex = 0),
+                    service.queueSnapshot)
                 assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(4))).status)
                 assertEquals(14_000L, service.player.currentPosition)
                 assertEquals(Player.REPEAT_MODE_OFF, service.player.repeatMode)
+                assertEquals(PlaybackQueueSnapshot(listOf(id(1), id(4), id(2), id(3)), 0),
+                    service.queueSnapshot)
                 assertEquals(listOf(id(1), id(4), id(2), id(3)),
                     (0 until service.player.mediaItemCount).map {
                         service.player.getMediaItemAt(it).mediaId
@@ -63,6 +69,8 @@ class QueueEditServiceTest {
                 // The native MediaSession/headphone Next must follow the edited timeline.
                 service.player.seekToNextMediaItem()
                 assertEquals(id(4), service.player.currentMediaItem?.mediaId)
+                assertEquals(PlaybackQueueSnapshot(listOf(id(1), id(4), id(2), id(3)), 1),
+                    service.queueSnapshot)
             }
             val persisted = waitForRevision(fileStore, initial.queueRevision)
             assertEquals(QueueEditSource.edited(initial.sourceKey), persisted.sourceKey)
@@ -130,6 +138,77 @@ class QueueEditServiceTest {
                 assertEquals(id(1), service.player.currentMediaItem?.mediaId)
                 assertEquals(14_000L, service.player.currentPosition)
                 assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(4))).status)
+            }
+        } finally {
+            onMain { controller.destroy() }
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun snapshotUsesShuffleTraversalAndQueueSelectionPlaysThatPosition() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val initial = checkpoint().copy(
+            shuffleEnabled = true,
+            shuffledIndices = intArrayOf(2, 0, 1),
+        )
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    (1..3).map(::track), initial, false, false))
+                assertEquals(
+                    PlaybackQueueSnapshot(listOf(id(3), id(1), id(2)), currentIndex = 1),
+                    service.queueSnapshot,
+                )
+                // Tapping the selected row is an explicit no-op.
+                assertTrue(service.skipToQueuePosition(1))
+                assertEquals(id(1), service.player.currentMediaItem?.mediaId)
+                assertTrue(service.skipToQueuePosition(0))
+                assertEquals(id(3), service.player.currentMediaItem?.mediaId)
+                assertEquals(PlaybackQueueSnapshot(listOf(id(3), id(1), id(2)), 0),
+                    service.queueSnapshot)
+                assertTrue(service.player.playWhenReady)
+                assertTrue(!service.skipToQueuePosition(3))
+            }
+        } finally {
+            onMain { controller.destroy() }
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun selectingAnUnstagedTrackKeepsTheFullQueueWithoutDuplicates() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val queue = (0 until 100).map(::track)
+        val initial = PersistedQueueState(
+            trackIds = queue.map { it.id },
+            selectedTrackId = id(0),
+            positionMs = 0L,
+            repeatMode = Player.REPEAT_MODE_OFF,
+            shuffleEnabled = false,
+            shuffledIndices = null,
+            sourceKey = id(99),
+            savedAtEpochMs = 1L,
+            queueRevision = UUID.randomUUID().toString(),
+        )
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    queue, initial, false, false))
+                assertEquals(3, service.loadedQueueSize)
+                assertTrue(service.skipToQueuePosition(70))
+                Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+                val loadedIds = (0 until service.player.mediaItemCount).map {
+                    service.player.getMediaItemAt(it).mediaId
+                }
+                assertTrue(service.player.mediaItemCount > 70)
+                assertEquals(queue.map { it.id }.take(service.player.mediaItemCount), loadedIds)
+                assertEquals(id(70), service.player.currentMediaItem?.mediaId)
+                assertEquals(PlaybackQueueSnapshot(queue.map { it.id }, 70), service.queueSnapshot)
             }
         } finally {
             onMain { controller.destroy() }

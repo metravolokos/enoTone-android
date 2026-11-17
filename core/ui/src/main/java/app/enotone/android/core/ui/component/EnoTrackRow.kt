@@ -48,6 +48,7 @@ fun EnoTrackRow(
     isPlaying: Boolean = false,
     animatedIndicator: Boolean = true,
     duration: String? = null,
+    showMore: Boolean = true,
 ) {
     val haptic = LocalHapticFeedback.current
     val album = variant == EnoTrackRowVariant.ALBUM
@@ -127,14 +128,16 @@ fun EnoTrackRow(
                 maxLines = 1,
             )
         }
-        EnoRoundButton(
-            icon = EnoIcons.MORE,
-            contentDescription = moreContentDescription,
-            onClick = onMore,
-            size = 48.dp,
-            // В строках «⋮» — просто значок; круг surface2 только в шапках (макет 02_songs).
-            filled = false,
-        )
+        if (showMore) {
+            EnoRoundButton(
+                icon = EnoIcons.MORE,
+                contentDescription = moreContentDescription,
+                onClick = onMore,
+                size = 48.dp,
+                // В строках «⋮» — просто значок; круг surface2 только в шапках (макет 02_songs).
+                filled = false,
+            )
+        }
     }
 }
 

@@ -14,6 +14,7 @@ import app.enotone.playback.NextBufferState
 import app.enotone.playback.PersistedQueueState
 import app.enotone.playback.PlaybackDataIssue
 import app.enotone.playback.PlaybackDataIssueClassifier
+import app.enotone.playback.PlaybackQueueSnapshot
 import app.enotone.playback.PlaybackSetupTimings
 import app.enotone.playback.QueueEditResult
 import app.enotone.playback.QueueEditStatus
@@ -52,6 +53,7 @@ internal data class PlaybackSnapshot(
     val queuePosition: Int = 0,
     val queueTotal: Int = 0,
     val loadedQueueSources: Int = 0,
+    val queueOrder: PlaybackQueueSnapshot? = null,
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val shuffleEnabled: Boolean = false,
     val hasPrevious: Boolean = false,
@@ -82,6 +84,7 @@ internal interface PlaybackConnection {
     fun playPause()
     fun playNext()
     fun playPrevious()
+    fun skipToQueuePosition(position: Int) = Unit
     fun insertNext(tracks: List<QueueTrack>): QueueEditResult =
         QueueEditResult(QueueEditStatus.UNAVAILABLE)
     fun append(tracks: List<QueueTrack>): QueueEditResult =
@@ -263,6 +266,7 @@ internal class AndroidPlaybackConnection(
         val p = active.player
         val error = p.playerError
         val buffering = bufferingSnapshot(active, p)
+        val queueOrder = active.queueSnapshot
         mutable.value = PlaybackSnapshot(
             connected = true,
             playbackState = playbackLabel(p),
@@ -276,9 +280,10 @@ internal class AndroidPlaybackConnection(
             durationMs = buffering.durationMs,
             knownDurationMs = buffering.knownDurationMs,
             canSeek = active.canSeekCurrent,
-            queuePosition = active.queuePosition + 1,
+            queuePosition = queueOrder?.currentIndex?.plus(1) ?: 0,
             queueTotal = active.queueSize,
             loadedQueueSources = active.loadedQueueSize,
+            queueOrder = queueOrder,
             repeatMode = buffering.repeatMode,
             shuffleEnabled = active.shuffleEnabled,
             hasPrevious = active.hasPrevious,
@@ -326,6 +331,10 @@ internal class AndroidPlaybackConnection(
     }
     override fun playNext() { service?.playNext(); publish() }
     override fun playPrevious() { service?.playPrevious(); publish() }
+    override fun skipToQueuePosition(position: Int) {
+        service?.skipToQueuePosition(position)
+        publish()
+    }
     override fun insertNext(tracks: List<QueueTrack>): QueueEditResult {
         val result = service?.insertNext(tracks)
             ?: QueueEditResult(QueueEditStatus.UNAVAILABLE)

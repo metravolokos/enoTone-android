@@ -98,7 +98,7 @@ fun EnoActionSheet(
             )
         },
     ) {
-        ActionSheetSystemBars(sheetColor, lightSystemBars)
+        EnoModalSheetSystemBars(sheetColor, lightSystemBars)
         Column(
             Modifier.fillMaxWidth()
                 .navigationBarsPadding()
@@ -186,11 +186,12 @@ fun EnoActionSheet(
 }
 
 /**
- * Material3 ModalBottomSheet открывает отдельное Dialog-окно. Edge-to-edge и цвета
- * MainActivity на него не действуют: на Huawei исчезали часы и белела полоса жестов.
+ * Applies edge-to-edge system bars to ModalBottomSheet's separate Dialog window.
+ * MainActivity settings do not reach it: Huawei lost the clock and showed a white
+ * gesture strip. Custom modal sheets use the same treatment as EnoActionSheet.
  */
 @Composable
-private fun ActionSheetSystemBars(sheetColor: Color, lightStatusBars: Boolean) {
+fun EnoModalSheetSystemBars(sheetColor: Color, lightStatusBars: Boolean) {
     val view = LocalView.current
     SideEffect {
         val window = (view.parent as? DialogWindowProvider)?.window ?: return@SideEffect

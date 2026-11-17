@@ -28,6 +28,9 @@ class StagedPlaylistPlanTest {
             if (chunk.prepend) rebuilt.addAll(0, chunk.items)
             else rebuilt.addAll(chunk.items)
             assertEquals(rebuilt.size, plan.loadedCount)
+            val loadedStart = rebuilt.first().id.removePrefix("synthetic-").toInt()
+            assertEquals(loadedStart, plan.loadedStartIndex)
+            assertEquals(loadedStart + rebuilt.size, plan.loadedEndExclusive)
         }
         assertEquals(originals, rebuilt)
         assertEquals(size, plan.loadedCount)

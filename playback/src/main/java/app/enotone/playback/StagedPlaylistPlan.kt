@@ -28,6 +28,10 @@ class StagedPlaylistPlan private constructor(
         get() = seed.size + (nextAfter - seedEndExclusive) +
             (seedStart - nextBeforeEnd)
 
+    /** The loaded Media3 timeline remains one contiguous slice of [items]. */
+    val loadedStartIndex: Int get() = nextBeforeEnd
+    val loadedEndExclusive: Int get() = nextAfter
+
     val isComplete: Boolean
         get() = nextAfter == items.size && nextBeforeEnd == 0
 
