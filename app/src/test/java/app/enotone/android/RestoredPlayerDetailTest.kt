@@ -152,5 +152,4 @@ class RestoredPlayerDetailTest {
             assertEquals(4000L, player.state.value.playback.positionMs)
         } finally { Dispatchers.resetMain() }
     }
-
 }
