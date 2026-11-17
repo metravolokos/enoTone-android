@@ -128,6 +128,41 @@ class FastAudioTagReaderTest {
         assertEquals("Album Artist", r.tags?.albumArtist)
     }
 
+    /** v2.4 frame whose format-flags byte carries the per-frame unsync bit. */
+    private fun unsyncFrame(id: String, data: ByteArray): ByteArray =
+        id.toByteArray(StandardCharsets.US_ASCII) + sync32(data.size) +
+            byteArrayOf(0, 0x02) + data
+
+    /**
+     * R-7: a writer may stuff a 0x00 after *every* 0xFF, not only after the ones
+     * that would form an MPEG sync. Here the text is `AÿB`; on disk it is
+     * `41 FF 00 42`, because `FF 42` was stuffed even though it is not a sync
+     * word. The old rule only dropped the zero when another 0x00 or a byte
+     * >= 0xE0 followed, so this payload decoded to `Aÿ\u0000B` and the text was
+     * truncated to `Aÿ` at the stray NUL.
+     */
+    @Test fun unsynchronisationDropsZeroAfterEveryFf() {
+        val data = mp3(4, unsyncFrame("TIT2",
+            byteArrayOf(0, 0x41, 0xFF.toByte(), 0x00, 0x42)))
+        val r = FastAudioTagReader().read("stuffed.mp3", data.size.toLong(), byteReader(data))
+        assertEquals(FastTagCode.MP3_ID3V24, r.code)
+        assertEquals("A\u00ffB", r.tags?.title)
+    }
+
+    /**
+     * Guard against over-eager de-unsynchronisation: `FF 00 00` is an escaped
+     * literal `FF 00`, so only the first zero is stuffing and the second one is
+     * real payload. Dropping every byte after 0xFF would turn this text into
+     * `AÿX` and hide a genuine terminator.
+     */
+    @Test fun unsynchronisationKeepsRealZeroAfterEscapedFfZero() {
+        val data = mp3(4, unsyncFrame("TIT2",
+            byteArrayOf(0, 0x41, 0xFF.toByte(), 0x00, 0x00, 0x58)))
+        val r = FastAudioTagReader().read("nul.mp3", data.size.toLong(), byteReader(data))
+        assertEquals(FastTagCode.MP3_ID3V24, r.code)
+        assertEquals("A\u00ff", r.tags?.title)
+    }
+
     @Test fun mp3V23AndV24ReadYearTrackAndDiscEvenAfterArtwork() {
         for (version in listOf(3, 4)) {
             val data = mp3(version,

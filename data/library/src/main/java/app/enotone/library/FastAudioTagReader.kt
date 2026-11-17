@@ -721,10 +721,15 @@ class FastAudioTagReader {
     }
 
     /**
-     * Removes ID3 unsynchronisation: a 0x00 inserted after 0xFF keeps the next
-     * byte from looking like an MPEG sync. A byte is dropped only when the
-     * stuffed zero is followed by a value the writer had to escape, so ordinary
-     * `FF 00` payloads are left untouched.
+     * Removes ID3 unsynchronisation: a 0x00 inserted after 0xFF keeps the data
+     * from looking like an MPEG sync word.
+     *
+     * Writers are allowed to stuff every 0xFF, not only the ones that would form
+     * a sync, so a 0x00 that directly follows 0xFF is stuffing and is dropped.
+     * Nothing else is removed: a 0xFF followed by an ordinary byte keeps that
+     * byte, so a decoder can never eat real payload. Dropping only the narrow
+     * `FF 00` / `FF E0..FF` shapes loses the byte after a stuffer that escaped
+     * every 0xFF and silently truncates the text at the first such point.
      */
     @Suppress("MagicNumber")
     private fun deUnsynchronise(data: ByteArray): ByteArray {
@@ -734,10 +739,7 @@ class FastAudioTagReader {
             val value = u(data[index])
             out.write(value)
             index++
-            if (value == 0xFF && index + 1 < data.size && u(data[index]) == 0x00) {
-                val following = u(data[index + 1])
-                if (following == 0x00 || following >= 0xE0) index++
-            }
+            if (value == 0xFF && index < data.size && u(data[index]) == 0x00) index++
         }
         return out.toByteArray()
     }
