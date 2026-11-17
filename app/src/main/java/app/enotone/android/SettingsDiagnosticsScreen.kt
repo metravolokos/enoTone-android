@@ -48,6 +48,20 @@ internal fun SettingsDiagnosticsContent(
         }
         if (state.probe.isNotEmpty()) Text(state.probe, style = MaterialTheme.typography.bodySmall)
     }
+    SettingsGroup(stringResource(R.string.diagnostics_library_title)) {
+        OutlinedButton(enabled = !state.busy && state.hasLogin, onClick = actions::inspectLibrary) {
+            Text(stringResource(R.string.diagnostics_library_check))
+        }
+        val album by LibraryAlbumDiagnostics.last.collectAsState()
+        album?.let { report ->
+            Text(stringResource(R.string.diagnostics_library_album,
+                report.rows, report.headerTracks, report.duplicateIdGroups))
+        }
+        state.libraryAudit?.let { report ->
+            Text(stringResource(R.string.diagnostics_library_duplicates,
+                report.duplicateGroups, report.affectedAlbums))
+        }
+    }
     SettingsGroup(stringResource(R.string.diagnostics_indexing_title)) { IndexingDiagnostics(indexing) }
     SettingsGroup(stringResource(R.string.diagnostics_search_title)) { SearchDiagnostics() }
     SettingsGroup { PlaybackDiagnosticsPanel() }

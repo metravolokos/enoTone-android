@@ -40,7 +40,7 @@ internal object AppNavigator {
         }
 
     fun push(state: AppNavState, detail: LibraryDetail): AppNavState {
-        if (state.tab !is AppTab.Library || state.overlay != null || detail.key.isBlank()) return state
+        if (state.overlay != null || detail.key.isBlank()) return state
         return if (state.details.lastOrNull() == detail) state
             else state.copy(details = (state.details + detail).takeLast(MAX_DETAILS))
     }
@@ -100,7 +100,7 @@ internal object AppNavigator {
             AppOverlay.entries.firstOrNull { it.name == name }
         }
         val scroll = parts.getOrNull(2)?.toIntOrNull()?.coerceAtLeast(0) ?: 0
-        val details = if (tab is AppTab.Library) {
+        val details = if (tab is AppTab.Library || parts.firstOrNull() == HOME) {
             parts.getOrNull(DETAIL_FIELD_INDEX).orEmpty().split(DETAIL_SEPARATOR).mapNotNull(::parseDetail)
                 .takeLast(MAX_DETAILS)
         } else emptyList()

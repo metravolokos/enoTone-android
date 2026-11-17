@@ -117,6 +117,68 @@ class NowPlayingActionNavigationUiTest {
         }
     }
 
+    @Test fun pausedTrackOpensArtistFromHomeAndBackReturnsHome() {
+        val track = fixtureTrack()
+        val nav = mutableStateOf(AppNavState())
+        lateinit var player: PlayerViewModel
+        lateinit var library: LibraryViewModel
+        lateinit var dispatcher: OnBackPressedDispatcher
+        val ready = AtomicBoolean(false)
+        rule.setContent {
+            EnoToneTheme {
+                NavigationHarness(track, nav, onModelsReady = { p, l ->
+                    player = p
+                    library = l
+                    ready.set(true)
+                }, onDispatcherReady = { dispatcher = it })
+            }
+        }
+        rule.waitUntil(10_000) { ready.get() && !library.state.value.loading }
+        rule.runOnIdle { player.onNowPlaying(true) }
+        rule.onNodeWithContentDescription(
+            context.getString(R.string.song_actions_description, track.title),
+        ).performClick()
+        rule.onNodeWithText(context.getString(R.string.song_action_go_artist)).performClick()
+        rule.waitUntil(10_000) { nav.value.details.lastOrNull() is LibraryDetail.Artist }
+        rule.runOnIdle {
+            assertFalse(player.state.value.nowPlaying)
+            assertEquals(AppTab.Home, nav.value.tab)
+        }
+        rule.waitForIdle()
+        rule.runOnIdle { dispatcher.onBackPressed() }
+        rule.runOnIdle { assertEquals(AppNavState(), nav.value) }
+    }
+
+    @Test fun navigationRejectionKeepsActualPlayerOpenAndShowsMessage() {
+        val track = fixtureTrack()
+        val nav = mutableStateOf(AppNavState())
+        lateinit var player: PlayerViewModel
+        lateinit var library: LibraryViewModel
+        val ready = AtomicBoolean(false)
+        rule.setContent {
+            EnoToneTheme {
+                NavigationHarness(track, nav, onModelsReady = { p, l ->
+                    player = p
+                    library = l
+                    ready.set(true)
+                }, acceptNavigation = false, onDispatcherReady = {})
+            }
+        }
+        rule.waitUntil(10_000) { ready.get() && !library.state.value.loading }
+        rule.runOnIdle { player.onNowPlaying(true) }
+        rule.onNodeWithContentDescription(
+            context.getString(R.string.song_actions_description, track.title),
+        ).performClick()
+        rule.onNodeWithText(context.getString(R.string.song_action_go_artist)).performClick()
+        rule.waitForIdle()
+        rule.runOnIdle {
+            assertTrue(player.state.value.nowPlaying)
+            assertEquals(AppNavState(), nav.value)
+            assertEquals(context.getString(R.string.player_destination_unavailable),
+                org.robolectric.shadows.ShadowToast.getTextOfLatestToast())
+        }
+    }
+
     @Test fun queueMessageFromPlayerActionIsVisibleAbovePlayer() {
         val track = OfflineTrackRow(
             id = "fixture-track",
@@ -179,6 +241,7 @@ class NowPlayingActionNavigationUiTest {
         nav: androidx.compose.runtime.MutableState<AppNavState>,
         onModelsReady: (PlayerViewModel, LibraryViewModel) -> Unit,
         onQueueSnackbarReady: (SnackbarHostState) -> Unit = {},
+        acceptNavigation: Boolean = true,
         onDispatcherReady: (OnBackPressedDispatcher) -> Unit,
     ) {
         val connection = remember(track.id) { FixturePlaybackConnection(track) }
@@ -258,7 +321,7 @@ class NowPlayingActionNavigationUiTest {
                             }
                         }
                     }
-                    if (route.tab is AppTab.Library) {
+                    if (route.tab is AppTab.Library || route.details.isNotEmpty()) {
                         LibraryScreenContent(
                             state = requireNotNull(state),
                             actions = library,
@@ -280,7 +343,10 @@ class NowPlayingActionNavigationUiTest {
                     player = playerState,
                     playerModel = player,
                     account = AccountUiState(),
-                    onOpenDetail = { nav.value = AppNavigator.push(nav.value, it) },
+                    onOpenDetail = {
+                        if (acceptNavigation) nav.value = AppNavigator.push(nav.value, it)
+                        acceptNavigation && nav.value.details.lastOrNull() == it
+                    },
                     libraryModelOverride = library,
                 )
             },

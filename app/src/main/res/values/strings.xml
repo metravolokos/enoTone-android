@@ -293,4 +293,9 @@
         <item quantity="many">Добавлено: %d песен</item>
         <item quantity="other">Добавлено: %d песни</item>
     </plurals>
+    <string name="diagnostics_library_title">Медиатека</string>
+    <string name="diagnostics_library_check">Проверить дубли</string>
+    <string name="diagnostics_library_duplicates">Дубли=%1$d, альбомов=%2$d</string>
+    <string name="player_destination_unavailable">Альбом или исполнитель недоступен</string>
+    <string name="diagnostics_library_album">Последний альбом: строк=%1$d, в шапке=%2$d, повторов ID=%3$d</string>
 </resources>

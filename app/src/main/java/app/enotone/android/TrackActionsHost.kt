@@ -8,6 +8,7 @@ import app.enotone.android.core.ui.component.EnoAction
 import app.enotone.android.core.ui.component.EnoActionSheet
 import app.enotone.android.core.ui.component.EnoActionSheetHeader
 import app.enotone.android.core.ui.component.EnoIcons
+import app.enotone.library.LibraryPage
 import app.enotone.library.OfflineTrackRow
 
 /** Один лист для «⋮» и долгого нажатия во всех списках песен. */
@@ -23,11 +24,23 @@ internal fun TrackActionsHost(
     appPassword: String,
     onDismiss: () -> Unit,
     onOpenDetail: (LibraryDetail) -> Unit,
+    onRequestDetail: ((LibraryPage) -> Unit)? = null,
 ) {
     val targets = remember(track, groupIndex, currentDetail) {
         TrackActionPlanner.targets(track, groupIndex, currentDetail)
     }
-    val navigation = listOfNotNull(
+    val navigation = if (onRequestDetail != null) listOfNotNull(
+        track.album?.takeIf { it.isNotBlank() }?.let {
+            EnoAction(EnoIcons.ALBUMS, stringResource(R.string.song_action_go_album)) {
+                onRequestDetail(LibraryPage.ALBUMS)
+            }
+        },
+        track.artist?.takeIf { it.isNotBlank() }?.let {
+            EnoAction(EnoIcons.ARTISTS, stringResource(R.string.song_action_go_artist)) {
+                onRequestDetail(LibraryPage.ARTISTS)
+            }
+        },
+    ) else listOfNotNull(
         targets.album?.let { group ->
             EnoAction(
                 EnoIcons.ALBUMS,

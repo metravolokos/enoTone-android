@@ -151,6 +151,26 @@ class LibraryViewModelTest {
         visiblePages = pages,
     )
 
+    @Test fun restoredPlayerDetailWaitsForColdCatalogueAndRejectsMissingIds() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val track = row(1, "Fixture")
+            val vm = model(this, FakeRepository(catalog(track)))
+            val album = async(UnconfinedTestDispatcher(testScheduler)) {
+                vm.playerDetail(track.id, LibraryPage.ALBUMS)
+            }
+            assertFalse(album.isCompleted)
+            advanceUntilIdle()
+            assertEquals(LibraryDetail.Album(vm.state.value.groupIndex.albums.single().key), album.await())
+            assertEquals(LibraryDetail.Artist(vm.state.value.groupIndex.artists.single().key),
+                vm.playerDetail(track.id, LibraryPage.ARTISTS))
+            assertNull(vm.playerDetail("missing", LibraryPage.ALBUMS))
+            assertNull(vm.playerDetail("missing", LibraryPage.ARTISTS))
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     @Test fun queueActionsStartEmptyAndRouteLaterEditsWithFeedback() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

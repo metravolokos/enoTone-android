@@ -13,6 +13,7 @@ internal interface IndexingActions {
 
 /** Подэкран «Диагностика»: только чтение, без изменения медиатеки. */
 internal interface DiagnosticsActions {
+    fun inspectLibrary() = Unit
     fun inspect() = Unit
     fun audit(query: AuditQuery) = Unit
 }

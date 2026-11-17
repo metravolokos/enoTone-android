@@ -100,6 +100,7 @@ internal fun LibraryScreenContent(
     detail: LibraryDetail? = null,
     onOpenDetail: (LibraryDetail) -> Unit = {},
 ) {
+    androidx.compose.runtime.SideEffect { LibraryAlbumDiagnostics.record(state) }
     val section = state.section
     val visiblePages = state.visiblePages
     val tracks = state.tracks
