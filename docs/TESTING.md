@@ -79,7 +79,7 @@ D2b добавляет `ComponentsScreenshotTest` (две галереи ком�
 
 После merge #169/#176 страницы используют единый fade-through, полный плеер — вертикальную шторку. JVM/Compose UI тесты `AppMotionTest`, `AppMotionFrameUiTest`, `AppPlayerSheetBackUiTest`, `AppNowPlayingGestureUiTest`, `AppDockOpaqueUiTest` проверяют переходы и отдельные кадры на Robolectric; Roborazzi проверяет зафиксированные PNG для Android v2 и состояний буфера. Это **не** системный predictive Back, FPS, TalkBack или время отклика на физическом Huawei. Владелец 2026-11-17 общим сообщением подтвердил принятые ранее PR (включая NAV-15…17 и PLAY-10), но **отдельных замеров и поимённых PASS нет**: итог сценариев — только [SCENARIOS](SCENARIOS.md).
 
-CI на этом срезе предзагружает `kotlin-compiler-embeddable:2.3.10` при Kotlin `2.4.21` из `gradle/libs.versions.toml` — известная проблема резервного зеркала F-03, а не исправленная конфигурация.
+Резервное зеркало компилятора: с [ADR-0098](DECISIONS/ADR-0098-ci-compiler-mirror-version-from-catalog.md) шаг CI читает версию `kotlin` из `gradle/libs.versions.toml` и берёт SHA-256 из таблицы пинов, поэтому зеркало обслуживает тот компилятор, который запрашивает сборка (2.4.21, пин `ef19419c…f1d02`). Неизвестная версия — падение шага с `::error::`, а не молчаливая подмена. Инварианты закреплены `tools/test_ci_compiler_mirror_contract.py` (7 проверок, включая сверку пина с хешем локального артефакта). Хеш остаётся ручным: Maven Central не публикует `.jar.sha256` для этого артефакта.
 
 ### Известный долг тестов
 
