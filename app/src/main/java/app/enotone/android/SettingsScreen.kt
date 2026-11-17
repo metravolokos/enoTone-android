@@ -153,7 +153,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 onOpenDetail = { detail ->
                     val next = AppNavigator.push(nav, detail)
                     nav = next
-                    next.details.lastOrNull() == detail
+                    next.overlay == null && next.details.lastOrNull() == detail
                 },
             )
         },

@@ -15,8 +15,8 @@ internal object LibraryAlbumDiagnostics {
     val last = mutable.asStateFlow()
 
     fun record(state: LibraryUiState) {
+        if (state.loading || state.failed || state.section != app.enotone.library.LibraryPage.ALBUMS) return
         val group = state.selectedGroup ?: return
-        if (state.section != app.enotone.library.LibraryPage.ALBUMS) return
         mutable.value = LibraryAlbumAudit(
             state.visible.size, group.trackIds.size,
             state.visible.groupingBy { it.id }.eachCount().count { it.value > 1 },

@@ -37,7 +37,10 @@
 | Back из детали над Home | Тот же AppBackGesture, DETAIL | Существующий fade-through | Home снова активен, плеер остаётся свёрнут |
 | Back из детали над медиатекой | Тот же AppBackGesture, DETAIL | Существующий fade-through | Та же вкладка/поиск/позиция, как в #183 |
 
-Артефакты: AppNavigatorTest, PlayerDetailOpenerTest, NowPlayingActionNavigationUiTest.
+Артефакты: AppNavigatorTest, PlayerDetailOpenerTest, NowPlayingActionNavigationUiTest,
+RestoredPlayerDetailTest.diskRestoredPausedTrackNavigatesWhileLibraryCatalogueIsStillLoading
+(реальная пара файлов в TemporaryFolder, новое хранилище после записи, PlayerViewModel →
+LibraryViewModel → PlayerDetailOpener; альбом при холодном каталоге, исполнитель при готовом).
 Физические жесты, TalkBack и Huawei проверяет владелец; эталоны дизайна не меняются.
 
 ## T-PERSIST — окна обрыва
