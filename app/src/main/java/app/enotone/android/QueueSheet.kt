@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,8 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -42,7 +41,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoModalSheetSystemBars
-import app.enotone.android.core.ui.component.EnoPlayingIndicator
 import app.enotone.android.core.ui.component.EnoTrackRow
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoRadii
@@ -66,7 +64,7 @@ internal fun QueueSheet(
     val listState = rememberLazyListState()
     val title = stringResource(R.string.queue_sheet_title)
     val sheetColor = MaterialTheme.colorScheme.surfaceContainerHigh
-    val lightSystemBars = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    val lightSystemBars = MaterialTheme.colorScheme.background.luminance() > QUEUE_LIGHT_BACKGROUND_LUMINANCE
 
     LaunchedEffect(queue.trackIds) {
         listState.scrollToItem((queue.currentIndex - 1).coerceAtLeast(0))
@@ -76,7 +74,7 @@ internal fun QueueSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = sheetColor,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f),
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = QUEUE_SHEET_SCRIM_ALPHA),
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
         shape = RoundedCornerShape(topStart = EnoRadii.xl, topEnd = EnoRadii.xl),
         dragHandle = {
@@ -181,6 +179,13 @@ internal fun QueueSheet(
 }
 
 @Composable
+internal fun QueueSheetVisibilityGuard(queueAvailable: Boolean, onQueueUnavailable: () -> Unit) {
+    LaunchedEffect(queueAvailable) {
+        if (!queueAvailable) onQueueUnavailable()
+    }
+}
+
+@Composable
 private fun QueueTrackRow(
     position: Int,
     queue: PlaybackQueueSnapshot,
@@ -202,12 +207,12 @@ private fun QueueTrackRow(
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(EnoRadii.s))
             .background(if (current) EnoColors.surface2 else Color.Transparent)
-            .graphicsLayer(alpha = if (past) 0.5f else 1f)
+            .graphicsLayer(alpha = if (past) QUEUE_PAST_ALPHA else 1f)
             .testTag("queue-track-$position"),
         isCurrent = current,
         isPlaying = isPlaying,
         showMore = false,
-        artwork = if (track == null) null else {{ artwork(track) }},
+        artwork = if (track == null) null else { { artwork(track) } },
     )
 }
 
@@ -216,3 +221,6 @@ private fun queueRowKey(position: Int, trackId: String) = "$position:$trackId"
 internal const val QUEUE_SHEET_CONTENT_TAG = "queue-sheet-content"
 internal const val QUEUE_SHEET_HANDLE_TAG = "queue-sheet-handle"
 private const val QUEUE_NEXT_LABEL_KEY = "queue-next-label"
+private const val QUEUE_SHEET_SCRIM_ALPHA = 0.4f
+private const val QUEUE_PAST_ALPHA = 0.5f
+private const val QUEUE_LIGHT_BACKGROUND_LUMINANCE = 0.5f

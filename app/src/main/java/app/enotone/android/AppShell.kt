@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -218,9 +217,7 @@ internal fun AppNowPlaying(
     val appContainer = remember(context) {
         (context.applicationContext as EnoToneApplication).container
     }
-    LaunchedEffect(playback.queueOrder == null) {
-        if (playback.queueOrder == null) queueVisible = false
-    }
+    QueueSheetVisibilityGuard(playback.queueOrder != null) { queueVisible = false }
     val opener = PlayerDetailOpener(
         resolve = { id, page -> libraryModel?.playerDetail(id, page) },
         currentTrackId = {
