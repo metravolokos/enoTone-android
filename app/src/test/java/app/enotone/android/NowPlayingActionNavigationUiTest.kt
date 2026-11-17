@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.activity.OnBackPressedDispatcher
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -105,9 +106,13 @@ class NowPlayingActionNavigationUiTest {
         }
         rule.onNodeWithText("Album Alpha").assertExists()
 
+        // Лист скрывается до открытия detail; дождёмся завершения выхода плеера, чтобы Back
+        // получил стек маршрутов после видимого перехода, как в обычном пользовательском потоке.
+        rule.waitForIdle()
         rule.runOnIdle { dispatcher.onBackPressed() }
+        rule.runOnIdle { assertEquals("Back должен закрыть detail", root, nav.value) }
         rule.waitUntil(10_000) {
-            nav.value == root && libraryModel.state.value.derivedRoute == (LibraryPage.TRACKS to null)
+            libraryModel.state.value.derivedRoute == (LibraryPage.TRACKS to null)
         }
         rule.onNodeWithText("Song Alpha").assertExists()
         rule.runOnIdle {
@@ -129,6 +134,7 @@ class NowPlayingActionNavigationUiTest {
         val nav = mutableStateOf(AppNavState(tab = AppTab.Library(LibraryPage.TRACKS)))
         lateinit var playerModel: PlayerViewModel
         lateinit var libraryModel: LibraryViewModel
+        lateinit var queueSnackbar: SnackbarHostState
         val modelsReady = AtomicBoolean(false)
         rule.setContent {
             EnoToneTheme {
@@ -140,6 +146,7 @@ class NowPlayingActionNavigationUiTest {
                         libraryModel = library
                         modelsReady.set(true)
                     },
+                    onQueueSnackbarReady = { queueSnackbar = it },
                     onDispatcherReady = {},
                 )
             }
@@ -156,6 +163,7 @@ class NowPlayingActionNavigationUiTest {
             context.getString(R.string.song_actions_description, track.title),
         ).performClick()
         rule.onNodeWithText(context.getString(R.string.queue_append)).performClick()
+        rule.waitUntil(10_000) { queueSnackbar.currentSnackbarData != null }
         rule.onNodeWithText(context.getString(R.string.queue_added)).assertIsDisplayed()
     }
 
@@ -164,6 +172,7 @@ class NowPlayingActionNavigationUiTest {
         track: OfflineTrackRow,
         nav: androidx.compose.runtime.MutableState<AppNavState>,
         onModelsReady: (PlayerViewModel, LibraryViewModel) -> Unit,
+        onQueueSnackbarReady: (SnackbarHostState) -> Unit = {},
         onDispatcherReady: (OnBackPressedDispatcher) -> Unit,
     ) {
         val connection = remember(track.id) { FixturePlaybackConnection(track) }
@@ -221,6 +230,7 @@ class NowPlayingActionNavigationUiTest {
         val artwork = remember(context) { ArtworkPreviewRepository(context) }
         val snapshots = remember { AppLibraryRouteSnapshots() }
         val queueSnackbar = rememberQueueSnackbar(library)
+        SideEffect { onQueueSnackbarReady(queueSnackbar) }
         AppMotionRoot(
             inSettings = false,
             diagnostics = false,
