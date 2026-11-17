@@ -48,6 +48,7 @@ internal fun AppMotionRoot(
     onPlayerExitComplete: () -> Unit = {},
     queueSnackbar: SnackbarHostState? = null,
     queueSnackbarBottomPadding: Dp = 16.dp,
+    queueSnackbarHorizontalPadding: Dp = DOCK_SIDE,
     music: @Composable () -> Unit,
     settings: @Composable (Boolean) -> Unit,
     player: @Composable () -> Unit,
@@ -168,8 +169,8 @@ internal fun AppMotionRoot(
             Box(
                 Modifier.fillMaxSize().navigationBarsPadding()
                     .padding(
-                        start = 16.dp,
-                        end = 16.dp,
+                        start = queueSnackbarHorizontalPadding,
+                        end = queueSnackbarHorizontalPadding,
                         bottom = if (playerExpanded) 16.dp else queueSnackbarBottomPadding,
                     ),
             ) {
@@ -181,7 +182,10 @@ internal fun AppMotionRoot(
                         slideOutVertically(tween(AppMotionSpec.SNACKBAR_MS), targetOffsetY = { snackbarLift }),
                     modifier = Modifier.align(Alignment.BottomCenter),
                 ) {
-                    SnackbarHost(hostState = queueSnackbar)
+                    SnackbarHost(
+                        hostState = queueSnackbar,
+                        modifier = Modifier.testTag("app-queue-snackbar-host"),
+                    )
                 }
             }
         }

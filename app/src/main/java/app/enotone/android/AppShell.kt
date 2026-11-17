@@ -181,7 +181,7 @@ private fun librarySaveKey(tab: AppTab.Library, details: List<LibraryDetail>): S
     }
 
 private const val LIBRARY_STATE_KEY = "library"
-private val DOCK_SIDE = 12.dp
+internal val DOCK_SIDE = 12.dp
 private val DOCK_GAP = 8.dp
 private val BAR_HEIGHT = 70.dp
 internal val MINI_HEIGHT = 64.dp

@@ -82,10 +82,9 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val libraryStateHolder = rememberSaveableStateHolder()
     val inSettings = nav.overlay != null
     val expanded = player.nowPlaying && player.playback.queueTotal > 0
-    val libraryModel = if (!inSettings || expanded) account.libraryLogin?.let {
+    // Keep the outgoing music route backed by its library model during the Settings transition.
+    val libraryModel = account.libraryLogin?.let {
         rememberLibraryViewModel(it.email, it.password)
-    } else {
-        null
     }
     val queueSnackbar = rememberQueueSnackbar(libraryModel)
     // Видимость страниц перечитывается при выходе из «Настроек», где её меняют (ADR-0052).
@@ -128,9 +127,12 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         playerBackProgress = backController.playerProgress(),
         onPlayerExitComplete = backController::finishTransition,
         queueSnackbar = queueSnackbar,
-        queueSnackbarBottomPadding = snackbarBottomOffset(
-            miniVisible = !inSettings && player.playback.queueTotal > 0,
-        ),
+        queueSnackbarBottomPadding = if (inSettings) {
+            16.dp
+        } else {
+            snackbarBottomOffset(miniVisible = player.playback.queueTotal > 0)
+        },
+        queueSnackbarHorizontalPadding = DOCK_SIDE,
         music = {
             AppMusicShell(
                 nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
