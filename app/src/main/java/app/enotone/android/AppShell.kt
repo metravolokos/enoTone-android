@@ -302,7 +302,7 @@ private fun NowPlayingActionSheet(
             artworkRepository = container.artworkPreviewRepository,
             accountEmail = login?.email.orEmpty(),
             appPassword = login?.password.orEmpty(),
-            onDismiss = { actionsVisible = false },
+            onDismiss = onDismiss,
             onOpenDetail = onOpenDetail,
         )
     }
