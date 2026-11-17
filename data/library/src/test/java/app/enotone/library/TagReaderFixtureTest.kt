@@ -164,10 +164,11 @@ class TagReaderFixtureTest {
      * looked like a completed check with zero tags. The user saw a track with no
      * title and no retry, exactly as if the file never had tags.
      *
-     * Fixed by the least invasive option: [FastTagCode.UNSUPPORTED_LAYOUT] and
-     * [FastTagCode.UNSUPPORTED_FORMAT] now yield an explicit `FAILED_LAYOUT`
-     * failure, so `FastTagRead` keeps its shape and callers stop treating a
-     * verdict as an empty result.
+     * Fixed by the least invasive option: [FastTagCode.UNSUPPORTED_LAYOUT] now
+     * yields an explicit `FAILED_LAYOUT` failure, so `FastTagRead` keeps its
+     * shape and callers stop treating a verdict as an empty result. A non-MP3
+     * or non-FLAC extension ([FastTagCode.UNSUPPORTED_FORMAT]) is deliberately
+     * not a layout verdict and stays a completed check without tags (R-2).
      */
     @Test fun refusedLayoutIsNotRecordedAsACompletedEmptyCheck() {
         assertNotNull("A refused tag layout must be reported as a parser failure",
