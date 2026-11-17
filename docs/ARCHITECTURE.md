@@ -1,7 +1,7 @@
 
 # Архитектура enoTone Android
 
-**Фактический срез:** `main` `f42213b`, 2026-11-17. Структура сверена с `settings.gradle.kts` и `app/build.gradle.kts`; детали контрактов — [MODULE_MAP](MODULE_MAP.md), [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [индекс ADR](DECISIONS/README.md). Старые варианты модульной схемы из ранних ADR — исторические предложения, **не текущий Gradle-граф**.
+**Фактический срез:** `main` `61ced66`, 2026-11-17. Структура сверена с `settings.gradle.kts` и `app/build.gradle.kts`; детали контрактов — [MODULE_MAP](MODULE_MAP.md), [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [индекс ADR](DECISIONS/README.md). Старые варианты модульной схемы из ранних ADR — исторические предложения, **не текущий Gradle-граф**.
 
 ## Общая схема
 
@@ -47,7 +47,7 @@ flowchart TD
 3. **Обложки.** Один WebP-мастер до 1200 px в `filesDir/enotone-artwork-v2`, дедупликация; хранение не равно временному аудиокэшу. Режимы `ON_DEMAND` и `AUTO_AFTER_IMPORT`; без массового image GET при сканировании тегов. [ADR-0067](DECISIONS/ADR-0067-permanent-album-artwork.md).
 4. **Воспроизведение.** `:playback` владеет Media3/MediaSession, очередью, seek, repeat/shuffle, временным кэшем и одной предзагрузкой next; `PlayerViewModel` предоставляет снимок состояния экрану. Очередь/позиция сохраняются, но постоянная загрузка музыки offline и экран редактирования очереди не реализованы.
 5. **Аккаунт и выход.** `app` использует Android Keystore AES-GCM после успешной проверки WebDAV. Выход сначала прекращает воспроизведение/фоновые операции, затем очищает пользовательские данные и только последним — Keystore. [ADR-0080](DECISIONS/ADR-0080-permanent-login-sign-out.md).
-6. **UI/Back.** `AppNavigator` управляет вкладками, деталями, настройками/диагностикой; нижняя панель и мини-плеер остаются смонтированы под цельной шторкой полного плеера. D3.5 использует один fade-through без горизонтального slide/shared artwork, Back: PLAYER → OVERLAY → DETAIL → SEARCH → TAB → EXIT. [ADR-0086](DECISIONS/ADR-0086-navigation-shell-v2.md), [ADR-0095](DECISIONS/ADR-0095-simple-motion.md).
+6. **UI/Back.** `AppNavigator` управляет вкладками, деталями, настройками/диагностикой; нижняя панель и мини-плеер остаются смонтированы под цельной шторкой полного плеера. D5-C (#183) добавил общий лист действий «⋮» с навигацией к альбому/исполнителю и единый Snackbar поверх плеера; в остальном жизненный цикл D3.5 сохранён. D3.5 использует один fade-through без горизонтального slide/shared artwork, Back: PLAYER → OVERLAY → DETAIL → SEARCH → TAB → EXIT. [ADR-0086](DECISIONS/ADR-0086-navigation-shell-v2.md), [ADR-0095](DECISIONS/ADR-0095-simple-motion.md).
 
 ## Дизайн, тесты и границы
 
