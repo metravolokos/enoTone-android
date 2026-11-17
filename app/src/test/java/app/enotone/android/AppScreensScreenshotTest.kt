@@ -251,7 +251,8 @@ class AppScreensScreenshotTest {
                 Screen(dark) {
                     NowPlayingScreen(
                         trackId = "t0", title = "Вымышленная песня", artist = "Выдуманный артист",
-                        album = "Придуманный альбом", artwork = null, playbackState = "PLAYING", errorCode = 0,
+                        album = "Придуманный альбом", albumYear = 2019,
+                        artwork = null, playbackState = "PLAYING", errorCode = 0,
                         positionMs = 3_000L, durationMs = 200_000L, canSeek = true, controlsEnabled = true,
                         hasPrevious = true, hasNext = true, queuePosition = 34, queueTotal = 3647,
                         repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = true,
