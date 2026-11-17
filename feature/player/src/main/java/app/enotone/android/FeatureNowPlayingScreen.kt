@@ -43,6 +43,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -75,6 +76,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -133,6 +135,7 @@ fun FeatureNowPlayingScreen(
     onMore: () -> Unit,
 ) {
     val color = MaterialTheme.colorScheme
+    val nowPlayingPaneTitle = stringResource(ids.nowPlayingTitle)
 
     val knownDuration = PlaybackSeekPolicy.isKnownDuration(durationMs)
     var scrubbing by remember(trackId) { mutableStateOf(false) }
@@ -201,6 +204,7 @@ fun FeatureNowPlayingScreen(
     var playerHeightPx by remember { mutableFloatStateOf(1f) }
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().testTag("now-playing-gesture-root")
+            .semantics { paneTitle = nowPlayingPaneTitle }
             .graphicsLayer {
                 translationY = dragOffset.floatValue
             }
@@ -240,11 +244,11 @@ fun FeatureNowPlayingScreen(
                 )
             },
     ) {
-        val coverSide = minOf(maxWidth - 56.dp, maxHeight * 0.38f, 320.dp)
+        val coverSide = minOf(maxWidth - 56.dp, maxHeight * 0.40f, 321.dp)
         Column(
             modifier = Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .padding(horizontal = 24.dp, vertical = 8.dp),
+                .padding(horizontal = 28.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.weight(.25f))
@@ -483,34 +487,38 @@ fun FeatureNowPlayingScreen(
                 IconButton(
                     onClick = onPrevious,
                     enabled = controlsEnabled && hasPrevious,
-                    modifier = Modifier.size(60.dp),
+                    modifier = Modifier.size(64.dp),
                 ) {
                     Icon(painterResource(ids.icActionPrevious),
                         contentDescription = stringResource(ids.playbackPrevious),
-                        modifier = Modifier.size(24.dp))
+                        modifier = Modifier.size(40.dp))
                 }
                 FilledIconButton(
                     onClick = onPlayPause,
                     enabled = controlsEnabled,
                     shape = CircleShape,
-                    modifier = Modifier.size(76.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = EnoColors.accentFill,
+                        contentColor = EnoColors.onAccent,
+                    ),
+                    modifier = Modifier.size(84.dp),
                 ) {
                     Icon(
                         painterResource(if (isPlaying)
                             ids.icActionPause else ids.icActionPlay),
                         contentDescription = stringResource(if (isPlaying)
                             ids.playbackPause else ids.playbackResume),
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(40.dp),
                     )
                 }
                 IconButton(
                     onClick = onNext,
                     enabled = controlsEnabled && hasNext,
-                    modifier = Modifier.size(60.dp),
+                    modifier = Modifier.size(64.dp),
                 ) {
                     Icon(painterResource(ids.icActionNext),
                         contentDescription = stringResource(ids.playbackNext),
-                        modifier = Modifier.size(24.dp))
+                        modifier = Modifier.size(40.dp))
                 }
             }
             Spacer(Modifier.weight(.2f))

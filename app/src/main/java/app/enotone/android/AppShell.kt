@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -54,6 +55,8 @@ internal fun AppMusicShell(
     account: AccountUiState,
     player: SharedPlayerUiState,
     playerModel: PlayerViewModel,
+    libraryModel: LibraryViewModel?,
+    queueSnackbar: SnackbarHostState,
     libraryStateHolder: SaveableStateHolder,
     onSelectTab: (AppTab) -> Unit,
     onOpenDetail: (LibraryDetail) -> Unit,
@@ -61,8 +64,6 @@ internal fun AppMusicShell(
     searchRegistry: AppSearchBackRegistry? = null,
 ) {
     val login = account.libraryLogin
-    val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
-    val queueSnackbar = rememberQueueSnackbar(libraryModel)
     val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
     val snapshots = androidx.compose.runtime.remember(libraryModel) { AppLibraryRouteSnapshots() }
     val selecting = library?.selecting == true
@@ -122,7 +123,8 @@ internal fun AppMusicShell(
             ) {
                 // D3.4: Snackbar поднимается на 16 dp и проявляется за 200 мс.
                 AnimatedVisibility(
-                    visible = queueSnackbar.currentSnackbarData != null,
+                    visible = !(player.nowPlaying && player.playback.queueTotal > 0) &&
+                        queueSnackbar.currentSnackbarData != null,
                     enter = fadeIn(tween(AppMotionSpec.SNACKBAR_MS)) +
                         slideInVertically(tween(AppMotionSpec.SNACKBAR_MS), initialOffsetY = { snackbarLift }),
                     exit = fadeOut(tween(AppMotionSpec.SNACKBAR_MS)) +
@@ -268,7 +270,11 @@ internal fun AppNowPlaying(
         actions = libraryModel ?: PreviewLibraryActions,
         login = login,
         onDismiss = { actionsVisible = false },
-        onOpenDetail = onOpenDetail,
+        onOpenDetail = { detail ->
+            actionsVisible = false
+            playerModel.onNowPlaying(false)
+            onOpenDetail(detail)
+        },
     )
 }
 

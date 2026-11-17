@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -24,14 +25,14 @@ import app.enotone.library.LibrarySnapshot
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.PersistedQueueState
 import app.enotone.playback.QueueEditResult
+import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueTrack
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -115,6 +116,49 @@ class NowPlayingActionNavigationUiTest {
         }
     }
 
+    @Test fun queueMessageFromPlayerActionIsVisibleAbovePlayer() {
+        val track = OfflineTrackRow(
+            id = "fixture-track",
+            title = "Song Alpha",
+            artist = "Artist Alpha",
+            album = "Album Alpha",
+            albumArtist = "Artist Alpha",
+            year = 2019,
+            hasStoredTagData = true,
+        )
+        val nav = mutableStateOf(AppNavState(tab = AppTab.Library(LibraryPage.TRACKS)))
+        lateinit var playerModel: PlayerViewModel
+        lateinit var libraryModel: LibraryViewModel
+        val modelsReady = AtomicBoolean(false)
+        rule.setContent {
+            EnoToneTheme {
+                NavigationHarness(
+                    track = track,
+                    nav = nav,
+                    onModelsReady = { player, library ->
+                        playerModel = player
+                        libraryModel = library
+                        modelsReady.set(true)
+                    },
+                    onDispatcherReady = {},
+                )
+            }
+        }
+        rule.waitUntil(10_000) {
+            modelsReady.get() &&
+                !libraryModel.state.value.loading &&
+                libraryModel.state.value.groupIndex.albumByTrackId.containsKey(track.id) &&
+                playerModel.state.value.playback.queueTotal > 0
+        }
+        rule.runOnIdle { playerModel.onNowPlaying(true) }
+        rule.waitUntil(10_000) { playerModel.state.value.nowPlaying }
+        rule.onNodeWithContentDescription(
+            context.getString(R.string.song_actions_description, track.title),
+        ).performClick()
+        rule.onNodeWithText(context.getString(R.string.queue_append)).performClick()
+        rule.onNodeWithText(context.getString(R.string.queue_added)).assertIsDisplayed()
+    }
+
     @Composable
     private fun NavigationHarness(
         track: OfflineTrackRow,
@@ -176,12 +220,14 @@ class NowPlayingActionNavigationUiTest {
         val context = LocalContext.current
         val artwork = remember(context) { ArtworkPreviewRepository(context) }
         val snapshots = remember { AppLibraryRouteSnapshots() }
+        val queueSnackbar = rememberQueueSnackbar(library)
         AppMotionRoot(
             inSettings = false,
             diagnostics = false,
             playerExpanded = expanded,
             playerBackProgress = backController.playerProgress(),
             onPlayerExitComplete = backController::finishTransition,
+            queueSnackbar = queueSnackbar,
             music = {
                 AppLibraryRouteTransition(
                     nav = nav.value,
@@ -275,6 +321,10 @@ class NowPlayingActionNavigationUiTest {
         override fun playPause() = Unit
         override fun playNext() = Unit
         override fun playPrevious() = Unit
+        override fun insertNext(tracks: List<QueueTrack>) =
+            QueueEditResult(QueueEditStatus.APPLIED, tracks.size)
+        override fun append(tracks: List<QueueTrack>) =
+            QueueEditResult(QueueEditStatus.APPLIED, tracks.size)
         override fun cycleRepeatMode() = Unit
         override fun toggleShuffle() = Unit
         override fun seekToFraction(fraction: Float) = Unit

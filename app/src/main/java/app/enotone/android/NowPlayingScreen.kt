@@ -17,6 +17,7 @@ private val nowPlayingIds = NowPlayingIds(
     artworkDescription = R.string.artwork_description,
     icNavAlbums = R.drawable.ic_nav_albums,
     nowPlayingNoArtwork = R.string.now_playing_no_artwork,
+    nowPlayingTitle = R.string.now_playing_title,
     playbackDurationUnknown = R.string.playback_duration_unknown,
     icActionPrevious = CoreUiR.drawable.ic_eno_previous,
     playbackPrevious = R.string.playback_previous,

@@ -10,7 +10,11 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -18,10 +22,12 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 
@@ -36,6 +42,7 @@ internal fun AppMotionRoot(
     playerExpanded: Boolean,
     playerBackProgress: Float = 0f,
     onPlayerExitComplete: () -> Unit = {},
+    queueSnackbar: SnackbarHostState? = null,
     music: @Composable () -> Unit,
     settings: @Composable (Boolean) -> Unit,
     player: @Composable () -> Unit,
@@ -149,6 +156,17 @@ internal fun AppMotionRoot(
                     .testTag("app-player-sheet"),
             ) {
                 player()
+            }
+        }
+        if (playerExpanded && queueSnackbar != null) {
+            Box(
+                Modifier.fillMaxSize().navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+            ) {
+                SnackbarHost(
+                    hostState = queueSnackbar,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
     }

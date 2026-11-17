@@ -29,6 +29,7 @@ data class NowPlayingIds(
     val artworkDescription: Int,
     val icNavAlbums: Int,
     val nowPlayingNoArtwork: Int,
+    val nowPlayingTitle: Int,
     val playbackDurationUnknown: Int,
     val icActionPrevious: Int,
     val playbackPrevious: Int,

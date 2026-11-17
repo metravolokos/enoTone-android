@@ -14,11 +14,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -72,6 +75,12 @@ class NowPlayingUiTest {
             }
         }
         rule.onNodeWithText("Fixture title").assertExists()
+        rule.onNodeWithTag("now-playing-gesture-root", useUnmergedTree = true).assert(
+            SemanticsMatcher.expectValue(
+                SemanticsProperties.PaneTitle,
+                context.getString(R.string.now_playing_title),
+            ),
+        )
         rule.onNodeWithText("Fixture album · 2019").assertExists()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_resume)).performClick()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_previous)).performClick()
