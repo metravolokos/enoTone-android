@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -166,14 +167,17 @@ class NowPlayingActionNavigationUiTest {
             context.getString(R.string.song_actions_description, track.title),
         ).performClick()
         val appendLabel = context.getString(R.string.queue_append)
+        val addedMessage = context.getString(R.string.queue_added)
         rule.onNodeWithText(appendLabel).performClick()
         rule.waitUntil(10_000) { queueSnackbar.currentSnackbarData != null }
         rule.waitUntil(10_000) {
             runCatching { rule.onNodeWithText(appendLabel).assertDoesNotExist() }.isSuccess
         }
-        rule.waitForIdle()
-        rule.runOnIdle { assertTrue(playerModel.state.value.nowPlaying) }
-        rule.onNodeWithText(context.getString(R.string.queue_added)).assertIsDisplayed()
+        rule.waitUntil(10_000) {
+            rule.onAllNodesWithText(addedMessage).fetchSemanticsNodes().isNotEmpty()
+        }
+        assertTrue(playerModel.state.value.nowPlaying)
+        rule.onNodeWithText(addedMessage).assertIsDisplayed()
     }
 
     @Composable

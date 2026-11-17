@@ -481,7 +481,7 @@ fun FeatureNowPlayingScreen(
             Spacer(Modifier.weight(.22f))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
