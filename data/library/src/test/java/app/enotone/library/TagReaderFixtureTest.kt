@@ -119,6 +119,40 @@ class TagReaderFixtureTest {
         assertEquals("Кино", read.tags?.artist)
     }
 
+    /**
+     * R-4: detection must survive the shapes real taggers produce — typographic
+     * quotes (`« »`), dashes (`– —`), Ukrainian letters (`і ї є ґ`) and Latin
+     * words standing next to Cyrillic ones. The old rule switched on only when
+     * the payload had *no* ASCII letters, so any Latin word (a featured artist,
+     * "Live", "Part 2") silently returned ISO-8859-1 mojibake.
+     */
+    @Test fun cp1251DetectionKeepsMixedQuotesDashesAndLatinWords() {
+        val read = read("cp1251_mixed_tags.mp3")
+        assertEquals(
+            "Mixed-script title must stay CP1251; actual title=${read.tags?.title}",
+            "«Осень» — Live (feat. Ivan)", read.tags?.title,
+        )
+        assertEquals(
+            "Ukrainian letters must decode; actual artist=${read.tags?.artist}",
+            "Їжак Ґанок і Хор", read.tags?.artist,
+        )
+        assertEquals("Дорога – Part 2", read.tags?.album)
+        assertEquals(FastTagCode.MP3_ID3V23, read.code)
+    }
+
+    /**
+     * R-4 guard in the opposite direction: genuine ISO-8859-1 with accented
+     * letters must NOT be reinterpreted as CP1251. Read as Windows-1251 the
+     * bytes glue Cyrillic letters to Latin ones inside one word (`Cafй`,
+     * `Mьller`, `GrьЯe`), which is impossible in real Cyrillic text.
+     */
+    @Test fun latin1AccentedTextIsNotMistakenForCp1251() {
+        val read = read("latin1_accented_tags.mp3")
+        assertEquals("Café Müller", read.tags?.title)
+        assertEquals("Grüße", read.tags?.artist)
+        assertEquals(FastTagCode.MP3_ID3V23, read.code)
+    }
+
     /** A broken STREAMINFO must not cost the listener otherwise readable tags. */
     @Test fun corruptStreamInfoDoesNotDiscardFollowingVorbisComments() {
         val read = read("flac_corrupt_streaminfo.flac")

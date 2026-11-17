@@ -155,6 +155,29 @@ def build_cp1251_tags() -> bytes:
     return id3_tag(3, 0x00, body) + mpeg1_layer3_frames(40, seed=3)
 
 
+def build_cp1251_mixed_tags() -> bytes:
+    """CP1251 under encoding byte 0, mixed with quotes, dashes and Latin words.
+
+    Every Cyrillic word is a separate word: the Latin fragments are whole words
+    (`Live`, `feat`, `Ivan`, `Part`), never glued to Cyrillic letters, which is
+    what a real tagger produces for "featured artist" style titles.
+    """
+    title = "«Осень» — Live (feat. Ivan)"
+    artist = "Їжак Ґанок і Хор"
+    album = "Дорога – Part 2"
+    body = (id3_frame(3, "TIT2", latin1_text(title.encode("cp1251"))) +
+            id3_frame(3, "TPE1", latin1_text(artist.encode("cp1251"))) +
+            id3_frame(3, "TALB", latin1_text(album.encode("cp1251"))))
+    return id3_tag(3, 0x00, body) + mpeg1_layer3_frames(40, seed=13)
+
+
+def build_latin1_accented_tags() -> bytes:
+    """Genuine ISO-8859-1 with accented letters: CP1251 detection must stand down."""
+    body = (id3_frame(3, "TIT2", latin1_text("Café Müller".encode("iso-8859-1"))) +
+            id3_frame(3, "TPE1", latin1_text("Grüße".encode("iso-8859-1"))))
+    return id3_tag(3, 0x00, body) + mpeg1_layer3_frames(40, seed=19)
+
+
 def build_flac_corrupt_streaminfo() -> bytes:
     """STREAMINFO declares 34 bytes but only 18 precede a valid VORBIS_COMMENT."""
     truncated = flac_stream_info_payload()[:18]
@@ -192,6 +215,45 @@ Current behaviour: CP1251 bytes read as ISO-8859-1 produce the mojibake
 """
 
 
+CP1251_MIXED_NOTE = """cp1251_mixed_tags.mp3
+
+ID3v2.3, TIT2 / TPE1 / TALB frames, text-encoding byte 0x00, payload bytes are
+Windows-1251 (CP1251). Exact values and their CP1251 byte codes:
+
+  TIT2 = "\u00ab\u041e\u0441\u0435\u043d\u044c\u00bb \u2014 Live (feat. Ivan)"
+  TPE1 = "\u0407\u0436\u0430\u043a \u0490\u0430\u043d\u043e\u043a \u0456 \u0425\u043e\u0440"
+  TALB = "\u0414\u043e\u0440\u043e\u0433\u0430 \u2013 Part 2"
+
+  \u00ab AB   \u00bb BB   \u2014 97 (em dash)   \u2013 96 (en dash)
+  \u0407 AF   \u0457 BF   \u0490 A5   \u0491 B4   \u0404 A8   \u0454 AA   \u0406 B2   \u0456 B3
+
+Mixed content must not switch detection off: the Cyrillic words, the typographic
+quotes and dashes and the Ukrainian national letters are all valid CP1251, and
+the Latin fragments are separate words (`Live`, `feat`, `Ivan`, `Part`).
+
+Correct behaviour: title "\u00ab\u041e\u0441\u0435\u043d\u044c\u00bb \u2014 Live (feat. Ivan)",
+artist "\u0407\u0436\u0430\u043a \u0490\u0430\u043d\u043e\u043a \u0456 \u0425\u043e\u0440",
+album "\u0414\u043e\u0440\u043e\u0433\u0430 \u2013 Part 2".
+"""
+
+
+LATIN1_ACCENTED_NOTE = """latin1_accented_tags.mp3
+
+ID3v2.3, TIT2 and TPE1 frames, text-encoding byte 0x00 with genuine
+ISO-8859-1 payload bytes and accented Latin letters:
+
+  TIT2 = "Caf\u00e9 M\u00fcller"   (payload: 43 61 66 E9 20 4D FC 6C 6C 65 72)
+  TPE1 = "Gr\u00fc\u00dfe"          (payload: 47 72 FC DF 65)
+
+This is the negative guard for CP1251 detection: the same bytes read as
+Windows-1251 give "Caf\u0439 M\u044cller" / "Gr\u044c\u042fe", where the Cyrillic
+letters are glued to Latin ones inside a single word. Detection must refuse
+CP1251 and keep the ISO-8859-1 reading.
+
+Correct behaviour: title "Caf\u00e9 M\u00fcller", artist "Gr\u00fc\u00dfe".
+"""
+
+
 ID3V24_UNSYNC_NOTE = """id3v24_unsync.mp3
 
 ID3v2.4, tag header flag 0x80 (unsynchronisation), two text frames, both UTF-16
@@ -225,12 +287,19 @@ def generate(root: Path) -> None:
     write(root / "id3v24_unsync.mp3", build_id3v24_unsync())
     write(root / "flac_id3_preamble.flac", build_flac_id3_preamble())
     write(root / "cp1251_tags.mp3", build_cp1251_tags())
+    write(root / "cp1251_mixed_tags.mp3", build_cp1251_mixed_tags())
+    write(root / "latin1_accented_tags.mp3", build_latin1_accented_tags())
     write(root / "flac_corrupt_streaminfo.flac", build_flac_corrupt_streaminfo())
     write(root / "mp3_cbr_no_xing.mp3", build_mp3_cbr_no_xing())
     write(root / "mp3_no_tags.mp3", build_mp3_no_tags())
     note = root / "cp1251_tags.txt"
     note.write_text(CP1251_NOTE, encoding="utf-8", newline="\n")
     print(f"{note.name}: {len(CP1251_NOTE.encode('utf-8'))} bytes of expected values")
+    for name, text in (("cp1251_mixed_tags.txt", CP1251_MIXED_NOTE),
+                       ("latin1_accented_tags.txt", LATIN1_ACCENTED_NOTE)):
+        path = root / name
+        path.write_text(text, encoding="utf-8", newline="\n")
+        print(f"{path.name}: {len(text.encode('utf-8'))} bytes of expected values")
     unsync_note = root / "id3v24_unsync.txt"
     unsync_note.write_text(ID3V24_UNSYNC_NOTE, encoding="utf-8", newline="\n")
     print(f"{unsync_note.name}: "

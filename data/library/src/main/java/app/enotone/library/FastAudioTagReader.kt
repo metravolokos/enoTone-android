@@ -46,11 +46,9 @@ private const val MPEG1_LAYER3_COEFFICIENT = 144
 private const val MPEG2_LAYER3_COEFFICIENT = 72
 
 // Windows-1251 detection for text frames that declare ISO-8859-1.
-private const val CP1251_ASCII_END = 0x80
-private const val CP1251_CAPITAL_YO = 0xA8
-private const val CP1251_SMALL_YO = 0xB8
-private const val CP1251_CYRILLIC_START = 0xC0
-private const val CP1251_MIN_HIGH_BYTES = 4
+private const val CP1251_HIGH_BYTE_START = 0x80
+private const val CP1251_MIN_CYRILLIC_LETTERS = 4
+private val cyrillicLetters = '\u0400'..'\u04FF'
 
 private val flacContinuationTypes = 1..6
 private val wantedTextFrames = setOf(
@@ -572,35 +570,48 @@ class FastAudioTagReader {
 
     /**
      * Encoding byte 0 means ISO-8859-1, but many real taggers write Windows-1251
-     * bytes there while keeping the declared encoding. Detection is cheap and
-     * deterministic: keep the ISO-8859-1 reading unless the payload has no ASCII
-     * letters, at least four bytes in the Cyrillic range, and Windows-1251 maps
-     * every letter to Cyrillic. Nothing is guessed from the file name or locale.
+     * bytes there while keeping the declared encoding. The decision is byte-local
+     * and deterministic: read the payload as Windows-1251 only when that reading
+     * contains at least [CP1251_MIN_CYRILLIC_LETTERS] Cyrillic letters and no
+     * word mixes Cyrillic with non-Cyrillic letters. Nothing is guessed from the
+     * file name or locale.
      *
-     * Known limitation: a word built only from high Latin-1 letters (for example
-     * `ÅÄÖÅÄÖ`) is byte-identical to a Cyrillic CP1251 word and is decoded as
-     * Cyrillic; the two encodings cannot be separated without guessing.
+     * Mixed content stays detectable: ASCII words, quotes (`« » „ “ ”`), dashes
+     * (`– —`) and Ukrainian letters (`і ї є ґ`) do not switch detection off. A
+     * word that spawns both scripts after decoding (for example Latin-1 `Grüße`
+     * read as `GrьЯe`) means the payload was really ISO-8859-1.
+     *
+     * Known limitation: a payload built only from high Latin-1 letters (for
+     * example `ÅÄÖÅÄÖ`) is byte-identical to a CP1251 Cyrillic word and is
+     * decoded as Cyrillic; the two encodings cannot be separated without
+     * guessing.
      */
-    @Suppress("MagicNumber", "ReturnCount")
+    @Suppress("ReturnCount")
     private fun legacySingleByteText(data: ByteArray): String {
         val latin1 = String(data, Charsets.ISO_8859_1)
-        if (latin1.any { it in 'a'..'z' || it in 'A'..'Z' }) return latin1
-        var highBytes = 0
-        var cyrillicRange = true
-        for (byte in data) {
-            val value = u(byte)
-            if (value < CP1251_ASCII_END) continue
-            highBytes++
-            if (value < CP1251_CYRILLIC_START && value != CP1251_CAPITAL_YO &&
-                value != CP1251_SMALL_YO) {
-                cyrillicRange = false
-            }
-        }
-        if (highBytes < CP1251_MIN_HIGH_BYTES || !cyrillicRange) return latin1
+        if (data.none { u(it) >= CP1251_HIGH_BYTE_START }) return latin1
         val cyrillic = String(data, windows1251)
-        if (cyrillic.none { it in '\u0400'..'\u04FF' }) return latin1
-        if (cyrillic.any { it.isLetter() && it !in '\u0400'..'\u04FF' }) return latin1
+        if (cyrillic.count { it in cyrillicLetters } < CP1251_MIN_CYRILLIC_LETTERS) {
+            return latin1
+        }
+        if (hasMixedScriptWord(cyrillic)) return latin1
         return cyrillic
+    }
+
+    /** True when one word holds both Cyrillic and non-Cyrillic letters. */
+    private fun hasMixedScriptWord(text: String): Boolean {
+        var cyrillic = false
+        var other = false
+        for (letter in text) {
+            if (!letter.isLetter()) {
+                cyrillic = false
+                other = false
+                continue
+            }
+            if (letter in cyrillicLetters) cyrillic = true else other = true
+            if (cyrillic && other) return true
+        }
+        return false
     }
 
     /**
