@@ -49,4 +49,6 @@ CI и актуальный Draft PR #189: [PR](https://github.com/metravolokos/e
 
 Текущие дефекты — [KNOWN_ISSUES](KNOWN_ISSUES.md), открытые вопросы — [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Из подтверждённого долга: [#182](https://github.com/metravolokos/enoTone-android/issues/182) (MP3/ID3) и F-03 (несовпадение версии предзагруженного Kotlin-компилятора в CI), а также необходимость решения владельца по `LICENSE` и сетевому слою. **F-01 снята:** `EnoToneMigrationTest` 7/7 и `:core:database` 14/14 проходят на Windows через тест-локальный обход дефекта `androidx.sqlite` ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), Issue #191). Никакой Huawei PASS из результатов CI автоматически не выводится.
 
+**Этап A «Ship-safety» (цель `0.7.0`) открыт:** R-A1 (Issue #197) — минифицированный `assembleRelease` в CI с проверкой R8 и артефактом `enotone-release-unsigned-apk`. Локальный прогон на ветке от `2a425b28` дал `BUILD SUCCESSFUL` и APK 4 915 809 байт без `Missing class`; установки и запуска APK в CI пока нет (R-A3), keep-правила не написаны (R-A2).
+
 **Следующий шаг по текущему коду:** аппаратная проверка новых элементов D5-C после #183, решение отдельных открытых Issues и независимое повторное ревью документации DOC-01 / PR #187. Предстоящие возможности и зависимости — [ROADMAP](ROADMAP.md).
