@@ -52,6 +52,15 @@ class NowPlayingUiTest {
     @get:Rule val rule = createComposeRule()
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
 
+    private fun assertNowPlayingPaneTitle() {
+        rule.onNodeWithTag("now-playing-gesture-root", useUnmergedTree = true).assert(
+            SemanticsMatcher.expectValue(
+                SemanticsProperties.PaneTitle,
+                context.getString(R.string.now_playing_title),
+            ),
+        )
+    }
+
     @Test fun transportButtonsCallTheirActionsAndVolumeIsAbsent() {
         var close = 0
         var play = 0
@@ -76,12 +85,7 @@ class NowPlayingUiTest {
             }
         }
         rule.onNodeWithText("Fixture title").assertExists()
-        rule.onNodeWithTag("now-playing-gesture-root", useUnmergedTree = true).assert(
-            SemanticsMatcher.expectValue(
-                SemanticsProperties.PaneTitle,
-                context.getString(R.string.now_playing_title),
-            ),
-        )
+        assertNowPlayingPaneTitle()
         rule.onNodeWithText("Fixture album · 2019").assertExists()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_resume)).performClick()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_previous)).performClick()

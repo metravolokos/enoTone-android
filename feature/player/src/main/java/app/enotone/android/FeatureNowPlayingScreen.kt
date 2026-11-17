@@ -244,7 +244,7 @@ fun FeatureNowPlayingScreen(
                 )
             },
     ) {
-        val coverSide = minOf(maxWidth - 56.dp, maxHeight * 0.40f, 321.dp)
+        val coverSide = minOf(maxWidth - 56.dp, maxHeight * COVER_HEIGHT_FRACTION, 321.dp)
         Column(
             modifier = Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars)
@@ -589,6 +589,8 @@ private fun NowPlayingToggle(
         )
     }
 }
+
+private const val COVER_HEIGHT_FRACTION = 0.40f
 
 private val THUMB_SIZE = 12.dp
 private val MORE_TOUCH_SIZE = 48.dp

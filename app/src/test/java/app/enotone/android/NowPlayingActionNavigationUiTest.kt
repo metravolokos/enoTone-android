@@ -30,7 +30,6 @@ import app.enotone.playback.PersistedQueueState
 import app.enotone.playback.QueueEditResult
 import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueTrack
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,24 +41,18 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Exercises the actual player action sheet, route stack and player overlay together. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = EnoToneApplication::class, sdk = [33], qualifiers = "w393dp-h852dp")
 class NowPlayingActionNavigationUiTest {
     @get:Rule val rule = createComposeRule()
-    private val context get() = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+    private val context
+        get() = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
 
     @Test fun albumActionClosesPlayerAndBackReturnsToPreviousTab() {
-        val track = OfflineTrackRow(
-            id = "fixture-track",
-            title = "Song Alpha",
-            artist = "Artist Alpha",
-            album = "Album Alpha",
-            albumArtist = "Artist Alpha",
-            year = 2019,
-            hasStoredTagData = true,
-        )
+        val track = fixtureTrack()
         val root = AppNavState(tab = AppTab.Library(LibraryPage.TRACKS))
         val nav = mutableStateOf(root)
         lateinit var playerModel: PlayerViewModel
@@ -293,6 +286,16 @@ class NowPlayingActionNavigationUiTest {
             },
         )
     }
+
+    private fun fixtureTrack() = OfflineTrackRow(
+        id = "fixture-track",
+        title = "Song Alpha",
+        artist = "Artist Alpha",
+        album = "Album Alpha",
+        albumArtist = "Artist Alpha",
+        year = 2019,
+        hasStoredTagData = true,
+    )
 
     private fun fixtureRepository(track: OfflineTrackRow) = object : LibraryRepository {
         override suspend fun load(email: String) = LibrarySnapshot(

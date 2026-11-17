@@ -54,7 +54,6 @@ internal fun AppMotionRoot(
     player: @Composable () -> Unit,
 ) {
     val previewSettle = remember { Animatable(0f) }
-    val snackbarLift = with(LocalDensity.current) { 16.dp.roundToPx() }
     val latestBackProgress = remember { mutableFloatStateOf(0f) }
     val playerVisibility = remember { mutableStateOf(MutableTransitionState(false)) }
     val playerWasExpanded = remember { mutableStateOf(false) }
@@ -165,28 +164,38 @@ internal fun AppMotionRoot(
                 player()
             }
         }
-        if (queueSnackbar != null) {
-            Box(
-                Modifier.fillMaxSize().navigationBarsPadding()
-                    .padding(
-                        start = queueSnackbarHorizontalPadding,
-                        end = queueSnackbarHorizontalPadding,
-                        bottom = if (playerExpanded) 16.dp else queueSnackbarBottomPadding,
-                    ),
+        AppQueueSnackbar(
+            queueSnackbar,
+            queueSnackbarHorizontalPadding,
+            if (playerExpanded) 16.dp else queueSnackbarBottomPadding,
+        )
+    }
+}
+
+@Composable
+private fun AppQueueSnackbar(queueSnackbar: SnackbarHostState?, horizontalPadding: Dp, bottomPadding: Dp) {
+    val snackbarLift = with(LocalDensity.current) { 16.dp.roundToPx() }
+    if (queueSnackbar != null) {
+        Box(
+            Modifier.fillMaxSize().navigationBarsPadding()
+                .padding(
+                    start = horizontalPadding,
+                    end = horizontalPadding,
+                    bottom = bottomPadding,
+                ),
+        ) {
+            AnimatedVisibility(
+                visible = queueSnackbar.currentSnackbarData != null,
+                enter = fadeIn(tween(AppMotionSpec.SNACKBAR_MS)) +
+                    slideInVertically(tween(AppMotionSpec.SNACKBAR_MS), initialOffsetY = { snackbarLift }),
+                exit = fadeOut(tween(AppMotionSpec.SNACKBAR_MS)) +
+                    slideOutVertically(tween(AppMotionSpec.SNACKBAR_MS), targetOffsetY = { snackbarLift }),
+                modifier = Modifier.align(Alignment.BottomCenter),
             ) {
-                AnimatedVisibility(
-                    visible = queueSnackbar.currentSnackbarData != null,
-                    enter = fadeIn(tween(AppMotionSpec.SNACKBAR_MS)) +
-                        slideInVertically(tween(AppMotionSpec.SNACKBAR_MS), initialOffsetY = { snackbarLift }),
-                    exit = fadeOut(tween(AppMotionSpec.SNACKBAR_MS)) +
-                        slideOutVertically(tween(AppMotionSpec.SNACKBAR_MS), targetOffsetY = { snackbarLift }),
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                ) {
-                    SnackbarHost(
-                        hostState = queueSnackbar,
-                        modifier = Modifier.testTag("app-queue-snackbar-host"),
-                    )
-                }
+                SnackbarHost(
+                    hostState = queueSnackbar,
+                    modifier = Modifier.testTag("app-queue-snackbar-host"),
+                )
             }
         }
     }
