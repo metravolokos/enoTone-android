@@ -40,13 +40,27 @@ internal data class PilotFailure(
 )
 
 internal object PilotFailures {
-    /** A parsed error code is not a successful completed tag check. */
+    /**
+     * A parsed error code is not a successful completed tag check.
+     *
+     * Only a refused *layout* is a parser verdict: the file was readable but the
+     * container shape could not be walked. [FastTagCode.UNSUPPORTED_FORMAT] is
+     * different — the file was never a supported MP3/FLAC candidate, so the check
+     * completed with zero tags and yields `null` (unchanged pre-R-A7 behavior).
+     */
     fun fromParserResult(code: FastTagCode, stats: RangeReadStats?): PilotFailure? =
         when (code) {
             FastTagCode.INVALID_METADATA -> PilotFailure(
                 "FAILED_METADATA", "PARSER", code.name, stats?.httpStatus ?: 0)
             FastTagCode.FAST_BUDGET_EXCEEDED -> PilotFailure(
                 "FAILED_BUDGET", "PARSER", code.name, stats?.httpStatus ?: 0)
+            // R-A7: a refused layout is a parser verdict, not a completed empty
+            // tag check. Recording it as "no tags" hid real format regressions.
+            FastTagCode.UNSUPPORTED_LAYOUT -> PilotFailure(
+                "FAILED_LAYOUT", "PARSER", code.name, stats?.httpStatus ?: 0)
+            // A non-MP3/FLAC extension is not a layout failure: the check ran
+            // and legitimately found no embedded tags.
+            FastTagCode.UNSUPPORTED_FORMAT -> null
             else -> null
         }
 

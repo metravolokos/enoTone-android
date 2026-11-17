@@ -1,0 +1,16 @@
+mp3_vbr_no_xing.mp3
+
+ID3v2.3 tag, then 40 MPEG-1 Layer III frames at 44.1 kHz whose bitrate
+alternates between 128 kbps and 192 kbps. No Xing/Info header and no VBRI
+header anywhere in the stream, so the file carries no frame count at all.
+
+  frame 0: header FF FB 90 00, stored length 144 * 128000 / 44100 = 417 bytes
+  frame 1: header FF FB B0 00, stored length 144 * 192000 / 44100 = 626 bytes
+  frame 2: header FF FB 90 00, 417 bytes ...
+
+A reader that looks at the first header only sees a plausible 128 kbps frame and
+divides the remaining file size by 417, producing a duration that is simply
+wrong: a bitrate that keeps changing is exactly what "variable bitrate" means.
+
+Correct behaviour: verify the following headers and report an unknown duration
+(null) when they disagree; never invent a number from one header.

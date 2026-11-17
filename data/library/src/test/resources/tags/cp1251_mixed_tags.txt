@@ -1,0 +1,19 @@
+cp1251_mixed_tags.mp3
+
+ID3v2.3, TIT2 / TPE1 / TALB frames, text-encoding byte 0x00, payload bytes are
+Windows-1251 (CP1251). Exact values and their CP1251 byte codes:
+
+  TIT2 = "«Осень» — Live (feat. Ivan)"
+  TPE1 = "Їжак Ґанок і Хор"
+  TALB = "Дорога – Part 2"
+
+  « AB   » BB   — 97 (em dash)   – 96 (en dash)
+  Ї AF   ї BF   Ґ A5   ґ B4   Є A8   є AA   І B2   і B3
+
+Mixed content must not switch detection off: the Cyrillic words, the typographic
+quotes and dashes and the Ukrainian national letters are all valid CP1251, and
+the Latin fragments are separate words (`Live`, `feat`, `Ivan`, `Part`).
+
+Correct behaviour: title "«Осень» — Live (feat. Ivan)",
+artist "Їжак Ґанок і Хор",
+album "Дорога – Part 2".

@@ -1,0 +1,14 @@
+latin1_accented_tags.mp3
+
+ID3v2.3, TIT2 and TPE1 frames, text-encoding byte 0x00 with genuine
+ISO-8859-1 payload bytes and accented Latin letters:
+
+  TIT2 = "Café Müller"   (payload: 43 61 66 E9 20 4D FC 6C 6C 65 72)
+  TPE1 = "Grüße"          (payload: 47 72 FC DF 65)
+
+This is the negative guard for CP1251 detection: the same bytes read as
+Windows-1251 give "Cafй Mьller" / "GrьЯe", where the Cyrillic
+letters are glued to Latin ones inside a single word. Detection must refuse
+CP1251 and keep the ISO-8859-1 reading.
+
+Correct behaviour: title "Café Müller", artist "Grüße".

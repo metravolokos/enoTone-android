@@ -1,0 +1,25 @@
+id3v24_unsync.mp3
+
+ID3v2.4, tag header flag 0x80 (unsynchronisation), two text frames, both UTF-16
+with BOM FF FE (encoding byte 0x01), little endian:
+
+  TIT2 = "Unsync ÿ Title"   (14 characters, 31 stored-less bytes of data)
+  TPE1 = "Ансамбль ÿ"      (10 characters)
+
+Per ID3v2.4 structure 3.3 the frame size field is "the size of the data in the
+final frame, after ... unsynchronisation": it counts the 0x00 bytes that the
+writer inserted, so the stored body is larger than the decoded body.
+
+Escaped sequences inside the frames (raw bytes on disk):
+
+  BOM            FF FE  -> FF 00 FE
+  letter U+00FF  FF 00  -> FF 00 00
+
+TIT2 declares 33 (31 decoded + 2 inserted), TPE1 declares 25 (23 decoded + 2
+inserted). Tag body size is 78 on disk, 74 after de-unsynchronisation, so a
+reader that de-unsynchronises the whole tag and then trusts the stored frame
+sizes lands two bytes past TPE1's header and loses the artist.
+
+Correct behaviour: read every frame at its stored offset, de-unsynchronise only
+that frame's data, and return title "Unsync ÿ Title", artist
+"Ансамбль ÿ".
