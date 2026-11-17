@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import app.enotone.android.core.ui.R as CoreUiR
 import app.enotone.playback.NextBufferState
 
-/** App-owned string/drawable IDs; neither translations nor icons move before D2. */
+/** App-owned strings plus shared UI Icons v1 resource IDs. */
 private val nowPlayingIds = NowPlayingIds(
     playbackError = R.string.playback_error,
     playbackMissingPassword = R.string.playback_missing_password,
