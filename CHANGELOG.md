@@ -2,7 +2,7 @@
 
 ## F-03 — резервное зеркало компилятора в CI (Issue #195)
 
-Шаг CI предзагружал `kotlin-compiler-embeddable:2.3.10`, тогда как проект собирается Kotlin 2.4.21, поэтому зеркало `ENOTONE_CI_COMPILER_MIRROR` никогда не могло быть использовано и не подстраховывало сборку при сбое Maven Central. Версия теперь читается из `gradle/libs.versions.toml`, SHA-256 берётся из таблицы пинов (для 2.4.21 — `ef19419c…f1d02`), а неизвестная версия роняет шаг с `::error::` вместо молчаливой подмены артефакта. Контракт закреплён `tools/test_ci_compiler_mirror_contract.py`; те же инварианты на исходном `ci.yml` падают, то есть тест ловит именно F-03. Решение и отклонённые варианты — [ADR-0098](docs/DECISIONS/ADR-0098-ci-compiler-mirror-version-from-catalog.md).
+Шаг CI предзагружал `kotlin-compiler-embeddable:2.3.10`, тогда как проект собирается Kotlin 2.4.21, поэтому зеркало `ENOTONE_CI_COMPILER_MIRROR` никогда не могло быть использовано и не подстраховывало сборку при сбое Maven Central. Версия теперь читается из `gradle/libs.versions.toml`, SHA-256 берётся из таблицы пинов (для 2.4.21 — `ef19419c…f1d02`), а неизвестная версия роняет шаг с `::error::` до сетевых запросов вместо молчаливой подмены артефакта — на этом и держится инвариант, отдельный тест на текст `ci.yml` не нужен (AGENTS.md §4). Решение и отклонённые варианты — [ADR-0098](docs/DECISIONS/ADR-0098-ci-compiler-mirror-version-from-catalog.md).
 
 ## F-01 — тесты миграций Room на Windows (Issue #191)
 
