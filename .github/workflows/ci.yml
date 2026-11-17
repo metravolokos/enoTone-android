@@ -66,17 +66,35 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install 'platforms;android-36' 'build-tools;36.0.0'
-      - name: Verified Kotlin compiler 2.3.10 (Maven Central CDN fallback)
+      - name: Verified Kotlin compiler (Maven Central CDN fallback)
         shell: bash
         run: |
           set -euo pipefail
-          base="org/jetbrains/kotlin/kotlin-compiler-embeddable/2.3.10"
+          # ADR-0098: the compiler version is read from the Gradle version catalog, so the
+          # mirror can never drift from the Kotlin version the build actually resolves.
+          version="$(awk -F'"' '/^kotlin[[:space:]]*=/ { print $2; exit }' gradle/libs.versions.toml)"
+          if [ -z "$version" ]; then
+            echo "::error::Cannot read the Kotlin version from gradle/libs.versions.toml"
+            exit 1
+          fi
+          # SHA-256 pins. Each one is the hash of the Maven Central artifact, recomputed with
+          # `sha256sum`; the same method reproduces ac6a1827...f6e40 for 2.3.10, the value
+          # originally taken from JetBrains/kotlin gradle/verification-metadata.xml.
+          # A Kotlin bump must add its pin here in the same commit: otherwise this step fails
+          # loudly instead of silently prefetching an artifact the build can never use.
+          case "$version" in
+            2.3.10) expected="ac6a182785345380b5db5085dbeea3f5f0e925e2e100e54ab059b5787d4f6e40" ;;
+            2.4.21) expected="ef19419c765e7ac8404465fa026ca8fc4dbb8a822de0fc79aa53c8dce29f1d02" ;;
+            *)
+              echo "::error::No SHA-256 pin for kotlin-compiler-embeddable $version (ADR-0098); add it to the case block in .github/workflows/ci.yml"
+              exit 1
+              ;;
+          esac
+          base="org/jetbrains/kotlin/kotlin-compiler-embeddable/$version"
           dir="$RUNNER_TEMP/enotone-ci-maven/$base"
           mkdir -p "$dir"
-          jar="kotlin-compiler-embeddable-2.3.10.jar"
-          pom="kotlin-compiler-embeddable-2.3.10.pom"
-          # SHA-256 from JetBrains/kotlin gradle/verification-metadata.xml.
-          expected="ac6a182785345380b5db5085dbeea3f5f0e925e2e100e54ab059b5787d4f6e40"
+          jar="kotlin-compiler-embeddable-$version.jar"
+          pom="kotlin-compiler-embeddable-$version.pom"
           urls=(
             "https://mirrors.huaweicloud.com/repository/maven"
             "https://artifacts-oss.talend.com/nexus/content/repositories/public"
@@ -95,7 +113,7 @@ jobs:
             rm -f "$dir/$jar"
           done
           if [ "$verified" != true ]; then
-            echo "::error::Cannot obtain verified Kotlin compiler 2.3.10"
+            echo "::error::Cannot obtain verified Kotlin compiler $version"
             exit 1
           fi
           # Fetch the small Maven POM from the canonical endpoint; fallback for availability only.

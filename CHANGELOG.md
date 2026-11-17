@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## F-03 — резервное зеркало компилятора в CI (Issue #195)
+
+Шаг CI предзагружал `kotlin-compiler-embeddable:2.3.10`, тогда как проект собирается Kotlin 2.4.21, поэтому зеркало `ENOTONE_CI_COMPILER_MIRROR` никогда не могло быть использовано и не подстраховывало сборку при сбое Maven Central. Версия теперь читается из `gradle/libs.versions.toml`, SHA-256 берётся из таблицы пинов (для 2.4.21 — `ef19419c…f1d02`), а неизвестная версия роняет шаг с `::error::` до сетевых запросов вместо молчаливой подмены артефакта — на этом и держится инвариант, отдельный тест на текст `ci.yml` не нужен (AGENTS.md §4). Решение и отклонённые варианты — [ADR-0098](docs/DECISIONS/ADR-0098-ci-compiler-mirror-version-from-catalog.md).
+
 ## F-01 — тесты миграций Room на Windows (Issue #191)
 
 `EnoToneMigrationTest` падал на Windows всеми 7 тестами на первом же `helper.createDatabase(...)`: `androidx.sqlite` 2.6.2 (`SupportSQLiteDriver.open`) сверяет имя базы и запрошенный файл через `substringAfterLast('/')`, а `room-testing` передаёт абсолютный путь с разделителем `\`, поэтому обе ветки проверки ложны. На Linux путь содержит `/` и хвост совпадает — отсюда зелёный CI при красном локальном прогоне. Тестовая фабрика `PathAwareSQLiteOpenHelperFactory` сообщает драйверу ровно тот же `absolutePath`, а открытие делегирует настоящему `FrameworkSQLiteOpenHelper`; миграции, схемы и утверждения тестов не изменены. Решение и отклонённые варианты — [ADR-0097](docs/DECISIONS/ADR-0097-migration-test-helper-windows.md). Результат: `EnoToneMigrationTest` 7/7, `:core:database` 14 тестов без падений, detekt 429 → 429.
