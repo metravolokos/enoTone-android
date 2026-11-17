@@ -5,7 +5,7 @@
 
 ## Общая схема
 
-Нативное приложение Kotlin/Jetpack Compose, ручная сборка зависимостей через `AppContainer`, ViewModel и `StateFlow`. HTTPS WebDAV — источник музыки; Room — локальный каталог/метаданные/очередь и модель плейлистов; Media3 ExoPlayer с MediaSessionService — воспроизведение. UI не должен запускать WebDAV/долгую индексацию непосредственно из Composable. Пароли и персональные пути не пишутся в Room, Intent, логи или Git.
+Нативное приложение Kotlin/Jetpack Compose, ручная сборка зависимостей через `AppContainer`, ViewModel и `StateFlow`. HTTPS WebDAV — источник музыки; Room — локальный каталог, метаданные и модель плейлистов; очередь/позиция сохраняются отдельным механизмом; Media3 ExoPlayer с MediaSessionService — воспроизведение. UI не должен запускать WebDAV/долгую индексацию непосредственно из Composable. Пароли и персональные пути не пишутся в Room, Intent, логи или Git.
 
 ```mermaid
 flowchart TD
