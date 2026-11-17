@@ -178,7 +178,13 @@ class TagReaderFixtureTest {
         assertEquals("Recovery", read.tags?.artist)
     }
 
-    /** CBR without Xing/Info/VBRI still has a frame count a reader can compute. */
+    /**
+     * CBR without Xing/Info/VBRI still has a frame count a reader can compute.
+     *
+     * This fixture is the positive side of R-6: all 100 frames declare the same
+     * bitrate, version and sample rate, so verifying the following headers must
+     * keep the derived duration instead of turning every CBR file into "unknown".
+     */
     @Test fun constantBitrateMp3DerivesDurationFromFrameHeaders() {
         val read = read("mp3_cbr_no_xing.mp3")
         assertEquals(FastTagCode.MP3_ID3V23, read.code)
@@ -187,6 +193,24 @@ class TagReaderFixtureTest {
             read.durationMs)
         assertTrue("100 frames of 1152 samples at 44.1 kHz are about 2612 ms",
             read.durationMs!! in 2_500L..2_700L)
+    }
+
+    /**
+     * Defect (R-6): the first frame header alone cannot distinguish CBR from VBR.
+     * Here frames alternate between 128 and 192 kbps and nothing declares a frame
+     * count, so dividing the file size by the first frame's 417 bytes yields a
+     * plausible but wrong duration. Verifying the following headers must make the
+     * reader say "unknown" instead of inventing a number.
+     *
+     * The tags are still readable: only the duration verdict changes.
+     */
+    @Test fun variableBitrateWithoutFrameCountReportsUnknownDuration() {
+        val read = read("mp3_vbr_no_xing.mp3")
+        assertEquals(FastTagCode.MP3_ID3V23, read.code)
+        assertEquals("Variable Rate", read.tags?.title)
+        assertEquals("Sine Worker", read.tags?.artist)
+        assertNull("Frames disagree on bitrate: no frame count can be derived",
+            read.durationMs)
     }
 
     /**

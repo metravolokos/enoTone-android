@@ -65,6 +65,27 @@ def mpeg1_layer3_frames(count: int, seed: int = 0) -> bytes:
     return frame * count
 
 
+def mpeg1_layer3_frame(bitrate_byte: int, padding: int, seed: int) -> bytes:
+    """One MPEG-1 Layer III frame, no CRC, 44.1 kHz, payload kept low-entropy.
+
+    The stored length is derived from the header exactly as an encoder writes
+    it: 144 * kbps * 1000 / 44100 + padding.
+    """
+    kbps = {0x90: 128, 0xA0: 160, 0xB0: 192}[bitrate_byte]
+    size = 144 * kbps * 1000 // 44_100 + padding
+    header = b"\xFF\xFB" + bytes((bitrate_byte, 0x00))
+    return header + bytes(((seed + index) % 128) for index in range(size - 4))
+
+
+def mpeg1_layer3_vbr_frames(count: int, seed: int = 0) -> bytes:
+    """Variable-bitrate audio: 128 and 192 kbps frames alternate, no Xing/VBRI."""
+    out = b""
+    for index in range(count):
+        bitrate_byte = 0x90 if index % 2 == 0 else 0xB0
+        out += mpeg1_layer3_frame(bitrate_byte, 0, seed + index)
+    return out
+
+
 def flac_stream_info_payload(sample_rate: int = 44_100,
                              channels: int = 2, total_samples: int = 0) -> bytes:
     """34-byte STREAMINFO: min/max block size, frame sizes, then packed fields."""
@@ -218,6 +239,18 @@ def build_mp3_cbr_no_xing() -> bytes:
     return id3_tag(3, 0x00, body) + mpeg1_layer3_frames(100, seed=11)
 
 
+def build_mp3_vbr_no_xing() -> bytes:
+    """ID3v2.3 tag and alternating 128/192 kbps frames: VBR with no frame count.
+
+    Nothing in the stream declares a frame count (no Xing/Info, no VBRI), so the
+    only way to guess a duration is to assume constant bitrate. The headers
+    themselves prove that assumption wrong.
+    """
+    body = (id3_frame(3, "TIT2", utf16_text("Variable Rate")) +
+            id3_frame(3, "TPE1", utf16_text("Sine Worker")))
+    return id3_tag(3, 0x00, body) + mpeg1_layer3_vbr_frames(40, seed=23)
+
+
 def build_mp3_no_tags() -> bytes:
     """Plain MPEG audio: no ID3v2 header and no trailing ID3v1 'TAG' block."""
     return mpeg1_layer3_frames(40, seed=17)
@@ -300,6 +333,25 @@ Expected tags: title "Prelude", artist "Ensemble".
 """
 
 
+MP3_VBR_NO_XING_NOTE = """mp3_vbr_no_xing.mp3
+
+ID3v2.3 tag, then 40 MPEG-1 Layer III frames at 44.1 kHz whose bitrate
+alternates between 128 kbps and 192 kbps. No Xing/Info header and no VBRI
+header anywhere in the stream, so the file carries no frame count at all.
+
+  frame 0: header FF FB 90 00, stored length 144 * 128000 / 44100 = 417 bytes
+  frame 1: header FF FB B0 00, stored length 144 * 192000 / 44100 = 626 bytes
+  frame 2: header FF FB 90 00, 417 bytes ...
+
+A reader that looks at the first header only sees a plausible 128 kbps frame and
+divides the remaining file size by 417, producing a duration that is simply
+wrong: a bitrate that keeps changing is exactly what "variable bitrate" means.
+
+Correct behaviour: verify the following headers and report an unknown duration
+(null) when they disagree; never invent a number from one header.
+"""
+
+
 FLAC_ID3_BAD_SIZE_NOTE = """flac_id3_bad_size.flac
 
 Same shape as flac_id3_preamble.flac, but the ID3v2.3 size field is zeroed and
@@ -349,6 +401,7 @@ def generate(root: Path) -> None:
     write(root / "latin1_accented_tags.mp3", build_latin1_accented_tags())
     write(root / "flac_corrupt_streaminfo.flac", build_flac_corrupt_streaminfo())
     write(root / "mp3_cbr_no_xing.mp3", build_mp3_cbr_no_xing())
+    write(root / "mp3_vbr_no_xing.mp3", build_mp3_vbr_no_xing())
     write(root / "mp3_no_tags.mp3", build_mp3_no_tags())
     note = root / "cp1251_tags.txt"
     note.write_text(CP1251_NOTE, encoding="utf-8", newline="\n")
@@ -356,7 +409,8 @@ def generate(root: Path) -> None:
     for name, text in (("flac_id3_preamble.txt", FLAC_ID3_PREAMBLE_NOTE),
                        ("flac_id3_bad_size.txt", FLAC_ID3_BAD_SIZE_NOTE),
                        ("cp1251_mixed_tags.txt", CP1251_MIXED_NOTE),
-                       ("latin1_accented_tags.txt", LATIN1_ACCENTED_NOTE)):
+                       ("latin1_accented_tags.txt", LATIN1_ACCENTED_NOTE),
+                       ("mp3_vbr_no_xing.txt", MP3_VBR_NO_XING_NOTE)):
         path = root / name
         path.write_text(text, encoding="utf-8", newline="\n")
         print(f"{path.name}: {len(text.encode('utf-8'))} bytes of expected values")

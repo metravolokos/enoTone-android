@@ -46,6 +46,16 @@ private const val FLAC_MARKER = "fLaC"
 private const val MPEG1_LAYER3_COEFFICIENT = 144
 private const val MPEG2_LAYER3_COEFFICIENT = 72
 
+// Header fields that must repeat for a stream to count as constant bitrate:
+// version, layer, sample-rate index and bitrate index. The padding bit and the
+// private/copyright bits are deliberately excluded.
+private const val MPEG_STREAM_MASK =
+    (0x3 shl 19) or (0x3 shl 17) or (0xF shl 12) or (0x3 shl 10)
+
+// How many frames after the first one must repeat its bitrate and sample rate
+// before a stream without Xing/Info/VBRI may be called constant-bitrate.
+private const val CBR_VERIFY_FRAMES = 2
+
 // Windows-1251 detection for text frames that declare ISO-8859-1.
 private const val CP1251_HIGH_BYTE_START = 0x80
 private const val CP1251_MIN_CYRILLIC_LETTERS = 4
@@ -548,26 +558,77 @@ class FastAudioTagReader {
         if (vbri != null && ascii(vbri, 0, 4) == "VBRI") {
             return durationMs(vbri.readUnsignedInt(14), samplesPerFrame, sampleRate)
         }
-        // No frame count in the stream: derive it from the constant bitrate and
-        // the real audio size, still without a single extra Range request.
+        // No frame count in the stream: a single header cannot tell CBR from VBR,
+        // so the following headers have to agree before the size is divided by a
+        // frame length. Still not a single extra Range request: the headers are
+        // taken from the block cache that already holds the first frame.
+        if (!constantBitrateConfirmed(source, frameStart, bits)) return null
         return constantBitrateDurationMs(
-            source.size - frameStart, bits, version, sampleRate, samplesPerFrame)
+            source.size - frameStart, bits, samplesPerFrame, sampleRate)
     }
 
+    /**
+     * True when [CBR_VERIFY_FRAMES] frames that follow the first one carry the
+     * same version, layer, sample rate and bitrate. A stream whose headers keep
+     * changing is VBR: its frame count cannot be derived from the file size, so
+     * the caller must report an unknown duration instead of a wrong one.
+     *
+     * Only cached bytes are read, so a missing cache block is a reason to decline
+     * (false), never a reason to issue another Range request.
+     */
+    private fun constantBitrateConfirmed(
+        source: BoundedBytes, frameStart: Long, firstBits: Int,
+    ): Boolean {
+        var at = frameStart + (layer3FrameBytes(firstBits) ?: return false)
+        var confirmed = true
+        var checked = 0
+        while (checked < CBR_VERIFY_FRAMES && confirmed) {
+            val bits = source.cachedBytes(at, 4)?.toUnsignedInt()
+            val frameBytes = if (bits == null) null else layer3FrameBytes(bits)
+            if (bits == null || frameBytes == null) {
+                confirmed = false
+            } else {
+                confirmed = (bits and MPEG_STREAM_MASK) == (firstBits and MPEG_STREAM_MASK)
+                at += frameBytes
+            }
+            checked++
+        }
+        return confirmed
+    }
+
+    /**
+     * Stored size of one layer III frame in bytes, or null when [headerBits] is
+     * not a valid MPEG-1/2 layer III header. Pure arithmetic: no I/O, so it can
+     * be used on a cached header of any frame.
+     */
     @Suppress("MagicNumber", "ReturnCount")
-    private fun constantBitrateDurationMs(
-        audioBytes: Long, headerBits: Int, version: Int,
-        sampleRate: Int, samplesPerFrame: Int,
-    ): Long? {
-        if (audioBytes <= 0L || sampleRate <= 0) return null
+    private fun layer3FrameBytes(headerBits: Int): Long? {
+        val version = (headerBits ushr 19) and 0x3
+        val sampleRateIndex = (headerBits ushr 10) and 0x3
+        if (version == 1 || ((headerBits ushr 17) and 0x3) != 1 || sampleRateIndex == 3) {
+            return null
+        }
         val index = (headerBits ushr 12) and 0xF
         val kbps = if (version == 3) mpeg1Layer3Kbps.getOrNull(index)
         else mpeg2Layer3Kbps.getOrNull(index)
         if (kbps == null || kbps <= 0) return null
         val coefficient = if (version == 3) MPEG1_LAYER3_COEFFICIENT else MPEG2_LAYER3_COEFFICIENT
+        val baseRate = intArrayOf(44_100, 48_000, 32_000)[sampleRateIndex]
+        val sampleRate = when (version) {
+            3 -> baseRate
+            2 -> baseRate / 2
+            else -> baseRate / 4
+        }
         val padding = (headerBits ushr 9) and 1
-        val frameBytes = coefficient * kbps * MILLIS_PER_SECOND / sampleRate + padding
-        if (frameBytes <= 0L) return null
+        val bytes = coefficient * kbps * MILLIS_PER_SECOND / sampleRate + padding
+        return bytes.takeIf { it > 0L }
+    }
+
+    private fun constantBitrateDurationMs(
+        audioBytes: Long, headerBits: Int, samplesPerFrame: Int, sampleRate: Int,
+    ): Long? {
+        val frameBytes = layer3FrameBytes(headerBits)
+        if (audioBytes <= 0L || sampleRate <= 0 || frameBytes == null) return null
         return durationMs(audioBytes / frameBytes, samplesPerFrame, sampleRate)
     }
 

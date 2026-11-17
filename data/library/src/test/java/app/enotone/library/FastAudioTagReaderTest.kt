@@ -363,6 +363,43 @@ class FastAudioTagReaderTest {
         assertNull(result.durationMs)
     }
 
+    /**
+     * R-6: a second header with a different bitrate proves the stream is not CBR,
+     * so no frame count may be derived from the file size. The verification reads
+     * only already cached bytes, so the request count must not grow either.
+     */
+    @Test fun vbrHeadersWithoutFrameCountReportUnknownDurationWithoutExtraRangeRead() {
+        val data = ByteArray(4096)
+        data[0] = 0xFF.toByte()
+        data[1] = 0xFB.toByte() // MPEG-1 Layer III, no CRC
+        data[2] = 0x90.toByte() // 128 kbps, 44.1 kHz -> 417 bytes
+        data[3] = 0x00
+        // The next frame starts 417 bytes later and declares 192 kbps.
+        data[417] = 0xFF.toByte()
+        data[418] = 0xFB.toByte()
+        data[419] = 0xB0.toByte() // 192 kbps, 44.1 kHz -> 626 bytes
+        data[420] = 0x00
+        var requestsWithDuration = 0
+        val result = FastAudioTagReader().read(
+            "vbr.mp3", data.size.toLong(),
+            { position, output, offset, length ->
+                requestsWithDuration++
+                byteReader(data)(position, output, offset, length)
+            },
+            byteReader(data),
+        )
+        var requestsWithoutDuration = 0
+        FastAudioTagReader().read(
+            "vbr.mp3", data.size.toLong(),
+            { position, output, offset, length ->
+                requestsWithoutDuration++
+                byteReader(data)(position, output, offset, length)
+            },
+        )
+        assertNull("Frames disagree on bitrate: the duration is unknown", result.durationMs)
+        assertEquals(requestsWithoutDuration, requestsWithDuration)
+    }
+
     @Test fun damagedDurationHeadersReturnNullWithoutThrowing() {
         val damagedFlac = ByteArray(42)
         System.arraycopy("fLaC".toByteArray(), 0, damagedFlac, 0, 4)
