@@ -219,16 +219,6 @@ internal fun AppNowPlaying(
     val currentTrack = playback.currentTrackId?.let { library?.groupIndex?.tracksById?.get(it) }
     val trackId = playback.currentTrackId.orEmpty()
     val title = currentTrack?.title ?: playback.title ?: stringResource(R.string.ui_songs_title)
-    val actionTrack = currentTrack ?: OfflineTrackRow(
-        id = trackId,
-        title = title,
-        artist = playback.artist,
-        album = player.album,
-    )
-    val actionHandlers: LibraryScreenActions = libraryModel ?: PreviewLibraryActions
-    val appContext = LocalContext.current.applicationContext
-    val container = (appContext as EnoToneApplication).container
-    val emptyArtworkCatalog = remember { LibraryUiState().artworkCatalog }
     var actionsVisible by remember(trackId) { mutableStateOf(false) }
     NowPlayingScreen(
         trackId = trackId,
@@ -264,11 +254,49 @@ internal fun AppNowPlaying(
         onToggleShuffle = playerModel::onShuffle,
         onMore = { actionsVisible = true },
     )
-    if (actionsVisible) {
+    NowPlayingActionSheet(
+        visible = actionsVisible,
+        trackId = trackId,
+        currentTrack = currentTrack,
+        title = title,
+        artist = playback.artist,
+        album = player.album,
+        library = library,
+        actions = libraryModel ?: PreviewLibraryActions,
+        login = login,
+        onDismiss = { actionsVisible = false },
+        onOpenDetail = onOpenDetail,
+    )
+}
+
+@Composable
+private fun NowPlayingActionSheet(
+    visible: Boolean,
+    trackId: String,
+    currentTrack: OfflineTrackRow?,
+    title: String,
+    artist: String?,
+    album: String?,
+    library: LibraryUiState?,
+    actions: LibraryScreenActions,
+    login: StoredWebDavLogin?,
+    onDismiss: () -> Unit,
+    onOpenDetail: (LibraryDetail) -> Unit,
+) {
+    if (visible) {
+        val track = currentTrack ?: OfflineTrackRow(
+            id = trackId,
+            title = title,
+            artist = artist,
+            album = album,
+        )
+        val appContext = LocalContext.current.applicationContext
+        val container = (appContext as EnoToneApplication).container
+        val emptyArtworkCatalog = remember { LibraryUiState().artworkCatalog }
         TrackActionsHost(
-            track = actionTrack,
+            track = track,
             groupIndex = library?.groupIndex ?: LibraryGroupIndex(),
-            actions = actionHandlers,
+            actions = actions,
             currentDetail = null,
             artworkCatalog = library?.artworkCatalog ?: emptyArtworkCatalog,
             artworkRepository = container.artworkPreviewRepository,

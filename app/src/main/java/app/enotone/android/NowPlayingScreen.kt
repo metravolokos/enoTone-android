@@ -2,8 +2,8 @@ package app.enotone.android
 
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
-import app.enotone.android.core.ui.R as CoreUiR
 import app.enotone.playback.NextBufferState
+import app.enotone.android.core.ui.R as CoreUiR
 
 /** App-owned strings plus shared UI Icons v1 resource IDs. */
 private val nowPlayingIds = NowPlayingIds(
