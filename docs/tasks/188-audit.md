@@ -70,6 +70,65 @@ library-классы — `data/library/src/main/java/app/enotone/library/`, DAO/
 описанного поведения prefetch. Решение о следующем элементе и запуск его загрузки находятся в
 `PreviewAudioPlayback.kt:110–147`. Изменений playback/cache в рамках #188 нет.
 
+## Первичная загрузка отдельной тестовой сборки
+
+Владелец сообщил: тестовая сборка установлена отдельно/с чистыми данными; первичная загрузка
+медиатеки завершилась, проверяемый альбом был полным, дубликатов не было. Debug-вариант PR
+получает package suffix `.preview.r<N>` (`app/build.gradle.kts:45–53`); workflow прямо
+фиксирует, что такие per-run пакеты имеют отдельные Room-базы (`.github/workflows/ci.yml:399`).
+Это подтверждает, что начальная загрузка в новой БД не воспроизвела симптом. Она не читала
+испорченную Room-базу основной установки и не проверяет самоисцеление сохранённых строк.
+
+Дополнительный аудит записи: `AndroidLibraryIndexingGateway.update` получает листинг и
+передаёт его в `LibrarySnapshotStore.save` (`app/src/main/java/app/enotone/android/LibraryIndexingGateway.kt:23–30`).
+`save` в одной Room-транзакции читает старые строки, планирует и делает `upsertAll`, а
+`markMissing` вызывает только при полном листинге
+(`data/library/src/main/java/app/enotone/library/LibrarySnapshotStore.kt:16–28`,
+`core/database/src/main/java/app/enotone/database/RemoteTrackDao.kt:35–36,51–54`).
+`LibrarySnapshotPlanner.plan` схлопывает лишь одинаковые текстовые `encodedPath`
+(`data/library/src/main/java/app/enotone/library/LibrarySnapshotPlanner.kt:45–61`), а ID
+строит из исходной строки пути (`:30–31`). Эквивалентный URL с другой записью percent-escape
+может получить отдельный ID и Room-ряд. При неполном листинге прежний вариант не помечается
+missing и остаётся в каталоге; при полном — исход зависит от того, какие варианты вернул сервер.
+Это конкретный механизм-кандидат для проверки, но исходные строки устройства не получены.
+
+`AlbumTagRefresher` и `LibraryReindexCoordinator` только ставят существующие ID на повторное
+чтение тегов; `ParallelTagIndexer` делает CAS UPDATE и не добавляет треки. Тест
+`LibraryReindexAuditTest` проверяет именно конкурентные очереди и CAS-записи, а не конкуренцию
+`LibrarySnapshotStore.save` с открытым каталогом. Поэтому он не покрывает найденный кандидат
+вставки/сохранения и не доказывает T-CONC для импорта полного листинга.
+
+## Первичная загрузка отдельной тестовой сборки
+
+Владелец сообщил: тестовая сборка установлена отдельно/с чистыми данными; первичная загрузка
+медиатеки завершилась, проверяемый альбом был полным, дубликатов не было. Debug-вариант PR
+получает package suffix `.preview.r<N>` (`app/build.gradle.kts:45–53`); workflow прямо
+фиксирует отдельные Room-базы у таких per-run пакетов (`.github/workflows/ci.yml:399`).
+Это подтверждает, что начальная загрузка в новой БД не воспроизвела симптом. Она не читала
+испорченную Room-базу основной установки и не проверяет самоисцеление сохранённых строк.
+
+Дополнительный аудит записи: `AndroidLibraryIndexingGateway.update` получает листинг и
+передаёт его в `LibrarySnapshotStore.save`
+(`app/src/main/java/app/enotone/android/LibraryIndexingGateway.kt:23–30`). `save` в одной
+Room-транзакции читает старые строки, планирует и делает `upsertAll`, а `markMissing` вызывает
+только при полном листинге
+(`data/library/src/main/java/app/enotone/library/LibrarySnapshotStore.kt:16–28`,
+`core/database/src/main/java/app/enotone/database/RemoteTrackDao.kt:35–36,51–54`).
+`LibrarySnapshotPlanner.plan` схлопывает лишь одинаковые текстовые `encodedPath`
+(`data/library/src/main/java/app/enotone/library/LibrarySnapshotPlanner.kt:45–61`), а ID
+строит из исходной строки пути
+(`data/library/src/main/java/app/enotone/library/LibrarySnapshotPlanner.kt:30–31`).
+Эквивалентный URL с другой записью percent-escape может получить отдельный ID и Room-ряд.
+При неполном листинге прежний вариант не помечается missing и остаётся в каталоге; при полном
+результат зависит от того, какие варианты вернул сервер. Это конкретный механизм-кандидат,
+но исходные строки устройства не получены.
+
+`AlbumTagRefresher` и `LibraryReindexCoordinator` только ставят существующие ID на повторное
+чтение тегов; `ParallelTagIndexer` делает CAS UPDATE и не добавляет треки. Тест
+`LibraryReindexAuditTest` проверяет именно конкурентные очереди и CAS-записи, а не конкуренцию
+`LibrarySnapshotStore.save` с открытым каталогом. Поэтому он не покрывает найденный кандидат
+вставки/сохранения и не доказывает T-CONC для импорта полного листинга.
+
 ## Диагностика на устройстве
 
 «Настройки → Диагностика → Медиатека → Проверить дубли» читает все строки активного
