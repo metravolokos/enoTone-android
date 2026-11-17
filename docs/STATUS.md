@@ -3,7 +3,7 @@
 
 > Короткий оперативный срез, а не журнал и не очередь отдельных задач. При обновлении заменять старое. История — [archive](archive/), подробные изменения — [CHANGELOG](../CHANGELOG.md), статусы задач — в GitHub Issues по [WORKFLOW](WORKFLOW.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-**Срез:** 2026-11-17 · `main` `61ced66bb4873290de5b0402ad4616867f6fafc9` · версия `0.6.2`. Главный репозиторий содержит исправление F-02 — PR [#185](https://github.com/metravolokos/enoTone-android/pull/185) слит; формулировка «F-02 в работе» устарела. D5-C — [PR #183](https://github.com/metravolokos/enoTone-android/pull/183) **слит** 2026-11-17 (squash `61ced66`). Документация синхронизируется отдельной задачей [DOC-01 #186](https://github.com/metravolokos/enoTone-android/issues/186).
+**Срез:** 2026-11-17 · `main` `13496579844621f8732b339c28976f829e07407f` · версия `0.6.2`. Главный репозиторий содержит исправление F-02 — PR [#185](https://github.com/metravolokos/enoTone-android/pull/185) слит (squash `f42213bf`). D5-C — [PR #183](https://github.com/metravolokos/enoTone-android/pull/183) **слит** 2026-11-17 (squash `61ced66`), документация DOC-01 — [PR #187](https://github.com/metravolokos/enoTone-android/pull/187) слит (squash `d4b88ebe`), восстановленный плеер #188 — [PR #189](https://github.com/metravolokos/enoTone-android/pull/189) слит (squash `13496579`). Находка F-01 закрывается в ветке `test/f-01-migration-helper-windows` ([Issue #191](https://github.com/metravolokos/enoTone-android/issues/191), [ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md)).
 
 ## Реализовано в `main`
 
@@ -47,6 +47,6 @@ CI и актуальный Draft PR #189: [PR](https://github.com/metravolokos/e
 
 ## Активные ограничения и ближайшие решения
 
-Текущие дефекты — [KNOWN_ISSUES](KNOWN_ISSUES.md), открытые вопросы — [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Из подтверждённого долга: [#182](https://github.com/metravolokos/enoTone-android/issues/182) (MP3/ID3), F-01 (Robolectric-миграции Room на Windows) и F-03 (несовпадение версии предзагруженного Kotlin-компилятора в CI), а также необходимость решения владельца по `LICENSE` и сетевому слою. Никакой Huawei PASS из результатов CI автоматически не выводится.
+Текущие дефекты — [KNOWN_ISSUES](KNOWN_ISSUES.md), открытые вопросы — [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Из подтверждённого долга: [#182](https://github.com/metravolokos/enoTone-android/issues/182) (MP3/ID3) и F-03 (несовпадение версии предзагруженного Kotlin-компилятора в CI), а также необходимость решения владельца по `LICENSE` и сетевому слою. **F-01 снята:** `EnoToneMigrationTest` 7/7 и `:core:database` 14/14 проходят на Windows через тест-локальный обход дефекта `androidx.sqlite` ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), Issue #191). Никакой Huawei PASS из результатов CI автоматически не выводится.
 
 **Следующий шаг по текущему коду:** аппаратная проверка новых элементов D5-C после #183, решение отдельных открытых Issues и независимое повторное ревью документации DOC-01 / PR #187. Предстоящие возможности и зависимости — [ROADMAP](ROADMAP.md).
