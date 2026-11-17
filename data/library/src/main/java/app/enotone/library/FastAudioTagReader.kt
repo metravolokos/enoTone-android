@@ -17,7 +17,6 @@ private const val ID3_EXTENDED_HEADER_BYTES = 4
 private const val ID3_EXTENDED_HEADER_MIN = 6
 private const val ID3_MAX_FRAMES = 256
 private const val ID3_MAX_TEXT_FRAME_BYTES = 8192L
-private const val ID3_MAX_UNSYNC_TAG_BYTES = 65536
 private const val ID3_FRAME_V23_GROUPING = 0x20
 private const val ID3_FRAME_V23_COMPRESSION = 0x80
 private const val ID3_FRAME_V23_ENCRYPTION = 0x40
@@ -93,9 +92,14 @@ data class FastTagRead(
  *
  * Supported layouts: ID3v2.3 with an extended header, ID3v2.4 with an extended
  * header and/or tag-level and frame-level unsynchronisation, FLAC behind an
- * ID3v2 preamble, and a corrupt STREAMINFO followed by valid comments. A
- * tag-level ID3v2.3 unsynchronised tag stays refused: decoding it needs a
- * whole-tag copy that the read budget cannot guarantee.
+ * ID3v2 preamble, and a corrupt STREAMINFO followed by valid comments.
+ *
+ * ID3v2.4 tag-level unsynchronisation is walked, not decoded up front: a stored
+ * frame size already counts the inserted zero bytes, so frames are read at
+ * their stored offsets and only each frame body is de-unsynchronised. A
+ * tag-level ID3v2.3 unsynchronised tag stays refused: that model sizes the tag
+ * before unsynchronisation, so the byte count cannot be trusted without a
+ * whole-tag copy the read budget cannot guarantee.
  */
 class FastAudioTagReader {
     fun read(
@@ -146,8 +150,9 @@ class FastAudioTagReader {
         }
         val flags = u(first[5])
         // v2.3: the extended header is understood. Tag-level unsynchronisation
-        // needs a whole-tag copy and stays refused under the 64-KiB budget.
-        // v2.4: tag-level unsynchronisation is supported, a footer is not.
+        // sizes the tag before stuffing, so it stays refused under the budget.
+        // v2.4: tag-level unsynchronisation is walked frame by frame, a footer
+        // is not supported.
         val supported = if (major == 3) ID3_FLAG_EXTENDED_HEADER
             else ID3_FLAG_EXTENDED_HEADER or ID3_FLAG_UNSYNC
         if ((flags and ID3_HEADER_FLAG_MASK and supported.inv()) != 0) {
@@ -156,11 +161,11 @@ class FastAudioTagReader {
         val tagSize = synchsafe(first, 6)
         val end = ID3_HEADER_BYTES + tagSize
         if (end > source.size) return FastTagRead(FastTagCode.INVALID_METADATA)
-        val tags = if (major == 4 && (flags and ID3_FLAG_UNSYNC) != 0) {
-            unsynchronisedTag(source, flags, tagSize, major)
-        } else {
-            streamingTag(source, flags, end, major)
-        }
+        // A v2.4 tag-level unsync flag does not move frames: every stored frame
+        // size already counts the inserted 0x00 bytes, so the walk stays on raw
+        // offsets and only a frame body that is decoded is de-unsynchronised.
+        val tagLevelUnsynced = major == 4 && (flags and ID3_FLAG_UNSYNC) != 0
+        val tags = streamingTag(source, flags, end, major, tagLevelUnsynced)
         return result(if (major == 3) FastTagCode.MP3_ID3V23 else FastTagCode.MP3_ID3V24,
             name, tags["TIT2"], tags["TPE1"], tags["TALB"], tags["TPE2"],
             rawYear = tags["TDRC"] ?: tags["TYER"],
@@ -170,42 +175,20 @@ class FastAudioTagReader {
             durationMs = mp3DurationMs(source, end))
     }
 
+    /**
+     * Walks frames on their stored offsets. Extended-header fields are read as
+     * stored because unsynchronisation covers frame data, not the header.
+     */
     private fun streamingTag(
         source: BoundedBytes, flags: Int, end: Long, major: Int,
+        tagLevelUnsynced: Boolean = false,
     ): Map<String, String> {
         val read: (Long, Int) -> ByteArray = { at, count -> source.bytes(at, count) }
         var start = ID3_HEADER_BYTES.toLong()
         if ((flags and ID3_FLAG_EXTENDED_HEADER) != 0) {
             start = extendedHeaderEnd(read, start, end, major)
         }
-        return collectId3Tags(major, start, end, false, read)
-    }
-
-    @Suppress("ThrowsCount")
-    private fun unsynchronisedTag(
-        source: BoundedBytes, flags: Int, tagSize: Long, major: Int,
-    ): Map<String, String> {
-        // The whole tag body is decoded in memory, so its size must fit the
-        // same 64-KiB ceiling as a single metadata block.
-        if (tagSize > ID3_MAX_UNSYNC_TAG_BYTES) {
-            throw FastStop(FastTagCode.FAST_BUDGET_EXCEEDED)
-        }
-        val body = deUnsynchronise(source.bytes(ID3_HEADER_BYTES.toLong(), tagSize.toInt()))
-        val read = arrayReader(body)
-        val end = body.size.toLong()
-        var start = 0L
-        if ((flags and ID3_FLAG_EXTENDED_HEADER) != 0) {
-            start = extendedHeaderEnd(read, start, end, major)
-        }
-        return collectId3Tags(major, start, end, true, read)
-    }
-
-    @Suppress("MagicNumber", "ThrowsCount")
-    private fun arrayReader(data: ByteArray): (Long, Int) -> ByteArray = { at, count ->
-        if (at < 0L || count < 0 || at + count > data.size) {
-            throw FastStop(FastTagCode.INVALID_METADATA)
-        }
-        data.copyOfRange(at.toInt(), (at + count).toInt())
+        return collectId3Tags(major, start, end, tagLevelUnsynced, read)
     }
 
     @Suppress("MagicNumber", "ThrowsCount")
@@ -266,7 +249,11 @@ class FastAudioTagReader {
         return tags
     }
 
-    /** Returns the payload prefix to skip and whether the payload needs de-unsync. */
+    /**
+     * Returns the payload prefix to skip and whether the payload needs de-unsync.
+     * In v2.4 a tag-level flag unsynchronises every frame, so it is applied on
+     * top of the frame flag instead of replacing the stored-offset walk.
+     */
     @Suppress("MagicNumber", "ThrowsCount")
     private fun frameLayout(
         major: Int, formatFlags: Int, tagLevelUnsynced: Boolean,
@@ -282,8 +269,8 @@ class FastAudioTagReader {
         } else {
             0
         }
-        val unsynchronised = !tagLevelUnsynced && major == 4 &&
-            (formatFlags and ID3_FRAME_UNSYNC) != 0
+        val unsynchronised = major == 4 &&
+            (tagLevelUnsynced || (formatFlags and ID3_FRAME_UNSYNC) != 0)
         return skip to unsynchronised
     }
 
