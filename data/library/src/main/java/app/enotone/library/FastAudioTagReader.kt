@@ -12,6 +12,7 @@ private const val ID3_HEADER_BYTES = 10
 private const val ID3_FRAME_HEADER_BYTES = 10
 private const val ID3_HEADER_FLAG_MASK = 0xF0
 private const val ID3_FLAG_UNSYNC = 0x80
+private const val ID3_FLAG_FOOTER = 0x10
 private const val ID3_FLAG_EXTENDED_HEADER = 0x40
 private const val ID3_EXTENDED_HEADER_BYTES = 4
 private const val ID3_EXTENDED_HEADER_MIN = 6
@@ -330,18 +331,62 @@ class FastAudioTagReader {
 
     /**
      * The first four bytes are read unconditionally to keep the common case at
-     * one Range request. Only when `fLaC` is missing is a bounded window probed,
-     * because some taggers prepend an ID3v2 block to a native FLAC stream.
+     * one Range request. When `fLaC` is missing the offset is *computed* from the
+     * ID3v2 header, because some taggers prepend an ID3v2 block to a native FLAC
+     * stream: a valid header sizes the preamble exactly (10 + synchsafe size,
+     * plus a v2.4 footer when flag 0x10 is set).
+     *
+     * A window search stays as the reserve: it runs when the size field is
+     * missing, implausible or points at something that is not the marker. It
+     * cannot be the primary rule, because the literal `fLaC` also occurs inside
+     * ordinary tag frames (see `flac_id3_preamble.flac`, which carries such a
+     * decoy), and it is limited to [FLAC_PROBE_BYTES].
      */
     @Suppress("MagicNumber", "ReturnCount")
     private fun flacMarkerOffset(source: BoundedBytes): Long? {
         val head = source.bytes(0L, minOf(FLAC_MARKER_BYTES.toLong(), source.size).toInt())
         if (ascii(head, 0, FLAC_MARKER_BYTES) == FLAC_MARKER) return 0L
+        val declared = id3PreambleEnd(source)
+        if (declared != null && markerAt(source, declared)) return declared
         val windowLength = minOf(FLAC_PROBE_BYTES.toLong(), source.size - FLAC_MARKER_BYTES)
         if (windowLength < FLAC_MARKER_BYTES) return null
         val window = String(source.bytes(0L, windowLength.toInt()), Charsets.ISO_8859_1)
         val found = window.indexOf(FLAC_MARKER)
         return if (found >= 0) found.toLong() else null
+    }
+
+    /**
+     * End offset of a well-formed ID3v2 preamble, or null when the file does not
+     * start with one. Purely a read of stored fields: nothing is decoded and
+     * nothing is guessed, so a wrong size falls through to the window search.
+     */
+    @Suppress("MagicNumber", "ReturnCount")
+    private fun id3PreambleEnd(source: BoundedBytes): Long? {
+        if (source.size < ID3_HEADER_BYTES) return null
+        val header = source.bytes(0L, ID3_HEADER_BYTES)
+        if (ascii(header, 0, 3) != "ID3") return null
+        val major = u(header[3])
+        if (major !in 2..4) return null
+        var size = 0L
+        for (index in 6 until ID3_HEADER_BYTES) {
+            val value = u(header[index])
+            if (value and 0x80 != 0) return null
+            size = (size shl 7) or value.toLong()
+        }
+        val footer = if (major == 4 && (u(header[5]) and ID3_FLAG_FOOTER) != 0) {
+            ID3_HEADER_BYTES.toLong()
+        } else {
+            0L
+        }
+        val end = ID3_HEADER_BYTES + size + footer
+        return if (end in 0L..source.size) end else null
+    }
+
+    /** True when the bytes at [at] are the `fLaC` marker, without a search. */
+    @Suppress("MagicNumber")
+    private fun markerAt(source: BoundedBytes, at: Long): Boolean {
+        if (at < 0L || at > source.size - FLAC_MARKER_BYTES) return false
+        return ascii(source.bytes(at, FLAC_MARKER_BYTES), 0, FLAC_MARKER_BYTES) == FLAC_MARKER
     }
 
     @Suppress("MagicNumber")

@@ -103,12 +103,29 @@ class TagReaderFixtureTest {
         assertEquals(FastTagCode.MP3_ID3V24, read.code)
     }
 
-    /** Taggers prepend an ID3v2 block to FLAC; the fLaC marker then starts later. */
+    /**
+     * Taggers prepend an ID3v2 block to FLAC; the fLaC marker then starts later.
+     *
+     * R-5: the fixture also carries a literal `fLaC` inside a TXXX frame, so the
+     * offset must come from the ID3 header size (10 + synchsafe size), not from
+     * the first occurrence of the marker in the first 64 KiB.
+     */
     @Test fun flacWithId3PreambleStillExposesVorbisComments() {
         val read = read("flac_id3_preamble.flac")
         assertEquals(FastTagCode.FLAC_VORBIS, read.code)
         assertEquals("Prelude", read.tags?.title)
         assertEquals("Ensemble", read.tags?.artist)
+    }
+
+    /**
+     * R-5 reserve path: a zeroed ID3 size field makes the computed offset point
+     * at nothing, so the bounded window search has to recover the real marker.
+     */
+    @Test fun flacWithBrokenId3SizeStillFindsTheMarkerBySearch() {
+        val read = read("flac_id3_bad_size.flac")
+        assertEquals(FastTagCode.FLAC_VORBIS, read.code)
+        assertEquals("Broken Size", read.tags?.title)
+        assertEquals("Recovered", read.tags?.artist)
     }
 
     /** Encoding byte 0 must not turn CP1251 Cyrillic into ISO-8859-1 mojibake. */

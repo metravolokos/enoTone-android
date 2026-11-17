@@ -1,0 +1,19 @@
+flac_id3_preamble.flac
+
+FLAC stream with an ID3v2.3 preamble written by a tagger. Layout on disk:
+
+  offset 0        ID3 header "ID3" 03 00 00 + synchsafe size
+  offset 10       TIT2 "ID3 Decoy" (UTF-16 LE with BOM)
+  ...             TXXX frame whose payload is the literal text "fLaC decoy"
+  ...             TPE1 "Preamble Writer" (UTF-16 LE with BOM)
+  offset 10+size  "fLaC" marker of the real stream
+  thereafter      STREAMINFO block, then VORBIS_COMMENT with TITLE/ARTIST
+
+The TXXX payload holds the bytes 66 4C 61 43 ("fLaC") *before* the real marker,
+so searching the first 64 KiB for the first `fLaC` finds the decoy inside the
+tag and the metadata chain then fails to parse.
+
+Correct behaviour: compute the preamble end as 10 + synchsafe size (a v2.4
+preamble with header flag 0x10 adds its 10-byte footer) and accept the marker
+only at that offset. The window search stays as the reserve for broken sizes.
+Expected tags: title "Prelude", artist "Ensemble".

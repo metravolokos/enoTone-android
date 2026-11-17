@@ -137,15 +137,39 @@ def build_id3v24_unsync() -> bytes:
     return id3_tag(4, 0x80, frames) + mpeg1_layer3_frames(40, seed=9)
 
 
-def build_flac_id3_preamble() -> bytes:
-    """ID3v2.3 block written by taggers, then fLaC at a non-zero offset."""
-    preamble = id3_tag(3, 0x00,
-                       id3_frame(3, "TIT2", utf16_text("ID3 Decoy")) +
-                       id3_frame(3, "TPE1", utf16_text("Preamble Writer")))
-    comments = vorbis_comment(["TITLE=Prelude", "ARTIST=Ensemble"])
-    return (preamble + b"fLaC" +
+def flac_body(title: str, artist: str) -> bytes:
+    comments = vorbis_comment([f"TITLE={title}", f"ARTIST={artist}"])
+    return (b"fLaC" +
             flac_block(0, flac_stream_info_payload()) +
             flac_block(4, comments, last=True))
+
+
+def build_flac_id3_preamble() -> bytes:
+    """ID3v2.3 preamble whose body contains a literal `fLaC` decoy text frame.
+
+    The decoy sits *before* the real marker, so a reader that only searches the
+    first bytes for `fLaC` finds the decoy inside a TXXX frame and then fails on
+    the metadata block header. The ID3 header size field (10 + synchsafe size)
+    points exactly at the real marker, which is what a reader must use.
+    """
+    preamble = id3_tag(3, 0x00,
+                       id3_frame(3, "TIT2", utf16_text("ID3 Decoy")) +
+                       id3_frame(3, "TXXX", latin1_text(b"fLaC decoy")) +
+                       id3_frame(3, "TPE1", utf16_text("Preamble Writer")))
+    return preamble + flac_body("Prelude", "Ensemble")
+
+
+def build_flac_id3_bad_size() -> bytes:
+    """ID3v2.3 preamble with a zeroed size field: the bounded search must recover.
+
+    No decoy here on purpose: the declared offset points at nothing, so the
+    reserve window search is the only way to find the real marker.
+    """
+    body = (id3_frame(3, "TIT2", utf16_text("ID3 Decoy")) +
+            id3_frame(3, "TPE1", utf16_text("Preamble Writer")))
+    tag = bytearray(id3_tag(3, 0x00, body))
+    tag[6:10] = b"\x00\x00\x00\x00"  # declared tag size says "no body"
+    return bytes(tag) + flac_body("Broken Size", "Recovered")
 
 
 def build_cp1251_tags() -> bytes:
@@ -254,6 +278,39 @@ Correct behaviour: title "Caf\u00e9 M\u00fcller", artist "Gr\u00fc\u00dfe".
 """
 
 
+FLAC_ID3_PREAMBLE_NOTE = """flac_id3_preamble.flac
+
+FLAC stream with an ID3v2.3 preamble written by a tagger. Layout on disk:
+
+  offset 0        ID3 header "ID3" 03 00 00 + synchsafe size
+  offset 10       TIT2 "ID3 Decoy" (UTF-16 LE with BOM)
+  ...             TXXX frame whose payload is the literal text "fLaC decoy"
+  ...             TPE1 "Preamble Writer" (UTF-16 LE with BOM)
+  offset 10+size  "fLaC" marker of the real stream
+  thereafter      STREAMINFO block, then VORBIS_COMMENT with TITLE/ARTIST
+
+The TXXX payload holds the bytes 66 4C 61 43 ("fLaC") *before* the real marker,
+so searching the first 64 KiB for the first `fLaC` finds the decoy inside the
+tag and the metadata chain then fails to parse.
+
+Correct behaviour: compute the preamble end as 10 + synchsafe size (a v2.4
+preamble with header flag 0x10 adds its 10-byte footer) and accept the marker
+only at that offset. The window search stays as the reserve for broken sizes.
+Expected tags: title "Prelude", artist "Ensemble".
+"""
+
+
+FLAC_ID3_BAD_SIZE_NOTE = """flac_id3_bad_size.flac
+
+Same shape as flac_id3_preamble.flac, but the ID3v2.3 size field is zeroed and
+there is no decoy literal. The computed preamble end is therefore offset 10,
+which does not hold `fLaC`, so the reader must fall back to the bounded window
+search and still find the real marker.
+
+Correct behaviour: title "Broken Size", artist "Recovered", code FLAC_VORBIS.
+"""
+
+
 ID3V24_UNSYNC_NOTE = """id3v24_unsync.mp3
 
 ID3v2.4, tag header flag 0x80 (unsynchronisation), two text frames, both UTF-16
@@ -286,6 +343,7 @@ def generate(root: Path) -> None:
     write(root / "id3v23_ext_header.mp3", build_id3v23_ext_header())
     write(root / "id3v24_unsync.mp3", build_id3v24_unsync())
     write(root / "flac_id3_preamble.flac", build_flac_id3_preamble())
+    write(root / "flac_id3_bad_size.flac", build_flac_id3_bad_size())
     write(root / "cp1251_tags.mp3", build_cp1251_tags())
     write(root / "cp1251_mixed_tags.mp3", build_cp1251_mixed_tags())
     write(root / "latin1_accented_tags.mp3", build_latin1_accented_tags())
@@ -295,7 +353,9 @@ def generate(root: Path) -> None:
     note = root / "cp1251_tags.txt"
     note.write_text(CP1251_NOTE, encoding="utf-8", newline="\n")
     print(f"{note.name}: {len(CP1251_NOTE.encode('utf-8'))} bytes of expected values")
-    for name, text in (("cp1251_mixed_tags.txt", CP1251_MIXED_NOTE),
+    for name, text in (("flac_id3_preamble.txt", FLAC_ID3_PREAMBLE_NOTE),
+                       ("flac_id3_bad_size.txt", FLAC_ID3_BAD_SIZE_NOTE),
+                       ("cp1251_mixed_tags.txt", CP1251_MIXED_NOTE),
                        ("latin1_accented_tags.txt", LATIN1_ACCENTED_NOTE)):
         path = root / name
         path.write_text(text, encoding="utf-8", newline="\n")

@@ -1,0 +1,8 @@
+flac_id3_bad_size.flac
+
+Same shape as flac_id3_preamble.flac, but the ID3v2.3 size field is zeroed and
+there is no decoy literal. The computed preamble end is therefore offset 10,
+which does not hold `fLaC`, so the reader must fall back to the bounded window
+search and still find the real marker.
+
+Correct behaviour: title "Broken Size", artist "Recovered", code FLAC_VORBIS.
