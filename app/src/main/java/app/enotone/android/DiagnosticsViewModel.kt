@@ -17,6 +17,7 @@ internal data class DiagnosticsUiState(
     val hasLogin: Boolean = false,
     /** Обезличенный отчёт проверки соединения: только метки операций, HTTP-коды и время. */
     val probe: String = "",
+    val libraryAudit: app.enotone.library.LibraryDuplicateAudit? = null,
     val auditQuery: AuditQuery? = null,
     val rows: List<RemoteTrackEntity> = emptyList(),
     val message: String = "",
@@ -41,12 +42,18 @@ internal class DiagnosticsViewModel(
                     if (activeLogin != null) {
                         job?.cancel()
                         mutable.value = DiagnosticsUiState()
+                        LibraryAlbumDiagnostics.clear()
                     }
                     activeLogin = work.login
                 }
                 mutable.update { it.copy(busy = work.busy, hasLogin = work.login != null) }
             }
         }
+    }
+
+    override fun inspectLibrary() = execute(R.string.diagnostic_failed) { login ->
+        val report = gateway.libraryAudit(login.email)
+        mutable.update { it.copy(libraryAudit = report) }
     }
 
     override fun inspect() = execute(R.string.diagnostic_failed) { login ->

@@ -5,13 +5,13 @@ import app.enotone.library.LibraryPage
 
 /** Какой маршрут должен рассчитывать LibraryViewModel, включая вложенные детали. */
 internal fun AppNavState.libraryTarget(): Pair<LibraryPage, String?>? {
-    val tab = tab as? AppTab.Library ?: return null
+    val page = (tab as? AppTab.Library)?.page
     val detail = details.lastOrNull()
     return when (detail) {
         is LibraryDetail.Album -> LibraryPage.ALBUMS to detail.key
         is LibraryDetail.Artist -> LibraryPage.ARTISTS to detail.key
         is LibraryDetail.AlbumArtist -> LibraryPage.ALBUM_ARTISTS to detail.key
-        null -> tab.page to null
+        null -> page?.let { it to null }
     }
 }
 

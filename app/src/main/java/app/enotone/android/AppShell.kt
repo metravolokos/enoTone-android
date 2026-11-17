@@ -18,6 +18,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ import app.enotone.android.core.ui.component.LocalEnoDockBlur
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
 import app.enotone.library.OfflineTrackRow
+import kotlinx.coroutines.launch
 
 /**
  * Каркас D3 (ADR-0086): содержимое вкладки, над ним закреплённые мини-плеер и плавающая
@@ -73,7 +75,9 @@ internal fun AppMusicShell(
                 snapshots = snapshots,
                 searchRegistry = searchRegistry,
             ) { route, snapshot, active ->
-            when (val tab = route.tab) {
+            val renderedTab = if (route.tab == AppTab.Home && route.details.isNotEmpty())
+                AppTab.Library(LibraryPage.TRACKS) else route.tab
+            when (val tab = renderedTab) {
                 AppTab.Home -> EnoToneHomeScreen(
                     connectedAccount = login != null,
                     songCount = library?.tracks?.size?.takeIf { !library.loading && it > 0 },
@@ -193,7 +197,7 @@ internal fun AppNowPlaying(
     player: SharedPlayerUiState,
     playerModel: PlayerViewModel,
     account: AccountUiState,
-    onOpenDetail: (LibraryDetail) -> Unit,
+    onOpenDetail: (LibraryDetail) -> Boolean,
     libraryModelOverride: LibraryViewModel? = null,
 ) {
     val playback = player.playback
@@ -206,6 +210,33 @@ internal fun AppNowPlaying(
     val trackId = playback.currentTrackId.orEmpty()
     val title = currentTrack?.title ?: playback.title ?: stringResource(R.string.ui_songs_title)
     var actionsVisible by remember(trackId) { mutableStateOf(false) }
+    var openingDetail by remember(trackId) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val opener = PlayerDetailOpener(
+        resolve = { id, page -> libraryModel?.playerDetail(id, page) },
+        currentTrackId = {
+            playerModel.state.value.takeIf { it.nowPlaying }?.playback?.currentTrackId
+        },
+        navigate = onOpenDetail,
+        close = { playerModel.onNowPlaying(false) },
+        unavailable = {
+            android.widget.Toast.makeText(context,
+                R.string.player_destination_unavailable, android.widget.Toast.LENGTH_SHORT).show()
+        },
+    )
+    val requestDetail: (LibraryPage) -> Unit = { page ->
+        if (!openingDetail) {
+            openingDetail = true
+            scope.launch {
+                try {
+                    opener.open(trackId, page)
+                } finally {
+                    openingDetail = false
+                }
+            }
+        }
+    }
     NowPlayingScreen(
         trackId = trackId,
         title = title,
@@ -251,11 +282,7 @@ internal fun AppNowPlaying(
         actions = libraryModel ?: PreviewLibraryActions,
         login = login,
         onDismiss = { actionsVisible = false },
-        onOpenDetail = { detail ->
-            actionsVisible = false
-            playerModel.onNowPlaying(false)
-            onOpenDetail(detail)
-        },
+        onRequestDetail = requestDetail,
     )
 }
 
@@ -271,7 +298,7 @@ private fun NowPlayingActionSheet(
     actions: LibraryScreenActions,
     login: StoredWebDavLogin?,
     onDismiss: () -> Unit,
-    onOpenDetail: (LibraryDetail) -> Unit,
+    onRequestDetail: (LibraryPage) -> Unit,
 ) {
     if (visible) {
         val track = currentTrack ?: OfflineTrackRow(
@@ -293,7 +320,8 @@ private fun NowPlayingActionSheet(
             accountEmail = login?.email.orEmpty(),
             appPassword = login?.password.orEmpty(),
             onDismiss = onDismiss,
-            onOpenDetail = onOpenDetail,
+            onOpenDetail = {},
+            onRequestDetail = onRequestDetail,
         )
     }
 }

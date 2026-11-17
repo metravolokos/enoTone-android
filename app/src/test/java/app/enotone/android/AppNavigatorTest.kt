@@ -10,6 +10,18 @@ class AppNavigatorTest {
     private val songs = AppTab.Library(LibraryPage.TRACKS)
     private val albums = AppTab.Library(LibraryPage.ALBUMS)
 
+    @Test fun restoredPlayerOpensDetailsAboveHomeAndBackReturnsHome() {
+        val home = AppNavState()
+        listOf(LibraryDetail.Album("album:fixture"), LibraryDetail.Artist("artist:fixture"))
+            .forEach { detail ->
+                val next = AppNavigator.push(home, detail)
+                assertEquals(AppTab.Home, next.tab)
+                assertEquals(detail, next.details.single())
+                assertEquals(next, AppNavigator.restore(AppNavigator.save(next)))
+                assertEquals(home, AppNavigator.back(next))
+            }
+    }
+
     @Test fun selectingAnotherTabSwitchesWithoutScrollRequest() {
         val state = AppNavigator.select(AppNavState(), songs)
         assertEquals(songs, state.tab)

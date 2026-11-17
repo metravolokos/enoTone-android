@@ -28,6 +28,7 @@ class DiagnosticsViewModelTest {
                 ProbeStep("PROPFIND /AllMusic", 207, 12, false, true, "Multi-Status получен"),
                 ProbeStep("PROPFIND Depth infinity", null, 0, false, false, "Не запрошено")))
         }
+        override suspend fun libraryAudit(email: String) = app.enotone.library.LibraryDuplicateAudit(2, 1)
         override suspend fun audit(query: AuditQuery, email: String): List<RemoteTrackEntity> {
             calls++
             return rows
@@ -91,6 +92,21 @@ class DiagnosticsViewModelTest {
         assertEquals(AuditQuery.MISSING_ALBUM_ARTIST, model.state.value.auditQuery)
         assertEquals(listOf(row), model.state.value.rows)
         assertEquals("", model.state.value.message)
+    }
+
+    @Test fun `library counts are numeric and cleared on sign out`() = settingsTest {
+        val session = SettingsWorkSession()
+        val model = DiagnosticsViewModel(Gateway(), session, testSettingsText)
+        session.updateLogin(testLogin)
+        advanceUntilIdle()
+        model.inspectLibrary()
+        advanceUntilIdle()
+        assertEquals(app.enotone.library.LibraryDuplicateAudit(2, 1), model.state.value.libraryAudit)
+        assertTrue(model.state.value.rows.isEmpty())
+        assertFalse(session.state.value.busy)
+        session.updateLogin(null)
+        advanceUntilIdle()
+        assertNull(model.state.value.libraryAudit)
     }
 
     @Test fun `sign out clears private rows and report`() = settingsTest {

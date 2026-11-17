@@ -150,7 +150,11 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                 playerModel = playerModel,
                 account = account,
                 libraryModelOverride = libraryModel,
-                onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
+                onOpenDetail = { detail ->
+                    val next = AppNavigator.push(nav, detail)
+                    nav = next
+                    next.overlay == null && next.details.lastOrNull() == detail
+                },
             )
         },
         settings = { showingDiagnostics ->

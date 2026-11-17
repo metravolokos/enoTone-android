@@ -9,6 +9,8 @@ import kotlinx.coroutines.withContext
 internal enum class AuditQuery { MISSING_ALBUM, MISSING_ALBUM_ARTIST }
 
 internal interface DiagnosticsGateway {
+    suspend fun libraryAudit(email: String): app.enotone.library.LibraryDuplicateAudit =
+        app.enotone.library.LibraryDuplicateAudit(0, 0)
     suspend fun inspect(login: StoredWebDavLogin): ProbeReport
     suspend fun audit(query: AuditQuery, email: String): List<RemoteTrackEntity>
 }
@@ -16,6 +18,13 @@ internal interface DiagnosticsGateway {
 internal class AndroidDiagnosticsGateway(
     private val container: AppContainer,
 ) : DiagnosticsGateway {
+    override suspend fun libraryAudit(email: String) = withContext(container.io) {
+        val source = app.enotone.library.LibrarySnapshotPlanner.accountKey(email)
+        app.enotone.library.LibraryDuplicateDiagnostics.inspect(
+            source, container.database.remoteTrackDao().allForSource(source),
+        )
+    }
+
     override suspend fun inspect(login: StoredWebDavLogin): ProbeReport =
         withContext(container.io) { WebDavDiagnostics().inspect(login.email, login.password) }
 

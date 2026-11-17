@@ -207,6 +207,7 @@ internal class LibraryViewModel(
         filterVersion++
         artworkEpoch++
         catalogue = LibrarySnapshot(emptyList(), emptyMap())
+        LibraryAlbumDiagnostics.clear()
         searchByRoute.clear()
         checkedByGroup.clear()
         attemptedByGroup.clear()
@@ -386,6 +387,19 @@ internal class LibraryViewModel(
         val genre: String?,
         val refreshIds: List<String>,
     )
+
+    /** A restored queue may become ready before the initial Room catalogue. */
+    suspend fun playerDetail(trackId: String, page: LibraryPage): LibraryDetail? {
+        val loaded = state.first { !it.loading || unavailable() }
+        if (unavailable() || loaded.failed) return null
+        return when (page) {
+            LibraryPage.ALBUMS -> loaded.groupIndex.albumByTrackId[trackId]
+                ?.let { LibraryDetail.Album(it.key) }
+            LibraryPage.ARTISTS -> loaded.groupIndex.artistByTrackId[trackId]
+                ?.let { LibraryDetail.Artist(it.key) }
+            else -> null
+        }
+    }
 
     override fun onSearch(query: String) {
         mutable.update { it.copy(search = query) }
