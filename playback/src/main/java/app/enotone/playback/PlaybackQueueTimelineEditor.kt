@@ -14,6 +14,7 @@ internal class PlaybackQueueTimelineEditor(private val player: ExoPlayer) {
         sources: Map<String, MediaSource>,
         working: MutableList<String>,
     ) {
+        removePlayedItems(plan.removedIds, working)
         newIds.forEach { id ->
             player.addMediaSources(listOf(sources.getValue(id)))
             working.add(id)
@@ -25,14 +26,14 @@ internal class PlaybackQueueTimelineEditor(private val player: ExoPlayer) {
     fun applyLinearEdit(
         plan: QueueEditPlan,
         edit: QueueEdit,
-        originalTrackIds: List<String>,
         sources: Map<String, MediaSource>,
         working: MutableList<String>,
     ) {
+        removePlayedItems(plan.removedIds, working)
         val moved = plan.movedIds.toHashSet()
         val currentId = checkNotNull(plan.layout.currentTrackId)
         var anchor = if (edit is QueueEdit.PlayNext) currentId
-            else originalTrackIds.last { it !in moved }
+            else working.last { it !in moved }
         plan.movedIds.forEach { id ->
             val from = working.indexOf(id)
             val to = working.indexOf(anchor) + 1
@@ -48,6 +49,13 @@ internal class PlaybackQueueTimelineEditor(private val player: ExoPlayer) {
                 }
             }
             anchor = id
+        }
+    }
+
+    private fun removePlayedItems(ids: List<String>, working: MutableList<String>) {
+        ids.map(working::indexOf).filter { it >= 0 }.sortedDescending().forEach { index ->
+            player.removeMediaItem(index)
+            working.removeAt(index)
         }
     }
 }

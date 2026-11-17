@@ -50,7 +50,8 @@ class EnoTonePlaybackService : MediaSessionService() {
     }
 
     private val persistenceListener = object : Player.Listener {
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, @Suppress("UNUSED_PARAMETER") reason: Int) {
+            playback.queueNavigation.onMediaItemTransition()
             if (!queueMutation && mediaItem != null) savePosition(urgent = true)
         }
 
@@ -69,6 +70,7 @@ class EnoTonePlaybackService : MediaSessionService() {
             newPosition: Player.PositionInfo,
             reason: Int,
         ) {
+            if (PlaybackSeekPolicy.isUserSeek(reason)) playback.queueNavigation.onPositionDiscontinuity(reason)
             if (!queueMutation && PlaybackSeekPolicy.isUserSeek(reason)) savePosition(urgent = true)
         }
     }
@@ -256,6 +258,7 @@ class EnoTonePlaybackService : MediaSessionService() {
     fun handoffSnapshot(): HandoffSnapshot? = playback.handoffSnapshot()
 
     fun playNext() {
+        playback.queueNavigation.clearPendingSeek()
         if (hasNext) {
             playback.noteNextButton()
             playback.player.seekToNextMediaItem()
@@ -264,6 +267,7 @@ class EnoTonePlaybackService : MediaSessionService() {
     }
 
     fun playPrevious() {
+        playback.queueNavigation.clearPendingSeek()
         if (hasPrevious) {
             playback.notePreviousButton()
             playback.player.seekToPreviousMediaItem()
@@ -298,6 +302,7 @@ class EnoTonePlaybackService : MediaSessionService() {
         if (!player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) return false
         val target = PlaybackSeekPolicy.positionForFraction(player.duration, fraction)
             ?: return false
+        playback.queueNavigation.clearPendingSeek()
         player.seekTo(target)
         return true
     }

@@ -71,6 +71,16 @@ internal class PlaybackQueueNavigation {
         pendingTrackId = null
     }
 
+    fun onMediaItemTransition() {
+        // A destination reached by the staged selection has already been sought;
+        // any item transition makes the outstanding intent obsolete.
+        clearPendingSeek()
+    }
+
+    fun onPositionDiscontinuity(reason: Int) {
+        if (PlaybackSeekPolicy.isUserSeek(reason)) clearPendingSeek()
+    }
+
     fun clear() {
         trackIds = emptyList()
         trackIndices = emptyMap()

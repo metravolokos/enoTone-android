@@ -125,7 +125,7 @@ internal fun ArtistDetailScreen(
                             label = stringResource(R.string.library_shuffle_all),
                             onClick = {
                                 val shuffled = plan.songs.shuffled()
-                                shuffled.firstOrNull()?.let { actions.onTrackClicked(it, shuffled) }
+                                shuffled.firstOrNull()?.let { actions.onShuffleTracks(it, shuffled) }
                             },
                             modifier = Modifier.weight(1f),
                             icon = EnoIcons.SHUFFLE, enabled = canPlay,
@@ -205,7 +205,7 @@ internal fun ArtistDetailScreen(
                 contentDescription = stringResource(R.string.library_shuffle_all),
                 onClick = {
                     val shuffled = plan.songs.shuffled()
-                    shuffled.firstOrNull()?.let { actions.onTrackClicked(it, shuffled) }
+                    shuffled.firstOrNull()?.let { actions.onShuffleTracks(it, shuffled) }
                 },
                 enabled = canPlay,
             )

@@ -103,7 +103,7 @@ internal fun QueueSheet(
                     color = EnoColors.text,
                 )
                 Text(
-                    stringResource(R.string.now_playing_queue_short, queue.currentIndex + 1, queue.trackIds.size),
+                    stringResource(R.string.queue_sheet_position, queue.currentIndex + 1, queue.trackIds.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = EnoColors.textSecondary,
                 )
@@ -206,7 +206,10 @@ private fun QueueTrackRow(
         playingDescription = stringResource(R.string.song_playing_description),
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(EnoRadii.s))
-            .background(if (current) EnoColors.surface2 else Color.Transparent)
+            .background(
+                color = if (current) EnoColors.surface2 else Color.Transparent,
+                shape = RoundedCornerShape(EnoRadii.s),
+            )
             .graphicsLayer(alpha = if (past) QUEUE_PAST_ALPHA else 1f)
             .testTag("queue-track-$position"),
         isCurrent = current,

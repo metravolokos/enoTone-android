@@ -63,6 +63,9 @@ data class PersistedQueueState(
 /** Allowlisted JSON trees via org.json (part of Android; JVM tests use org.json:json), no reflection. */
 object QueueStateCodec {
     const val VERSION = 1
+
+    /** Version-1 files written before the active queue cap was introduced. */
+    const val MAX_PERSISTED_TRACKS = 10_000
     private val hash = Regex("[a-f0-9]{64}")
     private val revision = Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
     private val layoutFields = setOf(
@@ -76,7 +79,7 @@ object QueueStateCodec {
     fun isValidLayout(layout: PersistedQueueLayout): Boolean {
         val ids = layout.trackIds
         val validSize = layout.version == VERSION && ids.isNotEmpty() &&
-            ids.size <= PlaybackQueue.MAX_TRACKS
+            ids.size <= MAX_PERSISTED_TRACKS
         val validIds = ids.toSet().size == ids.size && ids.all(hash::matches)
         val validSource = QueueEditSource.isValid(layout.sourceKey) &&
             revision.matches(layout.queueRevision) && layout.savedAtEpochMs >= 0L
@@ -244,25 +247,40 @@ object QueueStateCodec {
     }
 }
 
-/** All indices are rebased to the filtered original (not shuffle) order. */
+/** Legacy checkpoints are reduced to the selected song and its playback-order neighborhood. */
 object QueueStateRestorer {
     fun filter(state: PersistedQueueState, availableIds: Set<String>): PersistedQueueState? {
         if (!QueueStateCodec.isValid(state)) return null
         val survivors = state.trackIds.filter { it in availableIds }
         if (survivors.isEmpty()) return null
-        val oldIndex = state.trackIds.withIndex().associate { it.value to it.index }
-        val newIndex = survivors.withIndex().associate { oldIndex.getValue(it.value) to it.index }
+        val originalPlaybackOrder = state.shuffledIndices?.map { state.trackIds[it] }
+            ?: state.trackIds
+        val survivingPlaybackOrder = originalPlaybackOrder.filter { it in availableIds }
+        val originalPlaybackIndex = originalPlaybackOrder.withIndex().associate { it.value to it.index }
         val selectedExists = state.selectedTrackId in survivors
         val selected = if (selectedExists) state.selectedTrackId else {
-            val from = oldIndex.getValue(state.selectedTrackId)
-            state.trackIds.drop(from + 1).firstOrNull { it in availableIds }
-                ?: survivors.first()
+            val from = originalPlaybackIndex.getValue(state.selectedTrackId)
+            survivingPlaybackOrder.firstOrNull { id ->
+                originalPlaybackIndex.getValue(id) > from
+            } ?: survivingPlaybackOrder.first()
         }
+        val selectedIndex = survivingPlaybackOrder.indexOf(selected)
+        val afterCount = minOf(PlaybackQueue.MAX_TRACKS - 1, survivingPlaybackOrder.size - selectedIndex - 1)
+        val beforeCount = minOf(PlaybackQueue.MAX_TRACKS - 1 - afterCount, selectedIndex)
+        val windowPlaybackOrder = survivingPlaybackOrder.subList(
+            selectedIndex - beforeCount,
+            selectedIndex + afterCount + 1,
+        )
+        val windowIds = windowPlaybackOrder.toSet()
+        // Keep the Media3 physical order where possible; rebuild shuffle indices
+        // against this subset so the traversal still starts at the same track.
+        val windowPhysicalOrder = survivors.filter { it in windowIds }
+        val physicalIndex = windowPhysicalOrder.withIndex().associate { it.value to it.index }
         val reordered = if (state.shuffleEnabled) {
-            state.shuffledIndices!!.toList().mapNotNull { newIndex[it] }.toIntArray()
+            windowPlaybackOrder.map { physicalIndex.getValue(it) }.toIntArray()
         } else null
         return state.copy(
-            trackIds = survivors,
+            trackIds = windowPhysicalOrder,
             selectedTrackId = selected,
             positionMs = if (selectedExists) state.positionMs else 0L,
             durationMs = if (selectedExists) state.durationMs else 0L,

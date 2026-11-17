@@ -46,11 +46,13 @@ class PlaybackQueueTest {
         }
     }
 
-    @Test fun holds3590EntriesWithoutNetworkOrFormatSpecificLogic() {
-        val items = (0 until 3590).map(::track)
-        val queue = PlaybackQueue.create(items, "id-3500")
-        assertEquals(3590, queue.size)
-        assertEquals(3500, queue.position)
-        assertEquals("id-3501", queue.next()?.id)
+    @Test fun allowsOneHundredItemsAndRejectsOneHundredAndOne() {
+        val items = (0 until PlaybackQueue.MAX_TRACKS).map(::track)
+        val queue = PlaybackQueue.create(items, "id-50")
+        assertEquals(100, queue.size)
+        assertEquals(50, queue.position)
+        assertThrows(IllegalArgumentException::class.java) {
+            PlaybackQueue.create(items + track(100), "id-50")
+        }
     }
 }

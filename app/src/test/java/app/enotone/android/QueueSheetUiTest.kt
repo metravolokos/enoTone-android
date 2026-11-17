@@ -89,11 +89,11 @@ class QueueSheetUiTest {
                 )
             }
         }
-        rule.onNodeWithText("51 / 100").assertExists()
+        rule.onNodeWithText("51 из 100").assertExists()
         rule.onNodeWithTag("queue-track-49").assertIsDisplayed()
         rule.onNodeWithText("Перемешивание включено").assertExists()
         rule.runOnIdle { current.intValue = 70 }
-        rule.onNodeWithText("71 / 100").assertExists()
+        rule.onNodeWithText("71 из 100").assertExists()
         rule.onNodeWithTag("queue-track-49").assertIsDisplayed()
         rule.onNodeWithTag("queue-track-70").assertDoesNotExist()
     }
@@ -129,9 +129,9 @@ class QueueSheetUiTest {
 
     @Test fun shuffleQueuePorcelain() = screenshot("shuffle", count = 12, current = 4, shuffle = true, dark = false)
 
-    @Test fun middleLongQueueGraphite() = screenshot("middle_long", count = 1_000, current = 500, dark = true)
+    @Test fun middleLongQueueGraphite() = screenshot("middle_long", count = 100, current = 50, dark = true)
 
-    @Test fun middleLongQueuePorcelain() = screenshot("middle_long", count = 1_000, current = 500, dark = false)
+    @Test fun middleLongQueuePorcelain() = screenshot("middle_long", count = 100, current = 50, dark = false)
 
     private fun screenshot(
         variant: String,

@@ -188,7 +188,7 @@ class PreviewAudioPlayback(
     private var expectedQueueSize = 0
     private var mediaIdIndices: Map<String, Int> = emptyMap()
     private var originalTrackIds: List<String> = emptyList()
-    private val queueNavigation = PlaybackQueueNavigation()
+    internal val queueNavigation = PlaybackQueueNavigation()
     private var sourceKeyForQueue: String? = null
     val activeSourceKey: String? get() = sourceKeyForQueue
     private var configuredShuffle: IntArray? = null
@@ -707,14 +707,14 @@ class PreviewAudioPlayback(
         expectedQueueSize = plan.layout.trackIds.size
         configuredShuffle = plan.layout.shuffledIndices?.copyOf()
         if (plan.layout.shuffleEnabled) timelineEditor.applyShuffledEdit(plan, newIds, sources, working)
-        else timelineEditor.applyLinearEdit(plan, edit, originalTrackIds, sources, working)
+        else timelineEditor.applyLinearEdit(plan, edit, sources, working)
 
         check(working == plan.layout.trackIds) { "Queue edit order mismatch" }
         originalTrackIds = plan.layout.trackIds
         mediaIdIndices = originalTrackIds.withIndex().associate { it.value to it.index }
         queueNavigation.clearPendingSeek()
         queueNavigation.updateOrder(originalTrackIds, mediaIdIndices, configuredShuffle, player.shuffleModeEnabled)
-        activeRoutes = activeRoutes + newTracks.associateBy { it.id }
+        activeRoutes = (activeRoutes - plan.removedIds.toSet()) + newTracks.associateBy { it.id }
         sourceKeyForQueue = QueueEditSource.edited(checkNotNull(sourceKeyForQueue))
         // Previous next-song prefetch is now stale even if current audio continues.
         temporaryCache?.cancelNext()

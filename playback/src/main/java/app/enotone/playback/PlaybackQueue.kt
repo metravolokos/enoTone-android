@@ -40,8 +40,8 @@ class PlaybackQueue private constructor(
     }
 
     companion object {
-        // Max library scope is an explicit upper bound, not an automatic GET budget.
-        const val MAX_TRACKS = 10_000
+        /** Maximum number of items held in the active playback queue. */
+        const val MAX_TRACKS = 100
 
         fun create(tracks: List<QueueTrack>, selectedId: String): PlaybackQueue {
             require(tracks.isNotEmpty() && tracks.size <= MAX_TRACKS) {

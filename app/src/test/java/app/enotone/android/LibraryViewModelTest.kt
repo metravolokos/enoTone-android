@@ -29,10 +29,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.random.Random
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LibraryViewModelTest {
     private val email = "test@example.invalid"
+    private var randomForQueue: Random = Random.Default
     private fun id(n: Int) = n.toString(16).padStart(64, '0')
     private fun row(n: Int, title: String) =
         OfflineTrackRow(id = id(n), title = title, artist = "Исполнитель",
@@ -149,6 +151,7 @@ class LibraryViewModelTest {
         accountEvents = events,
         dataRevision = revision,
         visiblePages = pages,
+        queueRandom = randomForQueue,
     )
 
     @Test fun restoredPlayerDetailWaitsForColdCatalogueAndRejectsMissingIds() = runTest {
@@ -197,6 +200,51 @@ class LibraryViewModelTest {
             advanceUntilIdle()
             assertEquals(listOf(id(3)), player.appended.map { it.id })
             assertFalse(third.await().playNext)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun longListStartsAtSelectedTrackCapsPlayAllAndShufflesAcrossWholeList() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val rows = (1..3_647).map { row(it, "Песня $it") }
+            val snapshot = LibrarySnapshot(rows, rows.associate { item ->
+                item.id to QueueTrack(item.id, item.title, "/AllMusic/${item.id}.mp3", 1234L, null)
+            })
+            val player = FakeConnection()
+            randomForQueue = Random(192)
+            val vm = model(this, FakeRepository(snapshot), player)
+            advanceUntilIdle()
+
+            val clickNotice = async(UnconfinedTestDispatcher(testScheduler)) {
+                vm.queueMessages.first()
+            }
+            vm.onTrackClicked(rows[500], rows)
+            advanceUntilIdle()
+            assertEquals(100, player.queue.size)
+            assertEquals(rows.drop(500).take(100).map { it.id }, player.queue.map { it.id })
+            assertEquals(QueueStartNotice.FIRST_100, clickNotice.await().notice)
+
+            vm.onTrackClicked(rows.last(), rows)
+            advanceUntilIdle()
+            assertEquals(listOf(rows.last().id), player.queue.map { it.id })
+
+            vm.onPlayAll()
+            advanceUntilIdle()
+            assertEquals(vm.state.value.visible.take(100).map { it.id }, player.queue.map { it.id })
+
+            val shuffleOrder = vm.state.value.visible.shuffled(Random(192))
+            val shuffleNotice = async(UnconfinedTestDispatcher(testScheduler)) {
+                vm.queueMessages.first()
+            }
+            vm.onShuffleAll()
+            advanceUntilIdle()
+            assertEquals(shuffleOrder.take(100).map { it.id }, player.queue.map { it.id })
+            assertEquals(100, player.queue.size)
+            val firstHundred = rows.take(100).mapTo(mutableSetOf()) { it.id }
+            assertTrue(player.queue.any { it.id !in firstHundred })
+            assertEquals(QueueStartNotice.SHUFFLE_100, shuffleNotice.await().notice)
         } finally {
             Dispatchers.resetMain()
         }
@@ -325,7 +373,7 @@ class LibraryViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun selectedTrackPlaysExactVisibleQueueContext() = runTest {
+    @Test fun selectedTrackPlaysOnlyItsFollowingVisibleContext() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val player = FakeConnection()
@@ -337,7 +385,7 @@ class LibraryViewModelTest {
             vm.onTrackClicked(selected[1], selected)
             advanceUntilIdle()
             assertEquals(id(2), player.selected)
-            assertEquals(listOf(id(1), id(2)), player.queue.map { it.id })
+            assertEquals(listOf(id(2)), player.queue.map { it.id })
         } finally { Dispatchers.resetMain() }
     }
 

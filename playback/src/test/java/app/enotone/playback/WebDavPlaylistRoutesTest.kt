@@ -40,13 +40,10 @@ class WebDavPlaylistRoutesTest {
         }
     }
 
-    @Test fun indexes3590EntriesWithoutNetworkRequestsOrReordering() {
-        val tracks = (0 until 3590).map(::track)
-        val validated = PlaybackQueue.create(tracks, "synthetic-100")
-        val index = WebDavPlaylistRoutes.index(validated.items)
-        assertEquals(3590, validated.items.size)
-        assertEquals(100, validated.position)
-        assertEquals(3590, index.size)
+    @Test fun indexesTheOneHundredAllowedQueueEntries() {
+        val tracks = (0 until PlaybackQueue.MAX_TRACKS).map(::track)
+        val index = WebDavPlaylistRoutes.index(tracks)
+        assertEquals(PlaybackQueue.MAX_TRACKS, index.size)
         assertTrue(index.values.all { it.size > 0L })
     }
 }
