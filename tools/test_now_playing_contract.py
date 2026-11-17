@@ -28,10 +28,11 @@ class NowPlayingContractTest(unittest.TestCase):
             "onPlayPause",
             "onCycleRepeat",
             "onToggleShuffle",
-            "R.drawable.ic_action_play",
-            "R.drawable.ic_action_pause",
-            "R.drawable.ic_action_previous",
-            "R.drawable.ic_action_next",
+            "CoreUiR.drawable.ic_eno_play",
+            "CoreUiR.drawable.ic_eno_pause",
+            "CoreUiR.drawable.ic_eno_previous",
+            "CoreUiR.drawable.ic_eno_next",
+            "CoreUiR.drawable.ic_eno_more",
             "R.string.playback_previous",
             "R.string.playback_next",
             "R.string.playback_pause",
@@ -53,11 +54,12 @@ class NowPlayingContractTest(unittest.TestCase):
             xml = ET.fromstring(self.src(relative))
             names = {node.attrib["name"] for node in xml.findall("string")}
             self.assertTrue(strings.issubset(names), strings - names)
-        # repeat/shuffle — из UI Icons v1 (:core:ui) с D3.1; здесь остаётся только «назад» ADR-0073.
-        for name in ("previous",):
-            path = ROOT / f"app/src/main/res/drawable/ic_action_{name}.xml"
+        # Transport and More icons come from approved UI Icons v1 (:core:ui).
+        for name in ("previous", "next", "play", "pause", "more"):
+            path = ROOT / f"core/ui/src/main/res/drawable/ic_eno_{name}.xml"
             xml = ET.parse(path).getroot()
             self.assertEqual(xml.tag, "vector")
+            self.assertIn("UI Icons v1", path.read_text(encoding="utf-8"))
             self.assertEqual(
                 xml.attrib.get("{http://schemas.android.com/apk/res/android}height"),
                 "24dp",

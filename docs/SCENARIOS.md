@@ -95,13 +95,13 @@
 | NAV-16 | Открыть «Сейчас играет» через mini, закрыть свайпом/Back, отменить короткий свайп, повторить ×10 | Цельная непрозрачная шторка только по вертикали; открытие/закрытие без рывка. **Док остаётся под ней неподвижным с alpha 1 в каждом кадре** (один mini); нет shared-перелёта; отмена жеста возвращает, commit закрывает, прокрутка под плеером сохранена | O-22, O-13 | R, H | `AppDockMotionUiTest` + `AppDockOpaqueUiTest` (положение/Bitmap), `AppSimpleOpacityUiTest`, `AppNowPlayingGestureUiTest`, `AppMotionRootUiTest`, `NowPlayingUiTest` | PR #169; CI #915 PASS на кодовом HEAD `b6f3679`; аппаратная плавность Huawei не проверена |
 | NAV-17 | Android 14+ predictive Back, cancel/commit и два Back подряд; scale0; TalkBack поверх Настроек/Диагностики | Только плеер следует за progress; после commit проходит оставшийся путь (без удвоения offset), при cancel возвращается. Страницы не двигаются по predictive Back; второй жест не перехватывает старый route; покрытая музыка/настройки недоступны TalkBack и восстанавливаются после закрытия; системное «Убрать анимации» | O-22 | JVM, R, H | `AppBackControllerTest`, `AppBackGestureUiTest`, `AppPlayerSheetBackUiTest`, `AppMotionRootUiTest` | PR #169; CI #915 PASS на кодовом HEAD `b6f3679`; Huawei predictive Back/TalkBack/scale0 не подтверждены |
 | SRCH-02 | Поиск на каждой вкладке | под полем — «Найдено N песен / альбомов / артистов / авторов», при пустом — «Ничего не нашлось» | ADR-0088 | H | — | ожидает (D3.2) |
-| DES-01 | Тема Android v2, обе темы | цвета «Графит»/«Фарфор», Onest/Unbounded, в «Фарфоре» ползунки и кнопки терракотовые | ADR-0084 | Roborazzi, H | `ThemeScreenshotTest` | H PASS 0.6.2-preview.566 (2026-11-14, владелец: «всё соответствует», снимок «Сейчас играет», светлая тема) |
+| DES-01 | Тема Android v2, обе темы | цвета «Графит»/«Фарфор», Onest/Unbounded, в «Фарфоре» ползунки и кнопки терракотовые | ADR-0084 | Roborazzi, H | `ThemeScreenshotTest`, `AppScreensScreenshotTest` (`now_playing_*`) | H PASS 0.6.2-preview.566 (2026-11-14, владелец: «всё соответствует», снимок «Сейчас играет», светлая тема) |
 
 ## ACT — лист действий песни (D4a)
 
 | ID | Действие | Ожидаемо | Основание | Метод | Автопроверка | Последний результат |
 |---|---|---|---|---|---|---|
-| ACT-01 | «⋮» в строке песни на «Песнях», в поиске, альбоме, исполнителе | открывает единый ModalBottomSheet с обложкой и допустимыми действиями | D4a, `03_song_actions` | Roborazzi, H | `TrackActionPlannerTest`, `AppScreensScreenshotTest` | ожидает CI/владельца, Draft #133 |
+| ACT-01 | «⋮» в строке песни на «Песнях», в поиске, альбоме, исполнителе и «Сейчас играет» | открывает единый ModalBottomSheet с обложкой и допустимыми действиями | D4a, `03_song_actions`; решение 2026-11-12 | Roborazzi, H | `TrackActionPlannerTest`, `AppScreensScreenshotTest`, `NowPlayingUiTest` | ожидает CI/владельца, Draft #133 |
 | ACT-02 | Долгое нажатие на любую строку песни | тот же лист; тактильный отклик, TalkBack | D4a | R, H | `EnoTrackRow` (combinedClickable) | ожидает Huawei, Draft #133 |
 | ACT-03 | «Перейти к альбому/исполнителю»; трек без тегов и уже открытый экран | переход поверх исходной вкладки, скрытие недоступных пунктов; Back возвращает | D4a | JVM, H | `TrackActionPlannerTest`, `AppNavigatorTest` | JVM добавлены, CI ожидает; H не проверено |
 
@@ -129,7 +129,7 @@
 |---|---|---|---|---|---|---|
 | PLAY-01 | Альбом до конца | автопереход без пауз | R-6.6a | JVM, H | `PlaybackQueueTest`, `PlaybackContinuationPolicyTest` | H PASS 2026-11-12 (58 треков) |
 | PLAY-02 | Shuffle, repeat one, repeat all | цикл выкл → один → вся очередь → выкл; отображение в `SharedPlayerUiState` и на экране меняется с первого нажатия; shuffle включается и выключается | R-6.6b | JVM, R, H | `PlaybackModesTest`, `PlayerViewModelTest`, `NowPlayingUiTest` | прежние T; новый Huawei-тест ожидает владельца (#132) |
-| PLAY-03 | Название и исполнитель | совпадают в списке, мини-плеере, «Сейчас играет», уведомлении и на экране блокировки | аудит п. 6 | JVM, H | `QueueMetadataTest`, `LibraryCatalogMapperTest` | H PASS 0.6.2-preview.475 |
+| PLAY-03 | Название и исполнитель | совпадают в списке, мини-плеере, «Сейчас играет», уведомлении и на экране блокировки | аудит п. 6 | JVM, H | `QueueMetadataTest`, `LibraryCatalogMapperTest`, `NowPlayingUiTest` | H PASS 0.6.2-preview.475 |
 | PLAY-04 | Перемотка во время воспроизведения | без лишних загрузок, позиция верная | ADR-0039 | JVM, H | `PlaybackSeekPolicyTest`, `WebDavPlaybackRangeTest` | H PASS (ADR-0039) |
 | PLAY-05 | Экран выключен 20+ минут, 5+ автопереходов | без обрывов | R-7.2 | H | нет | H PASS 2026-11-12 (общий отзыв: «плавно, без зависаний»), детальный прогон не отчитан |
 | PLAY-06 | Регулятор громкости | отсутствует в приложении | O-12 | R | `NowPlayingUiTest` | T, H PASS 0.6.0-preview.429 |
