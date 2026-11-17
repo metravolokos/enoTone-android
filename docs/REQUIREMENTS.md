@@ -143,7 +143,7 @@
 | R-8.2 | Сценарии 401/403/404/429/5xx, обрыв, без Range / ETag, NFC/NFD, битые файлы | 🟡 | частично в JUnit |
 | R-8.3 | Тесты очереди | ✅ | T (`:playback`) |
 | R-8.4 | Тесты кэша | ✅ | T |
-| R-8.5 | Тесты БД: миграции (`MigrationTestHelper`), FTS, плейлисты | ⛔ / 🟡 | Тесты FTS отменены O-21; сохранены тесты плейлистов и миграций, добавлены v6→v7 (трек, плейлист, позиция, firstSeenEpochMs) и v1→v7 (слит в #143); на Windows `EnoToneMigrationTest` не запускается — только в CI (аудит A-02; подтверждено локальным аудитом 2026-11-17, находка F-01); CI ожидает |
+| R-8.5 | Тесты БД: миграции (`MigrationTestHelper`), FTS, плейлисты | ⛔ / 🟡 | Тесты FTS отменены O-21; сохранены тесты плейлистов и миграций, добавлены v6→v7 (трек, плейлист, позиция, firstSeenEpochMs) и v1→v7 (слит в #143); на Windows `EnoToneMigrationTest` запускается локально после обхода дефекта `androidx.sqlite` ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), находка F-01 [аудита 2026-11-17](audit/AUDIT_2026-11-17_local-state.md)): 7/7 на Windows, модуль `:core:database` — 14 тестов без падений; CI подтверждает то же на Linux |
 | R-8.6 | Без строковых «контрактных» тестов | 🟡 | #104: удалены 5 методов проверки SettingsScreen, смешанные проверки освобождены от привязки к UI; безопасность Intent сохранена на `BackgroundWorkLauncher`, санитизация проверяется Kotlin. В #118 удалены 6 заменённых файлов (13 методов), остались **18 файлов / 51 метод**: частичное покрытие и policy-проверки. Замены: Room DAO/миграции, FastAudioTagReader, SnapshotPlanner, Compose UI, реальный SharedPreferences, RU/EN Resources; карта по каждому файлу в PR |
 
 ## 8. CI/CD и процесс (ТЗ §9–11)
