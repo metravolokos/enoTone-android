@@ -17,6 +17,9 @@ import org.robolectric.annotation.Config
 class EnoToneMigrationTest {
     @get:Rule val helper = MigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(), EnoToneDatabase::class.java,
+        // Test-only workaround for the `androidx.sqlite` path comparison that breaks on Windows,
+        // see PathAwareSQLiteOpenHelperFactory.
+        emptyList(), PathAwareSQLiteOpenHelperFactory(),
     )
 
     private fun insertLegacyV1(name: String) {
