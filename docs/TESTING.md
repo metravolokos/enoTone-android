@@ -6,7 +6,7 @@
 
 | Шаг | Что проверяет |
 |---|---|
-| `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`) и «контрактные» тесты исходников (см. ниже) |
+| `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV (`tools/test_mock_webdav.py`), оставшиеся исторические контракты исходников и проверки tooling; поведение «Сейчас играет» проверяется Robolectric Compose UI и Roborazzi |
 | Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
 | `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; после слитого #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
 | `gradle :core:ui:verifyRoborazziDebug :app:verifyRoborazziDebug` | сравнение эталонов Android v2 в обеих темах (компоненты и экраны), diff — артефакт `roborazzi-results` |
@@ -73,11 +73,11 @@ D3.1 добавляет в `:app` `AppScreensScreenshotTest`: экраны «П�
 
 D2b добавляет `ComponentsScreenshotTest` (две галереи компонентов в обеих темах), `EnoLetterAvatarTest` (Unicode/grapheme/детерминированность), dual-Preview у каждого компонента. PNG-эталоны D2b: `core/ui/src/test/screenshots/components_graphite.png`, `components_porcelain.png`, записываются тем же `record_roborazzi=true` на stacked-ветке после D2a.
 
-Старый строковой `tools/test_m6_theme_contract.py` удалён: он жёстко требовал исторические значения Graphite. Режимы темы и их сохранение проверяет `UiAppearancePersistenceTest` (Robolectric), внешний вид — `ThemeScreenshotTest`. Другие исходные/политические проверки не менялись.
+Строковые `tools/test_m6_theme_contract.py` и `tools/test_now_playing_contract.py` удалены: первый жёстко требовал исторические значения Graphite; второй проверял наличие вызовов и ресурсов по исходному тексту, а не поведение. Для «Сейчас играет» поведение проверяют `NowPlayingUiTest` и `NowPlayingActionNavigationUiTest`, внешний вид — восемь `AppScreensScreenshotTest` (`now_playing_*`) в двух темах; существующие D5-тесты не ослаблялись. Режимы темы и их сохранение проверяет `UiAppearancePersistenceTest` (Robolectric), внешний вид базовой палитры — `ThemeScreenshotTest`.
 
 ### Известный долг тестов
 
-- M6-0/5a (PR #118): из 24 строковых контрактных файлов (64 метода) удалены **6 полностью заменённых** (13 методов): `test_clean_library_ui`, `test_extended_tag_metadata`, `test_library_page_settings`, `test_screenshot_parity`, `test_tag_audit_refresh`, `test_unified_import_genre` (суффикс `_contract.py`). Остались **18 файлов (51 метод)**. Действительные поведенческие замены и непокрытые аспекты каждого файла перечислены в таблице PR #118; неполное покрытие означает сохранение файла до следующих тестов. `test_mock_webdav.py`, политика подписи и GMS-гейт остаются. Новых проверок исходного текста не добавляли.
+- M6-0/5a (PR #118): из 24 строковых контрактных файлов (64 метода) удалены **6 полностью заменённых** (13 методов): `test_clean_library_ui`, `test_extended_tag_metadata`, `test_library_page_settings`, `test_screenshot_parity`, `test_tag_audit_refresh`, `test_unified_import_genre` (суффикс `_contract.py`). С учётом последующих изменений осталось **16 файлов (46 методов)**. PR #183 удаляет ещё один файл с двумя проверками наличия строк: их поведение покрывают Compose UI и Roborazzi. Таблица PR #118 перечисляет прежние замены и непокрытые аспекты; частичное покрытие означает сохранение соответствующей проверки до появления поведенческого теста. `test_mock_webdav.py`, политика подписи и GMS-гейт остаются.
 - С #92 и #100 есть поведенческие JVM/JUnit-тесты `:app` (`LibraryViewModel`, `PlayerViewModel`, `AccountSettingsViewModel`, `AccountSignOut`) и чистого преобразования `:data:library`. В PR #118 добавлены Room DAO/миграции (`MigrationTestHelper`) и Compose UI-тесты; полный набор проверяется на обновлённом HEAD.
 
 ## 2. Ручная проверка на Huawei

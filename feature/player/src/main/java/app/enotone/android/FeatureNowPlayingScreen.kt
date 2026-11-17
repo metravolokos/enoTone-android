@@ -43,6 +43,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -75,6 +76,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -105,6 +107,7 @@ fun FeatureNowPlayingScreen(
     title: String,
     artist: String?,
     album: String?,
+    albumYear: Int? = null,
     artwork: Bitmap?,
     playbackState: String,
     errorCode: Int,
@@ -129,8 +132,10 @@ fun FeatureNowPlayingScreen(
     onCycleRepeat: () -> Unit,
     onToggleShuffle: () -> Unit,
     ids: NowPlayingIds,
+    onMore: () -> Unit,
 ) {
     val color = MaterialTheme.colorScheme
+    val nowPlayingPaneTitle = stringResource(ids.nowPlayingTitle)
 
     val knownDuration = PlaybackSeekPolicy.isKnownDuration(durationMs)
     var scrubbing by remember(trackId) { mutableStateOf(false) }
@@ -199,6 +204,7 @@ fun FeatureNowPlayingScreen(
     var playerHeightPx by remember { mutableFloatStateOf(1f) }
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().testTag("now-playing-gesture-root")
+            .semantics { paneTitle = nowPlayingPaneTitle }
             .graphicsLayer {
                 translationY = dragOffset.floatValue
             }
@@ -238,25 +244,13 @@ fun FeatureNowPlayingScreen(
                 )
             },
     ) {
-        val coverSide = minOf(maxWidth - 56.dp, maxHeight * 0.38f, 320.dp)
+        val coverSide = minOf(maxWidth - 56.dp, maxHeight * COVER_HEIGHT_FRACTION, 321.dp)
         Column(
             modifier = Modifier.fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars)
-                .padding(horizontal = 24.dp, vertical = 8.dp),
+                .padding(horizontal = 28.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // D3.2 (владелец): ручки нет — экран закрывается только жестом вниз и системным «Назад».
-                Spacer(Modifier.size(48.dp))
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text(stringResource(ids.nowPlayingTitle),
-                        style = MaterialTheme.typography.titleMedium)
-                }
-                Spacer(Modifier.size(48.dp))
-            }
             Spacer(Modifier.weight(.25f))
             Box(
                 modifier = Modifier.size(coverSide + 12.dp),
@@ -296,17 +290,57 @@ fun FeatureNowPlayingScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Text(title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    realError ?: artist?.takeIf { it.isNotBlank() }
-                        ?: album.orEmpty(),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = color.onSurfaceVariant,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        title,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    IconButton(
+                        onClick = onMore,
+                        modifier = Modifier.size(MORE_TOUCH_SIZE),
+                    ) {
+                        Box(
+                            modifier = Modifier.size(MORE_CIRCLE_SIZE)
+                                .clip(CircleShape)
+                                .background(EnoColors.surface2),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painterResource(ids.icActionMore),
+                                contentDescription = stringResource(ids.trackActionsDescription, title),
+                                modifier = Modifier.size(24.dp),
+                                tint = color.onSurface,
+                            )
+                        }
+                    }
+                }
+                val artistLine = artist?.takeIf(String::isNotBlank)
+                if (realError != null || artistLine != null) {
+                    Text(
+                        realError ?: artistLine.orEmpty(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (realError == null) EnoColors.accentText else color.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                val albumLine = listOfNotNull(
+                    album?.takeIf(String::isNotBlank),
+                    albumYear?.toString(),
+                ).joinToString(" · ")
+                if (albumLine.isNotBlank()) {
+                    Text(
+                        albumLine,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = EnoColors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             Spacer(Modifier.height(12.dp))
             // D5 (01_now_playing): Slider retains its 48dp gesture target; the
@@ -447,40 +481,44 @@ fun FeatureNowPlayingScreen(
             Spacer(Modifier.weight(.22f))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
                     onClick = onPrevious,
                     enabled = controlsEnabled && hasPrevious,
-                    modifier = Modifier.size(60.dp),
+                    modifier = Modifier.size(64.dp),
                 ) {
                     Icon(painterResource(ids.icActionPrevious),
                         contentDescription = stringResource(ids.playbackPrevious),
-                        modifier = Modifier.size(34.dp))
+                        modifier = Modifier.size(40.dp))
                 }
                 FilledIconButton(
                     onClick = onPlayPause,
                     enabled = controlsEnabled,
-                    shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.size(76.dp),
+                    shape = CircleShape,
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = EnoColors.accentFill,
+                        contentColor = EnoColors.onAccent,
+                    ),
+                    modifier = Modifier.size(84.dp),
                 ) {
                     Icon(
                         painterResource(if (isPlaying)
                             ids.icActionPause else ids.icActionPlay),
                         contentDescription = stringResource(if (isPlaying)
                             ids.playbackPause else ids.playbackResume),
-                        modifier = Modifier.size(38.dp),
+                        modifier = Modifier.size(40.dp),
                     )
                 }
                 IconButton(
                     onClick = onNext,
                     enabled = controlsEnabled && hasNext,
-                    modifier = Modifier.size(60.dp),
+                    modifier = Modifier.size(64.dp),
                 ) {
                     Icon(painterResource(ids.icActionNext),
                         contentDescription = stringResource(ids.playbackNext),
-                        modifier = Modifier.size(34.dp))
+                        modifier = Modifier.size(40.dp))
                 }
             }
             Spacer(Modifier.weight(.2f))
@@ -552,7 +590,11 @@ private fun NowPlayingToggle(
     }
 }
 
+private const val COVER_HEIGHT_FRACTION = 0.40f
+
 private val THUMB_SIZE = 12.dp
+private val MORE_TOUCH_SIZE = 48.dp
+private val MORE_CIRCLE_SIZE = 44.dp
 private val TRACK_HEIGHT = 4.dp
 private val SEEK_TOUCH_HEIGHT = 48.dp
 private val DOT_GAP_WIDTH = 20.dp

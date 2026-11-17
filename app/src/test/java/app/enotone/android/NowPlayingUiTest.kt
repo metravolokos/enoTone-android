@@ -4,16 +4,25 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.view.View
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -22,6 +31,7 @@ import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeDown
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
+import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.NextBufferState
 import app.enotone.playback.PlaybackModes
 import org.junit.Assert.assertEquals
@@ -42,6 +52,15 @@ class NowPlayingUiTest {
     @get:Rule val rule = createComposeRule()
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
 
+    private fun assertNowPlayingPaneTitle() {
+        rule.onNodeWithTag("now-playing-gesture-root", useUnmergedTree = true).assert(
+            SemanticsMatcher.expectValue(
+                SemanticsProperties.PaneTitle,
+                context.getString(R.string.now_playing_title),
+            ),
+        )
+    }
+
     @Test fun transportButtonsCallTheirActionsAndVolumeIsAbsent() {
         var close = 0
         var play = 0
@@ -53,7 +72,7 @@ class NowPlayingUiTest {
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture title", artist = "Fixture artist",
-                    album = "Fixture album", artwork = null, playbackState = "PAUSED",
+                    album = "Fixture album", albumYear = 2019, artwork = null, playbackState = "PAUSED",
                     errorCode = 0, positionMs = 15000, durationMs = 120000,
                     canSeek = true, controlsEnabled = true,
                     hasPrevious = true, hasNext = true,
@@ -66,6 +85,8 @@ class NowPlayingUiTest {
             }
         }
         rule.onNodeWithText("Fixture title").assertExists()
+        assertNowPlayingPaneTitle()
+        rule.onNodeWithText("Fixture album · 2019").assertExists()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_resume)).performClick()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_previous)).performClick()
         rule.onNodeWithContentDescription(context.getString(R.string.playback_next)).performClick()
@@ -101,6 +122,59 @@ class NowPlayingUiTest {
             rule.onNodeWithContentDescription(label).assertDoesNotExist()
             rule.onNodeWithText(label).assertDoesNotExist()
         }
+    }
+
+    @Test fun nowPlayingMoreOpensTheListTrackActionsSheet() {
+        val track = OfflineTrackRow(
+            id = "fixture-id", title = "Fixture title", artist = "Fixture artist",
+            album = "Fixture album", year = 2019,
+        )
+        val groupIndex = LibraryGroupIndex.build(listOf(track), "Неизвестный альбом")
+        val showActions = mutableStateOf(false)
+        rule.setContent {
+            val composeContext = LocalContext.current
+            Box(Modifier.fillMaxSize()) {
+                EnoToneTheme {
+                    NowPlayingScreen(
+                        trackId = track.id, title = track.title, artist = track.artist,
+                        album = track.album, albumYear = track.year,
+                        artwork = null, playbackState = "PAUSED", errorCode = 0,
+                        positionMs = 15_000, durationMs = 120_000,
+                        canSeek = true, controlsEnabled = true,
+                        hasPrevious = true, hasNext = true,
+                        queuePosition = 2, queueTotal = 3,
+                        repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                        onClose = {}, onSeekFraction = {}, onPlayPause = {},
+                        onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                        onMore = { showActions.value = true },
+                    )
+                    if (showActions.value) {
+                        TrackActionsHost(
+                            track = track,
+                            groupIndex = groupIndex,
+                            actions = PreviewLibraryActions,
+                            currentDetail = null,
+                            artworkCatalog = LibraryUiState().artworkCatalog,
+                            artworkRepository = remember(composeContext) {
+                                ArtworkPreviewRepository(composeContext)
+                            },
+                            accountEmail = "",
+                            appPassword = "",
+                            onDismiss = { showActions.value = false },
+                            onOpenDetail = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        rule.onNodeWithContentDescription(
+            context.getString(R.string.song_actions_description, track.title),
+        ).performClick()
+        rule.onNodeWithText(context.getString(R.string.queue_play_next)).assertExists()
+        rule.onNodeWithText(context.getString(R.string.queue_append)).assertExists()
+        rule.onNodeWithText(context.getString(R.string.song_action_go_album)).assertExists()
+        rule.onNodeWithText(context.getString(R.string.song_action_go_artist)).assertExists()
     }
 
     @Test fun repeatCycleAndShuffleRespondToRealTouchesAndRecompose() {

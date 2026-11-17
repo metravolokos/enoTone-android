@@ -1,11 +1,5 @@
 package app.enotone.android
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,13 +13,16 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.SaveableStateHolder
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -36,6 +33,7 @@ import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.LocalEnoDockBlur
 import app.enotone.android.core.ui.component.rememberEnoBlurState
 import app.enotone.library.LibraryPage
+import app.enotone.library.OfflineTrackRow
 
 /**
  * Каркас D3 (ADR-0086): содержимое вкладки, над ним закреплённые мини-плеер и плавающая
@@ -48,6 +46,7 @@ internal fun AppMusicShell(
     account: AccountUiState,
     player: SharedPlayerUiState,
     playerModel: PlayerViewModel,
+    libraryModel: LibraryViewModel?,
     libraryStateHolder: SaveableStateHolder,
     onSelectTab: (AppTab) -> Unit,
     onOpenDetail: (LibraryDetail) -> Unit,
@@ -55,13 +54,10 @@ internal fun AppMusicShell(
     searchRegistry: AppSearchBackRegistry? = null,
 ) {
     val login = account.libraryLogin
-    val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
-    val queueSnackbar = rememberQueueSnackbar(libraryModel)
     val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
     val snapshots = androidx.compose.runtime.remember(libraryModel) { AppLibraryRouteSnapshots() }
     val selecting = library?.selecting == true
     val miniVisible = player.playback.queueTotal > 0
-    val snackbarLift = with(LocalDensity.current) { 16.dp.roundToPx() }
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     // Последняя строка списка поднимается над панелью и мини-плеером (вариант B).
     val contentPadding = PaddingValues(bottom = dockHeight(miniVisible) + navBar)
@@ -114,17 +110,6 @@ internal fun AppMusicShell(
                     .padding(start = DOCK_SIDE, end = DOCK_SIDE, bottom = DOCK_SIDE),
                 verticalArrangement = Arrangement.spacedBy(DOCK_GAP),
             ) {
-                // D3.4: Snackbar поднимается на 16 dp и проявляется за 200 мс.
-                AnimatedVisibility(
-                    visible = queueSnackbar.currentSnackbarData != null,
-                    enter = fadeIn(tween(AppMotionSpec.SNACKBAR_MS)) +
-                        slideInVertically(tween(AppMotionSpec.SNACKBAR_MS), initialOffsetY = { snackbarLift }),
-                    exit = fadeOut(tween(AppMotionSpec.SNACKBAR_MS)) +
-                        slideOutVertically(tween(AppMotionSpec.SNACKBAR_MS), targetOffsetY = { snackbarLift }),
-                ) {
-                    SnackbarHost(queueSnackbar)
-                }
-
                 AppDockMotion(
                     miniVisible = miniVisible,
                     miniPlayer = {
@@ -180,6 +165,10 @@ private fun AppBottomBar(
 private fun dockHeight(miniVisible: Boolean): Dp =
     BAR_HEIGHT + DOCK_SIDE + CONTENT_AIR + if (miniVisible) MINI_HEIGHT + DOCK_GAP else 0.dp
 
+/** Places the single root SnackbarHost just above the same dock column used by AppMusicShell. */
+internal fun snackbarBottomOffset(miniVisible: Boolean): Dp =
+    DOCK_SIDE + BAR_HEIGHT + DOCK_GAP + if (miniVisible) MINI_HEIGHT + DOCK_GAP else 0.dp
+
 /** Isolate encoding of nested detail keys from the AppMusicShell Compose state machine. */
 private fun librarySaveKey(tab: AppTab.Library, details: List<LibraryDetail>): String =
     LIBRARY_STATE_KEY + tab.page.name + ":" + details.joinToString("/") { detail ->
@@ -192,7 +181,7 @@ private fun librarySaveKey(tab: AppTab.Library, details: List<LibraryDetail>): S
     }
 
 private const val LIBRARY_STATE_KEY = "library"
-private val DOCK_SIDE = 12.dp
+internal val DOCK_SIDE = 12.dp
 private val DOCK_GAP = 8.dp
 private val BAR_HEIGHT = 70.dp
 internal val MINI_HEIGHT = 64.dp
@@ -203,13 +192,26 @@ private val CONTENT_AIR = 16.dp
 internal fun AppNowPlaying(
     player: SharedPlayerUiState,
     playerModel: PlayerViewModel,
+    account: AccountUiState,
+    onOpenDetail: (LibraryDetail) -> Unit,
+    libraryModelOverride: LibraryViewModel? = null,
 ) {
     val playback = player.playback
+    val login = account.libraryLogin
+    val libraryModel = libraryModelOverride ?: login?.let {
+        rememberLibraryViewModel(it.email, it.password)
+    }
+    val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
+    val currentTrack = playback.currentTrackId?.let { library?.groupIndex?.tracksById?.get(it) }
+    val trackId = playback.currentTrackId.orEmpty()
+    val title = currentTrack?.title ?: playback.title ?: stringResource(R.string.ui_songs_title)
+    var actionsVisible by remember(trackId) { mutableStateOf(false) }
     NowPlayingScreen(
-        trackId = playback.currentTrackId.orEmpty(),
-        title = playback.title ?: stringResource(R.string.ui_songs_title),
-        artist = playback.artist,
-        album = player.album,
+        trackId = trackId,
+        title = title,
+        artist = currentTrack?.artist ?: playback.artist,
+        album = currentTrack?.album ?: player.album,
+        albumYear = currentTrack?.year,
         artwork = player.largeArtwork ?: player.artwork,
         playbackState = playback.playbackState,
         errorCode = playback.errorCode,
@@ -236,5 +238,62 @@ internal fun AppNowPlaying(
         onNext = playerModel::onNext,
         onCycleRepeat = playerModel::onRepeat,
         onToggleShuffle = playerModel::onShuffle,
+        onMore = { actionsVisible = true },
     )
+    NowPlayingActionSheet(
+        visible = actionsVisible,
+        trackId = trackId,
+        currentTrack = currentTrack,
+        title = title,
+        artist = playback.artist,
+        album = player.album,
+        library = library,
+        actions = libraryModel ?: PreviewLibraryActions,
+        login = login,
+        onDismiss = { actionsVisible = false },
+        onOpenDetail = { detail ->
+            actionsVisible = false
+            playerModel.onNowPlaying(false)
+            onOpenDetail(detail)
+        },
+    )
+}
+
+@Composable
+private fun NowPlayingActionSheet(
+    visible: Boolean,
+    trackId: String,
+    currentTrack: OfflineTrackRow?,
+    title: String,
+    artist: String?,
+    album: String?,
+    library: LibraryUiState?,
+    actions: LibraryScreenActions,
+    login: StoredWebDavLogin?,
+    onDismiss: () -> Unit,
+    onOpenDetail: (LibraryDetail) -> Unit,
+) {
+    if (visible) {
+        val track = currentTrack ?: OfflineTrackRow(
+            id = trackId,
+            title = title,
+            artist = artist,
+            album = album,
+        )
+        val appContext = LocalContext.current.applicationContext
+        val container = (appContext as EnoToneApplication).container
+        val emptyArtworkCatalog = remember { LibraryUiState().artworkCatalog }
+        TrackActionsHost(
+            track = track,
+            groupIndex = library?.groupIndex ?: LibraryGroupIndex(),
+            actions = actions,
+            currentDetail = null,
+            artworkCatalog = library?.artworkCatalog ?: emptyArtworkCatalog,
+            artworkRepository = container.artworkPreviewRepository,
+            accountEmail = login?.email.orEmpty(),
+            appPassword = login?.password.orEmpty(),
+            onDismiss = onDismiss,
+            onOpenDetail = onOpenDetail,
+        )
+    }
 }

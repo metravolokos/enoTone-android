@@ -5,12 +5,18 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -18,10 +24,14 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 
@@ -36,6 +46,9 @@ internal fun AppMotionRoot(
     playerExpanded: Boolean,
     playerBackProgress: Float = 0f,
     onPlayerExitComplete: () -> Unit = {},
+    queueSnackbar: SnackbarHostState? = null,
+    queueSnackbarBottomPadding: Dp = 16.dp,
+    queueSnackbarHorizontalPadding: Dp = DOCK_SIDE,
     music: @Composable () -> Unit,
     settings: @Composable (Boolean) -> Unit,
     player: @Composable () -> Unit,
@@ -149,6 +162,40 @@ internal fun AppMotionRoot(
                     .testTag("app-player-sheet"),
             ) {
                 player()
+            }
+        }
+        AppQueueSnackbar(
+            queueSnackbar,
+            queueSnackbarHorizontalPadding,
+            if (playerExpanded) 16.dp else queueSnackbarBottomPadding,
+        )
+    }
+}
+
+@Composable
+private fun AppQueueSnackbar(queueSnackbar: SnackbarHostState?, horizontalPadding: Dp, bottomPadding: Dp) {
+    val snackbarLift = with(LocalDensity.current) { 16.dp.roundToPx() }
+    if (queueSnackbar != null) {
+        Box(
+            Modifier.fillMaxSize().navigationBarsPadding()
+                .padding(
+                    start = horizontalPadding,
+                    end = horizontalPadding,
+                    bottom = bottomPadding,
+                ),
+        ) {
+            AnimatedVisibility(
+                visible = queueSnackbar.currentSnackbarData != null,
+                enter = fadeIn(tween(AppMotionSpec.SNACKBAR_MS)) +
+                    slideInVertically(tween(AppMotionSpec.SNACKBAR_MS), initialOffsetY = { snackbarLift }),
+                exit = fadeOut(tween(AppMotionSpec.SNACKBAR_MS)) +
+                    slideOutVertically(tween(AppMotionSpec.SNACKBAR_MS), targetOffsetY = { snackbarLift }),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                SnackbarHost(
+                    hostState = queueSnackbar,
+                    modifier = Modifier.testTag("app-queue-snackbar-host"),
+                )
             }
         }
     }
