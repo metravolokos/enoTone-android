@@ -13,9 +13,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,6 +36,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -159,11 +162,18 @@ class NowPlayingActionNavigationUiTest {
         }
         rule.runOnIdle { playerModel.onNowPlaying(true) }
         rule.waitUntil(10_000) { playerModel.state.value.nowPlaying }
+        rule.onNodeWithTag("app-player-sheet").assertIsDisplayed()
         rule.onNodeWithContentDescription(
             context.getString(R.string.song_actions_description, track.title),
         ).performClick()
-        rule.onNodeWithText(context.getString(R.string.queue_append)).performClick()
+        val appendLabel = context.getString(R.string.queue_append)
+        rule.onNodeWithText(appendLabel).performClick()
         rule.waitUntil(10_000) { queueSnackbar.currentSnackbarData != null }
+        rule.waitUntil(10_000) {
+            runCatching { rule.onNodeWithText(appendLabel).assertDoesNotExist() }.isSuccess
+        }
+        rule.waitForIdle()
+        rule.runOnIdle { assertTrue(playerModel.state.value.nowPlaying) }
         rule.onNodeWithText(context.getString(R.string.queue_added)).assertIsDisplayed()
     }
 
