@@ -100,8 +100,8 @@
 | R-6.2a | Первичное сканирование с прогрессом, прерываемое и возобновляемое | ✅ | H (checkpoint, Pause/Stop) |
 | R-6.2b | Инкремент по ETag / mtime / size; удалённые помечаются | ✅ | H; `missingScans` |
 | R-6.2c | Ручное «обновить» | ✅ | H |
-| R-6.2d | Форматы mp3, flac, ogg/opus, m4a, wav | 🟡 | теги только MP3/FLAC (O-06) |
-| R-6.2e | Теги: title, artist, album artist, album, track/disc, year, genre, **длительность**, обложка | 🟡 | M6-0/6 (#125) — nullable длительность из FLAC/MP3 и Media3; D4b Draft #149 — m:ss у песен альбома и общая длительность только для полного набора известных значений; неизвестное время не выдумывается. T `AlbumDurationTest`; CI/Huawei ожидают |
+| R-6.2d | Форматы mp3, flac, ogg/opus, m4a, wav | 🟡 | теги только MP3/FLAC (O-06). T `TagReaderFixtureTest`: CP1251 `cp1251_tags.mp3`, смешанные кавычки/тире/украинские буквы/латиница `cp1251_mixed_tags.mp3`, обратная защита `latin1_accented_tags.mp3`, ID3v2.4 с tag-level unsync `id3v24_unsync.mp3`, FLAC с ID3-преамбулой `flac_id3_preamble.flac` и резервный путь `flac_id3_bad_size.flac`; `FastAudioTagReaderTest` — синтетические MP3/FLAC без пользовательских данных. Ошибки парсера явные: `UNSUPPORTED_LAYOUT` даёт постоянную ошибку `FAILED_LAYOUT`, `UNSUPPORTED_FORMAT` остаётся завершённой проверкой без тегов (R-2, решение владельца (вариант 1) по ревью PR #180, ADR-0029) — T `PilotFailuresTest.refusedLayoutsSurfaceAsFailedLayoutInsteadOfACompletedEmptyCheck`, `PilotFailuresTest.unsupportedFormatStaysACompletedCheckWithoutTags`, `TagReaderFixtureTest.refusedLayoutIsNotRecordedAsACompletedEmptyCheck`. H ожидает |
+| R-6.2e | Теги: title, artist, album artist, album, track/disc, year, genre, **длительность**, обложка | 🟡 | M6-0/6 (#125) — nullable длительность из FLAC/MP3 и Media3; D4b Draft #149 — m:ss у песен альбома и общая длительность только для полного набора известных значений; неизвестное время не выдумывается. T `AlbumDurationTest`; CI/Huawei ожидают. **R-6 (PR #180):** длительность CBR выводится только при подтверждении несколькими последовательными кадрами с одним битрейтом — T `TagReaderFixtureTest.constantBitrateMp3DerivesDurationFromFrameHeaders` (`mp3_cbr_no_xing.mp3`, ~2612 мс), VBR без Xing/Info — `null` в `TagReaderFixtureTest.variableBitrateWithoutFrameCountReportsUnknownDuration` (`mp3_vbr_no_xing.mp3`); Xing/VBRI — `FastAudioTagReaderTest.mp3DurationUsesXingFrameCountWithoutAnotherRangeRead`, `mp3DurationUsesVbriFrameCount`; повреждённые заголовки — `damagedDurationHeadersReturnNullWithoutThrowing`. H ожидает |
 | R-6.2f | Фоллбэк на структуру папок; `cover.jpg`/`folder.jpg` | ⛔ / ❌ | структура плоская (O-01); файлы обложек папок не используются |
 | R-6.2g | NFC, русская коллация, игнор «The», Various Artists | 🟡 | LibraryText/Collator ru слиты в #128 (T `LibraryTextTest`, `LibraryGroupSortTest`); ключи групп без изменений; Huawei ожидает |
 | R-6.3a | Треки / Альбомы / Исполнители, нижняя навигация | ✅ | H; D4a слит (#133): экран исполнителя и лист действий, T `ArtistDetailPlannerTest`, `TrackActionPlannerTest`, `AppNavigatorTest`; аппаратная приёмка ожидает; D4b Draft #149 — строки групп артистов/авторов, чистое определение сборников и тесты `CompilationGroupingTest`, `LibraryGroupIndexD4bTest`; Huawei ожидает |
@@ -143,14 +143,14 @@
 | R-8.2 | Сценарии 401/403/404/429/5xx, обрыв, без Range / ETag, NFC/NFD, битые файлы | 🟡 | частично в JUnit |
 | R-8.3 | Тесты очереди | ✅ | T (`:playback`) |
 | R-8.4 | Тесты кэша | ✅ | T |
-| R-8.5 | Тесты БД: миграции (`MigrationTestHelper`), FTS, плейлисты | ⛔ / 🟡 | Тесты FTS отменены O-21; сохранены тесты плейлистов и миграций, добавлены v6→v7 (трек, плейлист, позиция, firstSeenEpochMs) и v1→v7 (слит в #143); на Windows `EnoToneMigrationTest` не запускается — только в CI (аудит A-02); CI ожидает |
+| R-8.5 | Тесты БД: миграции (`MigrationTestHelper`), FTS, плейлисты | ⛔ / 🟡 | Тесты FTS отменены O-21; сохранены тесты плейлистов и миграций, добавлены v6→v7 (трек, плейлист, позиция, firstSeenEpochMs) и v1→v7 (слит в #143); на Windows `EnoToneMigrationTest` не запускается — только в CI (аудит A-02; подтверждено локальным аудитом 2026-11-17, находка F-01); CI ожидает |
 | R-8.6 | Без строковых «контрактных» тестов | 🟡 | #104: удалены 5 методов проверки SettingsScreen, смешанные проверки освобождены от привязки к UI; безопасность Intent сохранена на `BackgroundWorkLauncher`, санитизация проверяется Kotlin. В #118 удалены 6 заменённых файлов (13 методов), остались **18 файлов / 51 метод**: частичное покрытие и policy-проверки. Замены: Room DAO/миграции, FastAudioTagReader, SnapshotPlanner, Compose UI, реальный SharedPreferences, RU/EN Resources; карта по каждому файлу в PR |
 
 ## 8. CI/CD и процесс (ТЗ §9–11)
 
 | ID | Требование | Статус | Примечание |
 |---|---|---|---|
-| R-9.1 | Сборка, тесты, lint, detekt/ktlint, GMS, debug APK | ✅ | CI; detekt пока не блокирует |
+| R-9.1 | Сборка, тесты, lint, detekt/ktlint, GMS, debug APK | ✅ | CI; detekt пока не блокирует. Отдельный шаг «Design resources match design/» (`sync_android.py --check`, ADR-0090) — побайтная сверка, на Windows воспроизводится локально после ADR-0096 |
 | R-9.2 | **Release по тегу в GitHub Releases** | 🟡 | `v0.6.0` — релиз с APK, создан владельцем вручную по `RELEASE.md` (ADR-0078); **автоматической** сборки релиза по тегу в CI нет |
 | R-9.3 | Dependabot / Renovate | ✅ | #81 |
 | R-9.4 | Защищённый `main` | ✅ | Включено владельцем 2026-11-13: только PR, обязательная проверка CI `android`, без force push и удаления |

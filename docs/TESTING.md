@@ -22,10 +22,34 @@
 
 ```bash
 python3 -m unittest discover -s tools -p 'test_*.py' -v
+python3 design/tools/sync_android.py --check
 ./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt
 ```
 
 Отчёты detekt: `<модуль>/build/reports/detekt/`.
+
+### Окончания строк (`.gitattributes`)
+
+Каноническое содержимое в Git — LF, рабочая копия на любой ОС — тоже LF;
+исключения: `*.bat`/`*.cmd`/`*.ps1` — CRLF, бинарные форматы — `binary`.
+Без этого `core.autocrlf=true` (значение по умолчанию в Git for Windows)
+выгружает файлы с CRLF, и побайтная сверка `sync_android.py --check`
+(ADR-0090) падает на неизменённых ресурсах — так было до 2026-11-17
+(находка F-02 в [аудите](audit/AUDIT_2026-11-17_local-state.md)).
+
+Если после клонирования с изменёнными локальными настройками Git
+`sync_android.py --check` сообщает «не совпадает с манифестом» по файлу,
+содержимое которого не правили, рабочую копию пересоздают:
+
+```bash
+git rm -r --cached -q . && git reset --hard HEAD
+```
+
+Проверка дизайн-ресурсов при этом остаётся побайтной: ослаблять её нельзя,
+устраняется только зависимость результата от локальных настроек Git.
+
+Команда снимает всё с индекса, поэтому допустима **только при чистом
+`git status`**: `reset --hard` вернёт файлы, а незакоммиченное — потеряется.
 
 Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopback, только для тестов); синтетические WAV с кириллическими NFC/NFD-именами — `python3 tools/generate_fixtures.py <каталог>`.
 

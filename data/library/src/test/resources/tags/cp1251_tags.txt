@@ -1,0 +1,13 @@
+cp1251_tags.mp3
+
+ID3v2.3, TIT2 and TPE1 frames, text-encoding byte 0x00.
+Per the ID3v2 specification encoding 0x00 is ISO-8859-1, but the payload bytes
+are Windows-1251 (CP1251). Exact byte values:
+
+  TIT2 payload after the encoding byte: D1 E5 F0 E4 F6 E5  = "Сердце"
+  TPE1 payload after the encoding byte: CA E8 ED EE        = "Кино"
+
+Correct behaviour: decode encoding 0x00 as Windows-1251 (or detect the
+replacement-character run) and return title "Сердце", artist "Кино".
+Current behaviour: CP1251 bytes read as ISO-8859-1 produce the mojibake
+"Ð¡ÐµÑ€Ð´Ñ†Ðµ" / "ÐšÐ¸Ð½Ð¾".

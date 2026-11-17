@@ -52,7 +52,43 @@ class PilotFailuresTest {
         assertEquals("FAILED_BUDGET", budget?.code)
         assertEquals("FAST_BUDGET_EXCEEDED", budget?.reason)
         assertEquals(null, PilotFailures.fromParserResult(FastTagCode.FLAC_VORBIS, stats))
-        assertEquals(null, PilotFailures.fromParserResult(FastTagCode.UNSUPPORTED_LAYOUT, stats))
+    }
+
+    /**
+     * R-A7 defect (g). A refusal used to be indistinguishable from a completed
+     * empty check: only INVALID_METADATA / FAST_BUDGET_EXCEEDED produced a
+     * failure, so `UNSUPPORTED_LAYOUT` was recorded as "0 tags found" and never
+     * retried. The parser verdict must survive into the index record.
+     *
+     * This is the one existing expectation the fix had to *change* rather than
+     * add to (AGENTS.md §4): the previous `assertEquals(null, ...)` asserted the
+     * very silent-failure behaviour R-A7 exists to remove.
+     */
+    @Test fun refusedLayoutsSurfaceAsFailedLayoutInsteadOfACompletedEmptyCheck() {
+        val stats = RangeReadStats(1, 65536, httpStatus = 206)
+        val refused = PilotFailures.fromParserResult(FastTagCode.UNSUPPORTED_LAYOUT, stats)
+        assertEquals("FAILED_LAYOUT", refused?.code)
+        assertEquals("UNSUPPORTED_LAYOUT", refused?.reason)
+        assertEquals("PARSER", refused?.stage)
+        assertEquals(206, refused?.httpStatus)
+        // Absent tags and a successful parse still stay non-failures.
+        assertEquals(null, PilotFailures.fromParserResult(FastTagCode.NO_EMBEDDED_TAGS, stats))
+        assertEquals(null, PilotFailures.fromParserResult(FastTagCode.FLAC_VORBIS, stats))
+    }
+
+    /**
+     * R-2 (owner decision, option 1). `UNSUPPORTED_FORMAT` means the file was
+     * never a candidate the parser reads (not MP3 or FLAC), so the fast tag
+     * check legitimately completed without tags. It must stay a completed empty
+     * check and must NOT be counted as a permanent `FAILED_LAYOUT` regression.
+     */
+    @Test fun unsupportedFormatStaysACompletedCheckWithoutTags() {
+        val stats = RangeReadStats(1, 0, httpStatus = 206)
+        assertEquals(
+            "A non-MP3/FLAC file is a completed check without tags, not a layout failure",
+            null, PilotFailures.fromParserResult(FastTagCode.UNSUPPORTED_FORMAT, stats),
+        )
+        assertEquals(null, PilotFailures.fromParserResult(FastTagCode.UNSUPPORTED_FORMAT, null))
     }
 
     @Test fun transportAndParserFailuresUseOnlyFixedSafeCodes() {

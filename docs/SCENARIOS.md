@@ -54,7 +54,7 @@
 | ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |
 |---|---|---|---|---|---|---|
 | LIB-01 | «Обновить медиатеку» без изменений в облаке | «Новых: 0, изменённых: 0», без чтения тегов и загрузки обложек | R-6.2b | JVM, H | `LibrarySnapshotPlannerTest` | H PASS 0.6.2-preview.487 (скриншот) |
-| LIB-02 | Новые файлы прямо в `/AllMusic` → обновить | найдены, теги прочитаны, видны в медиатеке | R-6.2c | JVM, H | `LibrarySnapshotPlannerTest`, `IndexingRunnerTest` | H PASS 0.6.2-preview.487 |
+| LIB-02 | Новые файлы прямо в `/AllMusic` → обновить | найдены, теги прочитаны, видны в медиатеке. Кадры ID3v2.4 обходятся по сохранённым размерам (`pos + 10 + declaredLength`), де-усинхронизируется только тело кадра, поэтому tag-level unsync не сдвигает разбор последующих кадров | R-6.2c | JVM, H | `LibrarySnapshotPlannerTest`, `IndexingRunnerTest`, `TagReaderFixtureTest` (`id3v24_unsync.mp3`) | H PASS 0.6.2-preview.487 (без unsync); unsync — CI |
 | LIB-03 | Файлы в подпапке `/AllMusic/…` | **не видны** — плоская библиотека | O-01 | JVM | `FlatWebDavListingParserTest` (только прямые файлы) | T |
 | LIB-04 | Повторное «Обновить медиатеку» и переиндексация | без дублей: тот же ID по пути, теги неизменённых сохраняются. Полный повторный импорт бывает только после выхода и нового входа (OUT-02) | R-4.5, R-6.2b | JVM, R | `LibrarySnapshotPlannerTest`, `RemoteTrackDaoTest` | T (достаточно — решение владельца 2026-11-13) |
 | LIB-05 | Медиатека открыта, обновление идёт в фоне | новые треки и теги появляются без перезапуска приложения | аудит п. 2 | JVM, H | `LibraryViewModelTest`, `LibraryRefreshPolicyTest` | H PASS 0.6.2-preview.475 |
@@ -199,7 +199,7 @@ M6-0/8b дополняет ACT-03: первая группа листа песн
 
 | ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |
 |---|---|---|---|---|---|---|
-| DUR-01 | Чтение длительности FLAC/MP3 без дополнительных Range GET | FLAC STREAMINFO и Xing/VBRI дают длительность только при наличии байтов в RAM-кэше; CBR без Xing/VBRI и повреждённые заголовки дают null | R-6.2e | JVM, MockWebServer | `FastAudioTagReaderTest` | — |
+| DUR-01 | Чтение длительности FLAC/MP3 без дополнительных Range GET | FLAC STREAMINFO и Xing/VBRI дают длительность только при наличии байтов в RAM-кэше; CBR без Xing/VBRI считается **только** при подтверждении несколькими последовательными кадрами с одним битрейтом; VBR без Xing/Info и повреждённые заголовки дают null | R-6.2e | JVM, MockWebServer | `FastAudioTagReaderTest`, `TagReaderFixtureTest` (`mp3_cbr_no_xing.mp3`, `mp3_vbr_no_xing.mp3`) | — |
 | DUR-02 | Media3 узнаёт длительность текущего трека | Room заполняется один раз, только если поле null; сохранённая длительность восстановленной очереди не считается знанием плеера | R-6.2e | JVM | `PlayerViewModelTest`, `RemoteTrackDaoTest` | — |
 | DUR-03 | Повторный snapshot с той же/новой версией файла | значение сохранено для прежней версии и сброшено для изменённого ETag/size/mtime | R-6.2e | JVM, R | `LibrarySnapshotPlannerTest`, `RemoteTrackDaoTest` | — |
 | REC-01 | Добавить новые файлы в `/AllMusic` → «Обновить медиатеку» | только они получают дату добавления; старые треки и изменённые файлы — нет | ADR-0085 | JVM, R | `LibrarySnapshotPlannerTest`, `RemoteTrackDaoTest` | UI — D4 |
