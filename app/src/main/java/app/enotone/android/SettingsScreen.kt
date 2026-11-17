@@ -81,6 +81,12 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val player by playerModel.state.collectAsStateWithLifecycle()
     val libraryStateHolder = rememberSaveableStateHolder()
     val inSettings = nav.overlay != null
+    val expanded = player.nowPlaying && player.playback.queueTotal > 0
+    // Keep the outgoing music route backed by its library model during the Settings transition.
+    val libraryModel = account.libraryLogin?.let {
+        rememberLibraryViewModel(it.email, it.password)
+    }
+    val queueSnackbar = rememberQueueSnackbar(libraryModel)
     // Видимость страниц перечитывается при выходе из «Настроек», где её меняют (ADR-0052).
     val pages = remember(inSettings) {
         LibraryPageVisibility.visible(LibraryPagePreferences(appContext).hiddenPages())
@@ -94,7 +100,6 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     LaunchedEffect(openNowPlayingRequest) {
         if (openNowPlayingRequest > 0) playerModel.onNowPlaying(true)
     }
-    val expanded = player.nowPlaying && player.playback.queueTotal > 0
     val searchRegistry = remember { AppSearchBackRegistry() }
     val activeSearchBack = searchRegistry.handler(appRouteKey(nav))
     val backTarget = appBackTarget(expanded, nav, activeSearchBack != null)
@@ -121,9 +126,17 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         playerExpanded = expanded,
         playerBackProgress = backController.playerProgress(),
         onPlayerExitComplete = backController::finishTransition,
+        queueSnackbar = queueSnackbar,
+        queueSnackbarBottomPadding = if (inSettings) {
+            16.dp
+        } else {
+            snackbarBottomOffset(miniVisible = player.playback.queueTotal > 0)
+        },
+        queueSnackbarHorizontalPadding = DOCK_SIDE,
         music = {
             AppMusicShell(
                 nav = nav, pages = pages, account = account, player = player, playerModel = playerModel,
+                libraryModel = libraryModel,
                 libraryStateHolder = libraryStateHolder,
                 onSelectTab = { tab -> nav = AppNavigator.select(nav, tab) },
                 onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
@@ -132,7 +145,13 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             )
         },
         player = {
-            AppNowPlaying(player, playerModel)
+            AppNowPlaying(
+                player = player,
+                playerModel = playerModel,
+                account = account,
+                libraryModelOverride = libraryModel,
+                onOpenDetail = { detail -> nav = AppNavigator.push(nav, detail) },
+            )
         },
         settings = { showingDiagnostics ->
             // Мини-плеера в настройках и диагностике нет (O-10).
