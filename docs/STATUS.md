@@ -3,7 +3,7 @@
 
 > Короткий оперативный срез, а не журнал и не очередь отдельных задач. При обновлении заменять старое. История — [archive](archive/), подробные изменения — [CHANGELOG](../CHANGELOG.md), статусы задач — в GitHub Issues по [WORKFLOW](WORKFLOW.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-**Срез:** 2026-11-18 · `main` `2a425b28ca565c5e4800e8a8edfba8416ad64405` · версия `0.6.2`. Главный репозиторий содержит исправление F-02 — PR [#185](https://github.com/metravolokos/enoTone-android/pull/185) слит (squash `f42213bf`). D5-C — [PR #183](https://github.com/metravolokos/enoTone-android/pull/183) **слит** 2026-11-17 (squash `61ced66`), документация DOC-01 — [PR #187](https://github.com/metravolokos/enoTone-android/pull/187) слит (squash `d4b88ebe`), восстановленный плеер #188 — [PR #189](https://github.com/metravolokos/enoTone-android/pull/189) слит (squash `13496579`). F-01 закрыта в [PR #194](https://github.com/metravolokos/enoTone-android/pull/194), F-03 исправлена в [PR #196](https://github.com/metravolokos/enoTone-android/pull/196).
+**Срез:** 2026-11-18 · `main` `a0c912b5d942fc4825ac618e3582f569387fb82b` · версия `0.6.2`. Главный репозиторий содержит исправление F-02 — PR [#185](https://github.com/metravolokos/enoTone-android/pull/185) слит (squash `f42213bf`). D5-C — [PR #183](https://github.com/metravolokos/enoTone-android/pull/183) **слит** 2026-11-17 (squash `61ced66`), документация DOC-01 — [PR #187](https://github.com/metravolokos/enoTone-android/pull/187) слит (squash `d4b88ebe`), восстановленный плеер #188 — [PR #189](https://github.com/metravolokos/enoTone-android/pull/189) слит (squash `13496579`). F-01 закрыта в [PR #194](https://github.com/metravolokos/enoTone-android/pull/194), F-03 исправлена в [PR #196](https://github.com/metravolokos/enoTone-android/pull/196).
 
 ## Реализовано в `main`
 
@@ -48,7 +48,7 @@ CI и актуальный Draft PR #189: [PR](https://github.com/metravolokos/e
 ## Q1 #192 — очередь до 100 и просмотр очереди
 
 Draft PR [#199](https://github.com/metravolokos/enoTone-android/pull/199), ветка
-`feature/q1-queue-sheet` поверх `main` `2a425b28`. Очередь ограничена 100 песнями:
+`feature/q1-queue-sheet` поверх `main` `a0c912b5`. Очередь ограничена 100 песнями:
 выбор из длинного контекста берёт выбранную и следующие 99, Play-all — первые 100,
 Shuffle — 100 случайных из всего контекста; полная очередь освобождает место за счёт
 уже прослушанной истории до текущей. Лист показывает полный playback-order, `N из M`
