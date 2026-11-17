@@ -2,13 +2,14 @@
 
 > Как проверяется enoTone: автоматические проверки и правила ручной проверки. **Что** проверять — каталог сценариев [SCENARIOS](SCENARIOS.md) с последними результатами; **как** вести ревью и аудит — [AUDIT_PROTOCOL](AUDIT_PROTOCOL.md). Журналы ручных проверок: [2026-11-08…11](archive/TESTING_JOURNAL_2026-11-08_11.md), [2026-11-12…13](archive/TESTING_JOURNAL_2026-11-12_13.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`; `main` `61ced66b`, 2026-11-17)
+## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`; `main` `2a425b28`, 2026-11-17)
 
 | Шаг | Что проверяет |
 |---|---|
 | `python3 -m unittest discover -s tools -p 'test_*.py'` | mock WebDAV, оставшиеся исторические контракты исходников и проверки tooling; поведение «Сейчас играет» — Robolectric Compose UI и Roborazzi |
 | Gradle Wrapper validation | `gradle-wrapper.jar` не подменён |
 | `gradle :app:assembleDebug testDebugUnitTest lintDebug` | сборка, JUnit и Android Lint **во всех модулях**; после слитого #118 дополнительно Robolectric (Room DAO/миграции, Compose UI, SignOutMarker) |
+| `gradle :app:assembleRelease` (R-A1) | минифицированный release-APK: задача `:app:minifyReleaseWithR8` действительно выполнена, отчёты R8 (`mapping.txt`, `seeds.txt`, `usage.txt`, `configuration.txt`) на месте, `Missing class` в логе отсутствует. Сжатие кода проверяется по `configuration.txt`: нет `-dontshrink`/`-dontoptimize`, есть `-allowaccessmodification`. Сжатие ресурсов проверяется **только** по задаче `:app:convertShrunkResourcesToBinaryRelease` в логе: при `isShrinkResources = false` `configuration.txt` и `resources.txt` побайтово совпадают с включённым случаем, APK вырастает с 4 915 809 до 5 256 574 байт, а задачи в графе нет — ворота шага это ловят. Артефакт `enotone-release-unsigned-apk` **не подписан**. В CI собирается merge-коммит PR, и его SHA вшивается в `META-INF/version-control-info.textproto`, поэтому размер APK в CI отличается от локального на несколько байт — это норма, а не расхождение сборок. Установки и запуска APK здесь нет — это R-A3 |
 | `gradle :core:ui:verifyRoborazziDebug :app:verifyRoborazziDebug` | сравнение эталонов Android v2 в обеих темах (компоненты и экраны), diff — артефакт `roborazzi-results` |
 | `gradle detekt` | статический анализ Kotlin + правила ktlint; **блокирующий** с базовой линией `detekt-baseline.xml` в каждом модуле — [ADR-0076](DECISIONS/ADR-0076-quality-tooling.md) |
 | `tools/check_detekt_baseline.py <база>` | базовая линия detekt не выросла относительно базового коммита |

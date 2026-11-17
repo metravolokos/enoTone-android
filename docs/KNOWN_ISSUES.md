@@ -51,7 +51,7 @@ Huawei-проверка после перезапуска ещё не отмеч
 | ~~`EnoToneMigrationTest`: 7 тестов падали на Windows с `IllegalArgumentException` в `SupportSQLiteDriver.open`~~ — исправлено тест-локальным обходом ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), Issue #191): 7/7 на Windows, `:core:database` 14 тестов без падений | F-01 [аудита 2026-11-17](audit/AUDIT_2026-11-17_local-state.md); дефект остаётся в `androidx.sqlite` 2.6.2–2.8.0-alpha03, обход удаляется после исправления библиотеки |
 | ~~CI предзагружает `kotlin-compiler-embeddable:2.3.10`, тогда как проект собирается Kotlin 2.4.21~~ — исправлено в ветке `ci/f-03-compiler-mirror-version` ([ADR-0098](DECISIONS/ADR-0098-ci-compiler-mirror-version-from-catalog.md), Issue #195): версия читается из `gradle/libs.versions.toml`, пин 2.4.21 добавлен, неизвестная версия падает громко | Зеркало `ENOTONE_CI_COMPILER_MIRROR` не подстраховывало сборку: при сбое Maven Central нужного артефакта в нём не было | Находка F-03 [аудита 2026-11-17](audit/AUDIT_2026-11-17_local-state.md); остаётся ручным только SHA-256 — Maven Central не публикует `.jar.sha256` (404), забытый пин обнаруживается отказом самого шага на точном HEAD |
 | Gradle 8.13 объявлен устаревшим для Kotlin 2.5 (предупреждение сборки), R8 не разбирает metadata Kotlin 2.4.21 | Обновление Gradle и AGP — отдельным PR после приёмки; до этого release минифицируется с предупреждением |
-| Нет release-workflow по тегу | После M6-0 |
+| Нет release-workflow по тегу | После M6-0; R-A1 (Issue #197) добавил только проверку сборки минифицированного APK, но не подпись и не публикацию по тегу |
 | Нет файла `LICENSE` (решение владельца) | M6-0/8 |
 
 ## Не реализовано из ТЗ (не дефекты, а объём)

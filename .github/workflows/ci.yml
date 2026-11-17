@@ -18,7 +18,9 @@ permissions:
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Повышено с 45 до 60: с R-A1 job дополнительно собирает минифицированный
+    # release (R8 + lintVitalRelease), что на чистом раннере занимает больше времени.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -135,6 +137,82 @@ jobs:
       # without editing this file (ADR-0074, M6-0/8).
       - name: Build, JUnit and Lint (all modules)
         run: gradle --no-daemon :app:assembleDebug testDebugUnitTest lintDebug
+      # R-A1 (Issue #197): isMinifyEnabled = true стоит во всех вариантах, поэтому R8
+      # уже запускался и до этого шага — для debug внутри assembleDebug
+      # (:app:minifyDebugWithR8) и для stablePreview на main. Новым является то, что
+      # вариант release с isShrinkResources = true теперь собирается блокирующе на
+      # каждом PR, а его отчёты R8 и ворота по Missing class проверяются явно.
+      # Артефакт НЕ подписан и НЕ является дистрибутивом; установка и запуск на
+      # устройстве — предмет R-A3 (release smoke), а keep-правила — R-A2.
+      - name: Release build (minified, unsigned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/release-build.log"
+          gradle --no-daemon --console=plain :app:assembleRelease 2>&1 | tee "$log"
+          apk="app/build/outputs/apk/release/app-release-unsigned.apk"
+          test -s "$apk"
+          mapping="app/build/outputs/mapping/release"
+          for report in mapping.txt seeds.txt usage.txt configuration.txt; do
+            if [ ! -s "$mapping/$report" ]; then
+              echo "::error::R8 report $mapping/$report is missing; minification did not run as configured"
+              exit 1
+            fi
+          done
+          if ! grep -q 'Task :app:minifyReleaseWithR8' "$log"; then
+            echo "::error::Task :app:minifyReleaseWithR8 did not run; the release build is not proof of minification"
+            exit 1
+          fi
+          # Сжатие кода. Маркеры сняты с реального configuration.txt успешной
+          # release-сборки (см. PR #198): в нём нет -dontshrink и -dontoptimize, а
+          # -allowaccessmodification приходит из proguard-android-optimize.txt и
+          # означает, что оптимизация действительно включена. Проверка задачи
+          # :app:minifyReleaseWithR8 выше уже отсекает случай выключенного
+          # isMinifyEnabled, поэтому эти два grep'а ловят отключение сжатия или
+          # оптимизации правилами в proguard-файлах.
+          if grep -Eq '^-dontshrink$|^-dontoptimize$' "$mapping/configuration.txt"; then
+            echo "::error::R8 configuration disables shrinking or optimization; the artifact is not a minified release"
+            exit 1
+          fi
+          if ! grep -q '^-allowaccessmodification$' "$mapping/configuration.txt"; then
+            echo "::error::-allowaccessmodification is absent from configuration.txt; the optimize proguard file is not in effect"
+            exit 1
+          fi
+          # Сжатие ресурсов (isShrinkResources = true) не оставляет следов ни в
+          # configuration.txt, ни в resources.txt: оба файла побайтово совпадают при
+          # включённом и выключенном флаге, а разница видна только в размере APK
+          # (4 915 809 против 5 256 574 байт). Надёжный маркер один — задача
+          # :app:convertShrunkResourcesToBinaryRelease присутствует в графе только
+          # при включённом сжатии ресурсов, включая случай UP-TO-DATE.
+          if ! grep -q 'Task :app:convertShrunkResourcesToBinaryRelease' "$log"; then
+            echo "::error::Task :app:convertShrunkResourcesToBinaryRelease did not run; resource shrinking is disabled"
+            exit 1
+          fi
+          if grep -q 'Missing class' "$log"; then
+            echo "::error::R8 reported missing classes; keep rules belong to R-A2 (Issue #197)"
+            exit 1
+          fi
+          size=$(stat -c%s "$apk")
+          echo "::notice::app-release-unsigned.apk is ${size} bytes (unsigned, not for distribution)"
+          {
+            echo '### Release (minified) build'
+            echo
+            echo '| Артефакт | Размер |'
+            echo '|---|---|'
+            echo "| \`app-release-unsigned.apk\` | ${size} bytes |"
+            echo
+            echo 'Не подписан и не является дистрибутивом. Установка и запуск — R-A3.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload unsigned release APK and R8 mapping
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: enotone-release-unsigned-apk
+          path: |
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 14
       # Blocking since 2026-11-13: old findings are in detekt-baseline.xml,
       # any new finding fails (ADR-0076, AUDIT_PROTOCOL §4.1).
       - name: Record Roborazzi snapshots (manual workflow_dispatch only)

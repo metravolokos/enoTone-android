@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## R-A1 — релизная сборка в CI (Issue #197)
+
+`isMinifyEnabled = true` стоит в `debug`, `release` и `stablePreview` (последний наследует `release` через `initWith`, то есть канал приёмки тоже минифицируется), поэтому R8 и до R-A1 запускался: для `debug` — задачей `:app:minifyDebugWithR8` внутри `assembleDebug`, для `stablePreview` — при каждом пуше в `main`. Новым стал не сам факт работы R8, а **блокирующая проверка варианта `release`** с `isShrinkResources = true` на каждом PR, отчёты R8 и ворота по `Missing class`. Теперь job `android` выполняет шаг `Release build (minified, unsigned)`: он падает, если APK отсутствует, если задача `:app:minifyReleaseWithR8` не выполнялась, если нет отчётов R8 (`mapping.txt`, `seeds.txt`, `usage.txt`, `configuration.txt`) или если в логе встречается `Missing class`. Артефакт `enotone-release-unsigned-apk` публикуется с `if-no-files-found: error` и явной пометкой «не подписан и не является дистрибутивом»; установка и запуск на устройстве — предмет R-A3.
+
+Проверено локально на ветке от `2a425b28`: `BUILD SUCCESSFUL` за 2 м 32 с, `app-release-unsigned.apk` — **4 915 809 байт**, все четыре отчёта R8 на месте, `Missing class` отсутствует. Повторный прогон в режиме `UP-TO-DATE` подтверждает, что проверка `Task :app:minifyReleaseWithR8` в логе не ложноположительная. CI на ветке — success. В CI APK весит **4 915 813 байт**: собирается merge-коммит PR, а `META-INF/version-control-info.textproto` вшивает ревизию; состав APK тот же (278 записей), разбор — в [RELEASE](docs/RELEASE.md).
+
+Сжатие проверяется по содержимому, а не по названию задачи. Сжатие кода: в `configuration.txt` нет `-dontshrink`/`-dontoptimize` и есть `-allowaccessmodification` (иначе выключена оптимизация). Сжатие ресурсов надёжного следа в файлах не оставляет — `configuration.txt` и `resources.txt` побайтово совпадают при `isShrinkResources = true` и `false`, — поэтому ворота смотрят на задачу `:app:convertShrunkResourcesToBinaryRelease` в логе сборки; при выключенном флаге её нет, APK вырастает с 4 915 809 до 5 256 574 байт, и шаг падает. Негативный тест ворот выполнен на логе сборки с выключенным флагом.
+
+Keep-правила R8 сознательно не трогались (R-A2), предупреждения `kotlin metadata` при Kotlin 2.4.21 / Gradle 8.13 отделены от `Missing class`.
+
 ## F-03 — резервное зеркало компилятора в CI (Issue #195)
 
 Шаг CI предзагружал `kotlin-compiler-embeddable:2.3.10`, тогда как проект собирается Kotlin 2.4.21, поэтому зеркало `ENOTONE_CI_COMPILER_MIRROR` никогда не могло быть использовано и не подстраховывало сборку при сбое Maven Central. Версия теперь читается из `gradle/libs.versions.toml`, SHA-256 берётся из таблицы пинов (для 2.4.21 — `ef19419c…f1d02`), а неизвестная версия роняет шаг с `::error::` до сетевых запросов вместо молчаливой подмены артефакта — на этом и держится инвариант, отдельный тест на текст `ci.yml` не нужен (AGENTS.md §4). Решение и отклонённые варианты — [ADR-0098](docs/DECISIONS/ADR-0098-ci-compiler-mirror-version-from-catalog.md).
