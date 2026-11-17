@@ -211,10 +211,13 @@ internal fun AppNowPlaying(
     playerModel: PlayerViewModel,
     account: AccountUiState,
     onOpenDetail: (LibraryDetail) -> Unit,
+    libraryModelOverride: LibraryViewModel? = null,
 ) {
     val playback = player.playback
     val login = account.libraryLogin
-    val libraryModel = login?.let { rememberLibraryViewModel(it.email, it.password) }
+    val libraryModel = libraryModelOverride ?: login?.let {
+        rememberLibraryViewModel(it.email, it.password)
+    }
     val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
     val currentTrack = playback.currentTrackId?.let { library?.groupIndex?.tracksById?.get(it) }
     val trackId = playback.currentTrackId.orEmpty()
