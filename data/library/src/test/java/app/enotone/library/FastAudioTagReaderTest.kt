@@ -79,6 +79,17 @@ class FastAudioTagReaderTest {
         return out.toByteArray()
     }
 
+    private fun flacWithComments(comments: ByteArray): ByteArray {
+        val out = ByteArrayOutputStream()
+        out.write("fLaC".toByteArray(Charsets.US_ASCII))
+        out.write(byteArrayOf(0, 0, 0, 34)) // STREAMINFO
+        out.write(ByteArray(34))
+        out.write(byteArrayOf(0x84.toByte(), (comments.size ushr 16).toByte(),
+            (comments.size ushr 8).toByte(), comments.size.toByte())) // last VORBIS
+        out.write(comments)
+        return out.toByteArray()
+    }
+
     private fun flacWithHugeCover(comments: ByteArray): ByteArray {
         val coverSize = 300_000
         val out = ByteArrayOutputStream()
@@ -291,6 +302,43 @@ class FastAudioTagReaderTest {
             assertEquals(FastTagCode.FLAC_VORBIS, result.code)
             assertEquals("Track Guest", result.tags?.artist)
             assertEquals("Album Collective", result.tags?.albumArtist)
+        }
+    }
+
+    @Test fun flacCanonicalAlbumArtistWinsWhenAliasAppearsFirst() {
+        val data = flacWithComments(vorbis(
+            "Album Artist=Synthetic Alias Artist",
+            "ALBUMARTIST=Synthetic Canonical Artist",
+            "ARTIST=Synthetic First Track Artist",
+            "ARTIST=Synthetic Later Track Artist",
+        ))
+        val result = FastAudioTagReader().read(
+            "synthetic.flac", data.size.toLong(), byteReader(data))
+        assertEquals(FastTagCode.FLAC_VORBIS, result.code)
+        assertEquals("Synthetic Canonical Artist", result.tags?.albumArtist)
+        assertEquals("Synthetic First Track Artist", result.tags?.artist)
+    }
+
+    @Test fun flacCanonicalAlbumArtistWinsWhenFirstRegardlessOfKeyCase() {
+        for (canonicalKey in listOf("albumartist", "AlbumArtist")) {
+            val data = flacWithComments(vorbis(
+                "$canonicalKey=Synthetic Canonical Artist",
+                "Album Artist=Synthetic Alias Artist",
+            ))
+            val result = FastAudioTagReader().read(
+                "synthetic.flac", data.size.toLong(), byteReader(data))
+            assertEquals(FastTagCode.FLAC_VORBIS, result.code)
+            assertEquals("Synthetic Canonical Artist", result.tags?.albumArtist)
+        }
+    }
+
+    @Test fun flacAlbumArtistAliasFallsBackWhenCanonicalIsAbsent() {
+        for (aliasKey in listOf("Album Artist", "ALBUM_ARTIST")) {
+            val data = flacWithComments(vorbis("$aliasKey=Synthetic Alias Artist"))
+            val result = FastAudioTagReader().read(
+                "synthetic.flac", data.size.toLong(), byteReader(data))
+            assertEquals(FastTagCode.FLAC_VORBIS, result.code)
+            assertEquals("Synthetic Alias Artist", result.tags?.albumArtist)
         }
     }
 
