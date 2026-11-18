@@ -123,12 +123,9 @@ internal interface LibraryScreenActions {
     fun onSeekFraction(fraction: Float)
 }
 
-internal enum class QueueStartNotice { FIRST_100, SHUFFLE_100 }
-
 internal data class QueueActionMessage(
     val playNext: Boolean,
     val result: QueueEditResult,
-    val notice: QueueStartNotice? = null,
 )
 
 internal data class AlbumRefreshMessages(
@@ -459,28 +456,28 @@ internal class LibraryViewModel(
     override fun onPlayAll() {
         val value = mutable.value
         val all = if (value.section == LibraryPage.TRACKS) value.visible else value.tracks
-        all.firstOrNull()?.let { startQueue(it, all, shuffle = false) }
+        all.firstOrNull()?.let { startQueue(it, all) }
     }
     override fun onShuffleAll() {
         val value = mutable.value
         val all = (if (value.section == LibraryPage.TRACKS) value.visible
             else value.tracks).shuffled(queueRandom)
-        all.firstOrNull()?.let { startQueue(it, all, shuffle = true) }
+        all.firstOrNull()?.let { startQueue(it, all) }
     }
 
     /** «Перемешать всё» на «Домой» (D3): вся медиатека, независимо от страницы и поиска. */
     fun onShuffleLibrary() {
         val all = mutable.value.tracks.shuffled(queueRandom)
-        all.firstOrNull()?.let { startQueue(it, all, shuffle = true) }
+        all.firstOrNull()?.let { startQueue(it, all) }
     }
 
     override fun onAlbumPlayAll() {
         val items = mutable.value.albumTracks
-        items.firstOrNull()?.let { startQueue(it, items, shuffle = false) }
+        items.firstOrNull()?.let { startQueue(it, items) }
     }
     override fun onAlbumShuffleAll() {
         val items = mutable.value.albumTracks.shuffled(queueRandom)
-        items.firstOrNull()?.let { startQueue(it, items, shuffle = true) }
+        items.firstOrNull()?.let { startQueue(it, items) }
     }
 
     override fun onPlayNext(tracks: List<OfflineTrackRow>) = editQueue(tracks, playNext = true)
@@ -490,8 +487,6 @@ internal class LibraryViewModel(
     private fun editQueue(rows: List<OfflineTrackRow>, playNext: Boolean) {
         if (unavailable()) return
         viewModelScope.launch {
-            var startedFromEmptyQueue = false
-            var truncatedEmptyQueueSelection = false
             val result = try {
                 val tracks = withContext(io) {
                     rows.mapNotNull { catalogue.preparedById[it.id] }.distinctBy { it.id }
@@ -501,8 +496,6 @@ internal class LibraryViewModel(
                     password.isBlank() || !connection.state.value.connected ->
                         QueueEditResult(QueueEditStatus.UNAVAILABLE)
                     connection.state.value.queueTotal == 0 -> {
-                        startedFromEmptyQueue = true
-                        truncatedEmptyQueueSelection = tracks.size > PlaybackQueue.MAX_TRACKS
                         val selection = tracks.take(PlaybackQueue.MAX_TRACKS)
                         val plan = QueueEditPlanner.plan(
                             QueueLayout(emptyList(), null, null),
@@ -522,25 +515,21 @@ internal class LibraryViewModel(
             } catch (_: Exception) {
                 QueueEditResult(QueueEditStatus.FAILED)
             }
-            val notice = if (result.status == QueueEditStatus.APPLIED &&
-                startedFromEmptyQueue && truncatedEmptyQueueSelection)
-                QueueStartNotice.FIRST_100 else null
-            mutableQueueMessages.emit(QueueActionMessage(playNext, result, notice))
+            mutableQueueMessages.emit(QueueActionMessage(playNext, result))
         }
     }
 
     override fun onTrackClicked(track: OfflineTrackRow, context: List<OfflineTrackRow>) {
-        startQueue(track, context, shuffle = false)
+        startQueue(track, context)
     }
 
     override fun onShuffleTracks(track: OfflineTrackRow, context: List<OfflineTrackRow>) {
-        startQueue(track, context, shuffle = true)
+        startQueue(track, context)
     }
 
     private fun startQueue(
         track: OfflineTrackRow,
         context: List<OfflineTrackRow>,
-        shuffle: Boolean,
     ) {
         if (unavailable() || mutable.value.selecting || !mutable.value.playbackConnected) return
         mutable.update { it.copy(selectedTitle = track.title, selectedArtist = track.artist) }
@@ -580,14 +569,6 @@ internal class LibraryViewModel(
                             queuePosition = selectedQueue.indexOfFirst { entry ->
                                 entry.id == track.id
                             } + 1)
-                    }
-                    if (queue.size > PlaybackQueue.MAX_TRACKS) {
-                        mutableQueueMessages.emit(QueueActionMessage(
-                            playNext = false,
-                            result = QueueEditResult(QueueEditStatus.APPLIED, selectedQueue.size),
-                            notice = if (shuffle) QueueStartNotice.SHUFFLE_100
-                                else QueueStartNotice.FIRST_100,
-                        ))
                     }
                     refreshArtwork()
                 }
