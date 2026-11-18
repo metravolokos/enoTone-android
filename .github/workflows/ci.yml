@@ -183,7 +183,14 @@ jobs:
           # включённом и выключенном флаге, а разница видна только в размере APK
           # (4 915 809 против 5 256 574 байт). Надёжный маркер один — задача
           # :app:convertShrunkResourcesToBinaryRelease присутствует в графе только
-          # при включённом сжатии ресурсов, включая случай UP-TO-DATE.
+          # при включённом сжатии ресурсов.
+          #
+          # Оба grep'а выше и ниже работают и при UP-TO-DATE: с --console=plain
+          # Gradle печатает строку для каждой задачи графа, включая пропущенные
+          # (`> Task :app:minifyReleaseWithR8 UP-TO-DATE`, FROM-CACHE, SKIPPED,
+          # NO-SOURCE), поэтому проверка не зависит от того, выполнялась ли задача
+          # заново. При выключенном isShrinkResources задачи в графе нет вовсе —
+          # именно это и ловит grep.
           if ! grep -q 'Task :app:convertShrunkResourcesToBinaryRelease' "$log"; then
             echo "::error::Task :app:convertShrunkResourcesToBinaryRelease did not run; resource shrinking is disabled"
             exit 1
@@ -203,15 +210,28 @@ jobs:
             echo
             echo 'Не подписан и не является дистрибутивом. Установка и запуск — R-A3.'
           } >> "$GITHUB_STEP_SUMMARY"
-      - name: Upload unsigned release APK and R8 mapping
-        if: success()
+      # !cancelled(): отчёты R8 нужны в первую очередь у ПАДАЮЩЕЙ сборки. При
+      # Missing class AGP роняет :app:minifyReleaseWithR8 ДО записи mapping.txt,
+      # поэтому единственные пригодные исходные данные для keep-правил R-A2 —
+      # missing_rules.txt, который R8 пишет в том же каталоге. mapping.txt,
+      # seeds.txt, usage.txt и configuration.txt выгружаются на случай других
+      # отказов (например, ворот по сжатию). warn, а не error: при падении на
+      # этапе компиляции этих файлов нет законно, и повторное падение шага
+      # замаскировало бы настоящую причину в логе. !cancelled() вместо always()
+      # — чтобы ручная отмена прогона не выгружала обрывки.
+      - name: Upload unsigned release APK and R8 reports
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: enotone-release-unsigned-apk
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/mapping/release/mapping.txt
-          if-no-files-found: error
+            app/build/outputs/mapping/release/seeds.txt
+            app/build/outputs/mapping/release/usage.txt
+            app/build/outputs/mapping/release/configuration.txt
+            app/build/outputs/mapping/release/missing_rules.txt
+          if-no-files-found: warn
           retention-days: 14
       # Blocking since 2026-11-13: old findings are in detekt-baseline.xml,
       # any new finding fails (ADR-0076, AUDIT_PROTOCOL §4.1).
