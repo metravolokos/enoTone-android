@@ -23,13 +23,13 @@ class PlaybackQueueNavigationTest {
         ))
         assertTrue(nav.hasPendingSeek)
 
-        nav.onMediaItemTransition()
+        nav.onMediaItemTransition(Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
 
         assertFalse(nav.hasPendingSeek)
         assertFalse(nav.applyPendingSeek { error("stale selection must not seek") })
     }
 
-    @Test fun anyMediaItemTransitionCancelsDeferredSelection() {
+    @Test fun seekMediaItemTransitionKeepsDeferredSelection() {
         val nav = navigation()
         assertTrue(nav.selectPosition(
             position = 4,
@@ -38,9 +38,9 @@ class PlaybackQueueNavigationTest {
             stageMoreItems = { true },
         ))
 
-        nav.onMediaItemTransition()
+        nav.onMediaItemTransition(Player.MEDIA_ITEM_TRANSITION_REASON_SEEK)
 
-        assertFalse(nav.hasPendingSeek)
+        assertTrue(nav.hasPendingSeek)
     }
 
     @Test fun manualNextPlaysNextSongInsteadOfTheUnloadedSelection() {
@@ -54,7 +54,8 @@ class PlaybackQueueNavigationTest {
 
         val current = nav.snapshot(ids.first())!!
         val nextTrackId = current.trackIds[current.currentIndex + 1]
-        nav.onMediaItemTransition()
+        nav.clearPendingSeek()
+        nav.onMediaItemTransition(Player.MEDIA_ITEM_TRANSITION_REASON_SEEK)
 
         assertEquals(ids[1], nextTrackId)
         assertFalse(nav.hasPendingSeek)
@@ -72,7 +73,8 @@ class PlaybackQueueNavigationTest {
 
         val current = nav.snapshot(ids[2])!!
         val previousTrackId = current.trackIds[current.currentIndex - 1]
-        nav.onMediaItemTransition()
+        nav.clearPendingSeek()
+        nav.onMediaItemTransition(Player.MEDIA_ITEM_TRANSITION_REASON_SEEK)
 
         assertEquals(ids[1], previousTrackId)
         assertFalse(nav.hasPendingSeek)

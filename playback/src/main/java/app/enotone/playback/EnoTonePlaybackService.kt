@@ -50,8 +50,8 @@ class EnoTonePlaybackService : MediaSessionService() {
     }
 
     private val persistenceListener = object : Player.Listener {
-        override fun onMediaItemTransition(mediaItem: MediaItem?, @Suppress("UNUSED_PARAMETER") reason: Int) {
-            playback.queueNavigation.onMediaItemTransition()
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            playback.queueNavigation.onMediaItemTransition(reason)
             if (!queueMutation && mediaItem != null) savePosition(urgent = true)
         }
 

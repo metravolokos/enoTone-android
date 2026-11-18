@@ -53,15 +53,15 @@ Draft PR [#199](https://github.com/metravolokos/enoTone-android/pull/199), ве�
 Shuffle — 100 случайных из всего контекста; полная очередь освобождает место за счёт
 уже прослушанной истории до текущей. Лист показывает полный playback-order, `N из M`
 и фон `surface2` у текущей строки. T-1 отменяет устаревшую отложенную цель при
-ручных Next/Previous/seek и обычном переходе.
+ручных Next/Previous/seek и обычном переходе (Media3 reason ≠ `SEEK`).
 
 v1 checkpoint из 3 647 песен не отвергается: окно текущая + до 99 следующих (у конца
 дополняется предыдущими) сохраняет позицию/repeat/shuffle и сразу записывается в
 прежнем формате. StagedPlaylistPlan не менялся. Локальные playback/app unit-тесты и
 Roborazzi verify шести снимков прошли; `middle_long` — 100 песен, текущая 50. Полный
 Android CI [#1033](https://github.com/metravolokos/enoTone-android/actions/runs/44203151181)
-прошёл на кодовом HEAD `046cf92fe3b9c56d1dfeb4b71a4328d912849cac`; последующий коммит
-обновляет только документацию, его exact-HEAD CI отслеживается в PR. Класс R требует
+прошёл на кодовом HEAD `046cf92fe3b9c56d1dfeb4b71a4328d912849cac`; по возврату уточнено
+правило T-1 для callback `SEEK`, финальный exact-HEAD CI отслеживается в PR. Класс R требует
 двух независимых ревью, второго назначает владелец.
 Huawei QUE-01…06/QED-01…06 ещё не проверены.
 

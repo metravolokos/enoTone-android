@@ -1,5 +1,7 @@
 package app.enotone.playback
 
+import androidx.media3.common.Player
+
 /** Cached display order and deferred selection for the logical queue. */
 internal class PlaybackQueueNavigation {
     private var trackIds: List<String> = emptyList()
@@ -71,10 +73,10 @@ internal class PlaybackQueueNavigation {
         pendingTrackId = null
     }
 
-    fun onMediaItemTransition() {
-        // A destination reached by the staged selection has already been sought;
-        // any item transition makes the outstanding intent obsolete.
-        clearPendingSeek()
+    fun onMediaItemTransition(reason: Int) {
+        // Manual seeks clear the intent at their entry point. Ignore their Media3
+        // transition callback; unrelated transitions make the intent obsolete.
+        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) clearPendingSeek()
     }
 
     fun onPositionDiscontinuity(reason: Int) {
