@@ -45,6 +45,32 @@ class WebDavMedia3DataSourceFactoryTest {
         }
     }
 
+    @Test fun truncatedRoutePeriodIsIgnoredWithoutChangingOtherReferences() {
+        val initial = (1..100).map(::track)
+        val factory = WebDavMedia3DataSource.Factory("test@example.invalid", "fixture-password", initial)
+        val allocator = anyProxy(Allocator::class.java)
+        val truncated = factory.trackMediaSource(id(1), mediaSource(anyProxy(MediaPeriod::class.java)))
+
+        factory.setActiveTrackIds((2..100).map(::id))
+        assertEquals(99, factory.routeCount)
+        val uncountedPeriod = truncated.createPeriod(
+            MediaSource.MediaPeriodId("truncated"), allocator, 0L,
+        )
+        assertEquals("a truncated route is not retained", 99, factory.routeCount)
+
+        factory.addTracks(listOf(track(1)))
+        val retained = factory.trackMediaSource(id(1), mediaSource(anyProxy(MediaPeriod::class.java)))
+        val countedPeriod = retained.createPeriod(
+            MediaSource.MediaPeriodId("retained"), allocator, 0L,
+        )
+        truncated.releasePeriod(uncountedPeriod)
+        factory.setActiveTrackIds((2..100).map(::id))
+        assertEquals("releasing an uncounted period preserves another period's reference", 100, factory.routeCount)
+
+        retained.releasePeriod(countedPeriod)
+        assertEquals(99, factory.routeCount)
+    }
+
     private fun mediaSource(period: MediaPeriod): MediaSource = Proxy.newProxyInstance(
         MediaSource::class.java.classLoader,
         arrayOf(MediaSource::class.java),

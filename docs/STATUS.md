@@ -65,6 +65,8 @@ Android CI [#1033](https://github.com/metravolokos/enoTone-android/actions/runs/
 двух независимых ревью, второго назначает владелец.
 Huawei QUE-01…06/QED-01…06 ещё не проверены.
 
+F-04 (#202) в работе на `fix/f-04-route-retain-soft`: задержанный `MediaPeriod` для обрезанного маршрута больше не ломает создание периода и не меняет счётчики соседних периодов. Класс риска R; Draft PR и CI точного HEAD — по Issue #202.
+
 ## Активные ограничения и ближайшие решения
 
 Текущие дефекты — [KNOWN_ISSUES](KNOWN_ISSUES.md), открытые вопросы — [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Из подтверждённого долга: [#182](https://github.com/metravolokos/enoTone-android/issues/182) (MP3/ID3), а также необходимость решения владельца по `LICENSE` и сетевому слою. **F-01 снята:** `EnoToneMigrationTest` 7/7 и `:core:database` 14/14 проходят на Windows через тест-локальный обход дефекта `androidx.sqlite` ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), Issue #191). F-03 исправлена в #196. Никакой Huawei PASS из результатов CI автоматически не выводится.
