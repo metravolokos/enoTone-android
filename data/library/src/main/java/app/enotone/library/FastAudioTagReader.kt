@@ -461,6 +461,8 @@ class FastAudioTagReader {
         val entries = count()
         if (entries > 512) throw FastStop(FastTagCode.FAST_BUDGET_EXCEEDED)
         val result = linkedMapOf<String, String>()
+        var canonicalAlbumArtist: String? = null
+        var albumArtistAlias: String? = null
         repeat(entries) {
             val fieldLength = count()
             if (fieldLength > data.size - pos) throw FastStop(FastTagCode.INVALID_METADATA)
@@ -468,20 +470,27 @@ class FastAudioTagReader {
             pos += fieldLength
             val separator = field.indexOf('=')
             if (separator > 0) {
-                // FLAC Vorbis uses ALBUMARTIST most often, but real libraries
-                // also contain ALBUM ARTIST and ALBUM_ARTIST. Normalize the
-                // aliases before storing without ever substituting track ARTIST.
                 val rawKey = field.substring(0, separator).uppercase(Locale.ROOT)
-                val key = when (rawKey) {
-                    "ALBUM ARTIST", "ALBUM_ARTIST" -> "ALBUMARTIST"
-                    else -> rawKey
-                }
-                if (key in setOf("TITLE", "ARTIST", "ALBUM", "ALBUMARTIST",
-                    "DATE", "YEAR", "TRACKNUMBER", "DISCNUMBER", "GENRE") &&
-                    !result.containsKey(key)) {
-                    result[key] = field.substring(separator + 1)
+                val value = field.substring(separator + 1)
+                when (rawKey) {
+                    // Resolve this only after the whole comment block: aliases
+                    // are fallback values and may occur before the canonical key.
+                    "ALBUMARTIST" -> if (canonicalAlbumArtist == null) {
+                        canonicalAlbumArtist = value
+                    }
+                    "ALBUM ARTIST", "ALBUM_ARTIST" -> if (albumArtistAlias == null) {
+                        albumArtistAlias = value
+                    }
+                    else -> if (rawKey in setOf("TITLE", "ARTIST", "ALBUM",
+                        "DATE", "YEAR", "TRACKNUMBER", "DISCNUMBER", "GENRE") &&
+                        !result.containsKey(rawKey)) {
+                        result[rawKey] = value
+                    }
                 }
             }
+        }
+        (canonicalAlbumArtist ?: albumArtistAlias)?.let {
+            result["ALBUMARTIST"] = it
         }
         return result
     }
