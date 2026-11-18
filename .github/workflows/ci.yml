@@ -183,7 +183,13 @@ jobs:
           # включённом и выключенном флаге, а разница видна только в размере APK
           # (4 915 809 против 5 256 574 байт). Надёжный маркер один — задача
           # :app:convertShrunkResourcesToBinaryRelease присутствует в графе только
-          # при включённом сжатии ресурсов, включая случай UP-TO-DATE.
+          # при включённом сжатии ресурсов.
+          #
+          # Ограничение, которое нельзя замалчивать: этот grep работает благодаря
+          # тому, что шаг всегда идёт первым в job на чистом раннере и задача реально
+          # выполняется. При повторном прогоне в режиме UP-TO-DATE задачи в логе нет,
+          # и проверка упала бы ложно. Если кэш Gradle когда-нибудь подключат к этому
+          # job, grep нужно заменить на чтение отчёта, а не ослабить шаг.
           if ! grep -q 'Task :app:convertShrunkResourcesToBinaryRelease' "$log"; then
             echo "::error::Task :app:convertShrunkResourcesToBinaryRelease did not run; resource shrinking is disabled"
             exit 1
@@ -203,15 +209,20 @@ jobs:
             echo
             echo 'Не подписан и не является дистрибутивом. Установка и запуск — R-A3.'
           } >> "$GITHUB_STEP_SUMMARY"
+      # always(): отчёты R8 нужны в первую очередь у ПАДАЮЩЕЙ сборки — без них
+      # невозможно увидеть, что именно вырезал R8, когда шаг выше упал на
+      # Missing class (дефект закрывается в R-A2). warn, а не error: при падении
+      # на этапе компиляции APK и mapping.txt законно отсутствуют, и повторное
+      # падение шага замаскировало бы настоящую причину в логе.
       - name: Upload unsigned release APK and R8 mapping
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: enotone-release-unsigned-apk
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/mapping/release/mapping.txt
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
       # Blocking since 2026-11-13: old findings are in detekt-baseline.xml,
       # any new finding fails (ADR-0076, AUDIT_PROTOCOL §4.1).
