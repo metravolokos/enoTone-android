@@ -185,11 +185,12 @@ jobs:
           # :app:convertShrunkResourcesToBinaryRelease присутствует в графе только
           # при включённом сжатии ресурсов.
           #
-          # Ограничение, которое нельзя замалчивать: этот grep работает благодаря
-          # тому, что шаг всегда идёт первым в job на чистом раннере и задача реально
-          # выполняется. При повторном прогоне в режиме UP-TO-DATE задачи в логе нет,
-          # и проверка упала бы ложно. Если кэш Gradle когда-нибудь подключат к этому
-          # job, grep нужно заменить на чтение отчёта, а не ослабить шаг.
+          # Оба grep'а выше и ниже работают и при UP-TO-DATE: с --console=plain
+          # Gradle печатает строку для каждой задачи графа, включая пропущенные
+          # (`> Task :app:minifyReleaseWithR8 UP-TO-DATE`, FROM-CACHE, SKIPPED,
+          # NO-SOURCE), поэтому проверка не зависит от того, выполнялась ли задача
+          # заново. При выключенном isShrinkResources задачи в графе нет вовсе —
+          # именно это и ловит grep.
           if ! grep -q 'Task :app:convertShrunkResourcesToBinaryRelease' "$log"; then
             echo "::error::Task :app:convertShrunkResourcesToBinaryRelease did not run; resource shrinking is disabled"
             exit 1
@@ -209,19 +210,27 @@ jobs:
             echo
             echo 'Не подписан и не является дистрибутивом. Установка и запуск — R-A3.'
           } >> "$GITHUB_STEP_SUMMARY"
-      # always(): отчёты R8 нужны в первую очередь у ПАДАЮЩЕЙ сборки — без них
-      # невозможно увидеть, что именно вырезал R8, когда шаг выше упал на
-      # Missing class (дефект закрывается в R-A2). warn, а не error: при падении
-      # на этапе компиляции APK и mapping.txt законно отсутствуют, и повторное
-      # падение шага замаскировало бы настоящую причину в логе.
-      - name: Upload unsigned release APK and R8 mapping
-        if: always()
+      # !cancelled(): отчёты R8 нужны в первую очередь у ПАДАЮЩЕЙ сборки. При
+      # Missing class AGP роняет :app:minifyReleaseWithR8 ДО записи mapping.txt,
+      # поэтому единственные пригодные исходные данные для keep-правил R-A2 —
+      # missing_rules.txt, который R8 пишет в том же каталоге. mapping.txt,
+      # seeds.txt, usage.txt и configuration.txt выгружаются на случай других
+      # отказов (например, ворот по сжатию). warn, а не error: при падении на
+      # этапе компиляции этих файлов нет законно, и повторное падение шага
+      # замаскировало бы настоящую причину в логе. !cancelled() вместо always()
+      # — чтобы ручная отмена прогона не выгружала обрывки.
+      - name: Upload unsigned release APK and R8 reports
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
           name: enotone-release-unsigned-apk
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/mapping/release/mapping.txt
+            app/build/outputs/mapping/release/seeds.txt
+            app/build/outputs/mapping/release/usage.txt
+            app/build/outputs/mapping/release/configuration.txt
+            app/build/outputs/mapping/release/missing_rules.txt
           if-no-files-found: warn
           retention-days: 14
       # Blocking since 2026-11-13: old findings are in detekt-baseline.xml,
