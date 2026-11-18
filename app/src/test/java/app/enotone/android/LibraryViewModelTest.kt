@@ -244,6 +244,26 @@ class LibraryViewModelTest {
         }
     }
 
+    @Test fun appendFromEmptyQueueTakesFirstHundredSongsOfLongSelection() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val rows = (1..101).map { row(it, "Песня $it") }
+            val player = FakeConnection()
+            val vm = model(this, FakeRepository(catalog(*rows.toTypedArray())), player)
+            advanceUntilIdle()
+
+            val feedback = async(UnconfinedTestDispatcher(testScheduler)) { vm.queueMessages.first() }
+            vm.onAppendToQueue(rows)
+            advanceUntilIdle()
+
+            val message = feedback.await()
+            assertEquals(QueueEditStatus.APPLIED, message.result.status)
+            assertFalse(message.playNext)
+            assertEquals(rows.take(100).map { it.id }, player.queue.map { it.id })
+            assertEquals(100, player.queue.size)
+        } finally { Dispatchers.resetMain() }
+    }
+
     @Test fun longContextStartsHundredSongsWithoutAQueueMessage() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

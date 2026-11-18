@@ -6,12 +6,14 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Media3 owns the playlist. Only hashed IDs and numeric state are checkpointed.
@@ -330,6 +332,22 @@ open class EnoTonePlaybackService : MediaSessionService() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         savePosition(urgent = true)
         super.onTaskRemoved(rootIntent)
+    }
+
+    /**
+     * Тестовый шов TEST-01: детерминированно дождаться, пока `io` допишет все
+     * уже поставленные задачи — включая пару layout+position, поставленную
+     * перед `onDestroy`. Повторный `shutdown()` безопасен: `onDestroy` его уже
+     * вызвал, а после `destroyed = true` новых задач не появляется. Поэтому
+     * терминация исполнителя и есть момент «все записи завершены».
+     *
+     * Продакшен-код метод не вызывает и main-поток им не блокируется: блокируется
+     * только поток теста, который этот шов и запросил.
+     */
+    @VisibleForTesting
+    fun awaitQueueWritesFinished(timeoutMs: Long): Boolean {
+        io.shutdown()
+        return io.awaitTermination(timeoutMs, TimeUnit.MILLISECONDS)
     }
 
     override fun onDestroy() {

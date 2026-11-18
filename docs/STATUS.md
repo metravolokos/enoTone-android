@@ -23,6 +23,7 @@
 - **PR #204 / Issue #179:** исправление слито в `main` 2026-11-18 (`d2ca15d`); Issue #179 остаётся открытой с меткой `state:device-test`, Huawei PLAY-10 не проверен. CI #1065 прошёл на exact HEAD `e59123be052dd9c4aad02a2f07df0233f911d48e`.
 - **Q1-NOTICE / Issue #208:** PR #210 слит в `main` `4697e5d`; Issue ждёт `state:device-test`. Удалено только сообщение при старте длинного списка; лимит 100 и правила выборки сохранены.
 - **TAG-AA / Issue #209, `state:review`:** Draft [PR #211](https://github.com/metravolokos/enoTone-android/pull/211), ветка `fix/tag-aa-albumartist-priority` от `main` `4697e5d4e5f924cae3124a6bd0dfaa276054c7ca`. Канонический `ALBUMARTIST` имеет приоритет над псевдонимами; полный M0 CI exact HEAD отслеживается в PR. Huawei PASS не заявляется.
+- **TEST-01 / Issue #213:** ветка `test/test-01-queue-destroy-flake` от `main` `a126505c4ac33ad83670a10d2f014a81d64613ea`. Проверка пары очередь+позиция при `onDestroy` стала детерминированной: тест ждёт терминации исполнителя записи `EnoTonePlaybackService` (шов `awaitQueueWritesFinished`, класс **R**) вместо `Thread.sleep`/`lastModified`; 200/200 прогонов без падений. Возвращена проверка добавления 101 песни в пустую очередь (очередь ровно 100). Формат файлов, порядок записи и предел 100 не менялись. Huawei не требуется.
 - **Q2 (#193) отменена владельцем 2026-11-18:** удаление и перестановка песен в очереди не планируются. Скользящая очередь для повышения предела также не планируется.
 
 ## Ограничения и планы
