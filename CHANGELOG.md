@@ -10,8 +10,9 @@
 сортировки вкладок и сетевое получение списка не менялись.
 
 Добавлены `RecentlyAddedPlannerTest`, `RecentlyAddedUiTest`, тесты маршрута и
-`RecentlyAddedScreenshotTest` для двух тем. Восемь Roborazzi эталонов записаны в CI и включены в PR; exact-HEAD CI и
-Roborazzi verify отслеживаются в PR #205. Huawei-проверки HOME-REC-01…05 не заявлены как пройденные. Дизайн использует
+`RecentlyAddedScreenshotTest` для двух тем. Восемь Roborazzi эталонов записаны
+в CI и включены в PR; exact-HEAD CI и Roborazzi verify отслеживаются в PR #205.
+Huawei-проверки HOME-REC-01…05 не заявлены как пройденные. Дизайн использует
 утверждённый `09_home` и существующие элементы.
 
 

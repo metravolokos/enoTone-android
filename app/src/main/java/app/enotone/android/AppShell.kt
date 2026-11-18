@@ -58,6 +58,8 @@ internal fun AppMusicShell(
     val login = account.libraryLogin
     val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
     val snapshots = androidx.compose.runtime.remember(libraryModel) { AppLibraryRouteSnapshots() }
+    val artworkPreviewRepository = (LocalContext.current.applicationContext as EnoToneApplication)
+        .container.artworkPreviewRepository
     val selecting = library?.selecting == true
     val miniVisible = player.playback.queueTotal > 0
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -85,8 +87,7 @@ internal fun AppMusicShell(
                         kind = recentDetail.kind,
                         state = library,
                         actions = libraryModel ?: PreviewLibraryActions,
-                        artworkRepository = LocalContext.current.applicationContext
-                            .let { (it as EnoToneApplication).container.artworkPreviewRepository },
+                        artworkRepository = artworkPreviewRepository,
                         accountEmail = login?.email.orEmpty(),
                         appPassword = login?.password.orEmpty(),
                         contentPadding = contentPadding,
@@ -105,8 +106,7 @@ internal fun AppMusicShell(
                         RecentlyAddedHomeSections(
                             state = library,
                             actions = libraryModel ?: PreviewLibraryActions,
-                            artworkRepository = LocalContext.current.applicationContext
-                                .let { (it as EnoToneApplication).container.artworkPreviewRepository },
+                            artworkRepository = artworkPreviewRepository,
                             accountEmail = login?.email.orEmpty(),
                             appPassword = login?.password.orEmpty(),
                             onOpenDetail = onOpenDetail,

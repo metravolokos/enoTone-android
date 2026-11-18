@@ -69,8 +69,7 @@ internal fun RecentlyAddedScreen(
                 tracks.firstOrNull()?.let { actions.onTrackClicked(it, tracks) }
             },
             onShuffle = {
-                val shuffled = tracks.shuffled()
-                shuffled.firstOrNull()?.let { actions.onShuffleTracks(it, shuffled) }
+                tracks.firstOrNull()?.let { actions.onShuffleTracks(it, tracks) }
             },
         )
         when {
