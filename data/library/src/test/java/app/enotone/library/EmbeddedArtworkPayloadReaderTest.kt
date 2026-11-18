@@ -1,10 +1,10 @@
 package app.enotone.library
 
 import java.io.IOException
-import okhttp3.mockwebserver.Dispatcher
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import okhttp3.mockwebserver.RecordedRequest
+import mockwebserver3.Dispatcher
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
+import mockwebserver3.RecordedRequest
 import okio.Buffer
 import org.junit.Assert.*
 import org.junit.Test
@@ -42,19 +42,19 @@ class EmbeddedArtworkPayloadReaderTest {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
-                val range = req.getHeader("Range")
-                    ?: return MockResponse().setResponseCode(400)
+                val range = req.headers["Range"]
+                    ?: return MockResponse.Builder().code(400).build()
                 val match = Regex("""bytes=(\d+)-(\d+)""").matchEntire(range)
-                    ?: return MockResponse().setResponseCode(400)
+                    ?: return MockResponse.Builder().code(400).build()
                 val start = match.groupValues[1].toInt()
                 val end = match.groupValues[2].toInt()
                 if (start < 0 || end >= fixture.size || end < start) {
-                    return MockResponse().setResponseCode(416)
+                    return MockResponse.Builder().code(416).build()
                 }
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=$start-$end/" + fixture.size)
                     .addHeader("ETag", "\"test-image-v1\"")
-                    .setBody(Buffer().write(fixture, start, end - start + 1))
+                    .body(Buffer().write(fixture, start, end - start + 1)).build()
             }
         }
         server.start()
@@ -77,7 +77,7 @@ class EmbeddedArtworkPayloadReaderTest {
             }
             assertTrue(server.requestCount in 1..4)
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 

@@ -23,7 +23,7 @@ class FlatLibraryWebDavClientTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse.Builder().code(207).body(xml).build())
+            server.enqueue(MockResponse.Builder().code(207).body(xml).build().build())
             FlatLibraryWebDavClient(server.url("/AllMusic/").toString(), true).use { client ->
                 val listing = runBlocking { client.list("user@example.test", "SECRET_password") }
                 assertEquals(1, listing.tracks.size)
@@ -33,12 +33,12 @@ class FlatLibraryWebDavClientTest {
             assertEquals(1, server.requestCount)
             val req = server.takeRequest()
             assertEquals("PROPFIND", req.method)
-            assertEquals("/AllMusic/", req.path)
-            assertEquals("1", req.getHeader("Depth"))
-            assertTrue(req.getHeader("Authorization")!!.startsWith("Basic "))
-            assertTrue(req.body.readUtf8().contains("getetag"))
+            assertEquals("/AllMusic/", req.url.encodedPath)
+            assertEquals("1", req.headers["Depth"])
+            assertTrue(req.headers["Authorization"]!!.startsWith("Basic "))
+            assertTrue(req.body!!.utf8().contains("getetag"))
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 
@@ -47,7 +47,7 @@ class FlatLibraryWebDavClientTest {
         server.start()
         try {
             server.enqueue(MockResponse.Builder().code(302)
-                .addHeader("Location", "https://evil.example/steal").build())
+                .addHeader("Location", "https://evil.example/steal").build().build())
             FlatLibraryWebDavClient(server.url("/AllMusic/").toString(), true).use { client ->
                 try {
                     runBlocking { client.list("u", "SECRET_password") }
@@ -59,7 +59,7 @@ class FlatLibraryWebDavClientTest {
             }
             assertEquals(1, server.requestCount)
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 
@@ -67,7 +67,7 @@ class FlatLibraryWebDavClientTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse.Builder().code(401).build())
+            server.enqueue(MockResponse.Builder().code(401).build().build())
             FlatLibraryWebDavClient(server.url("/AllMusic/").toString(), true).use { client ->
                 try {
                     runBlocking { client.list("private@example.test", "SECRET") }
@@ -79,7 +79,7 @@ class FlatLibraryWebDavClientTest {
                 }
             }
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 

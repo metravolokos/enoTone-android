@@ -28,7 +28,7 @@
 ## Ограничения и планы
 
 - #201 (D4c) остаётся в работе; код #179 слит в PR #204, Issue #179 ждёт device-test (PLAY-10 не проверен). У песен первого импорта отсутствуют даты; решение остаётся открытым в #201.
-- DEPS-01 (#203, `state:in-progress`): выполняется только шаг 1 из 3 — Roborazzi и MockWebServer в ветке `deps/deps-01-step-1-test-libs`. Шаги 2 и 3 впереди; PR Dependabot #171 и #91 остаются открыты.
+- DEPS-01 (#203, `state:in-progress`): выполняется только шаг 1 из 3 — Draft [PR #214](https://github.com/metravolokos/enoTone-android/pull/214), ветка `deps/deps-01-step-1-test-libs`. Шаги 2 и 3 впереди; PR Dependabot #171 и #91 остаются открыты.
 - TAG-EDIT (#200) — будущий функционал в backlog, начало только по решению владельца.
 - Остальные действующие ограничения и открытые решения — [KNOWN_ISSUES](KNOWN_ISSUES.md) и [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Статусы отдельных сценариев не копируются сюда и не меняются по результатам CI.
 

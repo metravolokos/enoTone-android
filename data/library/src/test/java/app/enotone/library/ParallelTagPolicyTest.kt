@@ -1,10 +1,10 @@
 package app.enotone.library
 
 import kotlinx.coroutines.runBlocking
-import okhttp3.mockwebserver.Dispatcher
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import okhttp3.mockwebserver.RecordedRequest
+import mockwebserver3.Dispatcher
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
+import mockwebserver3.RecordedRequest
 import okio.Buffer
 import org.junit.Assert.*
 import org.junit.Test
@@ -68,9 +68,9 @@ class ParallelTagPolicyTest {
         val block = ByteArray(65536) { 7 }
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse =
-                MockResponse().setResponseCode(206)
+                MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=0-65535/65536")
-                    .setBody(Buffer().write(block))
+                    .body(Buffer().write(block)).build()
         }
         server.start()
         val quota = SharedRangeBudget(1, 65536L)
@@ -99,7 +99,7 @@ class ParallelTagPolicyTest {
             assertEquals(1, quota.reservedRequests())
         } finally {
             executor.shutdownNow()
-            server.shutdown()
+            server.close()
         }
     }
 }
