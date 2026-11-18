@@ -80,9 +80,16 @@ class QueueLayoutPendingDestroyTest {
                 (1..3).map(::track), id(2), false, initial.sourceKey)
             controller.destroy()
         }
-        // Исполнитель записи асинхронен: дождёмся, пока файлы перестанут меняться,
-        // иначе тест читает состояние гонки, а не результат destroy.
-        val read = awaitSettledCheckpoint(context)
+        // `onDestroy` вызывает `io.shutdown()` — упорядоченный flush. Терминация
+        // исполнителя записи и есть детерминированный момент «все записи закончены»:
+        // ждать переставания файлов по `lastModified` нельзя, потому что на части ФС
+        // гранулярность метки секундная, а пара пишется в два файла, и чтение между
+        // ними давало несогласованную пару (`state == null`).
+        assertTrue(
+            "исполнитель записи должен завершиться после onDestroy",
+            service.awaitQueueWritesFinished(10_000L),
+        )
+        val read = QueueStateFileStore(context).readWithStatus()
         assertTrue("пара должна читаться: ${read.code}", read.state != null)
         org.junit.Assert.assertNotEquals(
             "восстановление не должно откатываться на прежнюю пару: лишняя запись позиции " +
@@ -113,27 +120,6 @@ class QueueLayoutPendingDestroyTest {
         // Отложенные колбэки после shutdown не должны бросать на main.
         Shadows.shadowOf(Looper.getMainLooper()).idle()
         QueueStateFileStore(context).clear()
-    }
-
-    /**
-     * Ждёт, пока пара на диске перестанет меняться. Без этого тест наблюдал бы
-     * промежуточное состояние: записи идут в отдельном потоке.
-     */
-    private fun awaitSettledCheckpoint(context: Context): app.enotone.playback.QueueReadResult {
-        val dir = context.noBackupFilesDir
-        val files = listOf(java.io.File(dir, "enotone-queue-v1.json"),
-            java.io.File(dir, "enotone-position-v1.json"))
-        fun signature() = files.joinToString("|") { "${it.length()}:${it.lastModified()}" }
-        var previous = signature()
-        repeat(100) {
-            Thread.sleep(20L)
-            val current = signature()
-            if (current == previous && files.all { it.isFile }) {
-                return QueueStateFileStore(context).readWithStatus()
-            }
-            previous = current
-        }
-        return QueueStateFileStore(context).readWithStatus()
     }
 
     private fun <T> onMain(block: () -> T): T {

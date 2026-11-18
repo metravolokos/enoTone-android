@@ -6,12 +6,14 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import androidx.annotation.VisibleForTesting
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Media3 owns the playlist. Only hashed IDs and numeric state are checkpointed.
@@ -330,6 +332,23 @@ open class EnoTonePlaybackService : MediaSessionService() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         savePosition(urgent = true)
         super.onTaskRemoved(rootIntent)
+    }
+
+    /**
+     * Тестовый шов TEST-01: дождаться завершения исполнителя записи `io` после
+     * `onDestroy` — он там останавливается (`io.shutdown()`), и после
+     * `destroyed = true` новых задач не появляется. Поэтому терминация
+     * исполнителя и есть момент «все записи завершены».
+     *
+     * Метод только ждёт и ничего не меняет: `io` он не останавливает. Вызов до
+     * `onDestroy` запрещён явно (`check(destroyed)`), иначе шов мог бы выключить
+     * сохранение очереди без всякого сигнала. Продакшен-код метод не вызывает,
+     * main-поток не блокируется — блокируется только поток теста.
+     */
+    @VisibleForTesting
+    fun awaitQueueWritesFinished(timeoutMs: Long): Boolean {
+        check(destroyed) { "awaitQueueWritesFinished: только после onDestroy" }
+        return io.awaitTermination(timeoutMs, TimeUnit.MILLISECONDS)
     }
 
     override fun onDestroy() {
