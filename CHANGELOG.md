@@ -33,7 +33,10 @@ Keep-правила R8 сознательно не трогались (R-A2), п
 Добавлены тесты обычного и shuffle-восстановления файла из 3 647 песен, окна у начала,
 середины и конца, редактора на пределе, выборки для длинного списка и шести Roborazzi
 снимков (middle_long: 100 песен, текущая 50). Локальные playback/app unit-тесты и
-Roborazzi verify прошли; exact-HEAD CI ожидается. Draft PR [#199](https://github.com/metravolokos/enoTone-android/pull/199), риск R: нужны два независимых ревью, второго назначает владелец.
+Roborazzi verify прошли. Полный Android CI [#1033](https://github.com/metravolokos/enoTone-android/actions/runs/44203151181)
+прошёл на кодовом HEAD `046cf92fe3b9c56d1dfeb4b71a4328d912849cac`; последующий docs-sync
+проверяется на точном HEAD PR. Draft PR [#199](https://github.com/metravolokos/enoTone-android/pull/199),
+риск R: нужны два независимых ревью, второго назначает владелец.
 
 ## #188 — переход восстановленного плеера (2026-11-17)
 
