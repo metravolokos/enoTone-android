@@ -1,6 +1,5 @@
 package app.enotone.library
 
-import java.io.IOException
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -8,6 +7,7 @@ import mockwebserver3.RecordedRequest
 import okio.Buffer
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.IOException
 
 class EmbeddedArtworkPayloadReaderTest {
     private fun synchsafe(value: Int) = byteArrayOf(

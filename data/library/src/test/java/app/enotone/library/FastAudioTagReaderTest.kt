@@ -1,7 +1,5 @@
 package app.enotone.library
 
-import java.io.ByteArrayOutputStream
-import java.nio.charset.StandardCharsets
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -9,6 +7,8 @@ import mockwebserver3.RecordedRequest
 import okio.Buffer
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 
 class FastAudioTagReaderTest {
     private fun byteReader(bytes: ByteArray, blocks: MutableSet<Long>? = null):
