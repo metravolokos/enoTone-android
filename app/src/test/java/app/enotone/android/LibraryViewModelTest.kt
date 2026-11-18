@@ -72,6 +72,7 @@ class LibraryViewModelTest {
         var inserted: List<QueueTrack> = emptyList()
         var appended: List<QueueTrack> = emptyList()
         var failQueueEdit = false
+        var failPlayQueue = false
         var connectedCount = 0
         var disconnectedCount = 0
         override fun connect() { connectedCount++ }
@@ -80,6 +81,7 @@ class LibraryViewModelTest {
             email: String, password: String, queue: List<QueueTrack>,
             selectedId: String, useCache: Boolean, sourceKey: String,
         ) {
+            check(!failPlayQueue) { "synthetic queue-start failure" }
             this.queue = queue
             selected = selectedId
             current.value = current.value.copy(queueTotal = queue.size,
@@ -286,6 +288,33 @@ class LibraryViewModelTest {
             vm.onPlayNext(listOf(row(2, "Два")))
             advanceUntilIdle()
             assertEquals(QueueEditStatus.FAILED, feedback.await().result.status)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun truncatedEmptyQueueStartNoticeAppearsOnlyAfterPlayQueueSucceeds() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val rows = (1..101).map { row(it, "Песня $it") }
+            val connection = FakeConnection().apply { failPlayQueue = true }
+            val vm = model(this, FakeRepository(catalog(*rows.toTypedArray())), connection)
+            advanceUntilIdle()
+
+            val failed = async(UnconfinedTestDispatcher(testScheduler)) { vm.queueMessages.first() }
+            vm.onPlayNext(rows)
+            advanceUntilIdle()
+            val failure = failed.await()
+            assertEquals(QueueEditStatus.FAILED, failure.result.status)
+            assertNull(failure.notice)
+
+            connection.failPlayQueue = false
+            val succeeded = async(UnconfinedTestDispatcher(testScheduler)) { vm.queueMessages.first() }
+            vm.onAppendToQueue(rows)
+            advanceUntilIdle()
+            val success = succeeded.await()
+            assertEquals(QueueEditStatus.APPLIED, success.result.status)
+            assertEquals(100, success.result.count)
+            assertEquals(QueueStartNotice.FIRST_100, success.notice)
+            assertEquals(rows.take(100).map { it.id }, connection.queue.map { it.id })
         } finally { Dispatchers.resetMain() }
     }
 

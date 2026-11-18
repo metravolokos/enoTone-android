@@ -17,7 +17,7 @@ import java.util.concurrent.Executors
  * Media3 owns the playlist. Only hashed IDs and numeric state are checkpointed.
  * Queue layout and small position writes run on one serialized I/O executor.
  */
-class EnoTonePlaybackService : MediaSessionService() {
+open class EnoTonePlaybackService : MediaSessionService() {
     private lateinit var playback: PreviewAudioPlayback
     private lateinit var session: MediaSession
     private val localBinder = LocalBinder()
@@ -175,7 +175,7 @@ class EnoTonePlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        playback = PreviewAudioPlayback(this)
+        playback = createPlayback()
         // Каталог до 512 МиБ и SQLite: готовим в фоне, иначе первый playQueue
         // блокировал главный поток (A-13), а сбой кэша блокировал музыку (A-14).
         playback.prepareTransientCache()
@@ -195,6 +195,9 @@ class EnoTonePlaybackService : MediaSessionService() {
         session = builder.build()
         addSession(session)
     }
+
+    /** Construction seam for deterministic service tests with local data sources. */
+    protected open fun createPlayback(): PreviewAudioPlayback = PreviewAudioPlayback(this)
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession = session
 

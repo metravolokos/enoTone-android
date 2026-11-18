@@ -13,19 +13,19 @@ import androidx.lifecycle.repeatOnLifecycle
 import app.enotone.playback.QueueEditStatus
 import kotlinx.coroutines.flow.collectLatest
 
-internal fun QueueActionMessage.text(resources: Resources): String = when (notice) {
-    QueueStartNotice.FIRST_100 -> resources.getString(R.string.queue_first_100)
-    QueueStartNotice.SHUFFLE_100 -> resources.getString(R.string.queue_shuffle_100)
-    null -> when (result.status) {
-        QueueEditStatus.APPLIED -> if (result.count > 1)
+internal fun QueueActionMessage.text(resources: Resources): String = when (result.status) {
+    QueueEditStatus.APPLIED -> when (notice) {
+        QueueStartNotice.FIRST_100 -> resources.getString(R.string.queue_first_100)
+        QueueStartNotice.SHUFFLE_100 -> resources.getString(R.string.queue_shuffle_100)
+        null -> if (result.count > 1)
             resources.getQuantityString(R.plurals.queue_added_count, result.count, result.count)
         else resources.getString(if (playNext) R.string.queue_will_play_next else R.string.queue_added)
-        QueueEditStatus.ALREADY_PLAYING -> resources.getString(R.string.queue_already_playing)
-        QueueEditStatus.QUEUE_FULL -> resources.getString(R.string.queue_full)
-        QueueEditStatus.EMPTY_SELECTION -> resources.getString(R.string.queue_empty_selection)
-        QueueEditStatus.UNAVAILABLE -> resources.getString(R.string.queue_unavailable)
-        QueueEditStatus.FAILED -> resources.getString(R.string.queue_edit_failed)
     }
+    QueueEditStatus.ALREADY_PLAYING -> resources.getString(R.string.queue_already_playing)
+    QueueEditStatus.QUEUE_FULL -> resources.getString(R.string.queue_full)
+    QueueEditStatus.EMPTY_SELECTION -> resources.getString(R.string.queue_empty_selection)
+    QueueEditStatus.UNAVAILABLE -> resources.getString(R.string.queue_unavailable)
+    QueueEditStatus.FAILED -> resources.getString(R.string.queue_edit_failed)
 }
 
 @Composable

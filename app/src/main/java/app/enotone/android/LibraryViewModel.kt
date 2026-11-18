@@ -515,7 +515,8 @@ internal class LibraryViewModel(
             } catch (_: Exception) {
                 QueueEditResult(QueueEditStatus.FAILED)
             }
-            val notice = if (startedFromEmptyQueue && truncatedEmptyQueueSelection)
+            val notice = if (result.status == QueueEditStatus.APPLIED &&
+                startedFromEmptyQueue && truncatedEmptyQueueSelection)
                 QueueStartNotice.FIRST_100 else null
             mutableQueueMessages.emit(QueueActionMessage(playNext, result, notice))
         }

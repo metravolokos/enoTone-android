@@ -3,12 +3,21 @@ package app.enotone.playback
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.TransferListener
+import androidx.media3.exoplayer.analytics.PlayerId
+import androidx.media3.exoplayer.source.MediaPeriod
+import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.MediaSource.MediaSourceCaller
+import androidx.media3.exoplayer.upstream.Allocator
+import androidx.media3.exoplayer.upstream.BandwidthMeter
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -165,30 +174,156 @@ internal class WebDavMedia3DataSource(
         email: String,
         appPassword: String,
         tracks: List<QueueTrack>,
+        private val dataSourceFactoryOverride: DataSource.Factory? = null,
     ) : DataSource.Factory {
         private val auth: String
         private val files: MutableMap<String, PlaybackRemoteFile> = ConcurrentHashMap()
+        private val routeLock = Any()
+        private val trackUrls = mutableMapOf<String, String>()
+        private val activeTrackIds = mutableSetOf<String>()
+        private val mediaPeriodRefs = mutableMapOf<String, Int>()
 
         init {
             require(email.contains('@') && appPassword.isNotBlank()) {
                 "Playback credentials required"
             }
             files.putAll(WebDavPlaylistRoutes.index(tracks))
+            require(tracks.map { it.id }.distinct().size == tracks.size) { "Duplicate playback track ID" }
+            tracks.forEach { trackUrls[it.id] = WebDavPlaybackTarget.url(it.encodedPath) }
+            activeTrackIds += trackUrls.keys
             val raw = (email.trim() + ":" + appPassword)
                 .toByteArray(StandardCharsets.UTF_8)
             auth = try { "Basic " + Base64.getEncoder().encodeToString(raw) }
                 finally { raw.fill(0) }
         }
 
-        /** All already-created data sources see new per-file size and ETag routes. */
+        /** Re-adding the same track is idempotent; live URL metadata stays immutable. */
         fun addTracks(tracks: List<QueueTrack>) {
             if (tracks.isEmpty()) return
             val added = WebDavPlaylistRoutes.index(tracks)
-            require(added.keys.none { it in files }) { "Playback URL already exists" }
-            files.putAll(added)
+            require(tracks.map { it.id }.distinct().size == tracks.size) { "Duplicate playback track ID" }
+            synchronized(routeLock) {
+                pruneUnreferencedRoutes()
+                tracks.forEach { track ->
+                    val url = WebDavPlaybackTarget.url(track.encodedPath)
+                    val previousUrl = trackUrls[track.id]
+                    require(previousUrl == null || previousUrl == url) { "Playback track route changed" }
+                    val route = added.getValue(url)
+                    val existing = files[url]
+                    if (existing != null && existing != route) {
+                        require(!isRouteRetained(url)) { "Playback URL already exists" }
+                    }
+                    files[url] = route
+                    trackUrls[track.id] = url
+                }
+            }
         }
 
-        override fun createDataSource(): DataSource =
-            WebDavMedia3DataSource(auth, files)
+        /** Update the queue-owned route set after Media3 accepts a timeline edit. */
+        internal fun setActiveTrackIds(trackIds: Collection<String>) {
+            require(trackIds.size == trackIds.toSet().size) { "Duplicate playback track ID" }
+            synchronized(routeLock) {
+                require(trackIds.all(trackUrls::containsKey)) { "Missing playback route" }
+                activeTrackIds.clear()
+                activeTrackIds.addAll(trackIds)
+                pruneUnreferencedRoutes()
+            }
+        }
+
+        /** Hold an evicted route until Media3 releases its active MediaPeriod. */
+        internal fun trackMediaSource(trackId: String, source: MediaSource): MediaSource {
+            val url = synchronized(routeLock) {
+                checkNotNull(trackUrls[trackId]) { "Missing playback route" }
+            }
+            return RouteLifetimeMediaSource(
+                source,
+                onPeriodCreated = { retainPeriod(url) },
+                onPeriodReleased = { releasePeriod(url) },
+            )
+        }
+
+        internal val routeCount: Int
+            get() = synchronized(routeLock) { files.size }
+
+        override fun createDataSource(): DataSource = dataSourceFactoryOverride?.createDataSource()
+            ?: WebDavMedia3DataSource(auth, files)
+
+        private fun retainPeriod(url: String) {
+            synchronized(routeLock) {
+                check(files.containsKey(url)) { "Missing playback route" }
+                mediaPeriodRefs[url] = (mediaPeriodRefs[url] ?: 0) + 1
+            }
+        }
+
+        private fun releasePeriod(url: String) {
+            synchronized(routeLock) {
+                val refs = checkNotNull(mediaPeriodRefs[url]) { "Unbalanced MediaPeriod release" }
+                if (refs == 1) mediaPeriodRefs.remove(url) else mediaPeriodRefs[url] = refs - 1
+                pruneUnreferencedRoutes()
+            }
+        }
+
+        private fun isRouteRetained(url: String): Boolean =
+            url in mediaPeriodRefs || activeTrackIds.any { trackUrls[it] == url }
+
+        private fun pruneUnreferencedRoutes() {
+            val retainedUrls = activeTrackIds.mapNotNull(trackUrls::get).toSet() + mediaPeriodRefs.keys
+            val retainedIds = activeTrackIds + trackUrls.filterValues { it in retainedUrls }.keys
+            files.keys.toList().filterNot(retainedUrls::contains).forEach(files::remove)
+            trackUrls.keys.toList().filterNot(retainedIds::contains).forEach(trackUrls::remove)
+        }
+    }
+}
+
+@OptIn(UnstableApi::class)
+private class RouteLifetimeMediaSource(
+    private val source: MediaSource,
+    private val onPeriodCreated: () -> Unit,
+    private val onPeriodReleased: () -> Unit,
+) : MediaSource by source {
+    override fun getInitialTimeline(): Timeline? = source.initialTimeline
+
+    override fun isSingleWindow(): Boolean = source.isSingleWindow
+
+    override fun getMediaItem(): MediaItem = source.mediaItem
+
+    override fun canUpdateMediaItem(mediaItem: MediaItem): Boolean =
+        source.canUpdateMediaItem(mediaItem)
+
+    override fun updateMediaItem(mediaItem: MediaItem) = source.updateMediaItem(mediaItem)
+
+    @Suppress("DEPRECATION")
+    override fun prepareSource(
+        caller: MediaSourceCaller,
+        transferListener: TransferListener?,
+        playerId: PlayerId,
+    ) = source.prepareSource(caller, transferListener, playerId)
+
+    override fun prepareSource(
+        caller: MediaSourceCaller,
+        playerId: PlayerId,
+        bandwidthMeter: BandwidthMeter,
+    ) = source.prepareSource(caller, playerId, bandwidthMeter)
+
+    override fun createPeriod(
+        id: MediaSource.MediaPeriodId,
+        allocator: Allocator,
+        startPositionUs: Long,
+    ): MediaPeriod {
+        onPeriodCreated()
+        var created = false
+        return try {
+            source.createPeriod(id, allocator, startPositionUs).also { created = true }
+        } finally {
+            if (!created) onPeriodReleased()
+        }
+    }
+
+    override fun releasePeriod(mediaPeriod: MediaPeriod) {
+        try {
+            source.releasePeriod(mediaPeriod)
+        } finally {
+            onPeriodReleased()
+        }
     }
 }

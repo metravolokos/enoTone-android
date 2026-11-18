@@ -36,6 +36,7 @@ data class PlaybackSetupTimings(
 @OptIn(UnstableApi::class)
 class PreviewAudioPlayback(
     context: Context,
+    private val dataSourceFactoryOverride: DataSource.Factory? = null,
 ) : AutoCloseable {
     // Lazy: in baseline mode neither initialize nor touch the disk cache.
     private val applicationContext = context.applicationContext
@@ -326,7 +327,8 @@ class PreviewAudioPlayback(
         player.playbackState == Player.STATE_READY ||
             player.playbackState == Player.STATE_ENDED ||
             (queueNavigation.hasPendingSeek &&
-                player.playbackState == Player.STATE_IDLE) ||
+                (player.playbackState == Player.STATE_IDLE ||
+                    player.playbackState == Player.STATE_BUFFERING)) ||
             (stageBeforePrepare && player.playbackState == Player.STATE_IDLE)
 
     private fun stagePlaylistAfterReady() {
@@ -392,13 +394,11 @@ class PreviewAudioPlayback(
     private fun makeMediaSource(
         factory: ProgressiveMediaSource.Factory,
         item: QueueTrack,
-    ): MediaSource = factory.createMediaSource(
-        MediaItem.Builder()
-            .setMediaId(item.id)
-            .setUri(WebDavPlaybackTarget.url(item.encodedPath))
+    ): MediaSource = checkNotNull(routesFactory).trackMediaSource(item.id,
+        factory.createMediaSource(MediaItem.Builder()
+            .setMediaId(item.id).setUri(WebDavPlaybackTarget.url(item.encodedPath))
             .setCustomCacheKey(TransientCachePolicy.key(item))
-            .setMediaMetadata(QueueMetadata.of(item))
-            .build(),
+            .setMediaMetadata(QueueMetadata.of(item)).build()),
     )
 
     private data class PendingCache(
@@ -517,6 +517,7 @@ class PreviewAudioPlayback(
                 clearScheduledWriter()
                 scheduledPlaylistFill?.let(cacheHandler::removeCallbacks)
                 scheduledPlaylistFill = null
+                if (queueNavigation.hasPendingSeek) stagePlaylistAfterReady()
             }
         }
     }
@@ -615,7 +616,7 @@ class PreviewAudioPlayback(
         restoredDuration = null
         val queue = PlaybackQueue.create(tracks, selectedId)
         val t1 = SystemClock.elapsedRealtime()
-        val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
+        val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items, dataSourceFactoryOverride)
         // Кэш не создаётся здесь: его готовит prepareTransientCache() вне главного
         // потока. Если он не готов или недоступен — играем через сеть, а не падаем.
         val diskCache = temporaryCache
@@ -697,9 +698,10 @@ class PreviewAudioPlayback(
         val newTracks = newIds.map { byId.getValue(it) }
         val factory = checkNotNull(mediaSourceFactory)
         val route = checkNotNull(routesFactory)
-        // Validate new source URLs and prepare MediaSources before touching Media3.
-        val sources = newTracks.associate { it.id to makeMediaSource(factory, it) }
+        // Register routes before creating local sources. A source retains its
+        // route while Media3 owns a MediaPeriod for it.
         route.addTracks(newTracks)
+        val sources = newTracks.associate { it.id to makeMediaSource(factory, it) }
         finishPendingPlaylist()
         require(player.mediaItemCount == originalTrackIds.size) { "Incomplete playback timeline" }
         val working = originalTrackIds.toMutableList()
@@ -710,6 +712,7 @@ class PreviewAudioPlayback(
         else timelineEditor.applyLinearEdit(plan, edit, sources, working)
 
         check(working == plan.layout.trackIds) { "Queue edit order mismatch" }
+        route.setActiveTrackIds(plan.layout.trackIds)
         originalTrackIds = plan.layout.trackIds
         mediaIdIndices = originalTrackIds.withIndex().associate { it.value to it.index }
         queueNavigation.clearPendingSeek()
@@ -748,7 +751,7 @@ class PreviewAudioPlayback(
 
         val queue = PlaybackQueue.create(tracks, state.selectedTrackId)
         val t1 = SystemClock.elapsedRealtime()
-        val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items)
+        val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items, dataSourceFactoryOverride)
         // Кэш не создаётся здесь: его готовит prepareTransientCache() вне главного
         // потока. Если он не готов или недоступен — играем через сеть, а не падаем.
         val diskCache = temporaryCache

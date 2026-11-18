@@ -15,12 +15,18 @@ import java.util.Locale
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class QueueActionMessageTest {
-    private fun text(status: QueueEditStatus, count: Int = 0, next: Boolean = true, lang: String = "ru"): String {
+    private fun text(
+        status: QueueEditStatus,
+        count: Int = 0,
+        next: Boolean = true,
+        lang: String = "ru",
+        notice: QueueStartNotice? = null,
+    ): String {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val configuration = Configuration(context.resources.configuration).apply {
             setLocale(Locale.forLanguageTag(lang))
         }
-        return QueueActionMessage(next, QueueEditResult(status, count))
+        return QueueActionMessage(next, QueueEditResult(status, count), notice)
             .text(context.createConfigurationContext(configuration).resources)
     }
 
@@ -39,5 +45,16 @@ class QueueActionMessageTest {
         assertEquals("Плеер недоступен", text(QueueEditStatus.UNAVAILABLE))
         assertEquals("Не удалось изменить очередь", text(QueueEditStatus.FAILED))
         assertEquals("Нет песен для добавления", text(QueueEditStatus.EMPTY_SELECTION))
+    }
+
+    @Test fun failureStatusTakesPriorityOverAStartNotice() {
+        assertEquals("Не удалось изменить очередь",
+            text(QueueEditStatus.FAILED, notice = QueueStartNotice.FIRST_100))
+        assertEquals("Плеер недоступен",
+            text(QueueEditStatus.UNAVAILABLE, notice = QueueStartNotice.SHUFFLE_100))
+        assertEquals("Очередь заполнена",
+            text(QueueEditStatus.QUEUE_FULL, notice = QueueStartNotice.FIRST_100))
+        assertEquals("В очереди первые 100 песен",
+            text(QueueEditStatus.APPLIED, 100, notice = QueueStartNotice.FIRST_100))
     }
 }
