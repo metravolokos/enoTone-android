@@ -11,6 +11,7 @@ internal fun AppNavState.libraryTarget(): Pair<LibraryPage, String?>? {
         is LibraryDetail.Album -> LibraryPage.ALBUMS to detail.key
         is LibraryDetail.Artist -> LibraryPage.ARTISTS to detail.key
         is LibraryDetail.AlbumArtist -> LibraryPage.ALBUM_ARTISTS to detail.key
+        is LibraryDetail.RecentlyAdded -> null
         null -> page?.let { it to null }
     }
 }

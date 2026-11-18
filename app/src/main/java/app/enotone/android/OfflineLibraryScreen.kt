@@ -75,6 +75,7 @@ internal fun OfflineLibraryScreen(
             is LibraryDetail.Album -> LibraryPage.ALBUMS
             is LibraryDetail.Artist -> LibraryPage.ARTISTS
             is LibraryDetail.AlbumArtist -> LibraryPage.ALBUM_ARTISTS
+            is LibraryDetail.RecentlyAdded -> LibraryPage.TRACKS
             null -> page
         }
         model.onRouteSelected(targetPage, detail?.key)

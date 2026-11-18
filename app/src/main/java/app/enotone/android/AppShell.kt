@@ -58,6 +58,8 @@ internal fun AppMusicShell(
     val login = account.libraryLogin
     val library = libraryModel?.state?.collectAsStateWithLifecycle()?.value
     val snapshots = androidx.compose.runtime.remember(libraryModel) { AppLibraryRouteSnapshots() }
+    val artworkPreviewRepository = (LocalContext.current.applicationContext as EnoToneApplication)
+        .container.artworkPreviewRepository
     val selecting = library?.selecting == true
     val miniVisible = player.playback.queueTotal > 0
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -75,9 +77,24 @@ internal fun AppMusicShell(
                 snapshots = snapshots,
                 searchRegistry = searchRegistry,
             ) { route, snapshot, active ->
-            val renderedTab = if (route.tab == AppTab.Home && route.details.isNotEmpty())
-                AppTab.Library(LibraryPage.TRACKS) else route.tab
-            when (val tab = renderedTab) {
+            val recentDetail = route.details.lastOrNull() as? LibraryDetail.RecentlyAdded
+            val renderedTab = route.renderedContentTab()
+            if (recentDetail != null) {
+                libraryStateHolder.SaveableStateProvider(
+                    librarySaveKey(AppTab.Library(LibraryPage.TRACKS), route.details),
+                ) {
+                    RecentlyAddedScreen(
+                        kind = recentDetail.kind,
+                        state = library,
+                        actions = libraryModel ?: PreviewLibraryActions,
+                        artworkRepository = artworkPreviewRepository,
+                        accountEmail = login?.email.orEmpty(),
+                        appPassword = login?.password.orEmpty(),
+                        contentPadding = contentPadding,
+                        onOpenDetail = onOpenDetail,
+                    )
+                }
+            } else when (val tab = renderedTab) {
                 AppTab.Home -> EnoToneHomeScreen(
                     connectedAccount = login != null,
                     songCount = library?.tracks?.size?.takeIf { !library.loading && it > 0 },
@@ -85,6 +102,16 @@ internal fun AppMusicShell(
                     onShuffleAll = { libraryModel?.onShuffleLibrary() },
                     contentPadding = contentPadding,
                     shuffleEnabled = library?.playbackConnected == true && !selecting,
+                    recentContent = {
+                        RecentlyAddedHomeSections(
+                            state = library,
+                            actions = libraryModel ?: PreviewLibraryActions,
+                            artworkRepository = artworkPreviewRepository,
+                            accountEmail = login?.email.orEmpty(),
+                            appPassword = login?.password.orEmpty(),
+                            onOpenDetail = onOpenDetail,
+                        )
+                    },
                 )
                 is AppTab.Library -> if (login != null && libraryModel != null) {
                     // Состояние прокрутки переживает «Сейчас играет» (регрессия Huawei после #92).
@@ -137,6 +164,13 @@ internal fun AppMusicShell(
     }
 }
 
+private fun AppNavState.renderedContentTab(): AppTab {
+    val isRecentlyAdded = details.lastOrNull() is LibraryDetail.RecentlyAdded
+    return if (tab == AppTab.Home && details.isNotEmpty() && !isRecentlyAdded) {
+        AppTab.Library(LibraryPage.TRACKS)
+    } else tab
+}
+
 @Composable
 private fun AppBottomBar(
     nav: AppNavState,
@@ -180,6 +214,7 @@ private fun librarySaveKey(tab: AppTab.Library, details: List<LibraryDetail>): S
             is LibraryDetail.Album -> "a"
             is LibraryDetail.Artist -> "r"
             is LibraryDetail.AlbumArtist -> "u"
+            is LibraryDetail.RecentlyAdded -> "n"
         }
         kind + detail.key.length + ":" + detail.key
     }

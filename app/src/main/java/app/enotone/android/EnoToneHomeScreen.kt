@@ -20,6 +20,7 @@ internal fun EnoToneHomeScreen(
     onShuffleAll: () -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
     shuffleEnabled: Boolean = true,
+    recentContent: @Composable () -> Unit = {},
 ) {
     FeatureEnoToneHomeScreen(
         connectedAccount = connectedAccount,
@@ -29,5 +30,6 @@ internal fun EnoToneHomeScreen(
         ids = homeScreenIds,
         contentPadding = contentPadding,
         shuffleEnabled = shuffleEnabled,
+        recentContent = recentContent,
     )
 }

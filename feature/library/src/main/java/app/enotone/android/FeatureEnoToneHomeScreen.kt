@@ -30,9 +30,8 @@ import app.enotone.android.core.ui.theme.EnoColors
 import java.text.NumberFormat
 
 /**
- * «Домой», вариант C2 (D3, макет `09_home`): крупный заголовок и вход в «Настройки» справа,
- * плашка «Перемешать всё · N песен» с Бандитом. Секции «Недавно добавленные» — D4: в базе пока
- * нет даты добавления трека, поэтому их нет и заглушек вместо них тоже нет.
+ * «Домой», вариант C2 (макет `09_home`): заголовок и вход в «Настройки» справа,
+ * плашка «Перемешать всё · N песен» с Бандитом; содержимое D4c передаётся слотом приложения.
  * [songCount] — `null`, пока медиатека не прочитана или пуста: тогда плашки нет.
  */
 @Composable
@@ -44,6 +43,7 @@ fun FeatureEnoToneHomeScreen(
     ids: HomeScreenIds,
     contentPadding: PaddingValues,
     shuffleEnabled: Boolean = true,
+    recentContent: @Composable () -> Unit = {},
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -93,5 +93,6 @@ fun FeatureEnoToneHomeScreen(
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp),
             )
         }
+        recentContent()
     }
 }

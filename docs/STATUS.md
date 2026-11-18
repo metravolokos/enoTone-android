@@ -29,3 +29,11 @@
 - DEPS-01 (#203) остаётся заблокирована до завершения #201 и #179; #202 закрыта после #206. Обновления Dependabot пойдут тремя отдельными шагами.
 - TAG-EDIT (#200) — будущий функционал в backlog, начало только по решению владельца.
 - Остальные действующие ограничения и открытые решения — [KNOWN_ISSUES](KNOWN_ISSUES.md) и [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Статусы отдельных сценариев не копируются сюда и не меняются по результатам CI.
+
+## D4c #201 — «Недавно добавленные»
+
+Draft [PR #205](https://github.com/metravolokos/enoTone-android/pull/205), ветка
+`feature/d4c-recently-added`, rebase base `badfc087d7fd77f23f1bbe9c400edfb139383c77`.
+Реализованы Home-секции и экраны «Все»; восемь Roborazzi эталонов включены в PR.
+Issue #201 имеет статус `state:review`; exact-HEAD CI отслеживается в PR #205.
+Huawei HOME-REC-01…05 не проверены.
