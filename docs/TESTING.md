@@ -76,9 +76,9 @@ D4c (#201) добавляет `RecentlyAddedPlannerTest`, `RecentlyAddedUiTest` 
 `RecentlyAddedScreenshotTest`: планирование датированных строк, скрытие пустых
 секций, навигация и очереди из 5/100 песен. Восемь снимков на макете 09_home
 покрывают обе темы: `home_recent_both_*`, `home_recent_empty_*`,
-`home_recent_all_albums_*` и `home_recent_all_songs_*`. Эталоны записываются
-тем же CI workflow dispatch с `record_roborazzi=true`; до коммита PNG и зелёного
-обычного CI на точном HEAD проверка не считается завершённой.
+`home_recent_all_albums_*` и `home_recent_all_songs_*`. Эталоны записаны через
+CI workflow dispatch с `record_roborazzi=true` и включены в PR #205; exact-HEAD
+CI и Huawei-приёмка отслеживаются отдельно.
 
 D2b добавляет `ComponentsScreenshotTest` (две галереи компонентов в обеих темах), `EnoLetterAvatarTest` (Unicode/grapheme/детерминированность), dual-Preview у каждого компонента. PNG-эталоны D2b: `core/ui/src/test/screenshots/components_graphite.png`, `components_porcelain.png`, записываются тем же `record_roborazzi=true` на stacked-ветке после D2a.
 

@@ -35,4 +35,5 @@
 Draft [PR #205](https://github.com/metravolokos/enoTone-android/pull/205), ветка
 `feature/d4c-recently-added`, rebase base `badfc087d7fd77f23f1bbe9c400edfb139383c77`.
 Реализованы Home-секции и экраны «Все»; восемь Roborazzi эталонов включены в PR.
-После B-1 rebase требуется полный exact-HEAD CI. Huawei HOME-REC-01…05 не проверены.
+Issue #201 имеет статус `state:review`; exact-HEAD CI отслеживается в PR #205.
+Huawei HOME-REC-01…05 не проверены.
