@@ -339,7 +339,8 @@ class NowPlayingUiTest {
             val current = LocalView.current
             SideEffect { hostView = current }
             EnoToneTheme {
-                SideEffect { loadingDotColor = EnoColors.textSecondary }
+                val textSecondary = EnoColors.textSecondary
+                SideEffect { loadingDotColor = textSecondary }
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
                     album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
