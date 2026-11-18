@@ -12,10 +12,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
@@ -43,6 +47,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** Uses transport callbacks, not Media3/network, to verify the rendered controls. */
 @RunWith(RobolectricTestRunner::class)
@@ -326,11 +332,13 @@ class NowPlayingUiTest {
         assertEquals(0.42f, NextTrackLoadingMotion.alpha(1f, 0.42f), 0f)
 
         var hostView: View? = null
+        var loadingDotColor: Color? = null
         rule.mainClock.autoAdvance = false
         rule.setContent {
             val current = LocalView.current
             SideEffect { hostView = current }
             EnoToneTheme {
+                SideEffect { loadingDotColor = EnoColors.textSecondary }
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
                     album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
@@ -357,11 +365,16 @@ class NowPlayingUiTest {
         )
         assertEquals(0f, animatorScale, 0f)
         rule.mainClock.advanceTimeBy(0, ignoreFrameDuration = true)
-        val initial = loadingDotPixel(requireNotNull(hostView))
-        rule.mainClock.advanceTimeByFrame()
-        rule.mainClock.advanceTimeBy(550)
-        val later = loadingDotPixel(requireNotNull(hostView))
-        assertEquals("LOADING remains visually static at animator scale 0", initial, later)
+        val initial = loadingDotPixels(requireNotNull(hostView), loading)
+        rule.mainClock.advanceTimeBy(550, ignoreFrameDuration = true)
+        val later = loadingDotPixels(requireNotNull(hostView), loading)
+        assertEquals("LOADING remains visually static at animator scale 0", initial.dot, later.dot)
+        val textSecondary = requireNotNull(loadingDotColor)
+        val expectedDot = textSecondary
+            .copy(alpha = textSecondary.alpha * NextTrackLoadingMotion.REDUCED_MOTION_ALPHA)
+            .compositeOver(Color(later.adjacentBackground))
+            .toArgb()
+        assertPixelNear("LOADING pixel should render at alpha 0.6", expectedDot, later.dot)
     }
 
     @Test fun loadingDotPulsesAtNormalSystemAnimationScale() = withAnimatorDurationScale(1f) {
@@ -397,14 +410,13 @@ class NowPlayingUiTest {
         )
         assertEquals(1f, animatorScale, 0f)
         rule.mainClock.advanceTimeBy(0, ignoreFrameDuration = true)
-        val atStart = loadingDotPixel(requireNotNull(hostView))
-        rule.mainClock.advanceTimeByFrame()
-        rule.mainClock.advanceTimeBy(550)
-        val afterHalfPeriod = loadingDotPixel(requireNotNull(hostView))
+        val atStart = loadingDotPixels(requireNotNull(hostView), loading)
+        rule.mainClock.advanceTimeBy(550, ignoreFrameDuration = true)
+        val afterHalfPeriod = loadingDotPixels(requireNotNull(hostView), loading)
         assertTrue(
-            "LOADING dot should change pixels from 0x${Integer.toHexString(atStart)} to " +
-                "0x${Integer.toHexString(afterHalfPeriod)} at 550 ms",
-            atStart != afterHalfPeriod,
+            "LOADING dot should change pixels from 0x${Integer.toHexString(atStart.dot)} to " +
+                "0x${Integer.toHexString(afterHalfPeriod.dot)} at 550 ms",
+            atStart.dot != afterHalfPeriod.dot,
         )
     }
 
@@ -479,20 +491,42 @@ class NowPlayingUiTest {
         }
     }
 
-    private fun loadingDotPixel(view: View): Int {
-        val bounds = rule.onNodeWithContentDescription(
-            context.getString(R.string.now_playing_next_loading),
-        ).fetchSemanticsNode().boundsInRoot
-        var pixel = 0
+    private data class LoadingDotPixels(val dot: Int, val adjacentBackground: Int)
+
+    private fun loadingDotPixels(
+        view: View,
+        node: SemanticsNodeInteraction,
+    ): LoadingDotPixels {
+        val bounds = node.fetchSemanticsNode().boundsInRoot
+        var pixels: LoadingDotPixels? = null
         rule.runOnIdle {
             val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
             try {
                 view.draw(Canvas(bitmap))
-                pixel = bitmap.getPixel(bounds.center.x.toInt(), bounds.center.y.toInt())
+                pixels = LoadingDotPixels(
+                    dot = bitmap.getPixel(bounds.center.x.roundToInt(), bounds.center.y.roundToInt()),
+                    adjacentBackground = bitmap.getPixel(
+                        (bounds.right + 2f).roundToInt(),
+                        bounds.center.y.roundToInt(),
+                    ),
+                )
             } finally {
                 bitmap.recycle()
             }
         }
-        return pixel
+        return requireNotNull(pixels)
+    }
+
+    private fun assertPixelNear(message: String, expected: Int, actual: Int) {
+        val differences = listOf(
+            abs(android.graphics.Color.red(expected) - android.graphics.Color.red(actual)),
+            abs(android.graphics.Color.green(expected) - android.graphics.Color.green(actual)),
+            abs(android.graphics.Color.blue(expected) - android.graphics.Color.blue(actual)),
+        )
+        assertTrue(
+            "$message: expected=0x${Integer.toHexString(expected)}, " +
+                "actual=0x${Integer.toHexString(actual)}",
+            differences.all { it <= 1 },
+        )
     }
 }
