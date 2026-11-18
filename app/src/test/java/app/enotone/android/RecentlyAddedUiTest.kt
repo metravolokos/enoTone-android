@@ -9,7 +9,9 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
+import kotlin.random.Random
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,6 +28,7 @@ class RecentlyAddedUiTest {
         var selected: OfflineTrackRow? = null
         var selectedContext: List<OfflineTrackRow> = emptyList()
         var shuffledContext: List<OfflineTrackRow> = emptyList()
+        var shuffleCalls = 0
 
         override fun onTrackClicked(track: OfflineTrackRow, context: List<OfflineTrackRow>) {
             selected = track
@@ -35,6 +38,7 @@ class RecentlyAddedUiTest {
         override fun onShuffleTracks(track: OfflineTrackRow, context: List<OfflineTrackRow>) {
             selected = track
             shuffledContext = context
+            shuffleCalls++
         }
     }
 
@@ -186,6 +190,38 @@ class RecentlyAddedUiTest {
         rule.runOnIdle { assertEquals(100, actions.selectedContext.size) }
         rule.onNodeWithText(context.getString(R.string.library_shuffle_all)).performClick()
         rule.runOnIdle { assertEquals(100, actions.shuffledContext.size) }
+    }
+
+    @Test fun allSongsShufflePassesTheSameTracksInSeededRandomOrder() {
+        val actions = RecordingActions()
+        val shuffleSeed = 205
+        val sourceTracks = libraryState.recentlyAddedTracks.take(100)
+        val sourceIds = sourceTracks.map { it.id }
+        val expectedShuffledIds = sourceTracks.shuffled(Random(shuffleSeed)).map { it.id }
+        rule.setContent {
+            EnoToneTheme {
+                RecentlyAddedScreen(
+                    kind = RecentlyAddedKind.TRACKS,
+                    state = libraryState,
+                    actions = actions,
+                    artworkRepository = ArtworkPreviewRepository(context),
+                    accountEmail = "",
+                    appPassword = "connected-password",
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(),
+                    onOpenDetail = {},
+                    shuffleRandom = Random(shuffleSeed),
+                )
+            }
+        }
+        rule.onNodeWithText(context.getString(R.string.library_shuffle_all)).performClick()
+        rule.runOnIdle {
+            val shuffledIds = actions.shuffledContext.map { it.id }
+            assertEquals(1, actions.shuffleCalls)
+            assertEquals(sourceIds.size, shuffledIds.size)
+            assertEquals(sourceIds.toSet(), shuffledIds.toSet())
+            assertEquals(expectedShuffledIds, shuffledIds)
+            assertNotEquals(sourceIds, shuffledIds)
+        }
     }
 
     @Test fun homeHidesEmptySectionsAndRetainsShuffleCard() {

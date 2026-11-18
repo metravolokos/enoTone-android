@@ -35,6 +35,7 @@ import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
 import java.text.NumberFormat
+import kotlin.random.Random
 import androidx.compose.foundation.lazy.grid.items as gridItems
 
 @Composable
@@ -48,6 +49,7 @@ internal fun RecentlyAddedScreen(
     appPassword: String,
     contentPadding: PaddingValues,
     onOpenDetail: (LibraryDetail) -> Unit,
+    shuffleRandom: Random = Random.Default,
 ) {
     val albums = state?.recentlyAddedAlbums.orEmpty()
         .take(RecentlyAddedPlanner.ALL_ALBUMS_LIMIT)
@@ -69,7 +71,8 @@ internal fun RecentlyAddedScreen(
                 tracks.firstOrNull()?.let { actions.onTrackClicked(it, tracks) }
             },
             onShuffle = {
-                tracks.firstOrNull()?.let { actions.onShuffleTracks(it, tracks) }
+                val shuffled = tracks.shuffled(shuffleRandom)
+                shuffled.firstOrNull()?.let { actions.onShuffleTracks(it, shuffled) }
             },
         )
         when {
