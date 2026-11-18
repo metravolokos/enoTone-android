@@ -12,6 +12,14 @@ Media3 мог создать период по старому timeline посл�
 
 `WebDavMedia3DataSourceFactoryTest.truncatedRoutePeriodIsIgnoredWithoutChangingOtherReferences` падал до исправления с `IllegalStateException` в `createPeriod` и проходит после него. CI #1043 прошёл на exact HEAD `17170365cd3ef43f7e7ab728475855603a9b9f47`; PR #206 слит в `main` 2026-11-18.
 
+# CHANGELOG
+
+## DOC-02 — актуализация оперативной документации (PR #207, Issue #190, 2026-11-18)
+
+- Срез и статусы документов синхронизированы с `main` `febbea3`; отмечены слияния #187/#189/#194/#196/#198/#199/#206 и закрытия связанных Issues, включая #202 после PR #206.
+- Записаны решения по #188, очереди Q1/Q2, TAG-EDIT и DEPS-01; добавлены открытые вопросы #200/#201 и правила WORKFLOW для общих журналов.
+- Только Markdown; Huawei не требуется, дизайн не менялся.
+
 ## R-A1 — релизная сборка в CI (PR #198 слит, Issue #197 закрыта)
 
 `isMinifyEnabled = true` стоит в `debug`, `release` и `stablePreview` (последний наследует `release` через `initWith`, то есть канал приёмки тоже минифицируется), поэтому R8 и до R-A1 запускался: для `debug` — задачей `:app:minifyDebugWithR8` внутри `assembleDebug`, для `stablePreview` — при каждом пуше в `main`. Новым стал не сам факт работы R8, а **блокирующая проверка варианта `release`** с `isShrinkResources = true` на каждом PR, отчёты R8 и ворота по `Missing class`. Теперь job `android` выполняет шаг `Release build (minified, unsigned)`: он падает, если APK отсутствует, если задача `:app:minifyReleaseWithR8` не выполнялась, если нет отчётов R8 (`mapping.txt`, `seeds.txt`, `usage.txt`, `configuration.txt`) или если в логе встречается `Missing class`. Артефакт `enotone-release-unsigned-apk` публикуется с `if-no-files-found: error` и явной пометкой «не подписан и не является дистрибутивом»; установка и запуск на устройстве — предмет R-A3.
