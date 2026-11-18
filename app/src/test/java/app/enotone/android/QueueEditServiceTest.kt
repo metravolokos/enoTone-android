@@ -1,11 +1,20 @@
 package app.enotone.android
 
 import android.content.Context
+import android.net.Uri
 import android.os.Looper
+import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.TransferListener
 import androidx.test.core.app.ApplicationProvider
 import app.enotone.playback.EnoTonePlaybackService
 import app.enotone.playback.PersistedQueueState
+import app.enotone.playback.PlaybackQueueSnapshot
+import app.enotone.playback.PreviewAudioPlayback
 import app.enotone.playback.QueueEditSource
 import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueStateFileStore
@@ -18,7 +27,12 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import org.robolectric.annotation.Config
+import java.io.InterruptedIOException
+import java.time.Duration
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** Real Media3 timeline and no-network paused restoration; UI belongs to 8b. */
 @RunWith(RobolectricTestRunner::class)
@@ -53,9 +67,13 @@ class QueueEditServiceTest {
                 assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
                     (1..3).map(::track), initial, false, false))
                 assertEquals(id(1), service.player.currentMediaItem?.mediaId)
+                assertEquals(PlaybackQueueSnapshot((1..3).map(::id), currentIndex = 0),
+                    service.queueSnapshot)
                 assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(4))).status)
                 assertEquals(14_000L, service.player.currentPosition)
                 assertEquals(Player.REPEAT_MODE_OFF, service.player.repeatMode)
+                assertEquals(PlaybackQueueSnapshot(listOf(id(1), id(4), id(2), id(3)), 0),
+                    service.queueSnapshot)
                 assertEquals(listOf(id(1), id(4), id(2), id(3)),
                     (0 until service.player.mediaItemCount).map {
                         service.player.getMediaItemAt(it).mediaId
@@ -63,6 +81,8 @@ class QueueEditServiceTest {
                 // The native MediaSession/headphone Next must follow the edited timeline.
                 service.player.seekToNextMediaItem()
                 assertEquals(id(4), service.player.currentMediaItem?.mediaId)
+                assertEquals(PlaybackQueueSnapshot(listOf(id(1), id(4), id(2), id(3)), 1),
+                    service.queueSnapshot)
             }
             val persisted = waitForRevision(fileStore, initial.queueRevision)
             assertEquals(QueueEditSource.edited(initial.sourceKey), persisted.sourceKey)
@@ -137,6 +157,205 @@ class QueueEditServiceTest {
         }
     }
 
+    @Test fun snapshotUsesShuffleTraversalAndQueueSelectionPlaysThatPosition() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val initial = checkpoint().copy(
+            shuffleEnabled = true,
+            shuffledIndices = intArrayOf(2, 0, 1),
+        )
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    (1..3).map(::track), initial, false, false))
+                assertEquals(
+                    PlaybackQueueSnapshot(listOf(id(3), id(1), id(2)), currentIndex = 1),
+                    service.queueSnapshot,
+                )
+                // Tapping the selected row is an explicit no-op.
+                assertTrue(service.skipToQueuePosition(1))
+                assertEquals(id(1), service.player.currentMediaItem?.mediaId)
+                assertTrue(service.skipToQueuePosition(0))
+                assertEquals(id(3), service.player.currentMediaItem?.mediaId)
+                assertEquals(PlaybackQueueSnapshot(listOf(id(3), id(1), id(2)), 0),
+                    service.queueSnapshot)
+                assertTrue(service.player.playWhenReady)
+                assertTrue(!service.skipToQueuePosition(3))
+            }
+        } finally {
+            onMain { controller.destroy() }
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun selectingAnUnstagedTrackKeepsTheFullQueueWithoutDuplicates() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val queue = (0 until 100).map(::track)
+        val initial = PersistedQueueState(
+            trackIds = queue.map { it.id },
+            selectedTrackId = id(0),
+            positionMs = 0L,
+            repeatMode = Player.REPEAT_MODE_OFF,
+            shuffleEnabled = false,
+            shuffledIndices = null,
+            sourceKey = id(99),
+            savedAtEpochMs = 1L,
+            queueRevision = UUID.randomUUID().toString(),
+        )
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    queue, initial, false, false))
+                assertEquals(3, service.loadedQueueSize)
+                assertTrue(service.skipToQueuePosition(70))
+                Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+                val loadedIds = (0 until service.player.mediaItemCount).map {
+                    service.player.getMediaItemAt(it).mediaId
+                }
+                assertTrue(service.player.mediaItemCount > 70)
+                assertEquals(queue.map { it.id }.take(service.player.mediaItemCount), loadedIds)
+                assertEquals(id(70), service.player.currentMediaItem?.mediaId)
+                assertEquals(PlaybackQueueSnapshot(queue.map { it.id }, 70), service.queueSnapshot)
+            }
+        } finally {
+            onMain { controller.destroy() }
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun readdingAnEvictedPlayedTrackKeepsTheRouteAndPersistsTheQueue() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = QueueStateFileStore(context)
+        store.clear()
+        val queue = (1..100).map(::track)
+        val initial = PersistedQueueState(
+            trackIds = queue.map { it.id },
+            selectedTrackId = id(2),
+            positionMs = 0L,
+            repeatMode = Player.REPEAT_MODE_OFF,
+            shuffleEnabled = false,
+            shuffledIndices = null,
+            sourceKey = id(99),
+            savedAtEpochMs = 1L,
+            queueRevision = UUID.randomUUID().toString(),
+        )
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    queue, initial, false, false))
+                assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(101))).status)
+                assertEquals(100, service.queueSize)
+                assertEquals(id(2), service.player.currentMediaItem?.mediaId)
+                assertEquals(id(101), service.queueSnapshot?.trackIds?.get(1))
+
+                // Once the new track is current, song 1 is still known as the
+                // evicted, previously played history item.
+                service.player.seekToNextMediaItem()
+                assertEquals(id(101), service.player.currentMediaItem?.mediaId)
+                assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(1))).status)
+                assertEquals(100, service.queueSize)
+                assertEquals(id(101), service.player.currentMediaItem?.mediaId)
+                assertEquals(id(1), service.queueSnapshot?.trackIds?.get(1))
+            }
+            val saved = waitForLayout(store, initial.queueRevision, id(101))
+            assertEquals(100, saved.trackIds.size)
+            assertEquals(id(101), saved.selectedTrackId)
+            assertEquals(id(1), saved.trackIds[1])
+            assertEquals(QueueEditSource.edited(initial.sourceKey), saved.sourceKey)
+        } finally {
+            onMain { controller.destroy() }
+            store.clear()
+        }
+    }
+
+    @Test fun aBufferingPlayerStagesAndStartsAnUnloadedQueueTargetWithoutExtraGets() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val queue = (0 until 100).map(::track)
+        val source = BlockingDataSourceFactory()
+        BufferingService.dataSourceFactory = source
+        val controller = onMain { Robolectric.buildService(BufferingService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                service.playQueue("test@example.invalid", "fixture-password", queue,
+                    id(0), false, id(99))
+            }
+            assertTrue("current source should begin", source.awaitOpenCount(1))
+            assertEquals(1, source.openedUris.size)
+            onMain {
+                assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
+                assertTrue(service.skipToQueuePosition(99))
+                Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(5))
+            }
+            assertTrue("selected source should start before current becomes READY", source.awaitOpenCount(2))
+            onMain {
+                assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
+                assertEquals(id(99), service.player.currentMediaItem?.mediaId)
+                assertEquals(100, service.loadedQueueSize)
+                assertEquals(PlaybackQueueSnapshot(queue.map { it.id }, 99), service.queueSnapshot)
+            }
+            assertEquals("only the current item and selected target may open", 2, source.openedUris.size)
+            assertTrue(source.openedUris[0].endsWith("/0.mp3"))
+            assertTrue(source.openedUris[1].endsWith("/99.mp3"))
+        } finally {
+            source.release.countDown()
+            onMain { controller.destroy() }
+            BufferingService.dataSourceFactory = null
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun manualNextPreviousAndSeekCancelADeferredQueueTargetDuringBuffering() {
+        for ((action, expectedIndex) in listOf(
+            "next" to 51,
+            "previous" to 49,
+            "seek" to 50,
+        )) {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            QueueStateFileStore(context).clear()
+            val queue = (0 until 100).map(::track)
+            val source = BlockingDataSourceFactory()
+            BufferingService.dataSourceFactory = source
+            val controller = onMain { Robolectric.buildService(BufferingService::class.java).create() }
+            try {
+                val service = controller.get()
+                onMain {
+                    service.playQueue("test@example.invalid", "fixture-password", queue,
+                        id(50), false, id(99))
+                }
+                assertTrue("current source should begin", source.awaitOpenCount(1))
+                onMain {
+                    assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
+                    assertTrue(service.skipToQueuePosition(99))
+                    Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(40))
+                    when (action) {
+                        "next" -> service.playNext()
+                        "previous" -> service.playPrevious()
+                        else -> service.player.seekTo(10_000L)
+                    }
+                    Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(5))
+                    assertEquals("$action must cancel the queued target", id(expectedIndex),
+                        service.player.currentMediaItem?.mediaId)
+                }
+                assertTrue("$action must not open the deferred target",
+                    source.openedUris.none { it.endsWith("/99.mp3") })
+            } finally {
+                source.release.countDown()
+                onMain { controller.destroy() }
+                BufferingService.dataSourceFactory = null
+                QueueStateFileStore(context).clear()
+            }
+        }
+    }
+
     private fun <T> onMain(block: () -> T): T {
         var outcome: Result<T>? = null
         Shadows.shadowOf(Looper.getMainLooper()).runPaused {
@@ -156,5 +375,62 @@ class QueueEditServiceTest {
             Thread.sleep(20L)
         }
         error("New queue layout was not written")
+    }
+
+    private fun waitForLayout(
+        store: QueueStateFileStore,
+        old: String,
+        selectedId: String,
+    ): PersistedQueueState {
+        repeat(100) {
+            Shadows.shadowOf(Looper.getMainLooper()).idle()
+            val saved = store.read()
+            if (saved != null && saved.queueRevision != old && saved.selectedTrackId == selectedId) {
+                if (saved.trackIds.size == 100 && saved.trackIds.getOrNull(1) == id(1)) return saved
+            }
+            Thread.sleep(20L)
+        }
+        error("Updated queue layout was not written")
+    }
+
+    private class BlockingDataSourceFactory : DataSource.Factory {
+        val openedUris = CopyOnWriteArrayList<String>()
+        private val firstOpen = CountDownLatch(1)
+        val release = CountDownLatch(1)
+
+        override fun createDataSource(): DataSource = object : DataSource {
+            override fun addTransferListener(transferListener: TransferListener) = Unit
+            override fun open(dataSpec: DataSpec): Long {
+                openedUris += dataSpec.uri.toString()
+                firstOpen.countDown()
+                try {
+                    release.await(20, TimeUnit.SECONDS)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw InterruptedIOException("fixture source interrupted")
+                }
+                return 1_024L
+            }
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int = C.RESULT_END_OF_INPUT
+            override fun getUri(): Uri? = null
+            override fun getResponseHeaders(): Map<String, List<String>> = emptyMap()
+            override fun close() = Unit
+        }
+
+        fun awaitOpenCount(count: Int): Boolean {
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (openedUris.size < count && System.nanoTime() < deadline) Thread.sleep(5L)
+            return openedUris.size >= count
+        }
+    }
+
+    private class BufferingService : EnoTonePlaybackService() {
+        @OptIn(UnstableApi::class)
+        override fun createPlayback(): PreviewAudioPlayback =
+            PreviewAudioPlayback(this, requireNotNull(dataSourceFactory))
+
+        companion object {
+            @Volatile var dataSourceFactory: DataSource.Factory? = null
+        }
     }
 }

@@ -366,6 +366,7 @@ internal class PlayerViewModel(
     fun onPlayPause() = connection.playPause()
     fun onNext() = connection.playNext()
     fun onPrevious() = connection.playPrevious()
+    fun onQueuePositionSelected(position: Int) = connection.skipToQueuePosition(position)
     fun onShuffle() = connection.toggleShuffle()
     fun onRepeat() = connection.cycleRepeatMode()
     fun onSeek(fraction: Float) = connection.seekToFraction(fraction)

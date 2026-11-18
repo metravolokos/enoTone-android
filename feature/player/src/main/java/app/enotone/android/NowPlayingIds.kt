@@ -42,6 +42,7 @@ data class NowPlayingIds(
     val playbackShuffleOn: Int,
     val playbackShuffleOff: Int,
     val nowPlayingQueueShort: Int,
+    val nowPlayingQueueDescription: Int,
     val playbackRepeatControl: Int,
     val nowPlayingSeekKnown: Int,
     val nowPlayingSeekUnknown: Int,

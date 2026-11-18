@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -95,7 +96,7 @@ import kotlin.math.roundToInt
 
 /**
  * Material 3 Expressive / Graphite player. No artwork-sourced colors, fake
- * quality indicators, favorites, lyrics, cast, queue sheet or disabled icons.
+ * quality indicators, favorites, lyrics, cast or disabled icons.
  * All visible actions call the existing Media3 service. No in-app volume
  * control: system volume keys only (owner decision 2026-11-12, REQUIREMENTS O-12).
  */
@@ -133,6 +134,7 @@ fun FeatureNowPlayingScreen(
     onToggleShuffle: () -> Unit,
     ids: NowPlayingIds,
     onMore: () -> Unit,
+    onOpenQueue: () -> Unit = {},
 ) {
     val color = MaterialTheme.colorScheme
     val nowPlayingPaneTitle = stringResource(ids.nowPlayingTitle)
@@ -540,12 +542,24 @@ fun FeatureNowPlayingScreen(
                     onClick = onToggleShuffle,
                 )
                 if (queueTotal > 0) {
-                    Text(
-                        stringResource(ids.nowPlayingQueueShort,
-                            queuePosition, queueTotal),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = color.onSurfaceVariant,
+                    val queueText = stringResource(
+                        ids.nowPlayingQueueShort, queuePosition, queueTotal,
                     )
+                    val queueDescription = stringResource(
+                        ids.nowPlayingQueueDescription, queuePosition, queueTotal,
+                    )
+                    Box(
+                        modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                            .clickable(enabled = controlsEnabled, role = Role.Button, onClick = onOpenQueue)
+                            .semantics { contentDescription = queueDescription },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            queueText,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = color.onSurfaceVariant,
+                        )
+                    }
                 }
                 NowPlayingToggle(
                     icon = if (repeatMode == Player.REPEAT_MODE_ONE) EnoIcons.REPEAT_ONE else EnoIcons.REPEAT,

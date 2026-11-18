@@ -67,6 +67,7 @@ class PlayerViewModelTest {
         var plays = 0
         var restores = 0
         var lastRestored: PersistedQueueState? = null
+        var lastQueue: List<QueueTrack> = emptyList()
         var lastFiltered = false
         fun emit(snapshot: PlaybackSnapshot) { snapshots.value = snapshot }
         override fun connect() { connects++ }
@@ -78,6 +79,7 @@ class PlayerViewModelTest {
             saved: PersistedQueueState, useCache: Boolean, filtered: Boolean): Boolean {
             restores++
             lastRestored = saved
+            lastQueue = queue
             lastFiltered = filtered
             snapshots.value = snapshots.value.copy(
                 queueTotal = queue.size,
@@ -194,6 +196,47 @@ class PlayerViewModelTest {
             assertTrue(connection.lastFiltered)
             assertEquals(0, connection.plays)
             assertEquals("PAUSED", model.state.value.playback.playbackState)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun legacy3647TrackCheckpointIsWindowedAndMarkedForImmediateRewrite() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val ids = (1..3_647).map(::id)
+            val snapshot = LibrarySnapshot(
+                ids.mapIndexed { index, trackId ->
+                    OfflineTrackRow(id = trackId, title = "Track $index", artist = "Artist", album = "Album")
+                },
+                ids.associateWith { trackId ->
+                    QueueTrack(trackId, "Track", "/AllMusic/$trackId.mp3", 100L, null)
+                },
+            )
+            val source = LibrarySnapshotPlanner.accountKey(email)
+            val repo = Repo(snapshot).apply {
+                checkpoint = PersistedQueueState(
+                    trackIds = ids,
+                    selectedTrackId = ids[1_823],
+                    positionMs = 42_321L,
+                    repeatMode = Player.REPEAT_MODE_ALL,
+                    shuffleEnabled = false,
+                    shuffledIndices = null,
+                    sourceKey = source,
+                    savedAtEpochMs = 123L,
+                    queueRevision = "01234567-89ab-cdef-0123-456789abcdef",
+                )
+            }
+            val connection = Connection()
+            PlayerViewModel(connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true })
+            advanceUntilIdle()
+
+            assertEquals(1, connection.restores)
+            assertEquals(100, connection.lastQueue.size)
+            assertEquals(ids[1_823], connection.lastRestored?.selectedTrackId)
+            assertEquals(42_321L, connection.lastRestored?.positionMs)
+            assertEquals(Player.REPEAT_MODE_ALL, connection.lastRestored?.repeatMode)
+            assertTrue(connection.lastFiltered)
         } finally { Dispatchers.resetMain() }
     }
 

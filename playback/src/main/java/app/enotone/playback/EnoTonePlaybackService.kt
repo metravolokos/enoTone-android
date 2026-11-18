@@ -17,7 +17,7 @@ import java.util.concurrent.Executors
  * Media3 owns the playlist. Only hashed IDs and numeric state are checkpointed.
  * Queue layout and small position writes run on one serialized I/O executor.
  */
-class EnoTonePlaybackService : MediaSessionService() {
+open class EnoTonePlaybackService : MediaSessionService() {
     private lateinit var playback: PreviewAudioPlayback
     private lateinit var session: MediaSession
     private val localBinder = LocalBinder()
@@ -51,6 +51,7 @@ class EnoTonePlaybackService : MediaSessionService() {
 
     private val persistenceListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            playback.queueNavigation.onMediaItemTransition(reason)
             if (!queueMutation && mediaItem != null) savePosition(urgent = true)
         }
 
@@ -69,6 +70,7 @@ class EnoTonePlaybackService : MediaSessionService() {
             newPosition: Player.PositionInfo,
             reason: Int,
         ) {
+            if (PlaybackSeekPolicy.isUserSeek(reason)) playback.queueNavigation.onPositionDiscontinuity(reason)
             if (!queueMutation && PlaybackSeekPolicy.isUserSeek(reason)) savePosition(urgent = true)
         }
     }
@@ -173,7 +175,7 @@ class EnoTonePlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        playback = PreviewAudioPlayback(this)
+        playback = createPlayback()
         // Каталог до 512 МиБ и SQLite: готовим в фоне, иначе первый playQueue
         // блокировал главный поток (A-13), а сбой кэша блокировал музыку (A-14).
         playback.prepareTransientCache()
@@ -193,6 +195,9 @@ class EnoTonePlaybackService : MediaSessionService() {
         session = builder.build()
         addSession(session)
     }
+
+    /** Construction seam for deterministic service tests with local data sources. */
+    protected open fun createPlayback(): PreviewAudioPlayback = PreviewAudioPlayback(this)
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession = session
 
@@ -247,6 +252,7 @@ class EnoTonePlaybackService : MediaSessionService() {
     val hasPrevious: Boolean get() = playback.player.hasPreviousMediaItem()
     val queueSize: Int get() = playback.logicalQueueSize
     val queuePosition: Int get() = playback.logicalQueuePosition
+    val queueSnapshot: PlaybackQueueSnapshot? get() = playback.queueSnapshot()
     val loadedQueueSize: Int get() = playback.loadedQueueSize
     val currentTrackFullyCached: Boolean get() = playback.currentTrackFullyCached
     val displayDurationMs: Long get() = playback.displayDurationMs
@@ -255,6 +261,7 @@ class EnoTonePlaybackService : MediaSessionService() {
     fun handoffSnapshot(): HandoffSnapshot? = playback.handoffSnapshot()
 
     fun playNext() {
+        playback.queueNavigation.clearPendingSeek()
         if (hasNext) {
             playback.noteNextButton()
             playback.player.seekToNextMediaItem()
@@ -263,12 +270,16 @@ class EnoTonePlaybackService : MediaSessionService() {
     }
 
     fun playPrevious() {
+        playback.queueNavigation.clearPendingSeek()
         if (hasPrevious) {
             playback.notePreviousButton()
             playback.player.seekToPreviousMediaItem()
             playback.resumeAfterManualSkip()
         }
     }
+
+    /** Select an item by its visible position in the full playback-order queue. */
+    fun skipToQueuePosition(position: Int): Boolean = playback.skipToQueuePosition(position)
 
     fun cacheSnapshot(): TransientCacheStatus = playback.cacheSnapshot()
     fun nextCacheSnapshot(): TransientCacheStatus = playback.nextCacheSnapshot()
@@ -294,6 +305,7 @@ class EnoTonePlaybackService : MediaSessionService() {
         if (!player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) return false
         val target = PlaybackSeekPolicy.positionForFraction(player.duration, fraction)
             ?: return false
+        playback.queueNavigation.clearPendingSeek()
         player.seekTo(target)
         return true
     }

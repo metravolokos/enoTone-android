@@ -1,9 +1,12 @@
 package app.enotone.playback
 
 import org.junit.Assert.*
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class PersistedQueueStateTest {
+    @get:Rule val folder = TemporaryFolder()
     private fun id(n: Int) = n.toString(16).padStart(64, '0')
     private val revision = "01234567-89ab-cdef-0123-456789abcdef"
     private fun state(
@@ -59,7 +62,7 @@ class PersistedQueueStateTest {
     @Test fun durationIsDroppedWhenTheSelectedTrackDisappeared() {
         val s = state().copy(durationMs = 228_000L)
         val filtered = QueueStateRestorer.filter(s, setOf(id(1), id(2), id(4)))!!
-        assertEquals(id(4), filtered.selectedTrackId)
+        assertEquals(id(1), filtered.selectedTrackId)
         assertEquals(0L, filtered.durationMs)
     }
 
@@ -129,7 +132,7 @@ class PersistedQueueStateTest {
     @Test fun missingCurrentUsesNextSurvivingTrackAtZero() {
         val filtered = QueueStateRestorer.filter(state(), setOf(id(1), id(2), id(4)))!!
         assertEquals(listOf(id(1), id(2), id(4)), filtered.trackIds)
-        assertEquals(id(4), filtered.selectedTrackId)
+        assertEquals(id(1), filtered.selectedTrackId)
         assertEquals(0L, filtered.positionMs)
     }
 
@@ -163,11 +166,11 @@ class PersistedQueueStateTest {
         assertEquals(0L, throttle.delayMs())
     }
 
-    @Test fun queueOf3590UsesOnlyFiveSynchronousSeedItems() {
-        val tracks = (1..3590).map { index ->
+    @Test fun queueOfOneHundredUsesOnlyFiveSynchronousSeedItems() {
+        val tracks = (1..PlaybackQueue.MAX_TRACKS).map { index ->
             QueueTrack(id(index), "Track $index", "/AllMusic/$index.mp3", 1024L, null)
         }
-        val selected = id(1700)
+        val selected = id(51)
         // Warm up the pure JVM planner; Media3 time is reported on Huawei separately.
         repeat(3) { StagedPlaylistPlan.create(PlaybackQueue.create(tracks, selected)) }
         val startNs = System.nanoTime()
@@ -184,6 +187,74 @@ class PersistedQueueStateTest {
             else ordered.addAll(chunk.items)
         }
         assertEquals(tracks.map { it.id }, ordered.map { it.id })
+    }
+
+    private fun legacyLargeQueue(shuffle: Boolean, selectedIndex: Int = 1_823): PersistedQueueState {
+        val ids = (1..3_647).map(::id)
+        val permutation = if (shuffle) IntArray(ids.size) { ids.lastIndex - it } else null
+        return PersistedQueueState(
+            trackIds = ids,
+            selectedTrackId = ids[selectedIndex],
+            positionMs = 42_321L,
+            repeatMode = 2,
+            shuffleEnabled = shuffle,
+            shuffledIndices = permutation,
+            sourceKey = id(99_999),
+            savedAtEpochMs = 1_700_000_000_000L,
+            queueRevision = revision,
+            durationMs = 240_000L,
+        )
+    }
+
+    private fun rewriteLegacyQueue(state: PersistedQueueState): PersistedQueueState {
+        val store = QueueStateFileStore.inDirectory(folder.newFolder())
+        // Simulate the v1 pair on disk before the runtime queue cap was 100.
+        store.writeLayoutAndPosition(state.layout(), state.position())
+        val diskState = store.read()!!
+        assertEquals(3_647, diskState.trackIds.size)
+        val reduced = QueueStateRestorer.filter(diskState, diskState.trackIds.toSet())!!
+        assertEquals(PlaybackQueue.MAX_TRACKS, reduced.trackIds.size)
+        assertEquals(state.selectedTrackId, reduced.selectedTrackId)
+        assertEquals(state.positionMs, reduced.positionMs)
+        assertEquals(state.repeatMode, reduced.repeatMode)
+        assertEquals(state.shuffleEnabled, reduced.shuffleEnabled)
+        val rewrittenRevision = "11111111-2222-3333-4444-555555555555"
+        store.writeLayoutAndPosition(
+            reduced.layout().copy(queueRevision = rewrittenRevision),
+            reduced.position().copy(queueRevision = rewrittenRevision),
+        )
+        val rewritten = store.read()!!
+        assertEquals(PlaybackQueue.MAX_TRACKS, rewritten.trackIds.size)
+        assertEquals(state.selectedTrackId, rewritten.selectedTrackId)
+        assertEquals(state.positionMs, rewritten.positionMs)
+        assertEquals(state.repeatMode, rewritten.repeatMode)
+        assertEquals(state.shuffleEnabled, rewritten.shuffleEnabled)
+        return rewritten
+    }
+
+    @Test fun legacy3647QueueRestoresAroundCurrentAndImmediatelyRewritesNormalFile() {
+        val state = legacyLargeQueue(shuffle = false)
+        val restored = rewriteLegacyQueue(state)
+        assertEquals((1_824..1_923).map(::id), restored.trackIds)
+        assertEquals(0, restored.trackIds.indexOf(restored.selectedTrackId))
+        // At the beginning the window proceeds forward; at the end it pads from history.
+        val beginning = QueueStateRestorer.filter(state.copy(selectedTrackId = id(1)), state.trackIds.toSet())!!
+        val ending = QueueStateRestorer.filter(state.copy(selectedTrackId = id(3_647)), state.trackIds.toSet())!!
+        assertEquals((1..100).map(::id), beginning.trackIds)
+        assertEquals((3_548..3_647).map(::id), ending.trackIds)
+        assertEquals(99, ending.trackIds.indexOf(ending.selectedTrackId))
+    }
+
+    @Test fun legacy3647ShuffleRestoresPlaybackWindowAndImmediatelyRewritesFile() {
+        val state = legacyLargeQueue(shuffle = true)
+        val rewritten = rewriteLegacyQueue(state)
+        val playbackOrder = rewritten.shuffledIndices!!.map { rewritten.trackIds[it] }
+        val oldPlaybackOrder = state.shuffledIndices!!.map { state.trackIds[it] }
+        val selectedIndex = oldPlaybackOrder.indexOf(state.selectedTrackId)
+        assertEquals(oldPlaybackOrder.drop(selectedIndex).take(100), playbackOrder)
+        assertEquals(state.selectedTrackId, playbackOrder.first())
+        assertEquals(100, rewritten.trackIds.size)
+        assertEquals(100, rewritten.shuffledIndices!!.toSet().size)
     }
 
     /**

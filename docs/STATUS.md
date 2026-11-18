@@ -3,7 +3,7 @@
 
 > Короткий оперативный срез, а не журнал и не очередь отдельных задач. При обновлении заменять старое. История — [archive](archive/), подробные изменения — [CHANGELOG](../CHANGELOG.md), статусы задач — в GitHub Issues по [WORKFLOW](WORKFLOW.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-**Срез:** 2026-11-17 · `main` `13496579844621f8732b339c28976f829e07407f` · версия `0.6.2`. Главный репозиторий содержит исправление F-02 — PR [#185](https://github.com/metravolokos/enoTone-android/pull/185) слит (squash `f42213bf`). D5-C — [PR #183](https://github.com/metravolokos/enoTone-android/pull/183) **слит** 2026-11-17 (squash `61ced66`), документация DOC-01 — [PR #187](https://github.com/metravolokos/enoTone-android/pull/187) слит (squash `d4b88ebe`), восстановленный плеер #188 — [PR #189](https://github.com/metravolokos/enoTone-android/pull/189) слит (squash `13496579`). Находка F-01 закрывается в ветке `test/f-01-migration-helper-windows` ([Issue #191](https://github.com/metravolokos/enoTone-android/issues/191), [ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md)).
+**Срез:** 2026-11-18 · `main` `a0c912b5d942fc4825ac618e3582f569387fb82b` · версия `0.6.2`. Главный репозиторий содержит исправление F-02 — PR [#185](https://github.com/metravolokos/enoTone-android/pull/185) слит (squash `f42213bf`). D5-C — [PR #183](https://github.com/metravolokos/enoTone-android/pull/183) **слит** 2026-11-17 (squash `61ced66`), документация DOC-01 — [PR #187](https://github.com/metravolokos/enoTone-android/pull/187) слит (squash `d4b88ebe`), восстановленный плеер #188 — [PR #189](https://github.com/metravolokos/enoTone-android/pull/189) слит (squash `13496579`). F-01 закрыта в [PR #194](https://github.com/metravolokos/enoTone-android/pull/194), F-03 исправлена в [PR #196](https://github.com/metravolokos/enoTone-android/pull/196).
 
 ## Реализовано в `main`
 
@@ -45,10 +45,30 @@ CI и актуальный Draft PR #189: [PR](https://github.com/metravolokos/e
 Независимое ревью и Huawei-проверка перехода после перезапуска ещё не отмечены владельцем.
 [ТЗ](tasks/188.md), [аудит](tasks/188-audit.md).
 
+## Q1 #192 — очередь до 100 и просмотр очереди
+
+Draft PR [#199](https://github.com/metravolokos/enoTone-android/pull/199), ветка
+`feature/q1-queue-sheet` поверх `main` `a0c912b5`. Очередь ограничена 100 песнями:
+выбор из длинного контекста берёт выбранную и следующие 99, Play-all — первые 100,
+Shuffle — 100 случайных из всего контекста; полная очередь освобождает место за счёт
+уже прослушанной истории до текущей. Лист показывает полный playback-order, `N из M`
+и фон `surface2` у текущей строки. T-1 отменяет устаревшую отложенную цель при
+ручных Next/Previous/seek и обычном переходе (Media3 reason ≠ `SEEK`).
+
+v1 checkpoint из 3 647 песен не отвергается: окно текущая + до 99 следующих (у конца
+дополняется предыдущими) сохраняет позицию/repeat/shuffle и сразу записывается в
+прежнем формате. StagedPlaylistPlan не менялся. Локальные playback/app unit-тесты и
+Roborazzi verify шести снимков прошли; `middle_long` — 100 песен, текущая 50. Полный
+Android CI [#1033](https://github.com/metravolokos/enoTone-android/actions/runs/44203151181)
+прошёл на кодовом HEAD `046cf92fe3b9c56d1dfeb4b71a4328d912849cac`; по возврату уточнено
+правило T-1 для callback `SEEK`, финальный exact-HEAD CI отслеживается в PR. Класс R требует
+двух независимых ревью, второго назначает владелец.
+Huawei QUE-01…06/QED-01…06 ещё не проверены.
+
 ## Активные ограничения и ближайшие решения
 
-Текущие дефекты — [KNOWN_ISSUES](KNOWN_ISSUES.md), открытые вопросы — [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Из подтверждённого долга: [#182](https://github.com/metravolokos/enoTone-android/issues/182) (MP3/ID3) и F-03 (несовпадение версии предзагруженного Kotlin-компилятора в CI), а также необходимость решения владельца по `LICENSE` и сетевому слою. **F-01 снята:** `EnoToneMigrationTest` 7/7 и `:core:database` 14/14 проходят на Windows через тест-локальный обход дефекта `androidx.sqlite` ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), Issue #191). Никакой Huawei PASS из результатов CI автоматически не выводится.
+Текущие дефекты — [KNOWN_ISSUES](KNOWN_ISSUES.md), открытые вопросы — [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Из подтверждённого долга: [#182](https://github.com/metravolokos/enoTone-android/issues/182) (MP3/ID3), а также необходимость решения владельца по `LICENSE` и сетевому слою. **F-01 снята:** `EnoToneMigrationTest` 7/7 и `:core:database` 14/14 проходят на Windows через тест-локальный обход дефекта `androidx.sqlite` ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), Issue #191). F-03 исправлена в #196. Никакой Huawei PASS из результатов CI автоматически не выводится.
 
 **Этап A «Ship-safety» (цель `0.7.0`) открыт:** R-A1 (Issue #197) — минифицированный `assembleRelease` в CI с проверкой R8 и артефактом `enotone-release-unsigned-apk`, Draft PR #198. R8 и раньше работал в `debug` и `stablePreview`; новым стала блокирующая проверка варианта `release` с `isShrinkResources = true` на каждом PR. Шаг проверяет не название задачи, а содержимое: `configuration.txt` без `-dontshrink`/`-dontoptimize` и с `-allowaccessmodification`, плюс задача `:app:convertShrunkResourcesToBinaryRelease` для сжатия ресурсов. Локально `BUILD SUCCESSFUL`, APK 4 915 809 байт без `Missing class`; в CI APK на 4 байта больше (собирается merge-коммит, его SHA вшивается в APK). Установки и запуска APK нет (R-A3), keep-правила не написаны (R-A2).
 
-**Следующий шаг по текущему коду:** аппаратная проверка новых элементов D5-C после #183, решение отдельных открытых Issues и независимое повторное ревью документации DOC-01 / PR #187. Предстоящие возможности и зависимости — [ROADMAP](ROADMAP.md).
+**Следующие шаги:** Q1 #192 — exact-HEAD CI, два независимых ревью (второго назначает владелец) и Huawei QUE-01…06/QED-01…06; также аппаратная проверка новых элементов D5-C после #183, решение отдельных открытых Issues и независимое повторное ревью документации DOC-01 / PR #187. Предстоящие возможности и зависимости — [ROADMAP](ROADMAP.md).

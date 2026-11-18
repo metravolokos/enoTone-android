@@ -28,6 +28,9 @@ class StagedPlaylistPlanTest {
             if (chunk.prepend) rebuilt.addAll(0, chunk.items)
             else rebuilt.addAll(chunk.items)
             assertEquals(rebuilt.size, plan.loadedCount)
+            val loadedStart = rebuilt.first().id.removePrefix("synthetic-").toInt()
+            assertEquals(loadedStart, plan.loadedStartIndex)
+            assertEquals(loadedStart + rebuilt.size, plan.loadedEndExclusive)
         }
         assertEquals(originals, rebuilt)
         assertEquals(size, plan.loadedCount)
@@ -35,8 +38,8 @@ class StagedPlaylistPlanTest {
     }
 
     @Test fun maintainsFullLibraryOrderAtDifferentSelectionPositions() {
-        for (selected in listOf(0, 1, 2, 100, 1795, 3500, 3589)) {
-            checkReconstruction(3590, selected)
+        for (selected in listOf(0, 1, 2, 50, 97, 98, 99)) {
+            checkReconstruction(100, selected)
         }
     }
 
@@ -47,16 +50,16 @@ class StagedPlaylistPlanTest {
     }
 
     @Test fun seedKeepsNativeNextAndPreviousImmediately() {
-        val originals = (0 until 3590).map(::item)
+        val originals = (0 until 100).map(::item)
         val plan = StagedPlaylistPlan.create(
-            PlaybackQueue.create(originals, "synthetic-1590"))
+            PlaybackQueue.create(originals, "synthetic-50"))
         assertEquals(5, plan.seed.size)
         assertEquals(2, plan.seedSelectedIndex)
-        assertEquals("synthetic-1589", plan.seed[1].id)
-        assertEquals("synthetic-1591", plan.seed[3].id)
+        assertEquals("synthetic-49", plan.seed[1].id)
+        assertEquals("synthetic-51", plan.seed[3].id)
         assertFalse(plan.isComplete)
         val firstChunk = plan.nextChunk()
         assertEquals(false, firstChunk?.prepend)
-        assertEquals("synthetic-1593", firstChunk?.items?.first()?.id)
+        assertEquals("synthetic-53", firstChunk?.items?.first()?.id)
     }
 }

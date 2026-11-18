@@ -210,9 +210,14 @@ internal fun AppNowPlaying(
     val trackId = playback.currentTrackId.orEmpty()
     val title = currentTrack?.title ?: playback.title ?: stringResource(R.string.ui_songs_title)
     var actionsVisible by remember(trackId) { mutableStateOf(false) }
+    var queueVisible by remember { mutableStateOf(false) }
     var openingDetail by remember(trackId) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val appContainer = remember(context) {
+        (context.applicationContext as EnoToneApplication).container
+    }
+    QueueSheetVisibilityGuard(playback.queueOrder != null) { queueVisible = false }
     val opener = PlayerDetailOpener(
         resolve = { id, page -> libraryModel?.playerDetail(id, page) },
         currentTrackId = {
@@ -270,6 +275,26 @@ internal fun AppNowPlaying(
         onCycleRepeat = playerModel::onRepeat,
         onToggleShuffle = playerModel::onShuffle,
         onMore = { actionsVisible = true },
+        onOpenQueue = { queueVisible = true },
+    )
+    QueueSheet(
+        visible = queueVisible,
+        queue = playback.queueOrder,
+        shuffleEnabled = playback.shuffleEnabled,
+        isPlaying = playback.playbackState == "PLAYING",
+        tracksById = library?.groupIndex?.tracksById.orEmpty(),
+        artwork = { track ->
+            TrackArtworkThumbnail(
+                trackId = track.id,
+                artworkGroup = library?.artworkCatalog?.byTrackId?.get(track.id),
+                repository = appContainer.artworkPreviewRepository,
+                accountEmail = login?.email.orEmpty(),
+                appPassword = login?.password.orEmpty(),
+                allowNetwork = login != null,
+            )
+        },
+        onDismiss = { queueVisible = false },
+        onSelectPosition = playerModel::onQueuePositionSelected,
     )
     NowPlayingActionSheet(
         visible = actionsVisible,

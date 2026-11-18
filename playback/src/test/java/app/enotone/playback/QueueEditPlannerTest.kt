@@ -77,15 +77,45 @@ class QueueEditPlannerTest {
         assertEquals(QueueEditStatus.APPLIED, result.result.status)
     }
 
-    @Test fun maxCapacityRejectsExtrasButCanMoveExisting() {
-        val full = QueueLayout((1..PlaybackQueue.MAX_TRACKS).map(::id), null, id(100))
+    @Test fun fullQueueEvictsOldestPlayedTrackBeforeAddingAndKeepsCurrent() {
+        val full = QueueLayout((1..PlaybackQueue.MAX_TRACKS).map(::id), null, id(2))
         val result = QueueEditPlanner.plan(
             full, QueueEdit.PlayNext(listOf(id(99), id(10_001), id(10_002))))
         assertEquals(QueueEditStatus.QUEUE_FULL, result.result.status)
         assertEquals(PlaybackQueue.MAX_TRACKS, result.layout.trackIds.size)
-        assertEquals(listOf(id(100), id(99)), result.layout.playbackIds().drop(98).take(2))
-        assertFalse(id(10_001) in result.layout.trackIds)
-        assertEquals(1, result.result.count)
+        assertEquals(listOf(id(1)), result.removedIds)
+        assertEquals(id(2), result.layout.currentTrackId)
+        assertEquals(id(2), result.layout.playbackIds().first())
+        assertEquals(id(99), result.layout.playbackIds()[1])
+        assertEquals(id(10_001), result.layout.playbackIds()[2])
+        assertFalse(id(1) in result.layout.trackIds)
+        assertFalse(id(10_002) in result.layout.trackIds)
+        assertEquals(2, result.result.count)
+    }
+
+    @Test fun fullQueueWithNoPlayedTrackCannotMakeRoom() {
+        val full = QueueLayout((1..PlaybackQueue.MAX_TRACKS).map(::id), null, id(1))
+        val result = QueueEditPlanner.plan(full, QueueEdit.Append(listOf(id(10_001))))
+        assertEquals(QueueEditStatus.QUEUE_FULL, result.result.status)
+        assertTrue(result.movedIds.isEmpty())
+        assertTrue(result.removedIds.isEmpty())
+        assertEquals(full.trackIds, result.layout.trackIds)
+        assertEquals(id(1), result.layout.currentTrackId)
+    }
+
+    @Test fun fullShuffledQueueEvictsOldestPlayedInPlaybackOrder() {
+        val ids = (1..PlaybackQueue.MAX_TRACKS).map(::id)
+        val order = (listOf(0, 49) + (1..48) + (50..99)).toIntArray()
+        val full = QueueLayout(ids, order, id(50))
+
+        val result = QueueEditPlanner.plan(full, QueueEdit.Append(listOf(id(10_001))))
+
+        assertEquals(listOf(id(1)), result.removedIds)
+        assertEquals(id(50), result.layout.currentTrackId)
+        assertEquals(id(50), result.layout.playbackIds().first())
+        assertEquals(id(10_001), result.layout.playbackIds().last())
+        assertEquals(PlaybackQueue.MAX_TRACKS, result.layout.trackIds.size)
+        assertEquals(PlaybackQueue.MAX_TRACKS, result.layout.shuffledIndices!!.toSet().size)
     }
 
     @Test fun alreadyFullWithOnlyNewItemsDoesNotChangeLayout() {
