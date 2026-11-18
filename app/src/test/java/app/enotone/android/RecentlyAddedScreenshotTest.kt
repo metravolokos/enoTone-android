@@ -97,8 +97,11 @@ class RecentlyAddedScreenshotTest {
         rule.onRoot().captureRoboImage("src/test/screenshots/$name.png")
 
     @Test fun homeWithSectionsGraphite() = home(true, dark = true)
+
     @Test fun homeWithSectionsPorcelain() = home(true, dark = false)
+
     @Test fun homeWithoutSectionsGraphite() = home(false, dark = true)
+
     @Test fun homeWithoutSectionsPorcelain() = home(false, dark = false)
 
     private fun home(recent: Boolean, dark: Boolean) {
@@ -108,6 +111,7 @@ class RecentlyAddedScreenshotTest {
     }
 
     @Test fun allAlbumsGraphite() = allAlbums(dark = true)
+
     @Test fun allAlbumsPorcelain() = allAlbums(dark = false)
 
     private fun allAlbums(dark: Boolean) {
@@ -130,6 +134,7 @@ class RecentlyAddedScreenshotTest {
     }
 
     @Test fun allSongsGraphite() = allSongs(dark = true)
+
     @Test fun allSongsPorcelain() = allSongs(dark = false)
 
     private fun allSongs(dark: Boolean) {

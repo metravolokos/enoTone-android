@@ -76,10 +76,7 @@ internal fun AppMusicShell(
                 searchRegistry = searchRegistry,
             ) { route, snapshot, active ->
             val recentDetail = route.details.lastOrNull() as? LibraryDetail.RecentlyAdded
-            val renderedTab = if (route.tab == AppTab.Home && route.details.isNotEmpty() &&
-                recentDetail == null
-            )
-                AppTab.Library(LibraryPage.TRACKS) else route.tab
+            val renderedTab = route.renderedContentTab()
             if (recentDetail != null) {
                 libraryStateHolder.SaveableStateProvider(
                     librarySaveKey(AppTab.Library(LibraryPage.TRACKS), route.details),
@@ -165,6 +162,13 @@ internal fun AppMusicShell(
             }
         }
     }
+}
+
+private fun AppNavState.renderedContentTab(): AppTab {
+    val isRecentlyAdded = details.lastOrNull() is LibraryDetail.RecentlyAdded
+    return if (tab == AppTab.Home && details.isNotEmpty() && !isRecentlyAdded) {
+        AppTab.Library(LibraryPage.TRACKS)
+    } else tab
 }
 
 @Composable

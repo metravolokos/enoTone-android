@@ -77,31 +77,7 @@ internal fun AlbumArtworkTile(
     }
 
     if (useCoreTile) {
-        EnoAlbumTile(
-            title = group.name,
-            artist = subtitle.orEmpty(),
-            onClick = onOpen,
-            modifier = Modifier.fillMaxWidth(),
-            artwork = {
-                val image = cover
-                if (image != null) {
-                    Image(
-                        bitmap = image.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                } else {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_nav_albums),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            },
-        )
+        CoreAlbumArtworkTile(group.name, subtitle.orEmpty(), cover, onOpen)
         return
     }
     val coverShape = RoundedCornerShape(if (artistCarousel) EnoRadii.s else 8.dp)
@@ -156,4 +132,32 @@ internal fun AlbumArtworkTile(
             )
         }
     }
+}
+
+@Composable
+private fun CoreAlbumArtworkTile(title: String, artist: String, cover: Bitmap?, onOpen: () -> Unit) {
+    EnoAlbumTile(
+        title = title,
+        artist = artist,
+        onClick = onOpen,
+        modifier = Modifier.fillMaxWidth(),
+        artwork = {
+            if (cover != null) {
+                Image(
+                    bitmap = cover.asImageBitmap(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_nav_albums),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+    )
 }
