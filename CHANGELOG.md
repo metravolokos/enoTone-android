@@ -12,8 +12,6 @@ Media3 мог создать период по старому timeline посл�
 
 `WebDavMedia3DataSourceFactoryTest.truncatedRoutePeriodIsIgnoredWithoutChangingOtherReferences` падал до исправления с `IllegalStateException` в `createPeriod` и проходит после него. CI #1043 прошёл на exact HEAD `17170365cd3ef43f7e7ab728475855603a9b9f47`; PR #206 слит в `main` 2026-11-18.
 
-# CHANGELOG
-
 ## DOC-02 — актуализация оперативной документации (PR #207, Issue #190, 2026-11-18)
 
 - Срез и статусы документов синхронизированы с `main` `febbea3`; отмечены слияния #187/#189/#194/#196/#198/#199/#206 и закрытия связанных Issues, включая #202 после PR #206.
