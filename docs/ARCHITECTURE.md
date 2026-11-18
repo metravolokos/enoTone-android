@@ -1,7 +1,7 @@
 
 # Архитектура enoTone Android
 
-**Фактический срез:** `main` `61ced66`, 2026-11-17. Структура сверена с `settings.gradle.kts` и `app/build.gradle.kts`; детали контрактов — [MODULE_MAP](MODULE_MAP.md), [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [индекс ADR](DECISIONS/README.md). Старые варианты модульной схемы из ранних ADR — исторические предложения, **не текущий Gradle-граф**.
+**Фактический срез:** 2026-11-18 · `main` `d2ca15d4ebab3a552c4c6cd42c045a2d3aa87234` · версия `0.6.2`. Структура сверена с `settings.gradle.kts` и `app/build.gradle.kts`; детали контрактов — [MODULE_MAP](MODULE_MAP.md), [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [индекс ADR](DECISIONS/README.md). Старые варианты модульной схемы из ранних ADR — исторические предложения, **не текущий Gradle-граф**.
 
 ## Общая схема
 

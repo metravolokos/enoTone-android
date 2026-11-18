@@ -2,7 +2,7 @@
 
 > Как проверяется enoTone: автоматические проверки и правила ручной проверки. **Что** проверять — каталог сценариев [SCENARIOS](SCENARIOS.md) с последними результатами; **как** вести ревью и аудит — [AUDIT_PROTOCOL](AUDIT_PROTOCOL.md). Журналы ручных проверок: [2026-11-08…11](archive/TESTING_JOURNAL_2026-11-08_11.md), [2026-11-12…13](archive/TESTING_JOURNAL_2026-11-12_13.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`; `main` `2a425b28`, 2026-11-17)
+## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`; срез 2026-11-18, `main` `d2ca15d4ebab3a552c4c6cd42c045a2d3aa87234`, версия `0.6.2`)
 
 | Шаг | Что проверяет |
 |---|---|
