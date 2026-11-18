@@ -6,7 +6,6 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import app.enotone.library.OfflineLibraryGroup
 import app.enotone.library.OfflineTrackRow
@@ -65,7 +64,7 @@ class RecentlyAddedUiTest {
     )
 
     @Test fun homeShowsSectionsAndAllOpensTheirDetailRoutes() {
-        var state = AppNavState()
+        val opened = mutableListOf<LibraryDetail>()
         rule.setContent {
             EnoToneTheme {
                 EnoToneHomeScreen(
@@ -80,7 +79,7 @@ class RecentlyAddedUiTest {
                             artworkRepository = ArtworkPreviewRepository(context),
                             accountEmail = "",
                             appPassword = "",
-                            onOpenDetail = { state = AppNavigator.push(state, it) },
+                            onOpenDetail = { opened.add(it) },
                         )
                     },
                 )
@@ -90,18 +89,15 @@ class RecentlyAddedUiTest {
         rule.onNodeWithText(context.getString(R.string.home_recently_added_songs)).assertExists()
         rule.onAllNodesWithText(context.getString(R.string.home_recently_added_all))[0].performClick()
         rule.runOnIdle {
-            assertEquals(
-                LibraryDetail.RecentlyAdded(RecentlyAddedKind.ALBUMS),
-                state.details.last(),
-            )
+            assertEquals(LibraryDetail.RecentlyAdded(RecentlyAddedKind.ALBUMS), opened.single())
         }
-        rule.runOnIdle { state = AppNavigator.back(state) ?: state }
         rule.onAllNodesWithText(context.getString(R.string.home_recently_added_all))[1].performClick()
         rule.runOnIdle {
             assertEquals(
                 LibraryDetail.RecentlyAdded(RecentlyAddedKind.TRACKS),
-                state.details.last(),
+                opened.last(),
             )
+            assertEquals(2, opened.size)
         }
     }
 
@@ -121,7 +117,7 @@ class RecentlyAddedUiTest {
             }
         }
         val firstTrack = recentTracks.first()
-        rule.onNodeWithText(firstTrack.title).performScrollTo().performClick()
+        rule.onNodeWithText(firstTrack.title).performClick()
         rule.runOnIdle {
             assertEquals(firstTrack.id, actions.selected?.id)
             assertEquals(5, actions.selectedContext.size)
@@ -129,7 +125,7 @@ class RecentlyAddedUiTest {
         }
         rule.onNodeWithContentDescription(
             context.getString(R.string.song_actions_description, firstTrack.title),
-        ).performScrollTo().performClick()
+        ).performClick()
         rule.onNodeWithText(context.getString(R.string.queue_play_next)).assertExists()
     }
 
