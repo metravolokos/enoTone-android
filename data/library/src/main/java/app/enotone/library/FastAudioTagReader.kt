@@ -65,6 +65,9 @@ private val flacContinuationTypes = 1..6
 private val wantedTextFrames = setOf(
     "TIT2", "TPE1", "TALB", "TPE2", "TDRC", "TYER", "TRCK", "TPOS", "TCON",
 )
+private val wantedVorbisTextFields = setOf(
+    "TITLE", "ARTIST", "ALBUM", "DATE", "YEAR", "TRACKNUMBER", "DISCNUMBER", "GENRE",
+)
 private val mpeg1Layer3Kbps = intArrayOf(
     0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0,
 )
@@ -90,6 +93,20 @@ data class FastTagRead(
     val embeddedAlbum: Boolean = false,
     val durationMs: Long? = null,
 )
+
+private class AlbumArtistCandidates {
+    private var canonical: String? = null
+    private var alias: String? = null
+
+    fun add(key: String, value: String) {
+        when (key) {
+            "ALBUMARTIST" -> if (canonical == null) canonical = value
+            "ALBUM ARTIST", "ALBUM_ARTIST" -> if (alias == null) alias = value
+        }
+    }
+
+    fun preferred(): String? = canonical ?: alias
+}
 
 /**
  * Read only MP3 ID3v2.3/v2.4 or ID3v1 and native FLAC Vorbis Comments.
@@ -461,38 +478,33 @@ class FastAudioTagReader {
         val entries = count()
         if (entries > 512) throw FastStop(FastTagCode.FAST_BUDGET_EXCEEDED)
         val result = linkedMapOf<String, String>()
-        var canonicalAlbumArtist: String? = null
-        var albumArtistAlias: String? = null
+        val albumArtist = AlbumArtistCandidates()
         repeat(entries) {
             val fieldLength = count()
             if (fieldLength > data.size - pos) throw FastStop(FastTagCode.INVALID_METADATA)
             val field = String(data, pos, fieldLength, Charsets.UTF_8)
             pos += fieldLength
-            val separator = field.indexOf('=')
-            if (separator > 0) {
-                val rawKey = field.substring(0, separator).uppercase(Locale.ROOT)
-                val value = field.substring(separator + 1)
-                when (rawKey) {
-                    // Resolve this only after the whole comment block: aliases
-                    // are fallback values and may occur before the canonical key.
-                    "ALBUMARTIST" -> if (canonicalAlbumArtist == null) {
-                        canonicalAlbumArtist = value
-                    }
-                    "ALBUM ARTIST", "ALBUM_ARTIST" -> if (albumArtistAlias == null) {
-                        albumArtistAlias = value
-                    }
-                    else -> if (rawKey in setOf("TITLE", "ARTIST", "ALBUM",
-                        "DATE", "YEAR", "TRACKNUMBER", "DISCNUMBER", "GENRE") &&
-                        !result.containsKey(rawKey)) {
-                        result[rawKey] = value
-                    }
-                }
+            storeVorbisField(field, result, albumArtist)
+        }
+        albumArtist.preferred()?.let { result["ALBUMARTIST"] = it }
+        return result
+    }
+
+    private fun storeVorbisField(
+        field: String,
+        result: MutableMap<String, String>,
+        albumArtist: AlbumArtistCandidates,
+    ) {
+        val separator = field.indexOf('=')
+        if (separator <= 0) return
+        val key = field.substring(0, separator).uppercase(Locale.ROOT)
+        val value = field.substring(separator + 1)
+        when (key) {
+            "ALBUMARTIST", "ALBUM ARTIST", "ALBUM_ARTIST" -> albumArtist.add(key, value)
+            else -> if (key in wantedVorbisTextFields && !result.containsKey(key)) {
+                result[key] = value
             }
         }
-        (canonicalAlbumArtist ?: albumArtistAlias)?.let {
-            result["ALBUMARTIST"] = it
-        }
-        return result
     }
 
     @Suppress("LongParameterList")
