@@ -1,9 +1,9 @@
 package app.enotone.library
 
-import okhttp3.mockwebserver.Dispatcher
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import okhttp3.mockwebserver.RecordedRequest
+import mockwebserver3.Dispatcher
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
+import mockwebserver3.RecordedRequest
 import okio.Buffer
 import org.junit.Assert.*
 import org.junit.Test
@@ -23,10 +23,10 @@ class WebDavRangeReaderTest {
                 val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
                 val start = m.groupValues[1].toInt()
                 val end = m.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes $start-$end/" + payload.size)
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(payload, start, end - start + 1))
+                    .body(Buffer().write(payload, start, end - start + 1)).build()
             }
         }
         server.start()
@@ -55,8 +55,8 @@ class WebDavRangeReaderTest {
             val server = MockWebServer()
             server.start()
             try {
-                server.enqueue(MockResponse().setResponseCode(code)
-                    .addHeader("Location", "http://evil.example/private"))
+                server.enqueue(MockResponse.Builder().code(code)
+                    .addHeader("Location", "http://evil.example/private").build())
                 reader(server).use { src ->
                     try { src.readAt(0, ByteArray(1), 0, 1); fail("Must reject") }
                     catch (e: IOException) {
@@ -76,9 +76,9 @@ class WebDavRangeReaderTest {
             val server = MockWebServer()
             server.start()
             try {
-                server.enqueue(MockResponse().setResponseCode(206)
+                server.enqueue(MockResponse.Builder().code(206)
                     .addHeader("Content-Range", badRange)
-                    .setBody(Buffer().write(payload, 0, 65536)))
+                    .body(Buffer().write(payload, 0, 65536)).build())
                 reader(server).use { src ->
                     try { src.readAt(0, ByteArray(1), 0, 1); fail("Must reject") }
                     catch (_: IOException) {
@@ -91,9 +91,9 @@ class WebDavRangeReaderTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(206)
+            server.enqueue(MockResponse.Builder().code(206)
                 .addHeader("Content-Range", "bytes 0-65535/110000")
-                .addHeader("ETag", "\"v2\"").setBody(Buffer().write(payload, 0, 65536)))
+                .addHeader("ETag", "\"v2\"").body(Buffer().write(payload, 0, 65536)).build())
             reader(server).use { src ->
                 try { src.readAt(0, ByteArray(1), 0, 1); fail("Must reject") }
                 catch (_: IOException) {
@@ -121,10 +121,10 @@ class WebDavRangeReaderTest {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
                 val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes " + m.groupValues[1] + "-" +
                         m.groupValues[2] + "/16777216")
-                    .setBody(Buffer().write(ByteArray(65536)))
+                    .body(Buffer().write(ByteArray(65536))).build()
             }
         }
         server.start()
@@ -157,9 +157,9 @@ class WebDavRangeReaderTest {
             val server = MockWebServer()
             server.start()
             try {
-                server.enqueue(MockResponse().setResponseCode(206)
+                server.enqueue(MockResponse.Builder().code(206)
                     .addHeader("Content-Range", header)
-                    .setBody(Buffer().write(ByteArray(65536))))
+                    .body(Buffer().write(ByteArray(65536))).build())
                 reader(server).use { source ->
                     try {
                         source.readAt(0, ByteArray(1), 0, 1)
@@ -196,10 +196,10 @@ class WebDavRangeReaderTest {
                     .matchEntire(req.getHeader("Range")!!)!!
                 val start = match.groupValues[1].toInt()
                 val end = match.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes $start-$end/*")
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(payload, start, end - start + 1))
+                    .body(Buffer().write(payload, start, end - start + 1)).build()
             }
         }
         server.start()
@@ -221,9 +221,9 @@ class WebDavRangeReaderTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(206)
+            server.enqueue(MockResponse.Builder().code(206)
                 .addHeader("Content-Range", "bytes 0-65534/*")
-                .setBody(Buffer().write(payload, 0, 65535)))
+                .body(Buffer().write(payload, 0, 65535)).build())
             reader(server).use { source ->
                 try {
                     source.readAt(0, ByteArray(1), 0, 1)
@@ -246,10 +246,10 @@ class WebDavRangeReaderTest {
                     .matchEntire(req.getHeader("Range")!!)!!
                 val start = match.groupValues[1].toInt()
                 val end = match.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=$start-$end/" + payload.size)
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(payload, start, end - start + 1))
+                    .body(Buffer().write(payload, start, end - start + 1)).build()
             }
         }
         server.start()
@@ -289,9 +289,9 @@ class WebDavRangeReaderTest {
             val server = MockWebServer()
             server.start()
             try {
-                server.enqueue(MockResponse().setResponseCode(206)
+                server.enqueue(MockResponse.Builder().code(206)
                     .addHeader("Content-Range", header)
-                    .setBody(Buffer().write(payload, 0, 65536)))
+                    .body(Buffer().write(payload, 0, 65536)).build())
                 reader(server).use { source ->
                     try {
                         source.readAt(0, ByteArray(1), 0, 1)
@@ -313,9 +313,9 @@ class WebDavRangeReaderTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(206)
+            server.enqueue(MockResponse.Builder().code(206)
                 .addHeader("Content-Range", "bytes=0-65535/*")
-                .setBody(Buffer().write(payload, 0, 65535)))
+                .body(Buffer().write(payload, 0, 65535)).build())
             reader(server).use { source ->
                 try {
                     source.readAt(0, ByteArray(1), 0, 1)
@@ -338,10 +338,10 @@ class WebDavRangeReaderTest {
                 val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
                 val from = m.groupValues[1].toInt()
                 val to = m.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=$from-$to/" + big.size)
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(big, from, to - from + 1))
+                    .body(Buffer().write(big, from, to - from + 1)).build()
             }
         }
         server.start()
@@ -381,9 +381,9 @@ class WebDavRangeReaderTest {
                 val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
                 val from = m.groupValues[1].toInt()
                 val to = m.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes $from-$to/" + payload.size)
-                    .setBody(Buffer().write(payload, from, to - from + 1))
+                    .body(Buffer().write(payload, from, to - from + 1)).build()
             }
         }
         server.start()
@@ -413,9 +413,9 @@ class WebDavRangeReaderTest {
                     .matchEntire(req.getHeader("Range")!!)!!
                 val from = match.groupValues[1].toInt()
                 val to = match.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=$from-$to/" + payload.size)
-                    .setBody(Buffer().write(payload, from, to - from + 1))
+                    .body(Buffer().write(payload, from, to - from + 1)).build()
             }
         }
         server.start()

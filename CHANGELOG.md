@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## DEPS-01 — шаг 1 из 3: тестовые библиотеки (Issue #203, 2026-11-19)
+
+Roborazzi обновлён с 1.76.0 до 1.79.0; MockWebServer — с 4.12.0 до 5.5.1. MockWebServer остаётся только `testImplementation` в `core/network` и `data/library`; библиотека OkHttp не добавлена в приложение. Для MockWebServer 5 обновлены тестовые импорты на `mockwebserver3` и ответы на `MockResponse.Builder`; коды, заголовки, тела и проверки тестов сохранены.
+
+Шаги 2 и 3 не включены; Issue #203 остаётся `state:in-progress`. Полный Android M0 CI, включая Roborazzi verify, запускается на exact HEAD Draft PR.
+
 ## TAG-AA — приоритет канонического ALBUMARTIST в FLAC (Issue #209, Draft PR #211, 2026-11-18)
 
 В `FastAudioTagReader` канонический `ALBUMARTIST` без учёта регистра выбирается независимо от позиции в Vorbis Comment. Псевдонимы `ALBUM ARTIST` и `ALBUM_ARTIST` используются только при отсутствии канонического поля; для остальных тегов сохраняется правило первого значения. MP3/ID3 (`TPE2`), Room, группировка и автоматическая переиндексация не менялись.
