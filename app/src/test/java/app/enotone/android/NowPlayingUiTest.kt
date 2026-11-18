@@ -35,6 +35,7 @@ import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeDown
 import androidx.media3.common.Player
 import androidx.test.core.app.ApplicationProvider
+import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.NextBufferState
 import app.enotone.playback.PlaybackModes
