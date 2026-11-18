@@ -8,13 +8,13 @@ import org.junit.Test
 class RecentlyAddedPlannerTest {
     @Test fun songsSortByDateThenIdExcludeUnknownDatesAndRespectBothLimits() {
         val rows = buildList {
-            add(OfflineTrackRow("z", "Z", firstSeenEpochMs = 50L))
-            add(OfflineTrackRow("b", "B", firstSeenEpochMs = 100L))
-            add(OfflineTrackRow("a", "A", firstSeenEpochMs = 100L))
-            add(OfflineTrackRow("old", "Old", firstSeenEpochMs = 1L))
-            add(OfflineTrackRow("unknown", "Unknown"))
+            add(row("z", "Z", 50L))
+            add(row("b", "B", 100L))
+            add(row("a", "A", 100L))
+            add(row("old", "Old", 1L))
+            add(row("unknown", "Unknown"))
             repeat(110) { index ->
-                add(OfflineTrackRow("bulk-$index", "Bulk $index", firstSeenEpochMs = 40L - index))
+                add(row("bulk-$index", "Bulk $index", 40L - index))
             }
         }
 
@@ -27,9 +27,9 @@ class RecentlyAddedPlannerTest {
 
     @Test fun albumDateIsNewestMemberAndUnknownOrUndatedGroupsAreExcluded() {
         val rows = listOf(
-            OfflineTrackRow("old", "Old", firstSeenEpochMs = 10L),
-            OfflineTrackRow("new", "New", firstSeenEpochMs = 90L),
-            OfflineTrackRow("no-date", "No date"),
+            row("old", "Old", 10L),
+            row("new", "New", 90L),
+            row("no-date", "No date"),
         ).associateBy { it.id }
         val groups = listOf(
             OfflineLibraryGroup("album:old", "Old release", null, setOf("old")),
@@ -44,11 +44,7 @@ class RecentlyAddedPlannerTest {
 
     @Test fun albumsStopAtFiftyAndHomeShowsAtMostTen() {
         val rows = (0..54).associate { index ->
-            "track-$index" to OfflineTrackRow(
-                id = "track-$index",
-                title = "Track $index",
-                firstSeenEpochMs = index.toLong(),
-            )
+            "track-$index" to row("track-$index", "Track $index", index.toLong())
         }
         val groups = rows.keys.mapIndexed { index, id ->
             OfflineLibraryGroup("album:$index", "Album $index", null, setOf(id))
@@ -58,4 +54,13 @@ class RecentlyAddedPlannerTest {
             RecentlyAddedPlanner.albums(groups, rows, RecentlyAddedPlanner.HOME_ALBUMS_LIMIT).size)
         assertEquals(50, RecentlyAddedPlanner.albums(groups, rows).size)
     }
+
+    private fun row(id: String, title: String, firstSeenEpochMs: Long? = null) =
+        OfflineTrackRow(
+            id = id,
+            title = title,
+            artist = "",
+            album = "",
+            firstSeenEpochMs = firstSeenEpochMs,
+        )
 }
