@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## F-04 — мягкий отказ при обрезанном маршруте WebDAV (Issue #202)
+
+Media3 может создать период по старому timeline после того, как `Factory` удалил маршрут из активной очереди. `retainPeriod` теперь пропускает отсутствующий маршрут; обёртка учитывает, какие конкретно периоды удержали маршрут, поэтому освобождение неучтённого периода не снимает ссылку другого периода. `RouteLifetimeMediaSource` использует штатный `WrappingMediaSource`. Предел 100, вытеснение, сохранение очереди и UI не менялись.
+
+`WebDavMedia3DataSourceFactoryTest.truncatedRoutePeriodIsIgnoredWithoutChangingOtherReferences` падал до исправления с `IllegalStateException` в `createPeriod` и проходит после него. Exact-HEAD CI отслеживается в Draft PR.
+
 ## R-A1 — релизная сборка в CI (Issue #197)
 
 `isMinifyEnabled = true` стоит в `debug`, `release` и `stablePreview` (последний наследует `release` через `initWith`, то есть канал приёмки тоже минифицируется), поэтому R8 и до R-A1 запускался: для `debug` — задачей `:app:minifyDebugWithR8` внутри `assembleDebug`, для `stablePreview` — при каждом пуше в `main`. Новым стал не сам факт работы R8, а **блокирующая проверка варианта `release`** с `isShrinkResources = true` на каждом PR, отчёты R8 и ворота по `Missing class`. Теперь job `android` выполняет шаг `Release build (minified, unsigned)`: он падает, если APK отсутствует, если задача `:app:minifyReleaseWithR8` не выполнялась, если нет отчётов R8 (`mapping.txt`, `seeds.txt`, `usage.txt`, `configuration.txt`) или если в логе встречается `Missing class`. Артефакт `enotone-release-unsigned-apk` публикуется с `if-no-files-found: error` и явной пометкой «не подписан и не является дистрибутивом»; установка и запуск на устройстве — предмет R-A3.

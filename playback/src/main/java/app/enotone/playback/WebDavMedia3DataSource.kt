@@ -3,27 +3,23 @@ package app.enotone.playback
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.C
-import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
-import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.DataSpec
-import androidx.media3.datasource.TransferListener
-import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.source.MediaPeriod
 import androidx.media3.exoplayer.source.MediaSource
-import androidx.media3.exoplayer.source.MediaSource.MediaSourceCaller
+import androidx.media3.exoplayer.source.WrappingMediaSource
 import androidx.media3.exoplayer.upstream.Allocator
-import androidx.media3.exoplayer.upstream.BandwidthMeter
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentHashMap
 import javax.net.ssl.HttpsURLConnection
 
@@ -248,16 +244,15 @@ internal class WebDavMedia3DataSource(
         override fun createDataSource(): DataSource = dataSourceFactoryOverride?.createDataSource()
             ?: WebDavMedia3DataSource(auth, files)
 
-        private fun retainPeriod(url: String) {
-            synchronized(routeLock) {
-                check(files.containsKey(url)) { "Missing playback route" }
-                mediaPeriodRefs[url] = (mediaPeriodRefs[url] ?: 0) + 1
-            }
+        private fun retainPeriod(url: String): Boolean = synchronized(routeLock) {
+            if (!files.containsKey(url)) return@synchronized false
+            mediaPeriodRefs[url] = (mediaPeriodRefs[url] ?: 0) + 1
+            true
         }
 
         private fun releasePeriod(url: String) {
             synchronized(routeLock) {
-                val refs = checkNotNull(mediaPeriodRefs[url]) { "Unbalanced MediaPeriod release" }
+                val refs = mediaPeriodRefs[url] ?: return@synchronized
                 if (refs == 1) mediaPeriodRefs.remove(url) else mediaPeriodRefs[url] = refs - 1
                 pruneUnreferencedRoutes()
             }
@@ -277,53 +272,44 @@ internal class WebDavMedia3DataSource(
 
 @OptIn(UnstableApi::class)
 private class RouteLifetimeMediaSource(
-    private val source: MediaSource,
-    private val onPeriodCreated: () -> Unit,
+    source: MediaSource,
+    private val onPeriodCreated: () -> Boolean,
     private val onPeriodReleased: () -> Unit,
-) : MediaSource by source {
-    override fun getInitialTimeline(): Timeline? = source.initialTimeline
-
-    override fun isSingleWindow(): Boolean = source.isSingleWindow
-
-    override fun getMediaItem(): MediaItem = source.mediaItem
-
-    override fun canUpdateMediaItem(mediaItem: MediaItem): Boolean =
-        source.canUpdateMediaItem(mediaItem)
-
-    override fun updateMediaItem(mediaItem: MediaItem) = source.updateMediaItem(mediaItem)
-
-    @Suppress("DEPRECATION")
-    override fun prepareSource(
-        caller: MediaSourceCaller,
-        transferListener: TransferListener?,
-        playerId: PlayerId,
-    ) = source.prepareSource(caller, transferListener, playerId)
-
-    override fun prepareSource(
-        caller: MediaSourceCaller,
-        playerId: PlayerId,
-        bandwidthMeter: BandwidthMeter,
-    ) = source.prepareSource(caller, playerId, bandwidthMeter)
+) : WrappingMediaSource(source) {
+    private val retainedPeriodsLock = Any()
+    private val retainedPeriods = IdentityHashMap<MediaPeriod, Int>()
 
     override fun createPeriod(
         id: MediaSource.MediaPeriodId,
         allocator: Allocator,
         startPositionUs: Long,
     ): MediaPeriod {
-        onPeriodCreated()
+        val retained = onPeriodCreated()
         var created = false
         return try {
-            source.createPeriod(id, allocator, startPositionUs).also { created = true }
+            val period = super.createPeriod(id, allocator, startPositionUs)
+            if (retained) {
+                synchronized(retainedPeriodsLock) {
+                    retainedPeriods[period] = (retainedPeriods[period] ?: 0) + 1
+                }
+            }
+            created = true
+            period
         } finally {
-            if (!created) onPeriodReleased()
+            if (!created && retained) onPeriodReleased()
         }
     }
 
     override fun releasePeriod(mediaPeriod: MediaPeriod) {
+        val retained = synchronized(retainedPeriodsLock) {
+            val refs = retainedPeriods[mediaPeriod] ?: return@synchronized false
+            if (refs == 1) retainedPeriods.remove(mediaPeriod) else retainedPeriods[mediaPeriod] = refs - 1
+            true
+        }
         try {
-            source.releasePeriod(mediaPeriod)
+            super.releasePeriod(mediaPeriod)
         } finally {
-            onPeriodReleased()
+            if (retained) onPeriodReleased()
         }
     }
 }
