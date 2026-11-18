@@ -63,7 +63,7 @@ class RecentlyAddedUiTest {
         playbackConnected = true,
     )
 
-    @Test fun homeShowsSectionsAndAllOpensTheirDetailRoutes() {
+    @Test fun homeShowsSectionsAndAlbumAllOpensAlbumRoute() {
         val opened = mutableListOf<LibraryDetail>()
         rule.setContent {
             EnoToneTheme {
@@ -91,6 +91,10 @@ class RecentlyAddedUiTest {
         rule.runOnIdle {
             assertEquals(LibraryDetail.RecentlyAdded(RecentlyAddedKind.ALBUMS), opened.single())
         }
+    }
+
+    @Test fun homeSongsAllOpensTracksRoute() {
+        val opened = mutableListOf<LibraryDetail>()
         rule.setContent {
             EnoToneTheme {
                 RecentlyAddedHomeSections(
@@ -107,9 +111,8 @@ class RecentlyAddedUiTest {
         rule.runOnIdle {
             assertEquals(
                 LibraryDetail.RecentlyAdded(RecentlyAddedKind.TRACKS),
-                opened.last(),
+                opened.single(),
             )
-            assertEquals(2, opened.size)
         }
     }
 
