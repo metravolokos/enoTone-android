@@ -91,7 +91,19 @@ class RecentlyAddedUiTest {
         rule.runOnIdle {
             assertEquals(LibraryDetail.RecentlyAdded(RecentlyAddedKind.ALBUMS), opened.single())
         }
-        rule.onAllNodesWithText(context.getString(R.string.home_recently_added_all))[1].performClick()
+        rule.setContent {
+            EnoToneTheme {
+                RecentlyAddedHomeSections(
+                    state = libraryState.copy(recentlyAddedAlbums = emptyList()),
+                    actions = PreviewLibraryActions,
+                    artworkRepository = ArtworkPreviewRepository(context),
+                    accountEmail = "",
+                    appPassword = "",
+                    onOpenDetail = { opened.add(it) },
+                )
+            }
+        }
+        rule.onNodeWithText(context.getString(R.string.home_recently_added_all)).performClick()
         rule.runOnIdle {
             assertEquals(
                 LibraryDetail.RecentlyAdded(RecentlyAddedKind.TRACKS),
