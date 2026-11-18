@@ -169,4 +169,4 @@
 | R-12.M7 | UI плейлистов | 🔜 |
 | R-12.M8 | ИИ-агенты (OpenAI-совместимый API) | 🔜 |
 | R-12.M9 | Офлайн-закачка, DocumentsProvider | 🔜 |
-| R-SPEC-1 | Индикация буферизации и точки «следующий готов» (`design/docs/SPEC_NOW_PLAYING_BUFFERING.md` §§1–4) | ⏳ Часть A (#161) слита: `bufferedPositionMs`, `NextBufferState`, чистая JVM-политика. Часть B — Draft PR #167 (`feature/d5-now-playing-buffer-b`): UI, accessibility RU/EN, reduced motion, тесты и шесть Roborazzi-эталонов; шесть PNG записаны ручным workflow #877; CI и независимое ревью отслеживаются в PR, Huawei PLAY-10 выполняет владелец после сборки Stable Preview |
+| R-SPEC-1 | Индикация буферизации и точки «следующий готов» (`design/docs/SPEC_NOW_PLAYING_BUFFERING.md` §§1–4) | ⏳ Части A (#161) и B (#167) слиты: `bufferedPositionMs`, `NextBufferState`, UI, accessibility RU/EN, reduced motion, тесты и шесть Roborazzi-эталонов. Issue #179 исправляет alpha статичной LOADING при масштабе 0; `NowPlayingUiTest` проверяет alpha 0,6 и кадры 0/550 мс. RED до исправления — CI #1061; итоговый exact-HEAD CI отслеживается в Draft PR #204. Huawei PLAY-10 выполняет владелец после сборки Stable Preview |

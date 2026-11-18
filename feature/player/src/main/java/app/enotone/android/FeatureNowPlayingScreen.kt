@@ -439,15 +439,11 @@ fun FeatureNowPlayingScreen(
                             val dotDescription = stringResource(
                                 if (ready) ids.nowPlayingNextReady else ids.nowPlayingNextLoading,
                             )
-                            val dotRendering = if (loadingPulse) {
-                                Modifier.background(
-                                    dotColor.copy(alpha = dotColor.alpha * pulseAlpha),
-                                    CircleShape,
-                                )
-                            } else {
-                                Modifier.background(dotColor, CircleShape)
-                                    .graphicsLayer { alpha = if (ready) 1f else pulseAlpha }
-                            }
+                            val dotAlpha = if (ready) 1f else pulseAlpha
+                            val dotRendering = Modifier.background(
+                                dotColor.copy(alpha = dotColor.alpha * dotAlpha),
+                                CircleShape,
+                            )
                             Box(
                                 modifier = Modifier.size(NEXT_DOT_SIZE)
                                     .drawBehind {
