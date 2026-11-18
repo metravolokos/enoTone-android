@@ -1,14 +1,14 @@
 package app.enotone.library
 
-import java.io.ByteArrayOutputStream
-import java.nio.charset.StandardCharsets
-import okhttp3.mockwebserver.Dispatcher
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import okhttp3.mockwebserver.RecordedRequest
+import mockwebserver3.Dispatcher
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
+import mockwebserver3.RecordedRequest
 import okio.Buffer
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 
 class FastAudioTagReaderTest {
     private fun byteReader(bytes: ByteArray, blocks: MutableSet<Long>? = null):
@@ -505,15 +505,15 @@ class FastAudioTagReaderTest {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
-                val value = req.getHeader("Range") ?: return MockResponse().setResponseCode(400)
+                val value = req.headers["Range"] ?: return MockResponse.Builder().code(400).build()
                 val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(value)
-                    ?: return MockResponse().setResponseCode(400)
+                    ?: return MockResponse.Builder().code(400).build()
                 val start = m.groupValues[1].toInt()
                 val end = m.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=$start-$end/" + fixture.size)
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(fixture, start, end - start + 1))
+                    .body(Buffer().write(fixture, start, end - start + 1)).build()
             }
         }
         server.start()
@@ -534,7 +534,7 @@ class FastAudioTagReaderTest {
             }
             assertEquals(2, server.requestCount)
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 
@@ -550,15 +550,15 @@ class FastAudioTagReaderTest {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
-                val range = req.getHeader("Range") ?: return MockResponse().setResponseCode(400)
+                val range = req.headers["Range"] ?: return MockResponse.Builder().code(400).build()
                 val bounds = Regex("""bytes=(\d+)-(\d+)""").matchEntire(range)
-                    ?: return MockResponse().setResponseCode(400)
+                    ?: return MockResponse.Builder().code(400).build()
                 val start = bounds.groupValues[1].toInt()
                 val end = bounds.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=$start-$end/${fixture.size}")
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(fixture, start, end - start + 1))
+                    .body(Buffer().write(fixture, start, end - start + 1)).build()
             }
         }
         server.start()
@@ -577,7 +577,7 @@ class FastAudioTagReaderTest {
             }
             assertEquals(1, server.requestCount)
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 }

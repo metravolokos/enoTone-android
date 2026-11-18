@@ -28,5 +28,8 @@ dependencies {
     testImplementation(libs.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
-    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.okhttp.mockwebserver) {
+        exclude(group = "com.squareup.okhttp3", module = "okhttp")
+    }
+    testImplementation("com.squareup.okhttp3:okhttp-jvm:${libs.versions.okhttp.get()}")
 }

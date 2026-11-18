@@ -1,7 +1,7 @@
 package app.enotone.network
 
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -12,11 +12,11 @@ class WebDavDiagnosticsTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(207)
-                .addHeader("ETag", "SECRET_ETAG_VALUE"))
-            server.enqueue(MockResponse().setResponseCode(401)
-                .addHeader("Location", "https://evil.example/private"))
-            server.enqueue(MockResponse().setResponseCode(206).addHeader("Accept-Ranges", "bytes"))
+            server.enqueue(MockResponse.Builder().code(207)
+                .addHeader("ETag", "SECRET_ETAG_VALUE").build())
+            server.enqueue(MockResponse.Builder().code(401)
+                .addHeader("Location", "https://evil.example/private").build())
+            server.enqueue(MockResponse.Builder().code(206).addHeader("Accept-Ranges", "bytes").build())
             val report = WebDavDiagnostics(server.url("/").toString(), allowLoopbackHttpForTests = true).inspect(
                 "private-user@example.test", "SECRET_PASSWORD",
                 "/AllMusic/Тест.mp3",
@@ -31,12 +31,12 @@ class WebDavDiagnosticsTest {
             assertFalse(sanitized.contains("Тест.mp3"))
             assertFalse(sanitized.contains("evil.example"))
             assertEquals("PROPFIND", server.takeRequest().method)
-            assertEquals("/AllMusic", server.takeRequest().path)
+            assertEquals("/AllMusic", server.takeRequest().url.encodedPath)
             val ranged = server.takeRequest()
-            assertEquals("bytes=0-0", ranged.getHeader("Range"))
-            assertTrue(ranged.path!!.contains("%D0"))
+            assertEquals("bytes=0-0", ranged.headers["Range"])
+            assertTrue(ranged.url.encodedPath.contains("%D0"))
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 
@@ -44,14 +44,14 @@ class WebDavDiagnosticsTest {
         val server = MockWebServer()
         server.start()
         try {
-            repeat(2) { server.enqueue(MockResponse().setResponseCode(207)) }
+            repeat(2) { server.enqueue(MockResponse.Builder().code(207).build()) }
             val report = WebDavDiagnostics(server.url("/").toString(), allowLoopbackHttpForTests = true)
                 .inspect("u", "p", "/AllMusic/../private.mp3")
             assertEquals(4, report.steps.size)
             assertEquals(null, report.steps[3].httpStatus)
             assertEquals(2, server.requestCount)
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 
@@ -67,7 +67,7 @@ class WebDavDiagnosticsTest {
             }
             assertTrue(rejected)
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 }

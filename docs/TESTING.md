@@ -2,7 +2,7 @@
 
 > Как проверяется enoTone: автоматические проверки и правила ручной проверки. **Что** проверять — каталог сценариев [SCENARIOS](SCENARIOS.md) с последними результатами; **как** вести ревью и аудит — [AUDIT_PROTOCOL](AUDIT_PROTOCOL.md). Журналы ручных проверок: [2026-11-08…11](archive/TESTING_JOURNAL_2026-11-08_11.md), [2026-11-12…13](archive/TESTING_JOURNAL_2026-11-12_13.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`; срез 2026-11-18, `main` `d2ca15d4ebab3a552c4c6cd42c045a2d3aa87234`, версия `0.6.2`)
+## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`; срез 2026-11-19, `main` `a126505c4ac33ad83670a10d2f014a81d64613ea`, версия `0.6.2`)
 
 | Шаг | Что проверяет |
 |---|---|
@@ -68,7 +68,9 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 
 ### Roborazzi (исторический этап D2a и текущие экраны Android v2)
 
-Только `:core:ui` и `testImplementation`, не в APK. Robolectric 4.17, `@GraphicsMode(NATIVE)`, Roborazzi 1.76.0. `ThemeScreenshotTest`: синтетический specimen с палитрой, Onest 400/500/600, Unbounded, радиусами; два эталона: `core/ui/src/test/screenshots/theme_graphite.png`, `theme_porcelain.png`. Для начальной записи **в том же CI-окружении**: Actions → Android M0 → Run workflow на ветке D2a с `record_roborazzi=true`; скачать артефакт `roborazzi-results` (или восстановить PNG из строк `ROBORAZZI_PNG <путь> <sha256>` и `ROBORAZZI_B64 <путь> <часть base64>` журнала этого запуска), коммитить PNG; обычный PR запускает `:core:ui:verifyRoborazziDebug` и загружает diff. Пока golden не зафиксированы, проверка не считается завершённой. Ресурсы `tools:keep` проверяются на подписанном Stable Preview (`:app:assembleStablePreview` + `aapt2 dump resources` / `apkanalyzer`); не заявлять PASS без выполнения.
+Только `:core:ui` и `testImplementation`, не в APK. Robolectric 4.17, `@GraphicsMode(NATIVE)`, Roborazzi 1.79.0. `ThemeScreenshotTest`: синтетический specimen с палитрой, Onest 400/500/600, Unbounded, радиусами; два эталона: `core/ui/src/test/screenshots/theme_graphite.png`, `theme_porcelain.png`. Для начальной записи **в том же CI-окружении**: Actions → Android M0 → Run workflow на ветке D2a с `record_roborazzi=true`; скачать артефакт `roborazzi-results` (или восстановить PNG из строк `ROBORAZZI_PNG <путь> <sha256>` и `ROBORAZZI_B64 <путь> <часть base64>` журнала этого запуска), коммитить PNG; обычный PR запускает `:core:ui:verifyRoborazziDebug` и загружает diff. Пока golden не зафиксированы, проверка не считается завершённой. Ресурсы `tools:keep` проверяются на подписанном Stable Preview (`:app:assembleStablePreview` + `aapt2 dump resources` / `apkanalyzer`); не заявлять PASS без выполнения.
+
+HTTP-тесты в `:core:network` и `:data:library` используют MockWebServer 5.5.1 (`com.squareup.okhttp3:mockwebserver3`, пакет `mockwebserver3`) только через `testImplementation`. Транзитивный модуль `okhttp` исключён и явно выбран `okhttp-jvm:5.5.1`: Android-вариант `okhttp-android` этой версии требует compileSdk 37, а проект остаётся на API 36.
 
 Начиная с D3.1 в `:app` действует `AppScreensScreenshotTest`: экраны «Песни» (верх и прокрутка), «Альбомы», «Домой», «Сейчас играет» на эталонном размере 377 × 816 dp, `ru`, обе темы — `app/src/test/screenshots/*.png`. Их сверяют глазами с PNG-макетами `design/assets/ui-screens/android-v2/` перед коммитом эталона; запись — тем же `record_roborazzi=true`.
 

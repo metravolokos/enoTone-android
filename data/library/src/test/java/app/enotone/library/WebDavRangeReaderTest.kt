@@ -1,9 +1,9 @@
 package app.enotone.library
 
-import okhttp3.mockwebserver.Dispatcher
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import okhttp3.mockwebserver.RecordedRequest
+import mockwebserver3.Dispatcher
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
+import mockwebserver3.RecordedRequest
 import okio.Buffer
 import org.junit.Assert.*
 import org.junit.Test
@@ -20,13 +20,13 @@ class WebDavRangeReaderTest {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
-                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
+                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.headers["Range"]!!)!!
                 val start = m.groupValues[1].toInt()
                 val end = m.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes $start-$end/" + payload.size)
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(payload, start, end - start + 1))
+                    .body(Buffer().write(payload, start, end - start + 1)).build()
             }
         }
         server.start()
@@ -44,10 +44,10 @@ class WebDavRangeReaderTest {
             }
             assertEquals(2, server.requestCount)
             val req = server.takeRequest()
-            assertEquals("bytes=0-65535", req.getHeader("Range"))
-            assertEquals("\"v1\"", req.getHeader("If-Range"))
-            assertTrue(req.getHeader("Authorization")!!.startsWith("Basic "))
-        } finally { server.shutdown() }
+            assertEquals("bytes=0-65535", req.headers["Range"])
+            assertEquals("\"v1\"", req.headers["If-Range"])
+            assertTrue(req.headers["Authorization"]!!.startsWith("Basic "))
+        } finally { server.close() }
     }
 
     @Test fun refuses200And302WithoutFollowingRedirects() {
@@ -55,8 +55,8 @@ class WebDavRangeReaderTest {
             val server = MockWebServer()
             server.start()
             try {
-                server.enqueue(MockResponse().setResponseCode(code)
-                    .addHeader("Location", "http://evil.example/private"))
+                server.enqueue(MockResponse.Builder().code(code)
+                    .addHeader("Location", "http://evil.example/private").build())
                 reader(server).use { src ->
                     try { src.readAt(0, ByteArray(1), 0, 1); fail("Must reject") }
                     catch (e: IOException) {
@@ -67,7 +67,7 @@ class WebDavRangeReaderTest {
                     }
                 }
                 assertEquals(1, server.requestCount)
-            } finally { server.shutdown() }
+            } finally { server.close() }
         }
     }
 
@@ -76,9 +76,9 @@ class WebDavRangeReaderTest {
             val server = MockWebServer()
             server.start()
             try {
-                server.enqueue(MockResponse().setResponseCode(206)
+                server.enqueue(MockResponse.Builder().code(206)
                     .addHeader("Content-Range", badRange)
-                    .setBody(Buffer().write(payload, 0, 65536)))
+                    .body(Buffer().write(payload, 0, 65536)).build())
                 reader(server).use { src ->
                     try { src.readAt(0, ByteArray(1), 0, 1); fail("Must reject") }
                     catch (_: IOException) {
@@ -86,21 +86,21 @@ class WebDavRangeReaderTest {
                         assertEquals(206, src.stats().httpStatus)
                     }
                 }
-            } finally { server.shutdown() }
+            } finally { server.close() }
         }
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(206)
+            server.enqueue(MockResponse.Builder().code(206)
                 .addHeader("Content-Range", "bytes 0-65535/110000")
-                .addHeader("ETag", "\"v2\"").setBody(Buffer().write(payload, 0, 65536)))
+                .addHeader("ETag", "\"v2\"").body(Buffer().write(payload, 0, 65536)).build())
             reader(server).use { src ->
                 try { src.readAt(0, ByteArray(1), 0, 1); fail("Must reject") }
                 catch (_: IOException) {
                     assertEquals(RangeReadIssue.CHANGED_ETAG, src.stats().issue)
                 }
             }
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
     @Test fun refusesPathsOutsideFlatCloudFolder() {
@@ -113,18 +113,18 @@ class WebDavRangeReaderTest {
                 catch (_: IllegalArgumentException) {}
             }
             assertEquals(0, server.requestCount)
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
     @Test fun strictByteAndRequestLimit() {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
-                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
-                return MockResponse().setResponseCode(206)
+                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.headers["Range"]!!)!!
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes " + m.groupValues[1] + "-" +
                         m.groupValues[2] + "/16777216")
-                    .setBody(Buffer().write(ByteArray(65536)))
+                    .body(Buffer().write(ByteArray(65536))).build()
             }
         }
         server.start()
@@ -140,7 +140,7 @@ class WebDavRangeReaderTest {
                 }
                 assertEquals(128, server.requestCount)
             }
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
     @Test fun classifiesContentRangeDifferencesWithoutExposingRawHeaders() {
@@ -157,9 +157,9 @@ class WebDavRangeReaderTest {
             val server = MockWebServer()
             server.start()
             try {
-                server.enqueue(MockResponse().setResponseCode(206)
+                server.enqueue(MockResponse.Builder().code(206)
                     .addHeader("Content-Range", header)
-                    .setBody(Buffer().write(ByteArray(65536))))
+                    .body(Buffer().write(ByteArray(65536))).build())
                 reader(server).use { source ->
                     try {
                         source.readAt(0, ByteArray(1), 0, 1)
@@ -182,7 +182,7 @@ class WebDavRangeReaderTest {
                 }
                 assertEquals(1, server.requestCount)
             } finally {
-                server.shutdown()
+                server.close()
             }
         }
     }
@@ -193,13 +193,13 @@ class WebDavRangeReaderTest {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
                 val match = Regex("""bytes=(\d+)-(\d+)""")
-                    .matchEntire(req.getHeader("Range")!!)!!
+                    .matchEntire(req.headers["Range"]!!)!!
                 val start = match.groupValues[1].toInt()
                 val end = match.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes $start-$end/*")
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(payload, start, end - start + 1))
+                    .body(Buffer().write(payload, start, end - start + 1)).build()
             }
         }
         server.start()
@@ -214,16 +214,16 @@ class WebDavRangeReaderTest {
                 assertEquals(110000L, source.stats().downloadedBytes)
             }
             assertEquals(2, server.requestCount)
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
     @Test fun rejectsWildcardTotalIfActualEndIsWrong() {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(206)
+            server.enqueue(MockResponse.Builder().code(206)
                 .addHeader("Content-Range", "bytes 0-65534/*")
-                .setBody(Buffer().write(payload, 0, 65535)))
+                .body(Buffer().write(payload, 0, 65535)).build())
             reader(server).use { source ->
                 try {
                     source.readAt(0, ByteArray(1), 0, 1)
@@ -234,7 +234,7 @@ class WebDavRangeReaderTest {
                     assertEquals(0L, source.stats().downloadedBytes)
                 }
             }
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
 
@@ -243,13 +243,13 @@ class WebDavRangeReaderTest {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
                 val match = Regex("""bytes=(\d+)-(\d+)""")
-                    .matchEntire(req.getHeader("Range")!!)!!
+                    .matchEntire(req.headers["Range"]!!)!!
                 val start = match.groupValues[1].toInt()
                 val end = match.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=$start-$end/" + payload.size)
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(payload, start, end - start + 1))
+                    .body(Buffer().write(payload, start, end - start + 1)).build()
             }
         }
         server.start()
@@ -268,11 +268,11 @@ class WebDavRangeReaderTest {
             assertEquals(2, server.requestCount)
             val first = server.takeRequest()
             val second = server.takeRequest()
-            assertEquals("bytes=0-65535", first.getHeader("Range"))
-            assertEquals("bytes=65536-109999", second.getHeader("Range"))
-            assertEquals("\"v1\"", first.getHeader("If-Range"))
-            assertEquals("\"v1\"", second.getHeader("If-Range"))
-        } finally { server.shutdown() }
+            assertEquals("bytes=0-65535", first.headers["Range"])
+            assertEquals("bytes=65536-109999", second.headers["Range"])
+            assertEquals("\"v1\"", first.headers["If-Range"])
+            assertEquals("\"v1\"", second.headers["If-Range"])
+        } finally { server.close() }
     }
 
     @Test fun equalsSeparatorStillRejectsIncorrectNumericRangeOrTotal() {
@@ -289,9 +289,9 @@ class WebDavRangeReaderTest {
             val server = MockWebServer()
             server.start()
             try {
-                server.enqueue(MockResponse().setResponseCode(206)
+                server.enqueue(MockResponse.Builder().code(206)
                     .addHeader("Content-Range", header)
-                    .setBody(Buffer().write(payload, 0, 65536)))
+                    .body(Buffer().write(payload, 0, 65536)).build())
                 reader(server).use { source ->
                     try {
                         source.readAt(0, ByteArray(1), 0, 1)
@@ -305,7 +305,7 @@ class WebDavRangeReaderTest {
                     }
                 }
                 assertEquals(1, server.requestCount)
-            } finally { server.shutdown() }
+            } finally { server.close() }
         }
     }
 
@@ -313,9 +313,9 @@ class WebDavRangeReaderTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(206)
+            server.enqueue(MockResponse.Builder().code(206)
                 .addHeader("Content-Range", "bytes=0-65535/*")
-                .setBody(Buffer().write(payload, 0, 65535)))
+                .body(Buffer().write(payload, 0, 65535)).build())
             reader(server).use { source ->
                 try {
                     source.readAt(0, ByteArray(1), 0, 1)
@@ -326,7 +326,7 @@ class WebDavRangeReaderTest {
                     assertEquals(1, source.stats().unknownTotalResponses)
                 }
             }
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
 
@@ -335,13 +335,13 @@ class WebDavRangeReaderTest {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
-                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
+                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.headers["Range"]!!)!!
                 val from = m.groupValues[1].toInt()
                 val to = m.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=$from-$to/" + big.size)
                     .addHeader("ETag", "\"v1\"")
-                    .setBody(Buffer().write(big, from, to - from + 1))
+                    .body(Buffer().write(big, from, to - from + 1)).build()
             }
         }
         server.start()
@@ -371,19 +371,19 @@ class WebDavRangeReaderTest {
                 assertEquals(6L * 65536, src.stats().downloadedBytes)
             }
             assertEquals(6, server.requestCount)
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
     @Test fun repeatedNonAdjacentReadsDoNotConsumeExtraNetworkBudget() {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
-                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.getHeader("Range")!!)!!
+                val m = Regex("""bytes=(\d+)-(\d+)""").matchEntire(req.headers["Range"]!!)!!
                 val from = m.groupValues[1].toInt()
                 val to = m.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes $from-$to/" + payload.size)
-                    .setBody(Buffer().write(payload, from, to - from + 1))
+                    .body(Buffer().write(payload, from, to - from + 1)).build()
             }
         }
         server.start()
@@ -401,7 +401,7 @@ class WebDavRangeReaderTest {
                 assertEquals(0, src.stats().cacheEvictions)
             }
             assertEquals(2, server.requestCount)
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
 
@@ -410,12 +410,12 @@ class WebDavRangeReaderTest {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(req: RecordedRequest): MockResponse {
                 val match = Regex("""bytes=(\d+)-(\d+)""")
-                    .matchEntire(req.getHeader("Range")!!)!!
+                    .matchEntire(req.headers["Range"]!!)!!
                 val from = match.groupValues[1].toInt()
                 val to = match.groupValues[2].toInt()
-                return MockResponse().setResponseCode(206)
+                return MockResponse.Builder().code(206)
                     .addHeader("Content-Range", "bytes=$from-$to/" + payload.size)
-                    .setBody(Buffer().write(payload, from, to - from + 1))
+                    .body(Buffer().write(payload, from, to - from + 1)).build()
             }
         }
         server.start()
@@ -441,7 +441,7 @@ class WebDavRangeReaderTest {
                 }
             }
             assertEquals(1, server.requestCount)
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
     @Test fun pilotRejectsBudgetsLargerThanOneFileSafetyEnvelope() {
@@ -460,7 +460,7 @@ class WebDavRangeReaderTest {
                 fail("Cannot raise transport limits through pilot")
             } catch (_: IllegalArgumentException) {}
             assertEquals(0, server.requestCount)
-        } finally { server.shutdown() }
+        } finally { server.close() }
     }
 
 }

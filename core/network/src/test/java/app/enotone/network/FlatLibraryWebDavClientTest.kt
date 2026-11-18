@@ -1,8 +1,8 @@
 package app.enotone.network
 
 import kotlinx.coroutines.runBlocking
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
+import mockwebserver3.MockResponse
+import mockwebserver3.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -23,7 +23,7 @@ class FlatLibraryWebDavClientTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(207).setBody(xml))
+            server.enqueue(MockResponse.Builder().code(207).body(xml).build())
             FlatLibraryWebDavClient(server.url("/AllMusic/").toString(), true).use { client ->
                 val listing = runBlocking { client.list("user@example.test", "SECRET_password") }
                 assertEquals(1, listing.tracks.size)
@@ -33,12 +33,12 @@ class FlatLibraryWebDavClientTest {
             assertEquals(1, server.requestCount)
             val req = server.takeRequest()
             assertEquals("PROPFIND", req.method)
-            assertEquals("/AllMusic/", req.path)
-            assertEquals("1", req.getHeader("Depth"))
-            assertTrue(req.getHeader("Authorization")!!.startsWith("Basic "))
-            assertTrue(req.body.readUtf8().contains("getetag"))
+            assertEquals("/AllMusic/", req.url.encodedPath)
+            assertEquals("1", req.headers["Depth"])
+            assertTrue(req.headers["Authorization"]!!.startsWith("Basic "))
+            assertTrue(req.body!!.utf8().contains("getetag"))
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 
@@ -46,8 +46,8 @@ class FlatLibraryWebDavClientTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(302)
-                .addHeader("Location", "https://evil.example/steal"))
+            server.enqueue(MockResponse.Builder().code(302)
+                .addHeader("Location", "https://evil.example/steal").build())
             FlatLibraryWebDavClient(server.url("/AllMusic/").toString(), true).use { client ->
                 try {
                     runBlocking { client.list("u", "SECRET_password") }
@@ -59,7 +59,7 @@ class FlatLibraryWebDavClientTest {
             }
             assertEquals(1, server.requestCount)
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 
@@ -67,7 +67,7 @@ class FlatLibraryWebDavClientTest {
         val server = MockWebServer()
         server.start()
         try {
-            server.enqueue(MockResponse().setResponseCode(401))
+            server.enqueue(MockResponse.Builder().code(401).build())
             FlatLibraryWebDavClient(server.url("/AllMusic/").toString(), true).use { client ->
                 try {
                     runBlocking { client.list("private@example.test", "SECRET") }
@@ -79,7 +79,7 @@ class FlatLibraryWebDavClientTest {
                 }
             }
         } finally {
-            server.shutdown()
+            server.close()
         }
     }
 
