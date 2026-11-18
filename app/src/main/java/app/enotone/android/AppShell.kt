@@ -75,9 +75,28 @@ internal fun AppMusicShell(
                 snapshots = snapshots,
                 searchRegistry = searchRegistry,
             ) { route, snapshot, active ->
-            val renderedTab = if (route.tab == AppTab.Home && route.details.isNotEmpty())
+            val recentDetail = route.details.lastOrNull() as? LibraryDetail.RecentlyAdded
+            val renderedTab = if (route.tab == AppTab.Home && route.details.isNotEmpty() &&
+                recentDetail == null
+            )
                 AppTab.Library(LibraryPage.TRACKS) else route.tab
-            when (val tab = renderedTab) {
+            if (recentDetail != null) {
+                libraryStateHolder.SaveableStateProvider(
+                    librarySaveKey(AppTab.Library(LibraryPage.TRACKS), route.details),
+                ) {
+                    RecentlyAddedScreen(
+                        kind = recentDetail.kind,
+                        state = library,
+                        actions = libraryModel ?: PreviewLibraryActions,
+                        artworkRepository = LocalContext.current.applicationContext
+                            .let { (it as EnoToneApplication).container.artworkPreviewRepository },
+                        accountEmail = login?.email.orEmpty(),
+                        appPassword = login?.password.orEmpty(),
+                        contentPadding = contentPadding,
+                        onOpenDetail = onOpenDetail,
+                    )
+                }
+            } else when (val tab = renderedTab) {
                 AppTab.Home -> EnoToneHomeScreen(
                     connectedAccount = login != null,
                     songCount = library?.tracks?.size?.takeIf { !library.loading && it > 0 },
@@ -85,6 +104,17 @@ internal fun AppMusicShell(
                     onShuffleAll = { libraryModel?.onShuffleLibrary() },
                     contentPadding = contentPadding,
                     shuffleEnabled = library?.playbackConnected == true && !selecting,
+                    recentContent = {
+                        RecentlyAddedHomeSections(
+                            state = library,
+                            actions = libraryModel ?: PreviewLibraryActions,
+                            artworkRepository = LocalContext.current.applicationContext
+                                .let { (it as EnoToneApplication).container.artworkPreviewRepository },
+                            accountEmail = login?.email.orEmpty(),
+                            appPassword = login?.password.orEmpty(),
+                            onOpenDetail = onOpenDetail,
+                        )
+                    },
                 )
                 is AppTab.Library -> if (login != null && libraryModel != null) {
                     // Состояние прокрутки переживает «Сейчас играет» (регрессия Huawei после #92).
@@ -180,6 +210,7 @@ private fun librarySaveKey(tab: AppTab.Library, details: List<LibraryDetail>): S
             is LibraryDetail.Album -> "a"
             is LibraryDetail.Artist -> "r"
             is LibraryDetail.AlbumArtist -> "u"
+            is LibraryDetail.RecentlyAdded -> "n"
         }
         kind + detail.key.length + ":" + detail.key
     }

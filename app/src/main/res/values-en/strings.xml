@@ -212,6 +212,11 @@
     <string name="nav_artists">Artists</string>
     <string name="nav_album_artists">Album artists</string>
     <string name="home_shuffle_all">Shuffle all</string>
+    <string name="home_recently_added_albums">Recently added albums</string>
+    <string name="home_recently_added_songs">Recently added songs</string>
+    <string name="home_recently_added_all">All</string>
+    <string name="home_recently_added_empty_albums">No recently added albums yet</string>
+    <string name="home_recently_added_empty_songs">No recently added songs yet</string>
     <plurals name="home_song_count">
         <item quantity="one">%1$s song</item>
         <item quantity="other">%1$s songs</item>

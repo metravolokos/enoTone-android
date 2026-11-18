@@ -20,6 +20,8 @@ data class OfflineTrackRow(
     val durationMs: Long? = null,
     /** True only for a real stored tag, not a filename-derived title. */
     val hasStoredTagData: Boolean = false,
+    /** Null means the row predates Room v5 or belongs to the first import. */
+    val firstSeenEpochMs: Long? = null,
 ) {
     /** Precomputed once per immutable row, including a copy() with changed metadata. */
     val normalizedSearchKey: String =
@@ -49,6 +51,7 @@ object OfflineTrackCatalog {
                     discNumber = track.discNumber,
                     genre = track.genre?.takeIf { it.isNotBlank() },
                     durationMs = track.durationMs,
+                    firstSeenEpochMs = track.firstSeenEpochMs,
                     hasStoredTagData = listOf(
                         track.title, track.artist, track.album, track.albumArtist,
                     ).any { !it.isNullOrBlank() } ||

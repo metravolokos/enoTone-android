@@ -72,6 +72,14 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 
 Начиная с D3.1 в `:app` действует `AppScreensScreenshotTest`: экраны «Песни» (верх и прокрутка), «Альбомы», «Домой», «Сейчас играет» на эталонном размере 377 × 816 dp, `ru`, обе темы — `app/src/test/screenshots/*.png`. Их сверяют глазами с PNG-макетами `design/assets/ui-screens/android-v2/` перед коммитом эталона; запись — тем же `record_roborazzi=true`.
 
+D4c (#201) добавляет `RecentlyAddedPlannerTest`, `RecentlyAddedUiTest` и
+`RecentlyAddedScreenshotTest`: планирование датированных строк, скрытие пустых
+секций, навигация и очереди из 5/100 песен. Восемь снимков на макете 09_home
+покрывают обе темы: `home_recent_both_*`, `home_recent_empty_*`,
+`home_recent_all_albums_*` и `home_recent_all_songs_*`. Эталоны записываются
+тем же CI workflow dispatch с `record_roborazzi=true`; до коммита PNG и зелёного
+обычного CI на точном HEAD проверка не считается завершённой.
+
 D2b добавляет `ComponentsScreenshotTest` (две галереи компонентов в обеих темах), `EnoLetterAvatarTest` (Unicode/grapheme/детерминированность), dual-Preview у каждого компонента. PNG-эталоны D2b: `core/ui/src/test/screenshots/components_graphite.png`, `components_porcelain.png`, записываются тем же `record_roborazzi=true` на stacked-ветке после D2a.
 
 Строковые `tools/test_m6_theme_contract.py` и `tools/test_now_playing_contract.py` удалены: первый зависел от устаревшей темы, второй — от наличия вызовов и строк в исходниках. Теперь поведение плеера покрывают `NowPlayingUiTest` и `NowPlayingActionNavigationUiTest`, визуал — восемь снимков `AppScreensScreenshotTest` (`now_playing_*`) в обеих темах. Режимы темы/сохранение проверяет `UiAppearancePersistenceTest`, базовый внешний вид — `ThemeScreenshotTest`.

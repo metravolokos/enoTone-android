@@ -16,7 +16,12 @@ internal sealed interface LibraryDetail {
     data class Album(override val key: String) : LibraryDetail
     data class Artist(override val key: String) : LibraryDetail
     data class AlbumArtist(override val key: String) : LibraryDetail
+    data class RecentlyAdded(val kind: RecentlyAddedKind) : LibraryDetail {
+        override val key: String get() = kind.name
+    }
 }
+
+internal enum class RecentlyAddedKind { ALBUMS, TRACKS }
 
 internal enum class AppOverlay { SETTINGS, DIAGNOSTICS }
 
@@ -82,6 +87,7 @@ internal object AppNavigator {
                 is LibraryDetail.Album -> ALBUM
                 is LibraryDetail.Artist -> ARTIST
                 is LibraryDetail.AlbumArtist -> ALBUM_ARTIST
+                is LibraryDetail.RecentlyAdded -> RECENTLY_ADDED
             }
             kind + Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(detail.key.toByteArray(StandardCharsets.UTF_8))
@@ -124,6 +130,8 @@ private fun parseDetail(item: String): LibraryDetail? {
         item.first() == ALBUM -> LibraryDetail.Album(key)
         item.first() == ARTIST -> LibraryDetail.Artist(key)
         item.first() == ALBUM_ARTIST -> LibraryDetail.AlbumArtist(key)
+        item.first() == RECENTLY_ADDED ->
+            RecentlyAddedKind.entries.firstOrNull { it.name == key }?.let(LibraryDetail::RecentlyAdded)
         else -> null
     }
 }
@@ -132,3 +140,4 @@ private const val MIN_ENCODED_DETAIL_LENGTH = 2
 private const val ALBUM = 'a'
 private const val ARTIST = 'r'
 private const val ALBUM_ARTIST = 'u'
+private const val RECENTLY_ADDED = 'n'

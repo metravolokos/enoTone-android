@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.enotone.android.core.ui.component.EnoAlbumTile
 import app.enotone.android.core.ui.theme.EnoColors
 import app.enotone.android.core.ui.theme.EnoElevation
 import app.enotone.android.core.ui.theme.EnoRadii
@@ -52,6 +54,7 @@ internal fun AlbumArtworkTile(
     onOpen: () -> Unit,
     subtitle: String? = group.subtitle,
     artistCarousel: Boolean = false,
+    useCoreTile: Boolean = false,
 ) {
     // Lazy grid/list items are disposed during navigation. If we already
     // drew this source on another page, paint the RAM image immediately
@@ -73,11 +76,37 @@ internal fun AlbumArtworkTile(
         }
     }
 
+    if (useCoreTile) {
+        EnoAlbumTile(
+            title = group.name,
+            artist = subtitle.orEmpty(),
+            onClick = onOpen,
+            modifier = Modifier.fillMaxWidth(),
+            artwork = {
+                val image = cover
+                if (image != null) {
+                    Image(
+                        bitmap = image.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_nav_albums),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
+        )
+        return
+    }
     val coverShape = RoundedCornerShape(if (artistCarousel) EnoRadii.s else 8.dp)
-    Column(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
+    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(
             modifier = Modifier.fillMaxWidth().aspectRatio(1f)
                 .shadow(2.dp, coverShape)

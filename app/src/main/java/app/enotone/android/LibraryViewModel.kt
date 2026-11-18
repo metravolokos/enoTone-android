@@ -55,6 +55,8 @@ internal data class LibraryUiState(
     /** Маршрут, для которого группы и строки действительно рассчитаны. */
     val derivedRoute: Pair<LibraryPage, String?>? = null,
     val tracks: List<OfflineTrackRow> = emptyList(),
+    val recentlyAddedAlbums: List<OfflineLibraryGroup> = emptyList(),
+    val recentlyAddedTracks: List<OfflineTrackRow> = emptyList(),
     val groupIndex: LibraryGroupIndex = LibraryGroupIndex(),
     val artistPlans: Map<String, ArtistDetailPlan> = emptyMap(),
     val groups: List<OfflineLibraryGroup> = emptyList(),
@@ -291,13 +293,18 @@ internal class LibraryViewModel(
                 val index = withContext(io) {
                     LibraryGroupIndex.build(result.tracks, unknownAlbumName, compilationsName)
                 }
+                val (recentAlbums, recentTracks) = withContext(io) {
+                    RecentlyAddedPlanner.albums(index.albums, index.tracksById) to
+                        RecentlyAddedPlanner.tracks(result.tracks)
+                }
                 val artistPlans = withContext(io) {
                     index.artists.associate { it.key to ArtistDetailPlanner.plan(it, index) }
                 }
                 if (unavailable()) return@launch
                 mutable.update {
-                    it.copy(tracks = result.tracks, groupIndex = index, artistPlans = artistPlans,
-                        artworkCatalog = covers,
+                    it.copy(tracks = result.tracks, recentlyAddedAlbums = recentAlbums,
+                        recentlyAddedTracks = recentTracks, groupIndex = index,
+                        artistPlans = artistPlans, artworkCatalog = covers,
                         loading = false, failed = false)
                 }
                 derivePages()

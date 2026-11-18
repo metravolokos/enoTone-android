@@ -17,5 +17,11 @@ class AppLibraryRouteSnapshotsTest {
             assertNull(route.libraryTarget())
             assertNull(snapshots.stateFor(route, route, library))
         }
+        val recent = AppNavigator.push(
+            home,
+            LibraryDetail.RecentlyAdded(RecentlyAddedKind.TRACKS),
+        )
+        assertNull(recent.libraryTarget())
+        assertNull(snapshots.stateFor(recent, recent, library))
     }
 }

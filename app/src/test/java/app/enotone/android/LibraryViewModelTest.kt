@@ -252,6 +252,35 @@ class LibraryViewModelTest {
         }
     }
 
+    @Test fun recentlyAddedHomeAndAllQueuesUseTheirVisibleFiveAndHundredRows() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val rows = (1..120).map { number ->
+                row(number, "Song $number").copy(firstSeenEpochMs = number.toLong())
+            }
+            val player = FakeConnection()
+            val vm = model(this, FakeRepository(catalog(*rows.toTypedArray())), player)
+            advanceUntilIdle()
+
+            val allRecent = vm.state.value.recentlyAddedTracks
+            val homeRecent = allRecent.take(RecentlyAddedPlanner.HOME_TRACKS_LIMIT)
+            assertEquals(100, allRecent.size)
+            assertEquals((120 downTo 21).map(::id), allRecent.map { it.id })
+            assertEquals(5, homeRecent.size)
+
+            vm.onTrackClicked(homeRecent.first(), homeRecent)
+            advanceUntilIdle()
+            assertEquals(homeRecent.map { it.id }, player.queue.map { it.id })
+
+            vm.onTrackClicked(allRecent.first(), allRecent)
+            advanceUntilIdle()
+            assertEquals(100, player.queue.size)
+            assertEquals(allRecent.map { it.id }, player.queue.map { it.id })
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     @Test fun searchAndIndexSurviveAlbumRoundTrip() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

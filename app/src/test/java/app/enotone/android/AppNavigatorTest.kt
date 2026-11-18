@@ -118,6 +118,20 @@ class AppNavigatorTest {
         assertEquals(root, AppNavigator.back(detail))
     }
 
+    @Test fun recentlyAddedRouteOpensAboveHomeAndKeepsAlbumBackStack() {
+        val home = AppNavState()
+        val recent = AppNavigator.push(
+            home,
+            LibraryDetail.RecentlyAdded(RecentlyAddedKind.ALBUMS),
+        )
+        val album = AppNavigator.push(recent, LibraryDetail.Album("album:opaque"))
+
+        assertEquals(home.tab, recent.tab)
+        assertEquals(album, AppNavigator.restore(AppNavigator.save(album)))
+        assertEquals(recent, AppNavigator.back(album))
+        assertEquals(home, AppNavigator.back(recent))
+    }
+
     @Test fun newFormatRoundTripsOpaqueKeysAndReadsOldThreeFields() {
         val initial = AppNavState(tab = albums, details = listOf(
             LibraryDetail.Artist("artist:А|Б/В"),

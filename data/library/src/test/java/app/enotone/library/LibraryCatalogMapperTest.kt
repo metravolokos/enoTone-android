@@ -7,12 +7,19 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LibraryCatalogMapperTest {
-    private fun row(id: String, source: String, size: Long?, missing: Int = 0) =
+    private fun row(
+        id: String,
+        source: String,
+        size: Long?,
+        missing: Int = 0,
+        firstSeen: Long? = null,
+    ) =
         RemoteTrackEntity(
             id = id, sourceKey = source, encodedPath = "/AllMusic/$id.mp3",
             fileName = "$id.mp3", remoteEtag = null, remoteSize = size,
             remoteModified = null, lastSeenEpoch = 0L, missingScans = missing,
             title = "Song $id",
+            firstSeenEpochMs = firstSeen,
         )
 
     @Test fun mapperKeepsOnlyPlayableCurrentSourceInQueue() {
@@ -35,5 +42,17 @@ class LibraryCatalogMapperTest {
         val queued = result.preparedById.getValue("a")
         assertEquals("Исполнитель", queued.artist)
         assertEquals("Альбом", queued.album)
+    }
+
+    @Test fun catalogKeepsFirstSeenDateOnlyForPresentRows() {
+        val result = LibraryCatalogMapper.map("one", listOf(
+            row("dated", "one", 100L, firstSeen = 123L),
+            row("undated", "one", 100L),
+            row("missing", "one", 100L, missing = 1, firstSeen = 456L),
+        ))
+
+        assertEquals(123L, result.tracks.single { it.id == "dated" }.firstSeenEpochMs)
+        assertEquals(null, result.tracks.single { it.id == "undated" }.firstSeenEpochMs)
+        assertFalse(result.tracks.any { it.id == "missing" })
     }
 }
