@@ -274,8 +274,6 @@
     <string name="queue_added">Added to queue</string>
     <string name="queue_already_playing">Already playing</string>
     <string name="queue_full">Queue is full</string>
-    <string name="queue_first_100">The first 100 songs are in the queue</string>
-    <string name="queue_shuffle_100">100 random songs are in the queue</string>
     <string name="queue_empty_selection">No songs to add</string>
     <string name="queue_unavailable">Player unavailable</string>
     <string name="queue_edit_failed">Could not edit the queue</string>
