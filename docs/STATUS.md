@@ -3,7 +3,7 @@
 
 > Короткий оперативный срез, а не журнал и не очередь отдельных задач. При обновлении заменять старое. История — [archive](archive/), подробные изменения — [CHANGELOG](../CHANGELOG.md), статусы задач — в GitHub Issues по [WORKFLOW](WORKFLOW.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-**Срез:** 2026-11-18 · `main` `a0c912b5d942fc4825ac618e3582f569387fb82b` · версия `0.6.2`. Главный репозиторий содержит исправление F-02 — PR [#185](https://github.com/metravolokos/enoTone-android/pull/185) слит (squash `f42213bf`). D5-C — [PR #183](https://github.com/metravolokos/enoTone-android/pull/183) **слит** 2026-11-17 (squash `61ced66`), документация DOC-01 — [PR #187](https://github.com/metravolokos/enoTone-android/pull/187) слит (squash `d4b88ebe`), восстановленный плеер #188 — [PR #189](https://github.com/metravolokos/enoTone-android/pull/189) слит (squash `13496579`). F-01 закрыта в [PR #194](https://github.com/metravolokos/enoTone-android/pull/194), F-03 исправлена в [PR #196](https://github.com/metravolokos/enoTone-android/pull/196).
+**Срез:** 2026-11-18 · `main` `febbea33e5aa68064792fce9c73d1a6a48f36df3` · версия `0.6.2`. Главный репозиторий содержит исправление F-02 — PR [#185](https://github.com/metravolokos/enoTone-android/pull/185) слит (squash `f42213bf`). D5-C — [PR #183](https://github.com/metravolokos/enoTone-android/pull/183) **слит** 2026-11-17 (squash `61ced66`), документация DOC-01 — [PR #187](https://github.com/metravolokos/enoTone-android/pull/187) слит (squash `d4b88ebe`), восстановленный плеер #188 — [PR #189](https://github.com/metravolokos/enoTone-android/pull/189) слит (squash `13496579`). F-01 закрыта в [PR #194](https://github.com/metravolokos/enoTone-android/pull/194), F-03 исправлена в [PR #196](https://github.com/metravolokos/enoTone-android/pull/196), F-04 — в [PR #206](https://github.com/metravolokos/enoTone-android/pull/206).
 
 ## Реализовано в `main`
 
@@ -11,6 +11,8 @@
 - **Плеер и очередь:** Media3 + MediaSessionService, уведомление, repeat/shuffle, seek, временный кэш, предзагрузка следующего трека, сохранение очереди/позиции, действия «Играть следующей» / «В конец очереди» (#134 и #145). Room-модель плейлистов есть, UI плейлистов нет.
 - **Android v2:** D1/D2, D3–D3.3, D4a/D4b, D3.5 (#169), D5 B (#167), исправления #174 и #176 слиты. D3.5 заменил прежний slide/shared-artwork на один fade-through страниц и вертикальную шторку «Сейчас играет» ([ADR-0095](DECISIONS/ADR-0095-simple-motion.md)). Буфер и состояние следующего трека есть в `main`; D5-C (#183) добавил акцентного исполнителя, «Альбом · год», общий лист «⋮», круглую паузу, выверенные иконки и единый Snackbar. Сохранён `N / M`; восемь Roborazzi PNG подтверждены в CI #1001 (попытка 2) на кодовом HEAD `09c0d98`.
 - **Качество:** Robolectric/Compose UI/Roborazzi, detekt/ktlint, проверка ADR, GMS-gate, проверка дизайн-ресурсов; канонический LF закреплён в `.gitattributes` (#185, [ADR-0096](DECISIONS/ADR-0096-canonical-line-endings.md)). R-A7 (#180) исправил ряд ошибок парсера тегов; остаточное покрытие — [#182](https://github.com/metravolokos/enoTone-android/issues/182).
+
+**В работе вне `main`:** Issue #179 — точка LOADING с alpha 0,6 при отключённых анимациях и пиксельные тесты обоих режимов — находится в Draft [PR #204](https://github.com/metravolokos/enoTone-android/pull/204), issue передано в review. Итоговый exact-HEAD CI и состояние Roborazzi-эталонов указаны в PR. Huawei PLAY-10 остаётся непроверенным.
 
 ## Что подтвердил владелец на Huawei
 
@@ -65,7 +67,7 @@ Android CI [#1033](https://github.com/metravolokos/enoTone-android/actions/runs/
 двух независимых ревью, второго назначает владелец.
 Huawei QUE-01…06/QED-01…06 ещё не проверены.
 
-F-04 (#202) в работе на `fix/f-04-route-retain-soft`: задержанный `MediaPeriod` для обрезанного маршрута больше не ломает создание периода и не меняет счётчики соседних периодов. Класс риска R; Draft PR и CI точного HEAD — по Issue #202.
+F-04 (#202) исправлена и слита в PR #206: задержанный `MediaPeriod` для обрезанного маршрута больше не ломает создание периода и не меняет счётчики соседних периодов. Класс риска R; Huawei-проверки не заявлены.
 
 ## Активные ограничения и ближайшие решения
 
@@ -73,4 +75,4 @@ F-04 (#202) в работе на `fix/f-04-route-retain-soft`: задержан�
 
 **Этап A «Ship-safety» (цель `0.7.0`) открыт:** R-A1 (Issue #197) — минифицированный `assembleRelease` в CI с проверкой R8 и артефактом `enotone-release-unsigned-apk`, Draft PR #198. R8 и раньше работал в `debug` и `stablePreview`; новым стала блокирующая проверка варианта `release` с `isShrinkResources = true` на каждом PR. Шаг проверяет не название задачи, а содержимое: `configuration.txt` без `-dontshrink`/`-dontoptimize` и с `-allowaccessmodification`, плюс задача `:app:convertShrunkResourcesToBinaryRelease` для сжатия ресурсов. Локально `BUILD SUCCESSFUL`, APK 4 915 809 байт без `Missing class`; в CI APK на 4 байта больше (собирается merge-коммит, его SHA вшивается в APK). Установки и запуска APK нет (R-A3), keep-правила не написаны (R-A2).
 
-**Следующие шаги:** Q1 #192 — exact-HEAD CI, два независимых ревью (второго назначает владелец) и Huawei QUE-01…06/QED-01…06; также аппаратная проверка новых элементов D5-C после #183, решение отдельных открытых Issues и независимое повторное ревью документации DOC-01 / PR #187. Предстоящие возможности и зависимости — [ROADMAP](ROADMAP.md).
+**Следующие шаги:** Q1 #192 — exact-HEAD CI, два независимых ревью (второго назначает владелец) и Huawei QUE-01…06/QED-01…06; также аппаратная проверка новых элементов D5-C после #183, завершение ревью #179, решение отдельных открытых Issues и независимое повторное ревью документации DOC-01 / PR #187. Предстоящие возможности и зависимости — [ROADMAP](ROADMAP.md).
