@@ -15,6 +15,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowNetwork
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -49,6 +50,95 @@ class NetworkMonitorTest {
 
             callback.onCapabilitiesChanged(network, capabilities(NetworkCapabilities.NET_CAPABILITY_INTERNET))
             assertFalse(monitor.hasValidatedInternet.value)
+        } finally {
+            monitor.close()
+        }
+        assertEquals(existingCallbacks, shadow.networkCallbacks)
+    }
+
+    @Test
+    fun staleNetworkEventsDoNotReplaceCurrentDefaultNetwork() {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val shadow = Shadows.shadowOf(connectivityManager)
+        val existingCallbacks = shadow.networkCallbacks.toSet()
+        val monitor = AndroidNetworkMonitor(context)
+        val callback = (shadow.networkCallbacks - existingCallbacks).single()
+        val networkA = ShadowNetwork.newInstance(101)
+        val networkB = ShadowNetwork.newInstance(202)
+
+        try {
+            callback.onAvailable(networkA)
+            callback.onCapabilitiesChanged(networkA, capabilities(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                NetworkCapabilities.NET_CAPABILITY_VALIDATED,
+            ))
+            assertTrue(monitor.hasValidatedInternet.value)
+
+            callback.onAvailable(networkB)
+            callback.onCapabilitiesChanged(networkB, capabilities(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                NetworkCapabilities.NET_CAPABILITY_VALIDATED,
+            ))
+            assertTrue(monitor.hasValidatedInternet.value)
+
+            callback.onCapabilitiesChanged(networkA, capabilities(NetworkCapabilities.NET_CAPABILITY_INTERNET))
+            callback.onLost(networkA)
+            assertTrue(monitor.hasValidatedInternet.value)
+        } finally {
+            monitor.close()
+        }
+        assertEquals(existingCallbacks, shadow.networkCallbacks)
+    }
+
+    @Test
+    fun losingCurrentDefaultNetworkClearsAvailability() {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val shadow = Shadows.shadowOf(connectivityManager)
+        val existingCallbacks = shadow.networkCallbacks.toSet()
+        val monitor = AndroidNetworkMonitor(context)
+        val callback = (shadow.networkCallbacks - existingCallbacks).single()
+        val network = ShadowNetwork.newInstance(303)
+
+        try {
+            callback.onAvailable(network)
+            callback.onCapabilitiesChanged(network, capabilities(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                NetworkCapabilities.NET_CAPABILITY_VALIDATED,
+            ))
+            assertTrue(monitor.hasValidatedInternet.value)
+
+            callback.onLost(network)
+            assertFalse(monitor.hasValidatedInternet.value)
+        } finally {
+            monitor.close()
+        }
+        assertEquals(existingCallbacks, shadow.networkCallbacks)
+    }
+
+    @Test
+    fun callbacksAfterCloseDoNotChangeAvailability() {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val shadow = Shadows.shadowOf(connectivityManager)
+        val existingCallbacks = shadow.networkCallbacks.toSet()
+        val monitor = AndroidNetworkMonitor(context)
+        val callback = (shadow.networkCallbacks - existingCallbacks).single()
+        val networkA = ShadowNetwork.newInstance(404)
+        val networkB = ShadowNetwork.newInstance(505)
+
+        try {
+            callback.onAvailable(networkA)
+            callback.onCapabilitiesChanged(networkA, capabilities(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                NetworkCapabilities.NET_CAPABILITY_VALIDATED,
+            ))
+            assertTrue(monitor.hasValidatedInternet.value)
+
+            monitor.close()
+            callback.onLost(networkA)
+            callback.onAvailable(networkB)
+            callback.onCapabilitiesChanged(networkB, capabilities(NetworkCapabilities.NET_CAPABILITY_INTERNET))
+
+            assertTrue(monitor.hasValidatedInternet.value)
         } finally {
             monitor.close()
         }
