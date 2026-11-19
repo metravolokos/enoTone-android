@@ -2,7 +2,7 @@
 
 > Короткий срез, не журнал и не очередь задач. История — [CHANGELOG](../CHANGELOG.md), статусы задач — в GitHub Issues по [WORKFLOW](WORKFLOW.md), известные ограничения — [KNOWN_ISSUES](KNOWN_ISSUES.md), решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-**Срез:** 2026-11-19 · `main` `a66b7a0ad88cee5110a1b6ca5581d18768a8567c` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`), переход тулчейна (#216, `351bd92`), Compose BOM (#217, `cdf8b6e`), ADR-0101 (#222, `31ff8e4`) и D6-E (#232, `a66b7a0`).
+**Срез:** 2026-11-20 · `main` `e2007ac4d4390f8f31b996aa724b0ce892562ba6` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`), переход тулчейна (#216, `351bd92`), Compose BOM (#217, `cdf8b6e`), ADR-0101 (#222, `31ff8e4`) и D6-E (#232, `a66b7a0`) и D6-0 (#223, PR #230, `e2007ac`).
 
 ## Реализовано в `main`
 
@@ -41,6 +41,10 @@ Draft [PR #205](https://github.com/metravolokos/enoTone-android/pull/205), ве�
 Реализованы Home-секции и экраны «Все»; восемь Roborazzi эталонов включены в PR.
 Issue #201 имеет статус `state:review`; exact-HEAD CI отслеживается в PR #205.
 Huawei HOME-REC-01…05 не проверены.
+
+## D6-B #226 — шапка настроек и карточка «Библиотека»
+
+Draft PR будет содержать шапку `enotone_wordmark` + `BanditIllustration(ARMCHAIR)`, версию и отдельную карточку страниц/обложек без экрана «О приложении». Четыре Roborazzi PNG сняты для Graphite/Porcelain. Сценарии D6-B-01/02; exact-HEAD CI фиксируется в PR. Huawei/device-test не заявлен.
 
 ## D6-0 #223 — общие состояния и лист ошибки
 

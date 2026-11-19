@@ -9,6 +9,7 @@ import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.Espresso.pressBack
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -32,8 +33,9 @@ class MainActivitySettingsUiTest {
         val titles = listOf(
             R.string.settings_group_cloud,
             R.string.settings_group_library,
-            R.string.library_pages_settings_title,
             R.string.appearance_title,
+            R.string.settings_group_app_library,
+            R.string.library_pages_settings_title,
             R.string.artwork_settings_title,
             R.string.diagnostics_title,
         )
@@ -43,11 +45,14 @@ class MainActivitySettingsUiTest {
         assertTrue("Settings groups must remain in their accepted order",
             offsets.all { it >= 0 } &&
                 offsets.zipWithNext().all { (before, after) -> before < after })
+        rule.onNodeWithContentDescription(label(R.string.settings_title)).assertExists()
+        rule.onNodeWithText("О приложении").assertDoesNotExist()
         rule.onNodeWithText(label(R.string.diagnostics_title)).performScrollTo().performClick()
         rule.onNodeWithText(label(R.string.diagnostics_intro)).assertExists()
         rule.onNodeWithContentDescription(label(R.string.library_back)).performClick()
         rule.onNodeWithText(label(R.string.settings_group_cloud)).assertExists()
-        rule.onNodeWithContentDescription(label(R.string.library_back)).performClick()
+        pressBack()
+        rule.waitForIdle()
         // D3: «Домой» C2 без заголовка «Моя музыка»; признак «Домой» — вход в «Настройки» в заголовке.
         rule.onNodeWithContentDescription(label(R.string.settings_title)).assertExists()
     }

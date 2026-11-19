@@ -194,7 +194,8 @@
     <string name="settings_index_resume">Continue</string>
     <string name="settings_index_retry">Retry</string>
     <string name="settings_group_cloud">Cloud</string>
-    <string name="settings_group_library">Library</string>
+    <string name="settings_group_library">Media library</string>
+    <string name="settings_group_app_library">Library</string>
     <string name="account_signed_in_as">Signed in: %1$s</string>
     <string name="diagnostics_title">Diagnostics</string>
     <string name="diagnostics_entry_summary">Connection check, playback and library update details — for bug reports.</string>
