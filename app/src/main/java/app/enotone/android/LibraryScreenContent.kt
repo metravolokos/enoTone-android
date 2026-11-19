@@ -62,6 +62,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.enotone.android.core.ui.component.BanditPose
 import app.enotone.android.core.ui.component.EnoBlurState
 import app.enotone.android.core.ui.component.EnoCollapsingStrip
 import app.enotone.android.core.ui.component.EnoIcons
@@ -71,7 +72,6 @@ import app.enotone.android.core.ui.component.EnoStateAction
 import app.enotone.android.core.ui.component.EnoStateView
 import app.enotone.android.core.ui.component.EnoTrackRow
 import app.enotone.android.core.ui.component.EnoTrackRowVariant
-import app.enotone.android.core.ui.component.BanditPose
 import app.enotone.android.core.ui.component.enoBlurSource
 import app.enotone.android.core.ui.component.enoTopBarBackground
 import app.enotone.android.core.ui.component.rememberEnoBlurState
@@ -506,7 +506,7 @@ internal fun LibraryScreenContent(
         }
     }
     // Закреплённый заголовок вкладки поверх списка: список уходит под него (D3.2).
-    if (pinnedHeader && !loading && !failed && tracks.isNotEmpty()) {
+    if (pinnedHeader && !loading && !failed && (tracks.isNotEmpty() || search.isNotBlank())) {
         val frostBackground = MaterialTheme.colorScheme.background
         val line = EnoColors.line.copy(alpha = LINE_ALPHA)
         Column(
