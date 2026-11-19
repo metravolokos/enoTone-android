@@ -44,7 +44,7 @@ Huawei HOME-REC-01…05 не проверены.
 
 ## D6-B #226 — шапка настроек и карточка «Библиотека»
 
-Draft PR будет содержать шапку `enotone_wordmark` + `BanditIllustration(ARMCHAIR)`, версию и отдельную карточку страниц/обложек без экрана «О приложении». Четыре Roborazzi PNG сняты для Graphite/Porcelain. Сценарии D6-B-01/02; exact-HEAD CI фиксируется в PR. Huawei/device-test не заявлен.
+Draft [PR #234](https://github.com/metravolokos/enoTone-android/pull/234), base `e2007ac4d4390f8f31b996aa724b0ce892562ba6`. Реализованы шапка `enotone_wordmark` + `BanditIllustration(ARMCHAIR)`, версия и отдельная карточка страниц/обложек без экрана «О приложении». Четыре Roborazzi PNG сняты для Graphite/Porcelain. Сценарии D6-B-01/02; exact-HEAD CI отслеживается в PR. Huawei/device-test не заявлен.
 
 ## D6-0 #223 — общие состояния и лист ошибки
 
