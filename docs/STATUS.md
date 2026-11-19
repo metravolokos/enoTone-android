@@ -2,14 +2,14 @@
 
 > Короткий срез, не журнал и не очередь задач. История — [CHANGELOG](../CHANGELOG.md), статусы задач — в GitHub Issues по [WORKFLOW](WORKFLOW.md), известные ограничения — [KNOWN_ISSUES](KNOWN_ISSUES.md), решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-**Срез:** 2026-11-19 · `main` `351bd929fe584273d83077cc215ec5eb3f055410` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`) и переход тулчейна (#216, `351bd92`).
+**Срез:** 2026-11-19 · `main` `cdf8b6ea49339eb79740e89f63d03c564ee1fc79` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`), переход тулчейна (#216, `351bd92`) и Compose BOM (#217, `cdf8b6e`).
 
 ## Реализовано в `main`
 
 - **Медиатека:** WebDAV Cloud.Mail.ru, плоская `/AllMusic`, Room v7, инкрементальная фоновая индексация MP3/FLAC и постоянные обложки WebP до 1200 px.
 - **Плеер и очередь:** Media3/MediaSessionService, восстановление очереди и позиции, shuffle/repeat, редактирование очереди и просмотр playback-order. Q1 ограничивает активную очередь 100 песнями и безопасно восстанавливает длинный v1 checkpoint ([ADR-0099](DECISIONS/ADR-0099-queue-limit-100.md)).
 - **Android v2:** дизайн и навигация D1–D5-C в `main`; отдельная аппаратная приёмка отражена только в [SCENARIOS](SCENARIOS.md).
-- **Качество:** CI включает сборку минифицированного release APK (R-A1), проверки Room, GMS, lint/detekt и соответствие ресурсов `design/`. F-01, F-03 и F-04 слиты в #194/#196/#206. Тулчейн сборки — Gradle 9.9.1, AGP 9.5.1, compileSdk 37 (targetSdk 36, minSdk 26 без изменений) ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
+- **Качество:** CI включает сборку минифицированного release APK и отчёты R8 (R-A1); R-A2 оставляет атрибуты Retrace без дополнительных enum keep-правил и добавляет mapping Stable Preview в CI на `main`. Также выполняются проверки Room, GMS, lint/detekt и соответствие ресурсов `design/`. Тулчейн сборки — Gradle 9.9.1, AGP 9.5.1, compileSdk 37 (targetSdk 36, minSdk 26 без изменений) ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
 
 ## Базовая аппаратная приёмка
 

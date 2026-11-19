@@ -15,7 +15,7 @@
 - В Stable Preview #301 уже приняты постоянные обложки **до 1200 px в `filesDir`** ([ADR-0067](DECISIONS/ADR-0067-permanent-album-artwork.md)); это не добавляет постоянный offline-аудиокэш и не является выпуском production-плеера.
 - Производственная релизная подпись/публичная дистрибуция и лицензия собственного кода — отдельные незавершённые этапы. Закрытые ключи/пароли нельзя помещать в git, чаты, логи или APK.
 
-## Минифицированная сборка проверяется в CI (R-A1, Issue #197)
+## Исторический срез проверки минифицированной сборки (R-A1, Issue #197)
 
 `isMinifyEnabled = true` включён в `debug`, `release` и `stablePreview`, а `stablePreview` наследует `release` через `initWith`. Поэтому R8 работал и до R-A1: для `debug` он запускается внутри `assembleDebug` задачей `:app:minifyDebugWithR8`, а минифицированный `stablePreview` собирается на `main` при каждом пуше. Новое в R-A1 — не сам факт работы R8, а **блокирующая проверка варианта `release`** с `isShrinkResources = true` на каждом PR, его отчёты R8 и ворота по `Missing class`.
 
@@ -38,11 +38,28 @@
 
 Практический вывод для R-A3: в артефакте записан SHA **merge-коммита**, а не HEAD ветки, поэтому вшитую ревизию нужно сверять с merge-ref, а не с `headRefOid`.
 
+## Текущее состояние R8 (R-A2)
+
+В R-A2 для приложения оставлены только `-keepattributes SourceFile,LineNumberTable` и `-renamesourcefileattribute SourceFile`. Поля enum могут переименовываться, но сохранённые значения используют `Enum.name()` и сравниваются с `entries.firstOrNull { it.name == … }`; исходные строки остаются в DEX. Дополнительные enum keep-правила не нужны.
+
+Фактически применённую конфигурацию нужно проверять в `configuration.txt` из артефакта `enotone-release-unsigned-apk` того же GitHub Actions run, что собрал APK. Этот файл включает правила приложения и consumer-правила зависимостей; для Stable Preview mapping скачивайте отдельный артефакт `enotone-stable-preview-mapping` из того же run.
+
 Ограничения, которые нельзя замалчивать:
 
 - артефакт **не подписан** и не является дистрибутивом; установка на устройство и запуск не проверяются — это R-A3 (release smoke на Gradle Managed Device);
-- `proguard-rules.pro` остаётся пустым: осмысленные keep-правила — предмет R-A2, а не этой проверки;
-- R8 печатает предупреждения `An error occurred when parsing kotlin metadata` из-за Kotlin 2.4.21 при Gradle 8.13 (см. [KNOWN_ISSUES](KNOWN_ISSUES.md)); они **не** являются `Missing class` и сборку не блокируют, но означают, что совместимость R8 с Kotlin metadata ещё предстоит обновить вместе с Gradle/AGP;
+- В исторических R-A1 прогонах на Gradle 8.13 / AGP 8.13.2 встречались предупреждения R8 `An error occurred when parsing kotlin metadata` (см. [KNOWN_ISSUES](KNOWN_ISSUES.md)); это не `Missing class` и не описание текущего тулчейна. В `main` уже используются Gradle 9.9.1 / AGP 9.5.1 ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
 - размер APK меняется от коммита к коммиту, в том числе из-за вшитой ревизии в `version-control-info.textproto`: числа выше — срез конкретного прогона, а не порог и не бюджет.
+
+## Расшифровка стек-трейса Stable Preview (R-A2)
+
+Stable Preview минифицирована. Для каждой сборки на `main` CI сохраняет R8 mapping отдельным артефактом `enotone-stable-preview-mapping` на 90 дней. Откройте GitHub Actions run, собравший нужный APK, и скачайте mapping из этого же run: суффикс `-preview.N` в `versionName` равен номеру Actions run, по которому ищется mapping. Mapping от другой сборки использовать нельзя.
+
+Установите Android SDK cmdline-tools и передайте mapping и файл со стек-трейсом в Retrace:
+
+```bash
+$ANDROID_HOME/cmdline-tools/latest/bin/retrace mapping.txt trace.txt
+```
+
+Retrace восстановит исходные имена классов, методов и строки для R8-кадров. В доказательствах PR приведён пример искусственного release-стека и его расшифровки; реальные стеки Stable Preview расшифровывайте mapping из прогона именно этой сборки.
 
 Историческая первоначальная инструкция по настройке ключа и правила проверки — [STABLE_PREVIEW_CHANNEL](STABLE_PREVIEW_CHANNEL.md). Действующее состояние и оставшиеся проверки — [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [TESTING](TESTING.md).
