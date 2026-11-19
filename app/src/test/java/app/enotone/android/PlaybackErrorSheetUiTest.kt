@@ -27,7 +27,7 @@ import app.enotone.android.core.ui.theme.EnoToneTheme as CoreEnoToneTheme
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "ru-rRU-w377dp-h816dp-xxxhdpi")
+@Config(sdk = [35], qualifiers = "ru-rRU-w377dp-h816dp-xhdpi")
 class PlaybackErrorSheetUiTest {
     @get:Rule val rule = createComposeRule()
 
