@@ -99,6 +99,7 @@ private class AlbumArtistCandidates {
     private var alias: String? = null
 
     fun add(key: String, value: String) {
+        if (value.isBlank()) return
         when (key) {
             "ALBUMARTIST" -> if (canonical == null) canonical = value
             "ALBUM ARTIST", "ALBUM_ARTIST" -> if (alias == null) alias = value
