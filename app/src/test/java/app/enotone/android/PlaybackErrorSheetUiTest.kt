@@ -8,12 +8,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.media3.common.Player
 import androidx.test.espresso.Espresso
-import app.enotone.android.core.ui.theme.EnoToneTheme as CoreEnoToneTheme
 import app.enotone.playback.NextBufferState
 import app.enotone.playback.PlaybackDataIssue
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -24,6 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import app.enotone.android.core.ui.theme.EnoToneTheme as CoreEnoToneTheme
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)

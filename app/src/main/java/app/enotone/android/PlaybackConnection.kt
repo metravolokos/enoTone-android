@@ -82,6 +82,7 @@ internal interface PlaybackConnection {
     /** Returns false when the local MediaSession binder is unavailable. */
     fun stopPlayback(): Boolean
     fun playPause()
+
     /** Retry only the current errored item; returns false when there is no error or service. */
     fun retryCurrent(): Boolean = false
     fun playNext()
