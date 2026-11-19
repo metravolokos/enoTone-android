@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## D6-E — системный сигнал сети (Issue #227, Draft PR, 2026-11-19)
+## D6-E — системный сигнал сети (Issue #227, Draft PR #232, 2026-11-19)
 
 Добавлен process-scope `NetworkMonitor` на `registerDefaultNetworkCallback`: интернет доступен, если у сети по умолчанию есть `INTERNET` и `VALIDATED`. Монитор подключён к `AppContainer`; тесты используют внедряемый fake и проверяют возможности сети и сохранение одного callback при пересоздании Activity. ADR-0102 отделяет системный сигнал интернета от ответа WebDAV. Удалена закрытая проблема смены Wi-Fi/LTE без `NetworkCallback`; отсутствие общего backoff и непроверенный прокси/VPN для Ktor остаются.
 
