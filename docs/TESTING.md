@@ -78,6 +78,8 @@ HTTP-тесты в `:core:network` и `:data:library` используют MockW
 
 Начиная с D3.1 в `:app` действует `AppScreensScreenshotTest`: экраны «Песни» (верх и прокрутка), «Альбомы», «Домой», «Сейчас играет» на эталонном размере 377 × 816 dp, `ru`, обе темы — `app/src/test/screenshots/*.png`. Их сверяют глазами с PNG-макетами `design/assets/ui-screens/android-v2/` перед коммитом эталона; запись — тем же `record_roborazzi=true`.
 
+D6-A (#225) добавляет `LibraryEmptyStatesUiTest`: пустой поиск на каждой вкладке, возврат списка для непустого поиска, действие перехода в «Настройки» и правило скрытия мини-плеера для пустой вкладки медиатеки. Четыре Roborazzi-снимка `d6a_not_found_*` и `d6a_music_missing_*` сверяются с артбордами 12/13 в обеих темах. Эти экраны не показывают `ModalBottomSheet`.
+
 D4c (#201) добавляет `RecentlyAddedPlannerTest`, `RecentlyAddedUiTest` и
 `RecentlyAddedScreenshotTest`: планирование датированных строк, скрытие пустых
 секций, навигация и очереди из 5/100 песен. Восемь снимков на макете 09_home

@@ -250,6 +250,13 @@ M6-0/8b дополняет ACT-03: первая группа листа песн
 | D6-ERR-02 | Закрыть лист клавишей Back, жестом вниз и нажатием вне него | каждый способ вызывает только `onDismiss` | O-08 | Compose | `EnoErrorSheetWindowTest` | — |
 | D6-ERR-03 | Сравнить короткий, длинный и крупный текст в Graphite/Porcelain | ручка, системные панели, фон, Бандит, текст и кнопка соответствуют утверждённому макету | O-08, ADR-0090 | Roborazzi | `EnoStateScreenshotTest` | — |
 
+## D6-A — пустые состояния медиатеки
+
+| ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |
+|---|---|---|---|---|---|---|
+| D6-A-01 | Искать без совпадений и с результатом на каждой вкладке поиска | пустой запросный результат показывает `THINKING`, заголовок и текст по макету без кнопки; поле, нижняя панель и мини-плеер остаются; непустой результат остаётся списком | O-08, ADR-0101 | Compose, Roborazzi | `LibraryEmptyStatesUiTest.emptySearchStateAppearsOnEverySearchPageAndDisappearsWithResults`, `miniPlayerIsHiddenOnlyOnTheEmptyLibraryTab` | — |
+| D6-A-02 | Открыть медиатеку без MP3/FLAC после завершения индексации | `BOOKS`, точный текст и кнопка «Проверить подключение»; действие открывает «Настройки»; нижняя панель есть, мини-плеера нет; до окончания индексации состояние не показывается | O-08, ADR-0101 | Compose, Roborazzi | `LibraryEmptyStatesUiTest.musicMissingStateWaitsUntilIndexingCompletes`, `emptyLibraryActionOpensSettings`, `miniPlayerIsHiddenOnlyOnTheEmptyLibraryTab`, `musicMissingGraphite`, `musicMissingPorcelain` | — |
+
 ## Решения владельца по каталогу
 
 - 2026-11-13: индексация после гибели процесса, принудительной остановки и перезагрузки продолжается только по кнопке «Продолжить» (O-18).

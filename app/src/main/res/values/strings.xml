@@ -34,7 +34,6 @@
     <string name="library_back">Назад</string>
     <string name="library_loading">Читаем локальную медиатеку…</string>
     <string name="library_failed">Не удалось прочитать локальную медиатеку.</string>
-    <string name="library_empty">Здесь пока пусто. Сначала сохраните список /AllMusic на устройстве.</string>
     <string name="playback_loading">Подключение к треку…</string>
     <string name="playback_buffering">Буферизация…</string>
     <string name="playback_playing">Воспроизведение</string>
@@ -277,6 +276,11 @@
         <item quantity="many">Найдено %1$s авторов</item>
         <item quantity="other">Найдено %1$s автора</item>
     </plurals>
+    <string name="state_not_found_title">Ничего не нашлось</string>
+    <string name="state_not_found_message">Попробуйте другое написание — я ищу по названию, исполнителю и альбому.</string>
+    <string name="state_music_missing_title">Где же музыка?</string>
+    <string name="state_music_missing_message">В папке /AllMusic нет файлов MP3 или FLAC.</string>
+    <string name="state_music_missing_action">Проверить подключение</string>
     <string name="library_found_nothing">Ничего не нашлось</string>
     <!-- D3.2: настройка «Прозрачные панели», по умолчанию выключена (ADR-0088). -->
     <string name="appearance_translucent_dock">Прозрачные панели</string>
