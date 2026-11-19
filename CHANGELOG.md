@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## TAG-AA2 — выбор заполненного ALBUMARTIST в FLAC (Issue #219, 2026-11-19)
+
+В FLAC Vorbis Comment заполненный канонический `ALBUMARTIST` имеет приоритет независимо от позиции и регистра ключа. Если каноническое значение отсутствует или состоит из пробелов, выбирается первый заполненный псевдоним `ALBUM ARTIST` или `ALBUM_ARTIST`. Если все варианты пустые, поле остаётся `null`. В `FastAudioTagReaderTest` добавлены проверки на синтетических FLAC-байтах.
+
 ## DEPS-01 — последний шаг: Compose BOM 2026.09.00 (Issue #203, Draft PR, 2026-11-19)
 
 Compose BOM обновлён `2026.06.00` → `2026.09.00`. По [официальной карте BOM](https://developer.android.com/develop/ui/compose/bom/bom-mapping) Foundation и UI изменились `1.11.3` → `1.12.1`, Material3 остался `1.4.0`. Compose 1.12 использует уже принятые Gradle 9.9.1, AGP 9.5.1 и compileSdk 37; остальные версии тулчейна и библиотек не менялись.
