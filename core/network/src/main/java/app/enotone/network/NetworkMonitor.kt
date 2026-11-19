@@ -1,5 +1,6 @@
 package app.enotone.network
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -20,6 +21,8 @@ interface NetworkMonitor {
  * Observes the system default network without contacting the user's WebDAV server.
  * The application context and callback are retained for the process lifetime, not an Activity.
  */
+// The consuming app declares ACCESS_NETWORK_STATE; standalone library lint cannot see that manifest.
+@SuppressLint("MissingPermission")
 class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
     private val connectivityManager = checkNotNull(
         context.applicationContext.getSystemService(ConnectivityManager::class.java),
