@@ -152,7 +152,7 @@
 | ID | Требование | Статус | Примечание |
 |---|---|---|---|
 | R-9.1 | Сборка, тесты, lint, detekt/ktlint, GMS, debug APK | ✅ | CI; detekt пока не блокирует. Отдельный шаг «Design resources match design/» (`sync_android.py --check`, ADR-0090) — побайтная сверка, на Windows воспроизводится локально после ADR-0096 |
-| R-9.2 | **Release по тегу в GitHub Releases** | 🟡 | `v0.6.0` — релиз с APK, создан владельцем вручную по `RELEASE.md` (ADR-0078); **автоматической** сборки релиза по тегу в CI нет. R-A1 (PR #198, Issue #197 закрыта) добавил блокирующую сборку **минифицированного** `assembleRelease` с проверкой R8 и артефактом `enotone-release-unsigned-apk`; это не подписанный релиз и не публикация по тегу |
+| R-9.2 | **Release по тегу в GitHub Releases** | 🟡 | `v0.6.0` — релиз с APK, создан владельцем вручную по `RELEASE.md` (ADR-0078); **автоматической** сборки релиза по тегу в CI нет. R-A1 (PR #198, Issue #197 закрыта) добавил блокирующую сборку **минифицированного** `assembleRelease` с проверкой R8 и артефактом `enotone-release-unsigned-apk`. R-A2 (Issue #218) добавляет 90-дневный R8 mapping Stable Preview в CI на `main` и инструкцию retrace; это не подписанный release по тегу |
 | R-9.3 | Dependabot / Renovate | ✅ | #81 |
 | R-9.4 | Защищённый `main` | ✅ | Включено владельцем 2026-11-13: только PR, обязательная проверка CI `android`, без force push и удаления |
 | R-9.5 | Шаблоны PR / issue | ✅ | `.github/`; PR-шаблон с ID сценариев и проверенным SHA (2026-11-13) |

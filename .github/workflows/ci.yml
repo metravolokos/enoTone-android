@@ -500,6 +500,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Upload Stable Preview R8 mapping
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.ENOTONE_STABLE_PREVIEW_ENABLED == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: enotone-stable-preview-mapping
+          path: app/build/outputs/mapping/stablePreview/mapping.txt
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Link stable Preview in run summary
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && vars.ENOTONE_STABLE_PREVIEW_ENABLED == 'true'
         shell: bash
