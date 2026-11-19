@@ -41,3 +41,7 @@ Draft [PR #205](https://github.com/metravolokos/enoTone-android/pull/205), ве�
 Реализованы Home-секции и экраны «Все»; восемь Roborazzi эталонов включены в PR.
 Issue #201 имеет статус `state:review`; exact-HEAD CI отслеживается в PR #205.
 Huawei HOME-REC-01…05 не проверены.
+
+## D6-0 #223 — общие состояния и лист ошибки
+
+В ветке `feature/d6-0-state-components` реализованы `EnoStateView` и `EnoErrorSheet`; локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. Roborazzi-эталоны записываются на CI и будут приложены к Draft PR вместе с exact-HEAD проверками. Huawei не требуется.
