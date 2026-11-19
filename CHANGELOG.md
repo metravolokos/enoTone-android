@@ -10,7 +10,7 @@
 
 ## D6-0 — общие состояния и лист ошибки (Issue #223, 2026-11-19)
 
-В `:core:ui` добавлены `EnoStateView` и `EnoErrorSheet`, галерея образцов, проверки TalkBack/крупного текста/закрытия листа и 14 Roborazzi-сценариев в двух темах. Экраны приложения и ресурсы дизайна не менялись. Локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. PNG-эталоны будут записаны на CI по `workflow_dispatch` и приложены к Draft PR; итоговый статус CI фиксируется после exact HEAD.
+В `:core:ui` добавлены `EnoStateView` и `EnoErrorSheet`, галерея образцов, проверки TalkBack/крупного текста/закрытия листа и 14 Roborazzi-сценариев в двух темах. Экраны приложения и ресурсы дизайна не менялись. Локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. 14 PNG-эталонов записаны на CI `workflow_dispatch` #44583238174, визуально проверены и добавлены в Draft [PR #230](https://github.com/metravolokos/enoTone-android/pull/230); актуальный exact-HEAD CI отслеживается в PR.
 
 ## TAG-AA2 — выбор заполненного ALBUMARTIST в FLAC (Issue #219, 2026-11-19)
 

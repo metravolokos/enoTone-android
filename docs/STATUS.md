@@ -30,7 +30,7 @@
 
 - #201 (D4c) остаётся в работе; код #179 слит в PR #204, Issue #179 ждёт device-test (PLAY-10 не проверен). У песен первого импорта отсутствуют даты; решение остаётся открытым в #201.
 - DEPS-01 (#203): последний шаг обновляет Compose BOM `2026.06.00` → `2026.09.00` в ветке `deps/deps-01-step-2-compose-bom`; Foundation/UI `1.11.3` → `1.12.1`, Material3 `1.4.0` без изменений. Dependabot #88 остаётся открытым для закрытия владельцем.
-- D6 (Бандит и состояния): [ADR-0101](DECISIONS/ADR-0101-first-run-flow-error-sheet.md) принят владельцем 2026-11-19 (PR #222); D6-E (#227) выполняется в `feature/d6-e-network-monitor`, [PR #232](https://github.com/metravolokos/enoTone-android/pull/232) готов к ревью; остальные задачи D6 — по оперативным меткам GitHub.
+- D6 (Бандит и состояния): [ADR-0101](DECISIONS/ADR-0101-first-run-flow-error-sheet.md) принят владельцем 2026-11-19 (PR #222); D6-E (#227), ADR-0102 и процессный NetworkMonitor слиты в main через PR #232 (`a66b7a0`); актуальный статус D6-0 (#223) — в разделе ниже; остальные задачи D6 — по оперативным меткам GitHub.
 - TAG-EDIT (#200) — будущий функционал в backlog, начало только по решению владельца.
 - Остальные действующие ограничения и открытые решения — [KNOWN_ISSUES](KNOWN_ISSUES.md) и [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Статусы отдельных сценариев не копируются сюда и не меняются по результатам CI.
 
@@ -44,4 +44,4 @@ Huawei HOME-REC-01…05 не проверены.
 
 ## D6-0 #223 — общие состояния и лист ошибки
 
-В ветке `feature/d6-0-state-components` реализованы `EnoStateView` и `EnoErrorSheet`; локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. Roborazzi-эталоны записываются на CI и будут приложены к Draft PR вместе с exact-HEAD проверками. Huawei не требуется.
+В ветке `feature/d6-0-state-components` реализованы `EnoStateView` и `EnoErrorSheet`; локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. 14 PNG-эталонов записаны на CI #44583238174, визуально проверены и приложены к Draft [PR #230](https://github.com/metravolokos/enoTone-android/pull/230); exact-HEAD CI отслеживается там же. Huawei не требуется.
