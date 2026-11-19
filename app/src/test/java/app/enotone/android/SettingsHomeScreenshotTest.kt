@@ -11,7 +11,6 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
 import androidx.test.core.app.ApplicationProvider
-import app.enotone.android.core.ui.theme.EnoToneTheme as EnoTheme
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -19,6 +18,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import app.enotone.android.core.ui.theme.EnoToneTheme as EnoTheme
 
 /** D6-B Settings header and the separate Library card in both Android v2 themes. */
 @RunWith(RobolectricTestRunner::class)
