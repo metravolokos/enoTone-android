@@ -5,6 +5,8 @@ import android.content.Context
 import app.enotone.database.EnoToneDatabase
 import app.enotone.library.LibraryRepository
 import app.enotone.library.RoomLibraryRepository
+import app.enotone.network.AndroidNetworkMonitor
+import app.enotone.network.NetworkMonitor
 import app.enotone.playback.QueueStateFileStore
 import app.enotone.playlist.PlaylistRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -16,6 +18,7 @@ class AppContainer(
     context: Context,
     val io: CoroutineDispatcher = Dispatchers.IO,
     val main: CoroutineDispatcher = Dispatchers.Main.immediate,
+    val networkMonitor: NetworkMonitor = AndroidNetworkMonitor(context.applicationContext),
 ) {
     private val appContext = context.applicationContext
     internal val accountSession = AccountSession()
@@ -51,13 +54,24 @@ class AppContainer(
 }
 
 class EnoToneApplication : Application() {
+    private lateinit var processNetworkMonitor: NetworkMonitor
+
     val container: AppContainer by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         AppContainer(this)
     }
 
     override fun onCreate() {
         super.onCreate()
+        // AppContainer creates the process-owned network callback once, outside Activity lifetime.
+        processNetworkMonitor = container.networkMonitor
         // Живёт столько же, сколько процесс; держит только числа и состояния служб.
         LibraryDataRevision.watch(MainScope())
+    }
+
+    override fun onTerminate() {
+        // Android releases process callbacks when the process exits; this explicit path also
+        // makes teardown deterministic in environments that call onTerminate (including tests).
+        processNetworkMonitor.close()
+        super.onTerminate()
     }
 }
