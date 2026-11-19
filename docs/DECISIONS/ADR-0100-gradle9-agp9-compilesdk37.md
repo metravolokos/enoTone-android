@@ -15,7 +15,8 @@
 | compileSdk | 36 | **37** | `platforms;android-37.0` |
 | targetSdk | 36 | **36** (без изменений) | — |
 | minSdk | 26 | **26** (без изменений) | — |
-| Kotlin (встроенный в AGP) | 2.4.21 | **2.4.21** (без изменений) | Gradle 9.9.1 содержит Kotlin 2.4.21; [docs.gradle.org/9.9.1](https://docs.gradle.org/9.9.1/release-notes.html) |
+| Kotlin в Gradle 9.9.1 | — | **2.4.21** | Kotlin DSL и runtime Gradle; [docs.gradle.org/9.9.1](https://docs.gradle.org/9.9.1/release-notes.html) |
+| Разрешённый Kotlin Gradle Plugin | 2.4.21 | **2.4.21** | `buildEnvironment`: запрос AGP `kotlin-gradle-plugin:2.2.10` разрешён как `2.4.21` из-за Compose compiler plugin 2.4.21 |
 | KSP | 2.3.13 | 2.3.13 (без изменений) | [github.com/google/ksp/releases](https://github.com/google/ksp/releases) |
 | Room | 2.8.5 | 2.8.5 (без изменений) | [developer.android.com/jetpack/androidx/releases/room](https://developer.android.com/jetpack/androidx/releases/room) |
 | Roborazzi | 1.79.0 | 1.79.0 (без изменений) | [github.com/takahirom/roborazzi/releases](https://github.com/takahirom/roborazzi/releases) |
@@ -23,6 +24,10 @@
 | Compose compiler (KGP-плагин) | 2.4.21 | 2.4.21 (без изменений) | [developer.android.com/jetpack/androidx/releases/compose-compiler](https://developer.android.com/jetpack/androidx/releases/compose-compiler) |
 
 Версии KSP, Room, Roborazzi и detekt в этом PR намеренно не двигаются: шаг касается только тулчейна сборки, а их обновление — предмет отдельных шагов DEPS-01. Это же ограничивает радиус отказа.
+
+Kotlin 2.4.21 в Gradle 9.9.1 — это версия Kotlin DSL и runtime Gradle; она сама по себе не описывает KGP для встроенного Kotlin AGP. `buildEnvironment` для этого проекта показывает запрос AGP `org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.10`, разрешённый к `2.4.21` через Compose compiler plugin. Поэтому фактический KGP в classpath — 2.4.21; основание — отчёт зависимостей, а не совпадение с версией Gradle.
+
+Для KSP 2.3.13, Room 2.8.5 и Roborazzi 1.79.0 отдельная официальная матрица совместимости с Gradle 9.9.1 + AGP 9.5.1 не заявляется: статус доказательства — эмпирически, CI зелёный на исходном HEAD `3a9761f81992870c74cb479ebe38c91603c13310` ([Android M0 CI #44463219289](https://github.com/metravolokos/enoTone-android/actions/runs/44463219289)). Для detekt действует такой же статус доказательства.
 
 ## Варианты
 
@@ -67,7 +72,9 @@ AGP 9 поставляет поддержку Kotlin сам, поэтому пл
 - AGP 9 больше не упаковывает `kotlin-tooling-metadata.json` (−723 байта).
 - Профили baseline выросли: `baseline.prof` 5 637 → 10 191, `baseline.profm` 678 → 1 224 (+5 100).
 
-Безопасность удаления проверена: `getIdentifier` в продакшен-коде не используется (0 вхождений), продакшен-код нигде не использует `NotificationCompat` и строит уведомления платформенным `Notification.Builder` (`ArtworkIndexingForegroundService`, `IndexingForegroundService`), minSdk 26 исключает устаревшие ветки шаблонов. `DefaultMediaNotificationProvider` и `MediaStyleNotificationHelper` из media3 перечислены как удалённые в `usage.txt` **обеих** сборок — путь уведомлений media3 мёртв в базовой сборке тоже.
+Уведомления двух служб индексации (`ArtworkIndexingForegroundService` и `IndexingForegroundService`) строятся платформенным `Notification.Builder`. Уведомление плеера создаёт стандартный провайдер Media3: `EnoTonePlaybackService` наследует `MediaSessionService`, вызывает `addSession` и не подменяет провайдер. `DefaultMediaNotificationProvider`, `MediaNotificationManager` и `createNotification(...)` остались в APK обеих сборок по `mapping.txt`.
+
+R8 удалил старые notification-layouts, в том числе `notification_template_big_media`, и код, который на них ссылался. По данным R8 ресурсы недостижимы; вероятное объяснение — это ветки для API ниже `minSdk 26`. Это вывод по статическим отчётам, а не доказательство корректной работы на устройстве. После слияния требуется проверить уведомление плеера, кнопки в шторке и на экране блокировки, а также команды гарнитуры.
 
 ## Проверки
 
@@ -75,9 +82,12 @@ AGP 9 поставляет поддержку Kotlin сам, поэтому пл
 
 ## Роллбэк
 
-Откат — один коммит: вернуть `gradle-wrapper.properties` на 8.13 с прежней SHA-256 (и прогнать `gradle wrapper --gradle-version 8.13`), вернуть `agp = "8.13.2"`, `compileSdk = 36` в 11 модулях и `alias(libs.plugins.kotlin.android)` в корне и модулях. Формат кода, ресурсы, схема Room и applicationId не менялись, поэтому откат не требует миграций данных и не затрагивает подпись.
+Основной путь после слияния — `git revert <squash-коммит этого PR в main>`, затем контрольный прогон CI. Revert восстанавливает все 25 файлов PR целиком, включая алиас `kotlin-android` в version catalog, wrapper JAR, оба wrapper-скрипта и `.github/workflows/ci.yml` с Gradle 8.13 и SDK 36.
+
+Если нужен ручной откат, восстановить все 25 файлов: `.github/workflows/ci.yml`, `CHANGELOG.md`, `app/build.gradle.kts`, `build.gradle.kts`, `core/database/build.gradle.kts`, `core/model/build.gradle.kts`, `core/network/build.gradle.kts`, `core/ui/build.gradle.kts`, `core/ui/src/test/java/app/enotone/android/core/ui/component/EnoActionSheetWindowTest.kt`, `data/library/build.gradle.kts`, `data/playlist/build.gradle.kts`, `docs/DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md`, `docs/DECISIONS/README.md`, `docs/KNOWN_ISSUES.md`, `docs/STATUS.md`, `docs/TESTING.md`, `feature/library/build.gradle.kts`, `feature/player/build.gradle.kts`, `feature/settings/build.gradle.kts`, `gradle/libs.versions.toml`, `gradle/wrapper/gradle-wrapper.jar`, `gradle/wrapper/gradle-wrapper.properties`, `gradlew`, `gradlew.bat`, `playback/build.gradle.kts`. Ручной откат также требует контрольного прогона CI.
 
 ## Ограничения
 
 - detekt 1.23.8 официально не заявляет поддержку Gradle 9 и AGP 9. Эмпирически все задачи detekt на Gradle 9.9.1 + AGP 9.5.1 проходят, новых находок нет; ограничение зафиксировано в `docs/KNOWN_ISSUES.md`. detekt 2.x существует только в альфах и в проекте не используется.
+- Совместимость KSP 2.3.13, Room 2.8.5 и Roborazzi 1.79.0 с Gradle 9.9.1 + AGP 9.5.1 подтверждена эмпирически: Android M0 CI зелёный на исходном HEAD `3a9761f81992870c74cb479ebe38c91603c13310`; это не заявление об официальной матрице поддержки.
 - Установка поверх предыдущей версии (в том числе на Huawei) в этом PR не проверялась — это делает владелец после слияния.
