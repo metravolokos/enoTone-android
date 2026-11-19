@@ -1,10 +1,9 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
 }
 android {
     namespace = "app.enotone.data.playlist"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig { minSdk = 26 }
     testOptions { unitTests.isIncludeAndroidResources = true }
     compileOptions {

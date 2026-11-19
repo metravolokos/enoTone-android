@@ -9,7 +9,7 @@
 - **Медиатека:** WebDAV Cloud.Mail.ru, плоская `/AllMusic`, Room v7, инкрементальная фоновая индексация MP3/FLAC и постоянные обложки WebP до 1200 px.
 - **Плеер и очередь:** Media3/MediaSessionService, восстановление очереди и позиции, shuffle/repeat, редактирование очереди и просмотр playback-order. Q1 ограничивает активную очередь 100 песнями и безопасно восстанавливает длинный v1 checkpoint ([ADR-0099](DECISIONS/ADR-0099-queue-limit-100.md)).
 - **Android v2:** дизайн и навигация D1–D5-C в `main`; отдельная аппаратная приёмка отражена только в [SCENARIOS](SCENARIOS.md).
-- **Качество:** CI включает сборку минифицированного release APK (R-A1), проверки Room, GMS, lint/detekt и соответствие ресурсов `design/`. F-01, F-03 и F-04 слиты в #194/#196/#206.
+- **Качество:** CI включает сборку минифицированного release APK (R-A1), проверки Room, GMS, lint/detekt и соответствие ресурсов `design/`. F-01, F-03 и F-04 слиты в #194/#196/#206. Тулчейн сборки — Gradle 9.9.1, AGP 9.5.1, compileSdk 37 (targetSdk 36, minSdk 26 без изменений) ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
 
 ## Базовая аппаратная приёмка
 

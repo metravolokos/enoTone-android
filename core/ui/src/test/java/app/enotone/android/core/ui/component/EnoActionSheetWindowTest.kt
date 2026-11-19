@@ -1,6 +1,7 @@
 package app.enotone.android.core.ui.component
 
 import android.view.Window
+import android.view.WindowInsetsController
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,7 +17,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.window.DialogWindowProvider
-import androidx.core.view.WindowCompat
 import androidx.test.espresso.Espresso
 import app.enotone.android.core.ui.theme.EnoToneTheme
 import org.junit.Assert.assertEquals
@@ -69,9 +69,19 @@ class EnoActionSheetWindowTest {
             val window = dialogWindow
             assertNotNull("Лист должен иметь собственное диалоговое окно", window)
             window ?: return@runOnIdle
-            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-            assertEquals(!darkTheme, insetsController.isAppearanceLightStatusBars)
-            assertEquals(!darkTheme, insetsController.isAppearanceLightNavigationBars)
+            // Платформенный API вместо WindowCompat: :core:ui не зависит от AndroidX Core (см. EnoActionSheet.kt).
+            val insetsController = window.insetsController
+            assertNotNull("Окно листа должно предоставлять WindowInsetsController", insetsController)
+            insetsController ?: return@runOnIdle
+            val appearance = insetsController.systemBarsAppearance
+            assertEquals(
+                !darkTheme,
+                (appearance and WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS) != 0,
+            )
+            assertEquals(
+                !darkTheme,
+                (appearance and WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS) != 0,
+            )
             assertEquals(android.graphics.Color.TRANSPARENT, window.statusBarColor)
             assertEquals(false, window.isNavigationBarContrastEnforced)
         }

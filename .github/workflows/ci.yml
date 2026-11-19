@@ -31,18 +31,18 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Gradle 8.13 (verified, fallback mirrors)
+      - name: Gradle 9.9.1 (verified, fallback mirrors)
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/gradle-install"
-          zip="$RUNNER_TEMP/gradle-8.13-bin.zip"
-          # Official Gradle 8.13 binary ZIP SHA-256: https://gradle.org/release-checksums/
-          expected="20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78"
+          zip="$RUNNER_TEMP/gradle-9.9.1-bin.zip"
+          # Official Gradle 9.9.1 binary ZIP SHA-256: https://gradle.org/release-checksums/
+          expected="d8a18a7a841dd5df825d35a685fad6f2d7f12ac0c280e57b67c27b4a520ba228"
           urls=(
-            "https://downloads.gradle.org/distributions/gradle-8.13-bin.zip"
-            "https://services.gradle.org/distributions/gradle-8.13-bin.zip"
-            "https://mirrors.huaweicloud.com/gradle/gradle-8.13-bin.zip"
+            "https://downloads.gradle.org/distributions/gradle-9.9.1-bin.zip"
+            "https://services.gradle.org/distributions/gradle-9.9.1-bin.zip"
+            "https://mirrors.huaweicloud.com/gradle/gradle-9.9.1-bin.zip"
           )
           installed=false
           for url in "${urls[@]}"; do
@@ -57,17 +57,19 @@ jobs:
             rm -f "$zip"
           done
           if [ "$installed" != true ]; then
-            echo "::error::Gradle 8.13 download/checksum failed on all mirrors"
+            echo "::error::Gradle 9.9.1 download/checksum failed on all mirrors"
             exit 1
           fi
           unzip -q "$zip" -d "$RUNNER_TEMP/gradle-install"
-          echo "$RUNNER_TEMP/gradle-install/gradle-8.13/bin" >> "$GITHUB_PATH"
-      - name: Install Android SDK 36
+          echo "$RUNNER_TEMP/gradle-install/gradle-9.9.1/bin" >> "$GITHUB_PATH"
+      # compileSdk 37 requires platforms;android-37.0 (the SDK package keeps the minor
+      # version in its name); build-tools 36.0.0 is still the minimum for AGP 9.5.
+      - name: Install Android SDK 37
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install 'platforms;android-36' 'build-tools;36.0.0'
+          "$SDKMANAGER" --install 'platforms;android-37.0' 'build-tools;36.0.0'
       - name: Verified Kotlin compiler (Maven Central CDN fallback)
         shell: bash
         run: |

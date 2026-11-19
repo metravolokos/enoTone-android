@@ -1,10 +1,9 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
 }
 android {
     namespace = "app.enotone.core.network"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig { minSdk = 26 }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -22,5 +21,5 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver) {
         exclude(group = "com.squareup.okhttp3", module = "okhttp")
     }
-    testImplementation("com.squareup.okhttp3:okhttp-jvm:${libs.versions.okhttp.get()}")
+    testImplementation(libs.okhttp.jvm)
 }

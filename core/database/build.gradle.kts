@@ -1,11 +1,10 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
 }
 android {
     namespace = "app.enotone.core.database"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig { minSdk = 26 }
     testOptions { unitTests.isIncludeAndroidResources = true }
     // Robolectric migration helper reads the committed v1–v4 schema as debug assets.

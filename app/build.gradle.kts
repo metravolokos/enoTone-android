@@ -1,13 +1,12 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     // Снимки экранов для сверки с макетами Android v2 (D3.1); только тесты, в APK не входит.
     alias(libs.plugins.roborazzi)
 }
 android {
     namespace = "app.enotone.android"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         applicationId = "app.enotone.android"
         minSdk = 26
