@@ -123,7 +123,7 @@ internal enum class EnoStateSampleKind(
     ),
     READING(
         pose = BanditPose.READING,
-        title = "Читаю…",
+        title = "Читаю вашу музыку…",
         message = "1 240 из 3 590 песен",
         topPadding = 150.dp,
         actions = EnoStateSampleActions(secondary = EnoStateAction("Слушать, пока читаю", {})),
@@ -248,9 +248,9 @@ internal fun EnoErrorSheetSampleGallery(darkTheme: Boolean, sample: EnoErrorShee
             Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
             EnoErrorSheet(
                 message = if (sample == EnoErrorSheetSampleKind.SHORT) {
-                    "Пока облако не ответило, я немного отдохну."
+                    SHORT_ERROR_MESSAGE
                 } else {
-                    LONG_ERROR_SAMPLE
+                    LONG_ERROR_MESSAGE
                 },
                 actionLabel = "Повторить",
                 onAction = {},
@@ -260,12 +260,9 @@ internal fun EnoErrorSheetSampleGallery(darkTheme: Boolean, sample: EnoErrorShee
     }
 }
 
-private const val LONG_ERROR_SAMPLE =
-    "Пока я не могу обновить медиатеку: облако слишком долго не отвечает. " +
-        "Проверьте подключение к интернету и попробуйте ещё раз. Уже загруженные песни " +
-        "останутся доступны, а новое подключение можно проверить позже. Если соединение " +
-        "восстановится, я продолжу работу с того же места и сохраню найденную музыку. " +
-        "Пока облако не отвечает, я немного отдохну."
+private const val SHORT_ERROR_MESSAGE = "Связи с Облаком нет, самое время немного отдохнуть!"
+private const val LONG_ERROR_MESSAGE =
+    "Ура, ошибка: почта или пароль не подошли! Теперь можно немного отдохнуть."
 
 @Preview(name = "State · Graphite", widthDp = 377, heightDp = 816)
 @Composable

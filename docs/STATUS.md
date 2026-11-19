@@ -44,4 +44,4 @@ Huawei HOME-REC-01…05 не проверены.
 
 ## D6-0 #223 — общие состояния и лист ошибки
 
-В ветке `feature/d6-0-state-components` реализованы `EnoStateView` и `EnoErrorSheet`; локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. 14 PNG-эталонов записаны на CI #44583238174, визуально проверены и приложены к Draft [PR #230](https://github.com/metravolokos/enoTone-android/pull/230); exact-HEAD CI отслеживается там же. Huawei не требуется.
+В ветке `feature/d6-0-state-components` реализованы `EnoStateView` и `EnoErrorSheet`; локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. 14 PNG-эталонов перезаписаны на CI `workflow_dispatch`, визуально проверены и приложены к [PR #230](https://github.com/metravolokos/enoTone-android/pull/230); exact-HEAD CI отслеживается там же. Huawei не требуется.
