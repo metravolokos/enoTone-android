@@ -80,7 +80,7 @@
 | NAV-01 | Нижняя панель: «Альбомы», затем «Артисты» (D3) | открывается выбранная страница | аудит п. 3, ADR-0086 | JVM, R, H | `AppNavigatorTest`, `LibraryViewModelTest` | H PASS 0.6.2-preview.578 (2026-11-14, владелец: «по пунктам — да», обе темы) |
 | NAV-02 | Из медиатеки в «Сейчас играет» и обратно | та же вкладка и позиция прокрутки | O-13 | JVM, H | `LibraryViewModelTest` | H PASS 0.6.0-preview.429, 0.6.2-preview.475 |
 | NAV-03 | Скрыть открытую страницу в «Настройках» | вкладка пропадает из панели, открытая — переход на «Домой» (D3); последнюю видимую скрыть нельзя | ADR-0052 | JVM, R, H | `LibraryViewModelTest`, `LibraryVisibilityUiTest` | H PASS 0.6.2-preview.475 |
-| NAV-04 | «Настройки» → «Диагностика» → «Назад» (кнопка и жест) | возврат в «Настройки», затем на прежний экран | O-16 | R, H | `MainActivitySettingsUiTest` | H PASS 0.6.2-preview.460 |
+| NAV-04 | «Настройки» → «Диагностика» → «Назад» (кнопка и жест) | возврат в «Настройки», затем на прежний экран | O-16 | R, H | ручная проверка после успешного входа; Robolectric на чистой установке проверяет LOGIN (`MainActivitySettingsUiTest`) | H PASS 0.6.2-preview.460 |
 | NAV-05 | Нажатие на уведомление воспроизведения | открывается «Сейчас играет» поверх любого экрана, «Назад» возвращает | O-17 | R, H | `MainActivityIntentTest` | H PASS 0.6.2-preview.578 (2026-11-14, владелец: «по пунктам — да», обе темы) |
 | NAV-06 | Мини-плеер | есть на экранах музыки, нет в «Настройках» и «Диагностике» | O-10 | R, H | `MiniPlayerUiTest` | H PASS 0.6.2-preview.578 (2026-11-14, владелец: «по пунктам — да», обе темы) |
 | NAV-07 | Повторное нажатие на активную вкладку | список прокручивается в начало; из открытого альбома — возврат к списку | ADR-0086 | JVM, H | `AppNavigatorTest` | H PASS 0.6.2-preview.578 (2026-11-14, владелец: «по пунктам — да», обе темы) |
@@ -249,6 +249,21 @@ M6-0/8b дополняет ACT-03: первая группа листа песн
 | D6-ERR-01 | Открыть лист с коротким и длинным сообщением при fontScale 2 | высота ≤ 75 % экрана, длинное сообщение имеет диапазон прокрутки, кнопка остаётся видимой | O-08 | Compose, Roborazzi | `EnoErrorSheetWindowTest.longMessageStaysWithinThreeQuartersAndKeepsActionVisibleAtFontScale2`, `EnoStateScreenshotTest` | — |
 | D6-ERR-02 | Закрыть лист клавишей Back, жестом вниз и нажатием вне него | каждый способ вызывает только `onDismiss` | O-08 | Compose | `EnoErrorSheetWindowTest` | — |
 | D6-ERR-03 | Сравнить короткий, длинный и крупный текст в Graphite/Porcelain | ручка, системные панели, фон, Бандит, текст и кнопка соответствуют утверждённому макету | O-08, ADR-0090 | Roborazzi | `EnoStateScreenshotTest` | — |
+
+## D6-FR — поток первого запуска (Issue #224, ADR-0101)
+
+| ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |
+|---|---|---|---|---|---|---|
+| D6-FR-01 | Чистая установка без сохранённого входа | показывается LOGIN; флаг `firstRunCompleted=false`; вход активируется только после проверки WebDAV и записи секрета | O-08, O-09, ADR-0101 | R, Compose | `FirstRunPhasePlannerTest`, `AccountSettingsViewModelTest`, `FirstRunExperienceScreenshotTest` | — |
+| D6-FR-02 | Ввести неподходящую почту или пароль | общий лист показывает дословно текст Issue и действие «Ввести заново»; активного входа нет | O-08, ADR-0101 | R, Roborazzi | `AccountSettingsViewModelTest`, `FirstRunExperienceScreenshotTest` | — |
+| D6-FR-03 | WebDAV недоступен при проверке или импорте | общий лист показывает дословно текст Issue и действие «Повторить» | O-08, ADR-0101, ADR-0102 | R, Roborazzi | `FirstRunExperienceScreenshotTest`, `LibraryIndexingViewModelTest` | — |
+| D6-FR-04 | Успешный вход, автоматический импорт и запрос POST_NOTIFICATIONS | выполняется существующий инкрементальный `updateLibrary`; отказ в уведомлениях не оставляет пользователя на экране разрешения; полный reindex не вызывается | O-04, O-08, ADR-0101 | JVM, R | `FirstRunPhasePlannerTest`, `LibraryIndexingViewModelTest` | — |
+| D6-FR-05 | Нажать «Слушать, пока читаю» во время индексации | флаг атомарно становится `true`, открывается APP, фоновая служба продолжает работу | O-08, O-18, ADR-0101 | R, Compose | `FirstRunExperienceScreenshotTest.listenWhileReadingPersistsCompletionBeforeLeavingFirstRun` | — |
+| D6-FR-06 | Завершить импорт с песнями и без песен | при наличии песен показаны плюрализованные счётчики и DONE; при пустой медиатеке флаг становится `true` и открывается APP | O-08, ADR-0101 | JVM, R, Roborazzi | `FirstRunPhasePlannerTest`, `FirstRunExperienceScreenshotTest` | — |
+| D6-FR-07 | Истёкшая авторизация во время фоновой индексации | действие «Войти заново» открывает LOGIN с email; сохранённая медиатека и секрет не удаляются, рабочий вход блокируется до повторной проверки | O-08, O-09, ADR-0080, ADR-0101 | R, Roborazzi | `AccountSettingsViewModelTest`, `FirstRunExperienceScreenshotTest` | — |
+| D6-FR-08 | Файлы не читаются после импорта или при обработке тегов | общий лист показывает дословно текст Issue; действие «Повторить» повторяет соответствующую инкрементальную операцию/индексатор | O-08, ADR-0101 | R, Roborazzi | `FirstRunExperienceScreenshotTest`, `LibraryIndexingViewModelTest` | — |
+| D6-FR-09 | Обновить существующую установку без `firstRunCompleted`, завершить выход и перезапустить процесс | сохранённый вход мигрирует прямо в APP с флагом `true`; выход сбрасывает флаг после данных, но до очистки Keystore; маркер и флаг читаются после пересоздания процесса | O-09, ADR-0080, ADR-0101 | R | `FirstRunPreferencesTest`, `AccountSettingsViewModelTest`, `AccountSignOutTest` | — |
+
 
 ## Решения владельца по каталогу
 

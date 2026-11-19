@@ -309,4 +309,40 @@
     <string name="diagnostics_library_duplicates">Дубли=%1$d, альбомов=%2$d</string>
     <string name="player_destination_unavailable">Альбом или исполнитель недоступен</string>
     <string name="diagnostics_library_album">Последний альбом: строк=%1$d, в шапке=%2$d, повторов ID=%3$d</string>
+    <string name="first_run_login_title">Привет! Я Бандит</string>
+    <string name="first_run_login_message">Подключите Облако Mail.ru — я найду музыку в папке AllMusic.</string>
+    <string name="first_run_email">Почта</string>
+    <string name="first_run_app_password">Пароль для внешнего приложения</string>
+    <string name="first_run_connect">Подключить</string>
+    <string name="first_run_indexing_title">Читаю вашу музыку…</string>
+    <string name="first_run_progress">%1$s из %2$s песен</string>
+    <string name="first_run_listen_while_reading">Слушать, пока читаю</string>
+    <string name="first_run_done_title">Всё готово!</string>
+    <string name="first_run_summary">%1$s, %2$s, %3$s</string>
+    <string name="first_run_go_to_music">К музыке</string>
+    <string name="first_run_error_login_credentials">Ура, ошибка: почта или пароль не подошли! Теперь можно немного отдохнуть.</string>
+    <string name="first_run_error_cloud_unavailable">Облако не отвечает, вот и славно: я немного отдохну!</string>
+    <string name="first_run_error_auth_expired">Пароль больше не подходит, а я как раз хотел отдохнуть!</string>
+    <string name="first_run_error_files">Файлы не читаются: отличный повод немного отдохнуть!</string>
+    <string name="first_run_error_enter_again">Ввести заново</string>
+    <string name="first_run_error_retry">Повторить</string>
+    <string name="first_run_error_sign_in_again">Войти заново</string>
+    <plurals name="first_run_song_count">
+        <item quantity="one">%1$s песня</item>
+        <item quantity="few">%1$s песни</item>
+        <item quantity="many">%1$s песен</item>
+        <item quantity="other">%1$s песни</item>
+    </plurals>
+    <plurals name="first_run_album_count">
+        <item quantity="one">%1$s альбом</item>
+        <item quantity="few">%1$s альбома</item>
+        <item quantity="many">%1$s альбомов</item>
+        <item quantity="other">%1$s альбома</item>
+    </plurals>
+    <plurals name="first_run_artist_count">
+        <item quantity="one">%1$s исполнитель</item>
+        <item quantity="few">%1$s исполнителя</item>
+        <item quantity="many">%1$s исполнителей</item>
+        <item quantity="other">%1$s исполнителя</item>
+    </plurals>
 </resources>

@@ -92,7 +92,7 @@ class LibraryIndexingViewModelTest {
         assertEquals(1, fixture.launcher.indexingStarts)
     }
 
-    @Test fun `no pending tags needs no reader and denied permission starts nothing`() = settingsTest {
+    @Test fun `denied notification permission does not strand indexing`() = settingsTest {
         val fixture = Fixture()
         fixture.signIn()
         fixture.gateway.pending = 0
@@ -100,10 +100,11 @@ class LibraryIndexingViewModelTest {
         fixture.model.updateLibrary()
         advanceUntilIdle()
         assertFalse(fixture.model.state.value.permissionPending)
+        assertEquals(0, fixture.launcher.indexingStarts)
         fixture.model.resume()
         fixture.model.onNotificationPermission(false)
         assertTrue(fixture.model.state.value.permissionDenied)
-        assertEquals(0, fixture.launcher.indexingStarts)
+        assertEquals(1, fixture.launcher.indexingStarts)
     }
 
     @Test fun `sign out cancels import and invalidates pending permission`() = settingsTest {

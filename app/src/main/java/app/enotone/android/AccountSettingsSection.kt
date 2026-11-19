@@ -72,6 +72,7 @@ internal fun AccountSettingsSection(
         when (account.error) {
             AccountError.RESTORE -> Text(stringResource(R.string.credential_vault_failed))
             AccountError.CONNECTION -> Text(stringResource(R.string.account_verification_failed))
+            AccountError.CREDENTIALS_REJECTED -> Text(stringResource(R.string.account_verification_failed))
             AccountError.STORAGE -> Text(stringResource(R.string.credential_vault_failed))
             AccountError.OTHER_ACCOUNT -> Text(stringResource(R.string.account_other_account))
             AccountError.SIGN_OUT -> Text(stringResource(R.string.account_sign_out_failed))

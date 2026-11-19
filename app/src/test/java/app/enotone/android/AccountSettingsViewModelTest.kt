@@ -25,13 +25,20 @@ class AccountSettingsViewModelTest {
         var failExit = false
         var pending = false
         var restoreFails = false
+        var reauthentication = false
+        var verificationResult: AccountVerificationResult? = null
         override suspend fun restore(): StoredWebDavLogin? =
             if (restoreFails) error("Invalid credential envelope") else persisted
         override suspend fun signOutPending(): Boolean = pending
+        override suspend fun reauthenticationRequired(): Boolean = reauthentication
+        override suspend fun markReauthenticationRequired() { reauthentication = true }
         override suspend fun verify(email: String, password: String): Boolean {
             verifyCalls++
             return accepted
         }
+        override suspend fun verifyOutcome(email: String, password: String): AccountVerificationResult =
+            verificationResult ?: if (verify(email, password)) AccountVerificationResult.ACCEPTED
+            else AccountVerificationResult.CLOUD_UNAVAILABLE
         override suspend fun save(email: String, password: String) {
             saves++
             persisted = StoredWebDavLogin(email, password)
@@ -78,6 +85,62 @@ class AccountSettingsViewModelTest {
             assertEquals("secret", model.state.value.password)
             assertTrue(model.state.value.loggedIn)
             assertFalse(model.state.value.restoring)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `restored login marked for reauthentication is shown as a fresh login form`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply {
+                persisted = StoredWebDavLogin("example@invalid.test", "old-secret")
+                reauthentication = true
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+            assertEquals("example@invalid.test", model.state.value.email)
+            assertEquals("", model.state.value.password)
+            assertFalse(model.state.value.loggedIn)
+            assertNull(model.state.value.active)
+            assertNull(model.state.value.libraryLogin)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `requesting reauthentication keeps the saved account but blocks it as working login`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply {
+                persisted = StoredWebDavLogin("example@invalid.test", "secret")
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+            model.requestReauthentication()
+            advanceUntilIdle()
+            assertTrue(fake.reauthentication)
+            assertEquals("example@invalid.test", model.state.value.email)
+            assertEquals("", model.state.value.password)
+            assertNull(model.state.value.libraryLogin)
+            assertEquals(StoredWebDavLogin("example@invalid.test", "secret"), fake.persisted)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `credential rejection is distinguishable from an unavailable cloud`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply { verificationResult = AccountVerificationResult.CREDENTIALS_REJECTED }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+            model.onEmailChanged("example@invalid.test")
+            model.onPasswordChanged("wrong")
+            model.verifyConnection()
+            advanceUntilIdle()
+            assertEquals(AccountError.CREDENTIALS_REJECTED, model.state.value.error)
+            assertFalse(model.state.value.loggedIn)
         } finally {
             Dispatchers.resetMain()
         }

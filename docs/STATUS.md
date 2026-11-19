@@ -45,3 +45,7 @@ Huawei HOME-REC-01…05 не проверены.
 ## D6-0 #223 — общие состояния и лист ошибки
 
 В ветке `feature/d6-0-state-components` реализованы `EnoStateView` и `EnoErrorSheet`; локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. 14 PNG-эталонов перезаписаны на CI `workflow_dispatch`, визуально проверены и приложены к [PR #230](https://github.com/metravolokos/enoTone-android/pull/230); exact-HEAD CI отслеживается там же. Huawei не требуется.
+
+## D6-FR #224 — поток первого запуска
+
+В ветке `feature/d6-fr-first-run` добавлены LOGIN/INDEXING/DONE, планировщик ADR-0101, no-backup флаг, миграция старой установки и повторная авторизация без удаления медиатеки. Импорт использует существующее инкрементальное обновление; `AppShell.kt` остаётся отдельной областью D6-F (#228). Проверки Roborazzi, exact-HEAD CI и два независимых ревью ожидают Draft PR; Huawei-сценарии не заявлены.
