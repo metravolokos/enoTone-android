@@ -4,7 +4,7 @@
 
 Compose BOM обновлён `2026.06.00` → `2026.09.00`. По [официальной карте BOM](https://developer.android.com/develop/ui/compose/bom/bom-mapping) Foundation и UI изменились `1.11.3` → `1.12.1`, Material3 остался `1.4.0`. Compose 1.12 использует уже принятые Gradle 9.9.1, AGP 9.5.1 и compileSdk 37; остальные версии тулчейна и библиотек не менялись.
 
-Исправлено N-1 в [ADR-0100](docs/DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md). Roborazzi-эталоны записываются отдельным коммитом; API-замены и визуальные изменения перечислены в PR после проверок. Полный Android M0 CI запускается на exact HEAD draft PR. Huawei PASS не заявляется.
+Исправлено N-1 в [ADR-0100](docs/DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md). Устаревшие API заменять не потребовалось: компиляция и lint не потребовали изменений вызовов. В отдельном коммите перезаписаны 62 Roborazzi PNG: декодированные пиксели всех файлов идентичны; изменилось только хранение полностью непрозрачных изображений (RGBA → RGB), поэтому отступы, тени, шрифт, рипл и цвета не изменились. Полный Android M0 CI, включая Roborazzi verify и minified release, запускается на exact HEAD draft PR. Huawei PASS не заявляется.
 
 ## DEPS-01 — шаг 2 из 3 (бывший шаг 3): Gradle 9 / AGP 9 / compileSdk 37 (Issue #203, Draft PR, 2026-11-19)
 
