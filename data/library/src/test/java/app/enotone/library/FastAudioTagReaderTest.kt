@@ -342,6 +342,32 @@ class FastAudioTagReaderTest {
         }
     }
 
+    @Test fun flacEmptyCanonicalAlbumArtistFallsBackInEitherOrder() {
+        val fields = listOf("ALBUMARTIST=", "ALBUM ARTIST=X")
+        for (orderedFields in listOf(fields, fields.reversed())) {
+            assertFlacAlbumArtist("X", *orderedFields.toTypedArray())
+        }
+    }
+
+    @Test fun flacBlankCanonicalAlbumArtistFallsBackToFirstNonBlankAlias() {
+        assertFlacAlbumArtist("X", "ALBUMARTIST=   ", "ALBUM ARTIST=", "album_artist= X ", "ALBUM ARTIST=Z")
+    }
+
+    @Test fun flacNonBlankCanonicalAlbumArtistWinsOverAlias() {
+        assertFlacAlbumArtist("Y", "Album Artist=X", "albumartist= Y ")
+    }
+
+    @Test fun flacAlbumArtistIsNullWhenAllCandidatesAreBlank() {
+        assertFlacAlbumArtist(null, "ALBUMARTIST=", "ALBUM ARTIST=   ", "ALBUM_ARTIST=")
+    }
+
+    private fun assertFlacAlbumArtist(expected: String?, vararg fields: String) {
+        val data = flacWithComments(vorbis("TITLE=Synthetic Track", *fields))
+        val result = FastAudioTagReader().read("synthetic.flac", data.size.toLong(), byteReader(data))
+        assertEquals(FastTagCode.FLAC_VORBIS, result.code)
+        assertEquals(fields.joinToString(), expected, requireNotNull(result.tags).albumArtist)
+    }
+
     @Test fun flacMalformedCommentsAndOversizedMetadataFailClosed() {
         val valid = vorbis("TITLE=Safe")
         val data = flacWithHugeCover(valid)
