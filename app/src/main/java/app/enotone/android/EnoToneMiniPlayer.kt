@@ -30,7 +30,7 @@ internal fun EnoToneMiniPlayer(
     val playing = state == "PLAYING" || state == "BUFFERING"
     // Ошибка видна сразу в мини-плеере, а не только на «Сейчас играет».
     val subtitle = when (state) {
-        "ERROR" -> stringResource(R.string.playback_error, playback.errorCode)
+        "ERROR" -> stringResource(R.string.playback_error)
         "MISSING_PASSWORD" -> stringResource(R.string.playback_missing_password)
         "MISSING_TRACK" -> stringResource(R.string.playback_missing_track)
         else -> playback.artist.orEmpty()

@@ -20,6 +20,7 @@ import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueStateFileStore
 import app.enotone.playback.QueueTrack
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,6 +28,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows
 import org.robolectric.annotation.Config
+import java.io.FileNotFoundException
 import java.io.InterruptedIOException
 import java.time.Duration
 import java.util.UUID
@@ -130,6 +132,76 @@ class QueueEditServiceTest {
             }
         } finally {
             onMain { controller.destroy() }
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun retryCurrentWithoutErrorDoesNotChangeRestoredQueueOrPosition() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val initial = checkpoint().copy(selectedTrackId = id(2), positionMs = 14_000L)
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    (1..3).map(::track), initial, false, false))
+                val before = service.queueSnapshot
+
+                assertFalse(service.retryCurrent())
+
+                assertEquals(before, service.queueSnapshot)
+                assertEquals(id(2), service.player.currentMediaItem?.mediaId)
+                assertEquals(14_000L, service.player.currentPosition)
+                assertEquals(Player.STATE_IDLE, service.player.playbackState)
+            }
+        } finally {
+            onMain { controller.destroy() }
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun retryCurrentAfterPlayerErrorKeepsCurrentItemIndexAndPosition() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val source = RetryDataSourceFactory()
+        BufferingService.dataSourceFactory = source
+        val queue = (1..3).map { track(it).copy(remoteSize = 100_000L) }
+        val initial = checkpoint().copy(selectedTrackId = id(2), positionMs = 14_000L)
+        val controller = onMain { Robolectric.buildService(BufferingService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    queue, initial, false, false))
+                service.resume()
+            }
+            assertTrue("initial read should fail", awaitPlayerError(service))
+            val before = onMain {
+                Triple(service.player.currentMediaItem?.mediaId, service.queueSnapshot,
+                    service.player.currentPosition)
+            }
+            assertEquals(id(2), before.first)
+            assertEquals(PlaybackQueueSnapshot((1..3).map(::id), currentIndex = 1), before.second)
+            assertEquals(14_000L, before.third)
+
+            source.allowOpen = true
+            assertTrue(onMain { service.retryCurrent() })
+            assertTrue("retry should open the same file", source.awaitSuccessfulOpen())
+
+            onMain {
+                assertEquals(before.first, service.player.currentMediaItem?.mediaId)
+                assertEquals(before.second, service.queueSnapshot)
+                assertEquals(before.third, service.player.currentPosition)
+                assertEquals(listOf(id(1), id(2), id(3)),
+                    (0 until service.player.mediaItemCount).map {
+                        service.player.getMediaItemAt(it).mediaId
+                    })
+            }
+        } finally {
+            source.release.countDown()
+            onMain { controller.destroy() }
+            BufferingService.dataSourceFactory = null
             QueueStateFileStore(context).clear()
         }
     }
@@ -393,6 +465,18 @@ class QueueEditServiceTest {
         error("Updated queue layout was not written")
     }
 
+    private fun awaitPlayerError(service: EnoTonePlaybackService): Boolean {
+        repeat(160) {
+            val error = onMain {
+                Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(100))
+                service.player.playerError
+            }
+            if (error != null) return true
+            Thread.sleep(25L)
+        }
+        return false
+    }
+
     private class BlockingDataSourceFactory : DataSource.Factory {
         val openedUris = CopyOnWriteArrayList<String>()
         private val firstOpen = CountDownLatch(1)
@@ -422,6 +506,33 @@ class QueueEditServiceTest {
             while (openedUris.size < count && System.nanoTime() < deadline) Thread.sleep(5L)
             return openedUris.size >= count
         }
+    }
+
+    private class RetryDataSourceFactory : DataSource.Factory {
+        @Volatile var allowOpen = false
+        private val successfulOpen = CountDownLatch(1)
+        val release = CountDownLatch(1)
+
+        override fun createDataSource(): DataSource = object : DataSource {
+            override fun addTransferListener(transferListener: TransferListener) = Unit
+            override fun open(dataSpec: DataSpec): Long {
+                if (!allowOpen) throw FileNotFoundException("fixture unavailable")
+                successfulOpen.countDown()
+                try {
+                    release.await(20, TimeUnit.SECONDS)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw InterruptedIOException("fixture source interrupted")
+                }
+                return dataSpec.length
+            }
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int = C.RESULT_END_OF_INPUT
+            override fun getUri(): Uri? = null
+            override fun getResponseHeaders(): Map<String, List<String>> = emptyMap()
+            override fun close() = Unit
+        }
+
+        fun awaitSuccessfulOpen(): Boolean = successfulOpen.await(5, TimeUnit.SECONDS)
     }
 
     private class BufferingService : EnoTonePlaybackService() {

@@ -40,7 +40,12 @@
     <string name="playback_playing">Воспроизведение</string>
     <string name="playback_paused">Пауза</string>
     <string name="playback_ended">Остановлено / завершено</string>
-    <string name="playback_error">Ошибка воспроизведения, код %1$d. Личные данные не выводятся.</string>
+    <string name="playback_error">Ошибка воспроизведения.</string>
+    <string name="error_sheet_no_cloud">Связи с Облаком нет, самое время немного отдохнуть!</string>
+    <string name="error_sheet_cloud_access">Облако не пускает к песне, пойду отдыхать!</string>
+    <string name="error_sheet_unreadable">Файл не читается, значит, я немного отдохну!</string>
+    <string name="error_sheet_fallback">Трек не открылся, так что я немного отдохну. Спасибо, ошибка!</string>
+    <string name="error_sheet_retry">Повторить</string>
     <string name="playback_missing_password">Вернитесь назад и введите пароль приложения Cloud.Mail.ru для воспроизведения.</string>
     <string name="playback_missing_track">Трек не найден в локальном списке.</string>
     <string name="playback_pause">Пауза</string>

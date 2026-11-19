@@ -78,6 +78,14 @@ HTTP-тесты в `:core:network` и `:data:library` используют MockW
 
 Начиная с D3.1 в `:app` действует `AppScreensScreenshotTest`: экраны «Песни» (верх и прокрутка), «Альбомы», «Домой», «Сейчас играет» на эталонном размере 377 × 816 dp, `ru`, обе темы — `app/src/test/screenshots/*.png`. Их сверяют глазами с PNG-макетами `design/assets/ui-screens/android-v2/` перед коммитом эталона; запись — тем же `record_roborazzi=true`.
 
+D6-F (#228) добавляет `PlaybackErrorSheetUiTest`: лист из AppMotionRoot поверх
+«Сейчас играет» в Graphite/Porcelain (`playback_error_graphite.png`,
+`playback_error_porcelain.png`), а также поведенческие проверки одного показа на
+вход в ERROR, dismiss/retry и текста по группам ошибок. `QueueEditServiceTest`
+проверяет повтор того же mediaId и позиции без изменения очереди; `PlayerViewModelTest`
+проверяет передачу команды через `PlaybackConnection`. Числовые коды проверяются
+в диагностике, а UI мини-плеера и «Сейчас играет» не выводит их.
+
 D4c (#201) добавляет `RecentlyAddedPlannerTest`, `RecentlyAddedUiTest` и
 `RecentlyAddedScreenshotTest`: планирование датированных строк, скрытие пустых
 секций, навигация и очереди из 5/100 песен. Восемь снимков на макете 09_home

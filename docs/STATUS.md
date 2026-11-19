@@ -46,6 +46,6 @@ Huawei HOME-REC-01…05 не проверены.
 
 В ветке `feature/d6-0-state-components` реализованы `EnoStateView` и `EnoErrorSheet`; локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. 14 PNG-эталонов перезаписаны на CI `workflow_dispatch`, визуально проверены и приложены к [PR #230](https://github.com/metravolokos/enoTone-android/pull/230); exact-HEAD CI отслеживается там же. Huawei не требуется.
 
-## D6-F #228 — повтор текущего трека заблокирован
+## D6-F #228 — ошибка плеера и повтор текущего трека
 
-У `PlaybackConnection` нет команды повторной подготовки текущего item с сохранением очереди и её позиции. `playPause()` после ошибки следует ADR-0093 и запускает следующий трек; `playQueue()` пересобирает очередь и может изменить shuffle/кэш. По условию Issue #228 реализация остановлена до UI, задача переведена в `state:blocked` и класс риска повышен до R. `PLAY-08` сохраняет прежнее поведение; `PLAY-11` описывает отложенный сценарий повтора. Пункты KNOWN_ISSUES оставлены: ошибка UI ещё не исправлена, смена Wi-Fi↔LTE остаётся отдельной проблемой.
+По решению владельца 2026-11-20 добавлена отдельная команда `retryCurrent()` через `PreviewAudioPlayback`, `EnoTonePlaybackService`, `PlaybackConnection` и `PlayerViewModel`. Она подготавливает текущий элемент с прежней позицией; очередь, маршруты, кэш и Play-обход ADR-0093 не меняются. `EnoErrorSheet` подключён отдельным корневым блоком; числовой код остаётся только в «Диагностике». Класс риска R, требуется два независимых ревью. PR #233; CI exact HEAD — ожидается. Смена Wi-Fi↔LTE остаётся в KNOWN_ISSUES; Huawei не проверялся.

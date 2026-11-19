@@ -364,6 +364,7 @@ internal class PlayerViewModel(
         )
     }
     fun onPlayPause() = connection.playPause()
+    fun onRetryCurrent(): Boolean = connection.retryCurrent()
     fun onNext() = connection.playNext()
     fun onPrevious() = connection.playPrevious()
     fun onQueuePositionSelected(position: Int) = connection.skipToQueuePosition(position)
