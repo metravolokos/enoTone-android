@@ -35,6 +35,9 @@ class LocalizedUiResourcesTest {
             R.string.home_recently_added_albums, R.string.home_recently_added_songs,
             R.string.home_recently_added_all,
             R.string.home_recently_added_empty_albums, R.string.home_recently_added_empty_songs,
+            R.string.state_not_found_title, R.string.state_not_found_message,
+            R.string.state_music_missing_title, R.string.state_music_missing_message,
+            R.string.state_music_missing_action,
             R.string.library_pages_settings_title,
             R.string.library_pages_settings_explanation,
             R.string.library_pages_settings_last_visible,
@@ -55,6 +58,13 @@ class LocalizedUiResourcesTest {
             R.string.home_recently_added_empty_albums,
             R.string.home_recently_added_empty_songs)) {
             assertNotEquals("EN fallback to RU label: $id", ru.getString(id), en.getString(id))
+        }
+        for (id in listOf(
+            R.string.state_not_found_title, R.string.state_not_found_message,
+            R.string.state_music_missing_title, R.string.state_music_missing_message,
+            R.string.state_music_missing_action,
+        )) {
+            assertNotEquals("EN fallback to RU state: $id", ru.getString(id), en.getString(id))
         }
     }
 }
