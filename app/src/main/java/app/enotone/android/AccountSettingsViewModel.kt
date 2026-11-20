@@ -14,18 +14,33 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private const val HTTP_STATUS_MULTI_STATUS = 207
+private const val HTTP_STATUS_UNAUTHORIZED = 401
+private const val HTTP_STATUS_FORBIDDEN = 403
+
 /** Account I/O boundary; fake implementations run without Android/Room/WebDAV. */
 internal interface AccountSettingsGateway {
     suspend fun restore(): StoredWebDavLogin?
+
+    suspend fun reauthenticationRequired(): Boolean = false
+
+    suspend fun markReauthenticationRequired() = Unit
 
     /** Выход начат и не завершён (в том числе до перезапуска процесса): новые операции запрещены. */
     suspend fun signOutPending(): Boolean = false
 
     suspend fun verify(email: String, password: String): Boolean
+
+    suspend fun verifyOutcome(email: String, password: String): AccountVerificationResult =
+        if (verify(email, password)) AccountVerificationResult.ACCEPTED
+        else AccountVerificationResult.CLOUD_UNAVAILABLE
+
     suspend fun save(email: String, password: String)
     suspend fun countTracks(email: String): Int
     suspend fun signOut(email: String)
 }
+
+internal enum class AccountVerificationResult { ACCEPTED, CREDENTIALS_REJECTED, CLOUD_UNAVAILABLE }
 
 internal class AndroidAccountSettingsGateway(
     private val context: Context,
@@ -33,6 +48,14 @@ internal class AndroidAccountSettingsGateway(
 ) : AccountSettingsGateway {
     override suspend fun restore(): StoredWebDavLogin? = withContext(container.io) {
         LocalCredentialVault.restore(context)
+    }
+
+    override suspend fun reauthenticationRequired(): Boolean = withContext(container.io) {
+        FirstRunPreferences(context).reauthenticationRequired()
+    }
+
+    override suspend fun markReauthenticationRequired() = withContext(container.io) {
+        FirstRunPreferences(context).setReauthenticationRequired(true)
     }
 
     override suspend fun signOutPending(): Boolean {
@@ -47,16 +70,26 @@ internal class AndroidAccountSettingsGateway(
     }
 
     override suspend fun verify(email: String, password: String): Boolean =
+        verifyOutcome(email, password) == AccountVerificationResult.ACCEPTED
+
+    override suspend fun verifyOutcome(email: String, password: String): AccountVerificationResult =
         withContext(container.io) {
-            // Two bounded WebDAV PROPFIND requests, no 3647-file listing/import.
-            // Only successful Multi-Status for the configured library confirms login.
-            WebDavDiagnostics().inspect(email, password).steps.any {
-                it.operation == "PROPFIND /AllMusic" && it.httpStatus == 207
+            // Existing bounded WebDAV probe; this never lists/imports the music folder.
+            val status = WebDavDiagnostics().inspect(email, password).steps
+                .firstOrNull { it.operation == "PROPFIND /AllMusic" }?.httpStatus
+            when (status) {
+                HTTP_STATUS_MULTI_STATUS -> AccountVerificationResult.ACCEPTED
+                HTTP_STATUS_UNAUTHORIZED, HTTP_STATUS_FORBIDDEN -> AccountVerificationResult.CREDENTIALS_REJECTED
+                else -> AccountVerificationResult.CLOUD_UNAVAILABLE
             }
         }
 
     override suspend fun save(email: String, password: String) {
-        withContext(container.io) { LocalCredentialVault.save(context, email, password) }
+        withContext(container.io) {
+            FirstRunPreferences(context).setFirstRunCompleted(false)
+            LocalCredentialVault.save(context, email, password)
+            FirstRunPreferences(context).setReauthenticationRequired(false)
+        }
         // Only publish ACTIVE after the encrypted write actually succeeds.
         container.accountSession.signedIn(LibrarySnapshotPlanner.accountKey(email))
     }
@@ -85,7 +118,7 @@ internal class AndroidAccountSettingsGateway(
     }
 }
 
-internal enum class AccountError { RESTORE, CONNECTION, STORAGE, OTHER_ACCOUNT, SIGN_OUT }
+internal enum class AccountError { RESTORE, CONNECTION, CREDENTIALS_REJECTED, STORAGE, OTHER_ACCOUNT, SIGN_OUT }
 
 internal data class AccountUiState(
     /** Редактируемые поля формы входа: до проверки никуда не передаются. */
@@ -96,6 +129,8 @@ internal data class AccountUiState(
     /** Выход начат, но не завершён: импорт, индексация, обложки и медиатека заблокированы до повтора. */
     val signOutFailed: Boolean = false,
     val restoring: Boolean = true,
+    /** Restore completed successfully and found neither saved credentials nor a reauth marker. */
+    val restoreCompletedWithoutCredentials: Boolean = false,
     val checking: Boolean = false,
     val loggedIn: Boolean = false,
     val signingOut: Boolean = false,
@@ -127,14 +162,31 @@ internal class AccountSettingsViewModel(
         viewModelScope.launch {
             try {
                 val saved = gateway.restore()
-                if (saved != null) {
-                    activeEmail = saved.email
+                if (saved == null) {
+                    if (!gateway.reauthenticationRequired()) {
+                        mutable.update { it.copy(restoreCompletedWithoutCredentials = true) }
+                    }
+                } else {
                     val pending = gateway.signOutPending()
-                    // Рабочий вход — только сохранённый; правки полей во время восстановления не применяются.
-                    mutable.update {
-                        it.copy(email = saved.email, password = saved.password, active = saved,
-                            loggedIn = true, signOutFailed = pending,
-                            error = if (pending) AccountError.SIGN_OUT else it.error)
+                    if (pending) {
+                        activeEmail = saved.email
+                        // Keep the previous sign-out recovery path higher priority than re-login.
+                        mutable.update {
+                            it.copy(email = saved.email, password = saved.password, active = saved,
+                                loggedIn = true, signOutFailed = true, error = AccountError.SIGN_OUT)
+                        }
+                    } else if (gateway.reauthenticationRequired()) {
+                        // Keep the email for the form; the rejected secret is never used as a working login.
+                        mutable.update {
+                            it.copy(email = saved.email, password = "", active = null, loggedIn = false)
+                        }
+                    } else {
+                        activeEmail = saved.email
+                        // Рабочий вход — только сохранённый; правки полей во время восстановления не применяются.
+                        mutable.update {
+                            it.copy(email = saved.email, password = saved.password, active = saved,
+                                loggedIn = true, signOutFailed = false)
+                        }
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -157,6 +209,11 @@ internal class AccountSettingsViewModel(
         mutable.update { it.copy(password = value, error = null) }
     }
 
+    /** Marks the currently presented account error as handled by the first-run sheet. */
+    fun dismissError() {
+        mutable.update { it.copy(error = null) }
+    }
+
     /** Failed verification must never write to the vault. */
     fun verifyConnection() {
         val current = mutable.value
@@ -168,23 +225,26 @@ internal class AccountSettingsViewModel(
         mutable.update { it.copy(checking = true, error = null) }
         viewModelScope.launch {
             try {
-                val accepted = gateway.verify(current.email, current.password)
-                if (!accepted) {
-                    mutable.update { it.copy(error = AccountError.CONNECTION) }
-                } else {
-                    try {
-                        gateway.save(current.email, current.password)
-                    } catch (cancelled: CancellationException) {
-                        throw cancelled
-                    } catch (_: Exception) {
-                        mutable.update { it.copy(error = AccountError.STORAGE) }
-                        return@launch
-                    }
-                    activeEmail = current.email
-                    mutable.update {
-                        it.copy(loggedIn = true, error = null,
-                            active = StoredWebDavLogin(current.email, current.password),
-                            verifiedVersion = it.verifiedVersion + 1)
+                when (gateway.verifyOutcome(current.email, current.password)) {
+                    AccountVerificationResult.CREDENTIALS_REJECTED ->
+                        mutable.update { it.copy(error = AccountError.CREDENTIALS_REJECTED) }
+                    AccountVerificationResult.CLOUD_UNAVAILABLE ->
+                        mutable.update { it.copy(error = AccountError.CONNECTION) }
+                    AccountVerificationResult.ACCEPTED -> {
+                        try {
+                            gateway.save(current.email, current.password)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            mutable.update { it.copy(error = AccountError.STORAGE) }
+                            return@launch
+                        }
+                        activeEmail = current.email
+                        mutable.update {
+                            it.copy(loggedIn = true, error = null,
+                                active = StoredWebDavLogin(current.email, current.password),
+                                verifiedVersion = it.verifiedVersion + 1)
+                        }
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -214,6 +274,26 @@ internal class AccountSettingsViewModel(
 
     fun cancelSignOut() {
         mutable.update { it.copy(showConfirmation = false) }
+    }
+
+    /** Reopens the login form without deleting the account's library or other local data. */
+    fun requestReauthentication() {
+        val current = mutable.value
+        if (!current.loggedIn || current.busy) return
+        viewModelScope.launch {
+            try {
+                gateway.markReauthenticationRequired()
+                activeEmail = null
+                mutable.update {
+                    it.copy(password = "", active = null, loggedIn = false,
+                        signOutFailed = false, error = null)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                mutable.update { it.copy(error = AccountError.STORAGE) }
+            }
+        }
     }
 
     fun confirmSignOut() {

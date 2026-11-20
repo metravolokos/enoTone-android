@@ -95,7 +95,10 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val libraryModel = account.libraryLogin?.let {
         rememberLibraryViewModel(it.email, it.password)
     }
+    val libraryState = libraryModel?.state?.collectAsStateWithLifecycle()?.value
     val queueSnackbar = rememberQueueSnackbar(libraryModel)
+    val firstRunPreferences = remember(appContext) { FirstRunPreferences(appContext) }
+    val hasValidatedInternet by container.networkMonitor.hasValidatedInternet.collectAsStateWithLifecycle()
     // Видимость страниц перечитывается при выходе из «Настроек», где её меняют (ADR-0052).
     val pages = remember(inSettings) {
         LibraryPageVisibility.visible(LibraryPagePreferences(appContext).hiddenPages())
@@ -113,22 +116,30 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val activeSearchBack = searchRegistry.handler(appRouteKey(nav))
     val backTarget = appBackTarget(expanded, nav, activeSearchBack != null)
     val backController = remember { AppBackController() }
-    AppBackGesture(
-        enabled = backTarget != AppBackTarget.EXIT,
-        onPreview = { progress ->
-            backController.preview(backTarget, nav, progress)
-        },
-        onCommit = {
-            backController.commit(
-                target = backTarget,
-                nav = nav,
-                closePlayer = { playerModel.onNowPlaying(false) },
-                updateNav = { nav = it },
-                closeSearch = { activeSearchBack?.invoke() },
-            )
-        },
-        onCancel = backController::cancel,
-    )
+    FirstRunRoute(
+        account = account,
+        accountModel = accountModel,
+        indexing = indexing,
+        indexingModel = indexingModel,
+        preferences = firstRunPreferences,
+        signOutPending = SignOutMarker.pending(appContext),
+        libraryState = libraryState,
+        hasValidatedInternet = hasValidatedInternet,
+    ) {
+        AppBackGesture(
+            enabled = backTarget != AppBackTarget.EXIT,
+            onPreview = { progress -> backController.preview(backTarget, nav, progress) },
+            onCommit = {
+                backController.commit(
+                    target = backTarget,
+                    nav = nav,
+                    closePlayer = { playerModel.onNowPlaying(false) },
+                    updateNav = { nav = it },
+                    closeSearch = { activeSearchBack?.invoke() },
+                )
+            },
+            onCancel = backController::cancel,
+        )
     AppMotionRoot(
         inSettings = inSettings,
         diagnostics = nav.overlay == AppOverlay.DIAGNOSTICS,
@@ -219,6 +230,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             )
         },
     )
+    }
 }
 
 /**

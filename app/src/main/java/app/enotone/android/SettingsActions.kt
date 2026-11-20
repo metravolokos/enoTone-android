@@ -1,12 +1,12 @@
 package app.enotone.android
 
 internal interface IndexingActions {
-    fun updateLibrary() = Unit
+    fun updateLibrary(fromFirstRun: Boolean = false) = Unit
     fun showReindex(value: Boolean) = Unit
     fun confirmReindex() = Unit
 
     /** Продолжить прерванное, приостановленное или остановленное обновление с сохранённого места. */
-    fun resume() = Unit
+    fun resume(fromFirstRun: Boolean = false) = Unit
 
     fun control(action: WorkAction) = Unit
 }

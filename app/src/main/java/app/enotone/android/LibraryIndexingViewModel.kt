@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.IOException
 
 internal data class LibraryIndexingUiState(
     val status: ManagedScanStatus = ManagedScanStatus(),
@@ -20,9 +21,19 @@ internal data class LibraryIndexingUiState(
     val permissionPending: Boolean = false,
     val permissionDenied: Boolean = false,
     val report: String = "",
+    val importVersion: Int = 0,
+    val importedTrackCount: Int? = null,
+    val pendingTagCount: Int? = null,
+    val operationFailure: FirstRunIndexingFailure? = null,
+    val operationFailureVersion: Int = 0,
 ) {
     val canStart: Boolean get() = hasLogin && !busy && !status.active && !permissionPending
 }
+
+internal enum class FirstRunIndexingFailure { AUTHENTICATION, CLOUD_UNAVAILABLE, FILES_UNREADABLE }
+
+private const val HTTP_STATUS_UNAUTHORIZED = 401
+private const val HTTP_STATUS_FORBIDDEN = 403
 
 internal class LibraryIndexingViewModel(
     private val gateway: LibraryIndexingGateway,
@@ -36,6 +47,7 @@ internal class LibraryIndexingViewModel(
     private var operationLogin: StoredWebDavLogin? = null
     private var activeLogin: StoredWebDavLogin? = null
     private var pendingLogin: StoredWebDavLogin? = null
+    private var pendingStartFromFirstRun = false
 
     init {
         viewModelScope.launch {
@@ -47,6 +59,10 @@ internal class LibraryIndexingViewModel(
                     if (operationLogin != work.login) operation?.cancel()
                     activeLogin = work.login
                     showReindex(false)
+                    mutable.update {
+                        it.copy(importVersion = 0, importedTrackCount = null, pendingTagCount = null,
+                            operationFailure = null)
+                    }
                 }
                 mutable.update { it.copy(busy = work.busy, hasLogin = work.login != null, report = work.report) }
                 if (pendingLogin != null && work.login != pendingLogin) clearPending()
@@ -54,12 +70,17 @@ internal class LibraryIndexingViewModel(
         }
     }
 
-    override fun updateLibrary() {
+    override fun updateLibrary(fromFirstRun: Boolean) {
         if (!allowed()) return
         perform(R.string.local_store_failed) { login ->
             val result = gateway.update(login)
             session.report(result.report)
-            if (result.pendingTags > 0) requestStart(login)
+            mutable.update {
+                it.copy(importVersion = it.importVersion + 1,
+                    importedTrackCount = result.presentTracks, pendingTagCount = result.pendingTags,
+                    operationFailure = null)
+            }
+            if (result.pendingTags > 0) requestStart(login, fromFirstRun)
         }
     }
 
@@ -78,22 +99,28 @@ internal class LibraryIndexingViewModel(
         }
     }
 
-    override fun resume() {
+    override fun resume(fromFirstRun: Boolean) {
         if (!allowed()) return
-        requestStart(requireNotNull(session.state.value.login))
+        requestStart(requireNotNull(session.state.value.login), fromFirstRun)
     }
 
     /** Разрешение запрашивает Activity; Intent и секреты остаются вне Compose. */
     fun onNotificationPermission(granted: Boolean) {
         val login = pendingLogin ?: return
+        val fromFirstRun = pendingStartFromFirstRun
         clearPending()
         mutable.update { it.copy(permissionDenied = !granted) }
-        val available = !launcher.indexing.value.active && !session.state.value.busy
-        if (!granted || login != session.state.value.login || !available) return
-        try {
-            launcher.startIndexing(login)
-        } catch (_: RuntimeException) {
-            session.report(text.get(R.string.managed_index_failed))
+        if (granted || fromFirstRun) {
+            val available = !launcher.indexing.value.active && !session.state.value.busy
+            // Android permits foreground indexing without the notification only during first run.
+            if (login == session.state.value.login && available) {
+                try {
+                    launcher.startIndexing(login)
+                } catch (_: RuntimeException) {
+                    session.report(text.get(R.string.managed_index_failed))
+                    mutable.publishFailure(FirstRunIndexingFailure.FILES_UNREADABLE)
+                }
+            }
         }
     }
 
@@ -108,6 +135,7 @@ internal class LibraryIndexingViewModel(
     private fun clearPending() {
         mutable.update { it.copy(permissionPending = false) }
         pendingLogin = null
+        pendingStartFromFirstRun = false
     }
 
     private fun allowed(): Boolean {
@@ -116,29 +144,50 @@ internal class LibraryIndexingViewModel(
             !launcher.indexing.value.active && pendingLogin == null
     }
 
-    private fun requestStart(login: StoredWebDavLogin) {
+    private fun requestStart(login: StoredWebDavLogin, fromFirstRun: Boolean = false) {
         if (login != session.state.value.login) return
         pendingLogin = login
+        pendingStartFromFirstRun = fromFirstRun
         mutable.update { it.copy(permissionRequest = it.permissionRequest + 1, permissionPending = true) }
     }
 
+    @Suppress("TooGenericExceptionCaught") // Gateway/parser failures must leave the import in an explicit failed state.
     private fun perform(failure: Int, action: suspend (StoredWebDavLogin) -> Unit) {
         val work = session.begin() ?: return
         val login = work.login ?: return
         operationLogin = login
+        mutable.update { it.copy(operationFailure = null) }
         operation = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             try {
                 action(login)
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: FlatWebDavHttpError) {
+            } catch (failureException: FlatWebDavHttpError) {
                 // Код ответа виден в «Диагностике» → «Проверить соединение»; на основном экране — человеческий текст.
                 session.report(text.get(R.string.library_update_network_failed), work.revision)
-            } catch (_: Exception) {
+                mutable.publishFailure(classifyFirstRunIndexingFailure(failureException))
+            } catch (failureException: IOException) {
+                session.report(text.get(R.string.library_update_network_failed), work.revision)
+                mutable.publishFailure(classifyFirstRunIndexingFailure(failureException))
+            } catch (failureException: RuntimeException) {
                 session.report(text.get(failure), work.revision)
+                mutable.publishFailure(classifyFirstRunIndexingFailure(failureException))
             } finally {
                 session.finish(work.revision)
             }
         }
     }
+}
+private fun MutableStateFlow<LibraryIndexingUiState>.publishFailure(failure: FirstRunIndexingFailure) {
+    update { it.copy(operationFailure = failure, operationFailureVersion = it.operationFailureVersion + 1) }
+}
+
+private fun classifyFirstRunIndexingFailure(failure: Exception): FirstRunIndexingFailure = when (failure) {
+    is FlatWebDavHttpError -> if (failure.statusCode in setOf(HTTP_STATUS_UNAUTHORIZED, HTTP_STATUS_FORBIDDEN)) {
+        FirstRunIndexingFailure.AUTHENTICATION
+    } else {
+        FirstRunIndexingFailure.CLOUD_UNAVAILABLE
+    }
+    is IOException -> FirstRunIndexingFailure.CLOUD_UNAVAILABLE
+    else -> FirstRunIndexingFailure.FILES_UNREADABLE
 }

@@ -8,11 +8,10 @@ import android.content.Context
  * пока пользователь не повторит «Выйти» (ADR-0080, внешний аудит 2026-11-13, п. 8).
  */
 internal object SignOutMarker {
-    private const val PREFS = "enotone_account_state"
     private const val PENDING = "sign_out_pending"
 
     private fun prefs(context: Context) =
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        context.applicationContext.getSharedPreferences(ACCOUNT_STATE_PREFERENCES, Context.MODE_PRIVATE)
 
     fun pending(context: Context): Boolean = prefs(context).getBoolean(PENDING, false)
     fun begin(context: Context) { prefs(context).edit().putBoolean(PENDING, true).commit() }

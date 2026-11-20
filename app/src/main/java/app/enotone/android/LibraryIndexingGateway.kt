@@ -9,7 +9,11 @@ import app.enotone.network.FlatLibraryWebDavClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
-internal data class LibraryImportResult(val report: String, val pendingTags: Int)
+internal data class LibraryImportResult(
+    val report: String,
+    val pendingTags: Int,
+    val presentTracks: Int = 0,
+)
 
 internal interface LibraryIndexingGateway {
     suspend fun update(login: StoredWebDavLogin): LibraryImportResult
@@ -28,11 +32,16 @@ internal class AndroidLibraryIndexingGateway(
             invalidateChangedArtwork(login.email, plan)
             // Новые и изменённые треки видны открытым экранам сразу, ещё до чтения тегов.
             LibraryDataRevision.bump()
+            val presentTracks = store.presentCount(login.email)
             val pending = container.database.remoteTrackDao()
                 .pendingFastScans(LibrarySnapshotPlanner.accountKey(login.email)).size
-            LibraryImportResult(text.get(R.string.local_import_report,
-                listing.tracks.size, store.presentCount(login.email),
-                plan.inserted, plan.changed, plan.unchanged), pending)
+            LibraryImportResult(
+                report = text.get(R.string.local_import_report,
+                    listing.tracks.size, presentTracks,
+                    plan.inserted, plan.changed, plan.unchanged),
+                pendingTags = pending,
+                presentTracks = presentTracks,
+            )
         }
     }
 

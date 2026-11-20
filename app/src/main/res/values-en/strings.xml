@@ -297,4 +297,34 @@
     <string name="diagnostics_library_duplicates">Duplicates=%1$d, albums=%2$d</string>
     <string name="player_destination_unavailable">Album or artist is unavailable</string>
     <string name="diagnostics_library_album">Last album: rows=%1$d, header=%2$d, repeated IDs=%3$d</string>
+    <string name="first_run_login_title">Hi! I’m Bandit</string>
+    <string name="first_run_login_message">Connect Mail.ru Cloud and I’ll find the music in your AllMusic folder.</string>
+    <string name="first_run_email">Email</string>
+    <string name="first_run_app_password">External app password</string>
+    <string name="first_run_connect">Connect</string>
+    <string name="first_run_indexing_title">Reading your music…</string>
+    <string name="first_run_progress">%1$s of %2$s songs</string>
+    <string name="first_run_listen_while_reading">Listen while I read</string>
+    <string name="first_run_done_title">All done!</string>
+    <string name="first_run_summary">%1$s, %2$s, %3$s</string>
+    <string name="first_run_go_to_music">Go to music</string>
+    <string name="first_run_error_login_credentials">Hooray, an error: the email or password didn’t match! I can take a little break now.</string>
+    <string name="first_run_error_cloud_unavailable">The Cloud isn’t answering—great, I can take a little break!</string>
+    <string name="first_run_error_auth_expired">The password doesn’t work anymore, and I was just ready to rest!</string>
+    <string name="first_run_error_files">The files won’t read: a perfect excuse to take a little break!</string>
+    <string name="first_run_error_enter_again">Enter again</string>
+    <string name="first_run_error_retry">Retry</string>
+    <string name="first_run_error_sign_in_again">Sign in again</string>
+    <plurals name="first_run_song_count">
+        <item quantity="one">%1$s song</item>
+        <item quantity="other">%1$s songs</item>
+    </plurals>
+    <plurals name="first_run_album_count">
+        <item quantity="one">%1$s album</item>
+        <item quantity="other">%1$s albums</item>
+    </plurals>
+    <plurals name="first_run_artist_count">
+        <item quantity="one">%1$s artist</item>
+        <item quantity="other">%1$s artists</item>
+    </plurals>
 </resources>

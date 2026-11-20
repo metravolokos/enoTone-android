@@ -4,12 +4,11 @@ import android.content.Context
 import android.content.Intent
 import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.playback.QueueStateFileStore
-import java.io.File
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 
 /**
  * Android adapter for account cleanup. Album/source hashes are journaled
@@ -105,6 +104,8 @@ internal class AndroidAccountSignOutPort(
         // were removed with the references. Preserve global non-PII diagnostics.
         ManagedScanRuntime.status.value = ManagedScanStatus()
         ArtworkScanRuntime.status.value = ArtworkScanStatus()
+        // Reset only after account data is gone and before the Keystore is cleared.
+        FirstRunPreferences(context).resetAfterSignOut()
     }
 
     override suspend fun deleteCredentials() {
