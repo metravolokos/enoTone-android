@@ -259,6 +259,13 @@ M6-0/8b дополняет ACT-03: первая группа листа песн
 | D6-ERR-03 | Сравнить короткий, длинный и крупный текст в Graphite/Porcelain | ручка, системные панели, фон, Бандит, текст и кнопка соответствуют утверждённому макету | O-08, ADR-0090 | Roborazzi | `EnoStateScreenshotTest` | — |
 | D6-ERR-04 | Войти в ERROR, закрыть лист, повторить после восстановления; ошибки разных групп и обе темы | один лист на вход в ERROR; тексты дословно из Issue, код не показывается вне диагностики; принят Retry закрывает лист; новый ERROR открывает его снова; снимок листа поверх «Сейчас играет» в Graphite/Porcelain | O-08, Issue #228, ADR-0101 | Compose UI, Roborazzi | `PlaybackErrorSheetUiTest`, `MiniPlayerUiTest`, `NowPlayingUiTest` | автоматические проверки и снимки добавлены в PR #233; exact-HEAD CI и ревью отслеживаются там; Huawei не проверен |
 
+## D6-A — пустые состояния медиатеки
+
+| ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |
+|---|---|---|---|---|---|---|
+| D6-A-01 | Искать без совпадений и с результатом на каждой вкладке поиска | пустой запросный результат показывает `THINKING`, заголовок и текст по макету без кнопки; поле, нижняя панель и мини-плеер остаются; непустой результат остаётся списком | O-08, ADR-0101 | Compose, Roborazzi | `LibraryEmptyStatesUiTest.emptySearchStateAppearsOnEverySearchPageAndDisappearsWithResults`, `miniPlayerIsHiddenOnlyOnTheEmptyLibraryTab` | — |
+| D6-A-02 | Открыть медиатеку без MP3/FLAC после завершения индексации | `BOOKS`, точный текст и кнопка «Проверить подключение»; действие открывает «Настройки»; нижняя панель есть, мини-плеера нет; до окончания индексации состояние не показывается | O-08, ADR-0101 | Compose, Roborazzi | `LibraryEmptyStatesUiTest.musicMissingStateWaitsUntilIndexingCompletes`, `emptyLibraryActionOpensSettings`, `miniPlayerIsHiddenOnlyOnTheEmptyLibraryTab`, `musicMissingGraphite`, `musicMissingPorcelain` | — |
+
 ## Решения владельца по каталогу
 
 - 2026-11-13: индексация после гибели процесса, принудительной остановки и перезагрузки продолжается только по кнопке «Продолжить» (O-18).

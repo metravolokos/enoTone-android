@@ -62,11 +62,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.enotone.android.core.ui.component.BanditPose
 import app.enotone.android.core.ui.component.EnoBlurState
 import app.enotone.android.core.ui.component.EnoCollapsingStrip
 import app.enotone.android.core.ui.component.EnoIcons
 import app.enotone.android.core.ui.component.EnoPill
 import app.enotone.android.core.ui.component.EnoRoundButton
+import app.enotone.android.core.ui.component.EnoStateAction
+import app.enotone.android.core.ui.component.EnoStateView
 import app.enotone.android.core.ui.component.EnoTrackRow
 import app.enotone.android.core.ui.component.EnoTrackRowVariant
 import app.enotone.android.core.ui.component.enoBlurSource
@@ -99,6 +102,7 @@ internal fun LibraryScreenContent(
     blur: EnoBlurState? = null,
     detail: LibraryDetail? = null,
     onOpenDetail: (LibraryDetail) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     androidx.compose.runtime.SideEffect { LibraryAlbumDiagnostics.record(state) }
     val section = state.section
@@ -282,12 +286,15 @@ internal fun LibraryScreenContent(
                         foundCount(section, if (section == LibraryPage.TRACKS) visible.size else shownGroups.size)
                     else -> sectionCount(section, if (section == LibraryPage.TRACKS) tracks.size else groups.size)
                 }
-                Text(
-                    text = countText,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
-                    color = EnoColors.textSecondary,
-                    modifier = Modifier.padding(top = 2.dp, bottom = 18.dp),
-                )
+                val searchResultCount = if (section == LibraryPage.TRACKS) visible.size else shownGroups.size
+                if (search.isBlank() || searchResultCount > 0) {
+                    Text(
+                        text = countText,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Normal),
+                        color = EnoColors.textSecondary,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 18.dp),
+                    )
+                }
             }
             if (canPlayPage) {
                 Row(
@@ -321,10 +328,36 @@ internal fun LibraryScreenContent(
         modifier = Modifier.fillMaxSize().statusBarsPadding()
             .padding(horizontal = 16.dp),
     ) {
+        val emptySearchResults = search.isNotBlank() && selectedGroupKey == null &&
+            (if (section == LibraryPage.TRACKS) visible.isEmpty() else shownGroups.isEmpty())
+        val completedEmptyLibrary = tracks.isEmpty() &&
+            managedIndexStatus.state == ManagedScanState.COMPLETE && !managedIndexStatus.terminating
         when {
             loading -> { header(); Text(stringResource(R.string.library_loading)) }
             failed -> { header(); Text(stringResource(R.string.library_failed)) }
-            tracks.isEmpty() -> { header(); Text(stringResource(R.string.library_empty)) }
+            emptySearchResults -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f)
+                        .padding(bottom = contentPadding.calculateBottomPadding()),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    SearchNotFoundState(
+                        modifier = Modifier.fillMaxWidth().padding(top = SEARCH_NOT_FOUND_STATE_TOP),
+                    )
+                }
+            }
+            completedEmptyLibrary -> {
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                        .padding(bottom = contentPadding.calculateBottomPadding()),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    MusicMissingState(
+                        onOpenSettings = onOpenSettings,
+                        modifier = Modifier.fillMaxWidth().padding(top = MUSIC_MISSING_STATE_TOP),
+                    )
+                }
+            }
             // Only the album page uses a cover grid; performers remain
             // readable lists until their detailed views are implemented.
             section == LibraryPage.ALBUMS && selectedGroup == null -> {
@@ -473,7 +506,7 @@ internal fun LibraryScreenContent(
         }
     }
     // Закреплённый заголовок вкладки поверх списка: список уходит под него (D3.2).
-    if (pinnedHeader && !loading && !failed && tracks.isNotEmpty()) {
+    if (pinnedHeader && !loading && !failed && (tracks.isNotEmpty() || search.isNotBlank())) {
         val frostBackground = MaterialTheme.colorScheme.background
         val line = EnoColors.line.copy(alpha = LINE_ALPHA)
         Column(
@@ -569,6 +602,33 @@ private fun foundCount(section: LibraryPage, count: Int): String {
         formatted,
     )
 }
+
+@Composable
+private fun SearchNotFoundState(modifier: Modifier = Modifier) {
+    EnoStateView(
+        pose = BanditPose.THINKING,
+        title = stringResource(R.string.state_not_found_title),
+        message = stringResource(R.string.state_not_found_message),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun MusicMissingState(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+    EnoStateView(
+        pose = BanditPose.BOOKS,
+        title = stringResource(R.string.state_music_missing_title),
+        message = stringResource(R.string.state_music_missing_message),
+        secondaryAction = EnoStateAction(
+            label = stringResource(R.string.state_music_missing_action),
+            onClick = onOpenSettings,
+        ),
+        modifier = modifier,
+    )
+}
+
+private val SEARCH_NOT_FOUND_STATE_TOP = 176.dp
+private val MUSIC_MISSING_STATE_TOP = 126.dp
 
 @Composable
 private fun sectionCount(section: LibraryPage, count: Int): String {
