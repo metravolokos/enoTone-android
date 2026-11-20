@@ -67,17 +67,13 @@ internal fun FirstRunManagedErrorEffect(
 ) {
     var handledErrorKey by remember { mutableStateOf<String?>(null) }
     val status = indexing.status
-    val errorKey = listOf(
-        status.failureStage.orEmpty(),
-        status.failureReason.orEmpty(),
-        status.progress?.stopCode.orEmpty(),
-    ).joinToString(":")
+    val errorKey = status.firstRunErrorKey()
     LaunchedEffect(phase, status.state, errorKey, hasValidatedInternet, currentError) {
         if (status.state != ManagedScanState.ERROR) {
             handledErrorKey = null
         } else if (isFirstRunIndexingPhase(phase) && errorKey != handledErrorKey) {
             handledErrorKey = errorKey
-            val error = errorKey.toFirstRunError()
+            val error = status.firstRunError()
             if (currentError == null && shouldShowFirstRunError(error, phase, hasValidatedInternet)) {
                 onError(error)
             }
@@ -100,3 +96,14 @@ private fun String.toFirstRunError(): FirstRunError = when {
     contains("RETRY_BACKOFF") || contains("NETWORK_POLICY") -> FirstRunError.CLOUD_UNAVAILABLE
     else -> FirstRunError.INDEXING_FILES
 }
+
+internal fun ManagedScanStatus.firstRunErrorKey(): String = listOf(
+    failureStage.orEmpty(),
+    failureReason.orEmpty(),
+    progress?.stopCode.orEmpty(),
+).joinToString(":")
+
+internal fun ManagedScanStatus.firstRunError(): FirstRunError = firstRunErrorKey().toFirstRunError()
+
+internal fun ManagedScanStatus.isNetworkFirstRunError(): Boolean =
+    state == ManagedScanState.ERROR && firstRunError() == FirstRunError.CLOUD_UNAVAILABLE

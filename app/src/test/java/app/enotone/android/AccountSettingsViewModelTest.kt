@@ -42,6 +42,7 @@ class AccountSettingsViewModelTest {
         override suspend fun save(email: String, password: String) {
             saves++
             persisted = StoredWebDavLogin(email, password)
+            reauthentication = false
         }
         override suspend fun countTracks(email: String) = tracks
         override suspend fun signOut(email: String) {
@@ -127,6 +128,63 @@ class AccountSettingsViewModelTest {
             assertFalse(model.state.value.loggedIn)
             assertNull(model.state.value.active)
             assertNull(model.state.value.libraryLogin)
+            assertEquals("example@invalid.test", model.state.value.reauthenticationEmail)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `reauthentication rejects another email and keeps the saved account unchanged`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val original = StoredWebDavLogin("example@invalid.test", "old-secret")
+            val fake = Fake().apply {
+                persisted = original
+                accepted = true
+                reauthentication = true
+                tracks = 27
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+
+            model.onPasswordChanged("new-secret")
+            model.onEmailChanged("other@invalid.test")
+            assertEquals(original.email, model.state.value.email)
+            assertEquals(AccountError.OTHER_ACCOUNT, model.state.value.error)
+            model.verifyConnection()
+            advanceUntilIdle()
+
+            assertEquals(0, fake.verifyCalls)
+            assertEquals(0, fake.saves)
+            assertEquals(original, fake.persisted)
+            assertEquals(27, fake.tracks)
+            assertTrue(fake.reauthentication)
+            assertFalse(model.state.value.loggedIn)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `reauthentication succeeds for the pinned email`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply {
+                persisted = StoredWebDavLogin("example@invalid.test", "old-secret")
+                accepted = true
+                reauthentication = true
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+            model.onPasswordChanged("new-secret")
+            model.verifyConnection()
+            advanceUntilIdle()
+
+            assertEquals(1, fake.verifyCalls)
+            assertEquals(1, fake.saves)
+            assertEquals(StoredWebDavLogin("example@invalid.test", "new-secret"), fake.persisted)
+            assertNull(model.state.value.reauthenticationEmail)
+            assertTrue(model.state.value.loggedIn)
+            assertFalse(fake.reauthentication)
         } finally {
             Dispatchers.resetMain()
         }

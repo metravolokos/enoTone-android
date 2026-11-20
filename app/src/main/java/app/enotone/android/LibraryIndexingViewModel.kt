@@ -72,8 +72,12 @@ internal class LibraryIndexingViewModel(
     }
 
     override fun updateLibrary(fromFirstRun: Boolean) {
-        if (!allowed()) return
-        perform(R.string.local_store_failed) { login ->
+        updateLibraryAccepted(fromFirstRun)
+    }
+
+    internal fun updateLibraryAccepted(fromFirstRun: Boolean): Boolean {
+        if (!allowed()) return false
+        return perform(R.string.local_store_failed) { login ->
             val result = gateway.update(login)
             session.report(result.report)
             mutable.update {
@@ -101,8 +105,12 @@ internal class LibraryIndexingViewModel(
     }
 
     override fun resume(fromFirstRun: Boolean) {
-        if (!allowed()) return
-        requestStart(requireNotNull(session.state.value.login), fromFirstRun)
+        resumeAccepted(fromFirstRun)
+    }
+
+    internal fun resumeAccepted(fromFirstRun: Boolean): Boolean {
+        if (!allowed()) return false
+        return requestStart(requireNotNull(session.state.value.login), fromFirstRun)
     }
 
     /** Разрешение запрашивает Activity; Intent и секреты остаются вне Compose. */
@@ -145,17 +153,21 @@ internal class LibraryIndexingViewModel(
             !launcher.indexing.value.active && pendingLogin == null
     }
 
-    private fun requestStart(login: StoredWebDavLogin, fromFirstRun: Boolean = false) {
-        if (login != session.state.value.login) return
+    private fun requestStart(login: StoredWebDavLogin, fromFirstRun: Boolean = false): Boolean {
+        if (login != session.state.value.login) return false
         pendingLogin = login
         pendingStartFromFirstRun = fromFirstRun
         mutable.update { it.copy(permissionRequest = it.permissionRequest + 1, permissionPending = true) }
+        return true
     }
 
     @Suppress("TooGenericExceptionCaught") // Gateway/parser failures must leave the import in an explicit failed state.
-    private fun perform(failure: Int, action: suspend (StoredWebDavLogin) -> Unit) {
-        val work = session.begin() ?: return
-        val login = work.login ?: return
+    private fun perform(failure: Int, action: suspend (StoredWebDavLogin) -> Unit): Boolean {
+        val work = session.begin() ?: return false
+        val login = work.login ?: run {
+            session.finish(work.revision)
+            return false
+        }
         operationLogin = login
         mutable.update { it.copy(operationFailure = null) }
         operation = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -177,6 +189,7 @@ internal class LibraryIndexingViewModel(
                 session.finish(work.revision)
             }
         }
+        return true
     }
 }
 private fun MutableStateFlow<LibraryIndexingUiState>.publishFailure(failure: FirstRunIndexingFailure) {
@@ -194,12 +207,12 @@ private fun classifyFirstRunIndexingFailure(failure: Exception): FirstRunIndexin
 }
 
 /** Reuses the saved tag checkpoint after interruption; only requests a listing if no checkpoint exists. */
-internal fun LibraryIndexingViewModel.retryFirstRun() {
+internal fun LibraryIndexingViewModel.retryFirstRun(): Boolean {
     val current = state.value
-    if (current.permissionPending || current.status.terminating || scanIsTerminating) return
+    if (current.permissionPending || current.status.terminating || scanIsTerminating) return false
     if (current.importVersion > 0 && (current.pendingTagCount ?: 0) > 0) {
-        resume(fromFirstRun = true)
+        return resumeAccepted(fromFirstRun = true)
     } else {
-        updateLibrary(fromFirstRun = true)
+        return updateLibraryAccepted(fromFirstRun = true)
     }
 }

@@ -57,6 +57,7 @@ internal fun FirstRunImportEffect(
         indexing.status.state,
         indexing.status.terminating,
         indexing.operationFailureVersion,
+        indexingModel.scanIsTerminating,
         hasValidatedInternet,
     ) {
         if (plan?.phase !in setOf(FirstRunPhase.INDEXING, FirstRunPhase.INDEXING_OFFLINE)) {
@@ -67,17 +68,15 @@ internal fun FirstRunImportEffect(
             return@LaunchedEffect
         }
         if (awaitingNetworkRecovery) {
-            if (canRetryFirstRunImport(account, indexing)) {
+            if (canRetryFirstRunImport(account, indexing) && indexingModel.retryFirstRun()) {
                 awaitingNetworkRecovery = false
                 started = true
                 onAutomaticRetry()
-                indexingModel.retryFirstRun()
             }
             return@LaunchedEffect
         }
         if (shouldStartFirstRunImport(account, indexing, plan, hasValidatedInternet, started)) {
-            started = true
-            indexingModel.updateLibrary(fromFirstRun = true)
+            if (indexingModel.retryFirstRun()) started = true
         }
     }
 }
@@ -92,11 +91,25 @@ private fun shouldStartFirstRunImport(
     val isIndexing = plan?.phase in setOf(FirstRunPhase.INDEXING, FirstRunPhase.INDEXING_OFFLINE)
     return isIndexing && account.libraryLogin != null && indexing.hasLogin &&
         !indexing.busy && !indexing.status.active && !indexing.permissionPending &&
-        hasValidatedInternet && !alreadyStarted
+        hasValidatedInternet && !alreadyStarted && canAutomaticallyRetryFirstRunImport(indexing)
 }
 
 private fun canRetryFirstRunImport(
     account: AccountUiState,
     indexing: LibraryIndexingUiState,
 ): Boolean = account.libraryLogin != null && indexing.hasLogin && !indexing.busy &&
-    !indexing.status.active && !indexing.status.terminating && !indexing.permissionPending
+    !indexing.status.active && !indexing.status.terminating && !indexing.permissionPending &&
+    canAutomaticallyRetryFirstRunImport(indexing)
+
+internal fun canAutomaticallyRetryFirstRunImport(indexing: LibraryIndexingUiState): Boolean =
+    when (indexing.status.state) {
+        ManagedScanState.IDLE -> indexing.operationFailure == null ||
+            indexing.operationFailure == FirstRunIndexingFailure.CLOUD_UNAVAILABLE
+        ManagedScanState.ERROR -> indexing.operationFailure?.let {
+            it == FirstRunIndexingFailure.CLOUD_UNAVAILABLE
+        } ?: indexing.status.isNetworkFirstRunError()
+        ManagedScanState.RUNNING,
+        ManagedScanState.PAUSED,
+        ManagedScanState.STOPPED,
+        ManagedScanState.COMPLETE -> false
+    }

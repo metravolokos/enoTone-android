@@ -135,6 +135,7 @@ private fun ColumnScope.FirstRunLoginFields(
             onValueChange = onEmailChange,
             label = stringResource(R.string.first_run_email),
             enabled = !account.busy,
+            readOnly = account.reauthenticationEmail != null,
         )
         FirstRunField(
             value = account.password,
@@ -170,6 +171,7 @@ private fun FirstRunField(
     label: String,
     enabled: Boolean,
     password: Boolean = false,
+    readOnly: Boolean = false,
 ) {
     val shape = RoundedCornerShape(FIELD_RADIUS)
     Column(
@@ -188,6 +190,7 @@ private fun FirstRunField(
             value = value,
             onValueChange = onValueChange,
             enabled = enabled,
+            readOnly = readOnly,
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge.copy(
                 color = EnoColors.text,
