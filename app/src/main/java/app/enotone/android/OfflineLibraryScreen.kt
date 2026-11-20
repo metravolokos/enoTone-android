@@ -64,6 +64,7 @@ internal fun OfflineLibraryScreen(
     blur: EnoBlurState? = null,
     routeActive: Boolean = true,
     routeSnapshot: LibraryUiState? = null,
+    onOpenSettings: () -> Unit = {},
 ) {
     val context = LocalContext.current.applicationContext
     val container = (context as EnoToneApplication).container
@@ -102,6 +103,7 @@ internal fun OfflineLibraryScreen(
         artworkRepository = container.artworkPreviewRepository,
         accountEmail = accountEmail,
         appPassword = appPassword,
+        onOpenSettings = onOpenSettings,
         contentPadding = contentPadding,
         scrollToTop = scrollToTop,
         blur = blur,
