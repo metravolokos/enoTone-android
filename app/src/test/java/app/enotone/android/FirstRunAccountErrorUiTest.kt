@@ -88,6 +88,7 @@ class FirstRunAccountErrorUiTest {
             onPasswordChange = accountModel::onPasswordChanged,
             onConnect = accountModel::verifyConnection,
             onListenWhileReading = {},
+            onRetryNow = {},
             onGoToMusic = {},
             onErrorAction = { error ->
                 accountModel.dismissError()

@@ -32,14 +32,18 @@ private fun AccountError?.toFirstRunLoginError(): FirstRunError? = when (this) {
 internal fun FirstRunImportErrorEffect(
     indexing: LibraryIndexingUiState,
     phase: FirstRunPhase?,
+    hasValidatedInternet: Boolean,
     currentError: FirstRunError?,
     onError: (FirstRunError) -> Unit,
 ) {
     var handledVersion by remember { mutableIntStateOf(0) }
-    LaunchedEffect(indexing.operationFailureVersion, phase, currentError) {
+    LaunchedEffect(indexing.operationFailureVersion, phase, hasValidatedInternet, currentError) {
         if (isNewImportFailure(indexing.operationFailureVersion, handledVersion, phase)) {
             handledVersion = indexing.operationFailureVersion
-            if (currentError == null) onError(indexing.operationFailure.toFirstRunError())
+            val error = indexing.operationFailure.toFirstRunError()
+            if (currentError == null && shouldShowFirstRunError(error, phase, hasValidatedInternet)) {
+                onError(error)
+            }
         }
     }
 }
@@ -57,6 +61,7 @@ private fun FirstRunIndexingFailure?.toFirstRunError(): FirstRunError = when (th
 internal fun FirstRunManagedErrorEffect(
     indexing: LibraryIndexingUiState,
     phase: FirstRunPhase?,
+    hasValidatedInternet: Boolean,
     currentError: FirstRunError?,
     onError: (FirstRunError) -> Unit,
 ) {
@@ -67,15 +72,25 @@ internal fun FirstRunManagedErrorEffect(
         status.failureReason.orEmpty(),
         status.progress?.stopCode.orEmpty(),
     ).joinToString(":")
-    LaunchedEffect(phase, status.state, errorKey, currentError) {
+    LaunchedEffect(phase, status.state, errorKey, hasValidatedInternet, currentError) {
         if (status.state != ManagedScanState.ERROR) {
             handledErrorKey = null
         } else if (isFirstRunIndexingPhase(phase) && errorKey != handledErrorKey) {
             handledErrorKey = errorKey
-            if (currentError == null) onError(errorKey.toFirstRunError())
+            val error = errorKey.toFirstRunError()
+            if (currentError == null && shouldShowFirstRunError(error, phase, hasValidatedInternet)) {
+                onError(error)
+            }
         }
     }
 }
+
+internal fun shouldShowFirstRunError(
+    error: FirstRunError,
+    phase: FirstRunPhase?,
+    hasValidatedInternet: Boolean,
+): Boolean = error != FirstRunError.CLOUD_UNAVAILABLE ||
+    phase != FirstRunPhase.INDEXING_OFFLINE || hasValidatedInternet
 
 private fun isFirstRunIndexingPhase(phase: FirstRunPhase?): Boolean =
     phase == FirstRunPhase.INDEXING || phase == FirstRunPhase.INDEXING_OFFLINE

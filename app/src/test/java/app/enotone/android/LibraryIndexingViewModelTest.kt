@@ -169,6 +169,40 @@ class LibraryIndexingViewModelTest {
         assertEquals(1, fixture.launcher.indexingStarts)
     }
 
+    @Test fun firstRunRetryResumesSavedCheckpointInsteadOfRefreshingTheLibrary() = settingsTest {
+        val fixture = Fixture()
+        fixture.signIn()
+        advanceUntilIdle()
+        fixture.model.updateLibrary(fromFirstRun = true)
+        advanceUntilIdle()
+        assertEquals(1, fixture.gateway.updates)
+        assertTrue(fixture.model.state.value.permissionPending)
+        fixture.model.onNotificationPermission(false)
+        assertEquals(1, fixture.launcher.indexingStarts)
+
+        fixture.launcher.indexing.value = ManagedScanStatus(
+            state = ManagedScanState.ERROR,
+            progress = fixture.launcher.indexing.value.progress,
+            terminating = true,
+        )
+        runCurrent()
+        fixture.model.retryFirstRun()
+        assertFalse(fixture.model.state.value.permissionPending)
+        assertEquals(1, fixture.launcher.indexingStarts)
+
+        fixture.launcher.indexing.value = ManagedScanStatus(
+            state = ManagedScanState.ERROR,
+            progress = fixture.launcher.indexing.value.progress,
+        )
+        runCurrent()
+        fixture.model.retryFirstRun()
+        assertTrue(fixture.model.state.value.permissionPending)
+        fixture.model.onNotificationPermission(false)
+
+        assertEquals(1, fixture.gateway.updates)
+        assertEquals(2, fixture.launcher.indexingStarts)
+    }
+
     @Test fun `network failure shows plain text without http code on the main screen`() = settingsTest {
         val fixture = Fixture()
         fixture.signIn()

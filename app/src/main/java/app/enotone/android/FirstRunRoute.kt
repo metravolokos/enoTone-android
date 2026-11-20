@@ -33,20 +33,28 @@ internal fun FirstRunRoute(
     var firstRunError by remember { mutableStateOf<FirstRunError?>(null) }
     var indexingErrorFromImport by remember { mutableStateOf(false) }
 
-    FirstRunImportEffect(account, indexing, indexingModel, plan, hasValidatedInternet)
+    FirstRunImportEffect(
+        account, indexing, indexingModel, plan, hasValidatedInternet,
+        onAutomaticRetry = { firstRunError = null; indexingErrorFromImport = false },
+    )
     FirstRunAccountErrorEffect(account.error, plan?.phase, firstRunError) { error ->
         firstRunError = error
     }
-    FirstRunImportErrorEffect(indexing, plan?.phase, firstRunError) { error ->
+    FirstRunImportErrorEffect(indexing, plan?.phase, hasValidatedInternet, firstRunError) { error ->
         firstRunError = error
         indexingErrorFromImport = true
     }
-    FirstRunManagedErrorEffect(indexing, plan?.phase, firstRunError) { error ->
+    FirstRunManagedErrorEffect(indexing, plan?.phase, hasValidatedInternet, firstRunError) { error ->
         firstRunError = error
         indexingErrorFromImport = false
     }
-    LaunchedEffect(plan?.phase) {
-        if (plan?.phase == FirstRunPhase.APP) firstRunError = null
+    LaunchedEffect(plan?.phase, hasValidatedInternet, firstRunError) {
+        if (plan?.phase == FirstRunPhase.APP ||
+            (plan?.phase == FirstRunPhase.INDEXING_OFFLINE && !hasValidatedInternet &&
+                firstRunError == FirstRunError.CLOUD_UNAVAILABLE)
+        ) {
+            firstRunError = null
+        }
     }
 
     when {
@@ -59,11 +67,19 @@ internal fun FirstRunRoute(
             songCount = visibleSongCount,
             albumCount = libraryState?.takeIf { !it.loading }?.groupIndex?.albums?.size ?: 0,
             artistCount = libraryState?.takeIf { !it.loading }?.groupIndex?.artists?.size ?: 0,
-            error = firstRunError,
+            error = firstRunError.takeUnless {
+                it == FirstRunError.CLOUD_UNAVAILABLE && plan.phase == FirstRunPhase.INDEXING_OFFLINE &&
+                    !hasValidatedInternet
+            },
             onEmailChange = accountModel::onEmailChanged,
             onPasswordChange = accountModel::onPasswordChanged,
             onConnect = accountModel::verifyConnection,
             onListenWhileReading = { completeFirstRun(preferences) { firstRunCompleted = it } },
+            onRetryNow = {
+                firstRunError = null
+                indexingErrorFromImport = false
+                indexingModel.retryFirstRun()
+            },
             onGoToMusic = { completeFirstRun(preferences) { firstRunCompleted = it } },
             onErrorDismiss = {
                 if (plan.phase == FirstRunPhase.LOGIN) accountModel.dismissError()

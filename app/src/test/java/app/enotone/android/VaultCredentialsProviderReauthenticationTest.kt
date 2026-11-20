@@ -96,6 +96,7 @@ class VaultCredentialsProviderReauthenticationTest {
             val container = AppContainer(context, io = dispatcher, main = dispatcher, networkMonitor = NoNetwork)
             AndroidAccountSettingsGateway(context, container).save(EMAIL, NEW_PASSWORD)
             advanceUntilIdle()
+            assertEquals(true, preferences.firstRunCompleted())
             assertFalse(preferences.reauthenticationRequired())
 
             val allowedRepository = FixtureRepository()
@@ -117,6 +118,24 @@ class VaultCredentialsProviderReauthenticationTest {
             assertEquals(1, allowedConnection.restores)
             assertEquals(NEW_PASSWORD, allowedConnection.restoredPassword)
             assertEquals(0, allowedConnection.plays)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun cleanLoginLeavesFirstRunIncompleteBeforeReturningSavedCredentials() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val preferences = FirstRunPreferences(context)
+            assertNull(preferences.firstRunCompleted())
+            val container = AppContainer(context, io = dispatcher, main = dispatcher, networkMonitor = NoNetwork)
+
+            AndroidAccountSettingsGateway(context, container).save(EMAIL, NEW_PASSWORD)
+
+            assertEquals(false, preferences.firstRunCompleted())
+            assertFalse(preferences.reauthenticationRequired())
+            assertEquals(StoredWebDavLogin(EMAIL, NEW_PASSWORD), LocalCredentialVault.restore(context))
         } finally {
             Dispatchers.resetMain()
         }

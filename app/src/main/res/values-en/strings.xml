@@ -304,6 +304,9 @@
     <string name="first_run_connect">Connect</string>
     <string name="first_run_indexing_title">Reading your music…</string>
     <string name="first_run_progress">%1$s of %2$s songs</string>
+    <string name="first_run_sleeping_title">I’ve dozed off — no internet</string>
+    <string name="first_run_sleeping_message">I’ll pick up where I left off once the internet is back. Read %1$s of %2$s.</string>
+    <string name="first_run_retry_now">Try again now</string>
     <string name="first_run_listen_while_reading">Listen while I read</string>
     <string name="first_run_done_title">All done!</string>
     <string name="first_run_summary">%1$s, %2$s, %3$s</string>

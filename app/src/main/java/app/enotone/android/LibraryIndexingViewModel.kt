@@ -104,6 +104,18 @@ internal class LibraryIndexingViewModel(
         requestStart(requireNotNull(session.state.value.login), fromFirstRun)
     }
 
+    /** Reuses the saved tag checkpoint after a network interruption, fetching the listing only if needed. */
+    fun retryFirstRun() {
+        val current = mutable.value
+        if (current.permissionPending || current.status.terminating || launcher.indexing.value.terminating) return
+        if (!allowed()) return
+        if (current.importVersion > 0 && (current.pendingTagCount ?: 0) > 0) {
+            resume(fromFirstRun = true)
+        } else {
+            updateLibrary(fromFirstRun = true)
+        }
+    }
+
     /** Разрешение запрашивает Activity; Intent и секреты остаются вне Compose. */
     fun onNotificationPermission(granted: Boolean) {
         val login = pendingLogin ?: return

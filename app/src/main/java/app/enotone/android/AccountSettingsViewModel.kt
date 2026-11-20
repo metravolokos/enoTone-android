@@ -86,9 +86,12 @@ internal class AndroidAccountSettingsGateway(
 
     override suspend fun save(email: String, password: String) {
         withContext(container.io) {
-            FirstRunPreferences(context).setFirstRunCompleted(false)
+            val firstRunPreferences = FirstRunPreferences(context)
+            val preservingCompletedFirstRun = firstRunPreferences.reauthenticationRequired() &&
+                firstRunPreferences.firstRunCompleted() == true
+            if (!preservingCompletedFirstRun) firstRunPreferences.setFirstRunCompleted(false)
             LocalCredentialVault.save(context, email, password)
-            FirstRunPreferences(context).setReauthenticationRequired(false)
+            firstRunPreferences.setReauthenticationRequired(false)
         }
         // Only publish ACTIVE after the encrypted write actually succeeds.
         container.accountSession.signedIn(LibrarySnapshotPlanner.accountKey(email))

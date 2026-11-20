@@ -39,8 +39,12 @@ internal fun FirstRunImportEffect(
     indexingModel: LibraryIndexingViewModel,
     plan: FirstRunPlan?,
     hasValidatedInternet: Boolean,
+    onAutomaticRetry: () -> Unit,
 ) {
     var started by remember(account.libraryLogin?.email) { mutableStateOf(false) }
+    var awaitingNetworkRecovery by remember(account.libraryLogin?.email) {
+        mutableStateOf(!hasValidatedInternet)
+    }
     LaunchedEffect(
         plan?.phase,
         account.libraryLogin?.email,
@@ -49,8 +53,28 @@ internal fun FirstRunImportEffect(
         indexing.status.active,
         indexing.permissionPending,
         indexing.importVersion,
+        indexing.pendingTagCount,
+        indexing.status.state,
+        indexing.status.terminating,
+        indexing.operationFailureVersion,
         hasValidatedInternet,
     ) {
+        if (plan?.phase !in setOf(FirstRunPhase.INDEXING, FirstRunPhase.INDEXING_OFFLINE)) {
+            return@LaunchedEffect
+        }
+        if (!hasValidatedInternet) {
+            awaitingNetworkRecovery = true
+            return@LaunchedEffect
+        }
+        if (awaitingNetworkRecovery) {
+            if (canRetryFirstRunImport(account, indexing)) {
+                awaitingNetworkRecovery = false
+                started = true
+                onAutomaticRetry()
+                indexingModel.retryFirstRun()
+            }
+            return@LaunchedEffect
+        }
         if (shouldStartFirstRunImport(account, indexing, plan, hasValidatedInternet, started)) {
             started = true
             indexingModel.updateLibrary(fromFirstRun = true)
@@ -70,3 +94,9 @@ private fun shouldStartFirstRunImport(
         !indexing.busy && !indexing.status.active && !indexing.permissionPending &&
         hasValidatedInternet && !alreadyStarted
 }
+
+private fun canRetryFirstRunImport(
+    account: AccountUiState,
+    indexing: LibraryIndexingUiState,
+): Boolean = account.libraryLogin != null && indexing.hasLogin && !indexing.busy &&
+    !indexing.status.active && !indexing.status.terminating && !indexing.permissionPending

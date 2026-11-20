@@ -326,6 +326,9 @@
     <string name="first_run_connect">Подключить</string>
     <string name="first_run_indexing_title">Читаю вашу музыку…</string>
     <string name="first_run_progress">%1$s из %2$s песен</string>
+    <string name="first_run_sleeping_title">Задремал — нет сети</string>
+    <string name="first_run_sleeping_message">Продолжу с того же места, как только появится интернет. Прочитано %1$s из %2$s.</string>
+    <string name="first_run_retry_now">Повторить сейчас</string>
     <string name="first_run_listen_while_reading">Слушать, пока читаю</string>
     <string name="first_run_done_title">Всё готово!</string>
     <string name="first_run_summary">%1$s, %2$s, %3$s</string>
