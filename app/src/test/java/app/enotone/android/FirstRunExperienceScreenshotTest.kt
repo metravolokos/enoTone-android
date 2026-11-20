@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -149,7 +150,7 @@ class FirstRunExperienceScreenshotTest {
 
     @Test fun networkSignalChangesPhasesBothWaysAndKeepsReadProgress() {
         val network = FakeNetworkMonitor(initiallyAvailable = true)
-        val indexing = indexingWithProgress()
+        val indexingState = mutableStateOf(indexingWithProgress())
         val state = FirstRunPlanningState(
             signOutPending = false,
             hasLogin = true,
@@ -158,20 +159,13 @@ class FirstRunExperienceScreenshotTest {
             songCount = 3590,
             pendingTagCount = 2350,
         )
-        val numberFormat = NumberFormat.getIntegerInstance(Locale.forLanguageTag("ru-RU"))
-        val progressMessage = context.getString(
-            R.string.first_run_sleeping_message,
-            numberFormat.format(1240),
-            numberFormat.format(3590),
-        )
-        val indexingProgressMessage = context.getString(
-            R.string.first_run_progress,
-            numberFormat.format(1240),
-            numberFormat.format(3590),
-        )
+        val progressMessage = formattedProgressMessage(R.string.first_run_sleeping_message, 1240)
+        val beforeRecoveryMessage = formattedProgressMessage(R.string.first_run_progress, 1240)
+        val afterRecoveryMessage = formattedProgressMessage(R.string.first_run_progress, 1250)
 
         rule.setContent {
             val hasInternet by network.hasValidatedInternet.collectAsState()
+            val indexing by indexingState
             val phase = FirstRunPhasePlanner.plan(state.copy(hasValidatedInternet = hasInternet)).phase
             EnoTheme(darkTheme = true) {
                 Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
@@ -198,9 +192,13 @@ class FirstRunExperienceScreenshotTest {
         rule.onNodeWithText(progressMessage).assertExists()
 
         network.setAvailable(true)
+        rule.runOnIdle {
+            indexingState.value = indexingWithProgress(attempted = 10, remaining = 2340)
+        }
         rule.waitForIdle()
         rule.onNodeWithText("Читаю вашу музыку…").assertExists()
-        rule.onNodeWithText(indexingProgressMessage).assertExists()
+        rule.onNodeWithText(afterRecoveryMessage).assertExists()
+        rule.onNodeWithText(beforeRecoveryMessage).assertDoesNotExist()
     }
 
     @Test fun sleepingRetryInvokesImmediateAttemptCallback() {
@@ -268,20 +266,20 @@ class FirstRunExperienceScreenshotTest {
         rule.onRoot().captureRoboImage("src/test/screenshots/first_run_$name.png")
     }
 
-    private fun indexingWithProgress() = LibraryIndexingUiState(
+    private fun indexingWithProgress(attempted: Int = 1240, remaining: Int = 2350) = LibraryIndexingUiState(
         status = ManagedScanStatus(
             state = ManagedScanState.RUNNING,
             progress = ManagedIndexProgress(
                 completedBatches = 4,
-                attempted = 1240,
-                savedWithTags = 1238,
+                attempted = attempted,
+                savedWithTags = attempted - 2,
                 completedWithoutTags = 2,
                 retryableErrors = 0,
                 permanentErrors = 0,
                 staleWrites = 0,
                 getRequests = 1240,
                 downloadedBytes = 0,
-                remaining = 2350,
+                remaining = remaining,
                 stopCode = "NONE",
             ),
         ),
@@ -290,4 +288,9 @@ class FirstRunExperienceScreenshotTest {
         importedTrackCount = 3590,
         pendingTagCount = 2350,
     )
+
+    private fun formattedProgressMessage(resource: Int, completed: Int): String {
+        val numberFormat = NumberFormat.getIntegerInstance(Locale.forLanguageTag("ru-RU"))
+        return context.getString(resource, numberFormat.format(completed), numberFormat.format(3590))
+    }
 }

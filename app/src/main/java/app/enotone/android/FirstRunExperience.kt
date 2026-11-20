@@ -213,11 +213,13 @@ private fun FirstRunIndexing(
     onListenWhileReading: () -> Unit,
 ) {
     val progress = indexing.status.progress
-    val completed = progress?.attempted ?: 0
-    val total = progress?.let { it.attempted + it.remaining }
-        ?: indexing.pendingTagCount
-        ?: indexing.importedTrackCount
-        ?: 0
+    val firstRunProgress = calculateFirstRunProgress(
+        indexing.importedTrackCount,
+        indexing.pendingTagCount,
+        progress,
+    )
+    val completed = firstRunProgress.completed
+    val total = firstRunProgress.total
     val fraction = if (total == 0) 0f else (completed.toFloat() / total).coerceIn(0f, 1f)
     val locale = LocalConfiguration.current.locales[0]
     val numberFormat = NumberFormat.getIntegerInstance(locale)
@@ -259,11 +261,11 @@ private fun FirstRunSleeping(
     onRetryNow: () -> Unit,
 ) {
     val progress = indexing.status.progress
-    val completed = progress?.attempted ?: 0
-    val total = progress?.let { it.attempted + it.remaining }
-        ?: indexing.pendingTagCount
-        ?: indexing.importedTrackCount
-        ?: 0
+    val firstRunProgress = calculateFirstRunProgress(
+        indexing.importedTrackCount,
+        indexing.pendingTagCount,
+        progress,
+    )
     val locale = LocalConfiguration.current.locales[0]
     val numberFormat = NumberFormat.getIntegerInstance(locale)
 
@@ -272,8 +274,8 @@ private fun FirstRunSleeping(
         title = stringResource(R.string.first_run_sleeping_title),
         message = stringResource(
             R.string.first_run_sleeping_message,
-            numberFormat.format(completed),
-            numberFormat.format(total),
+            numberFormat.format(firstRunProgress.completed),
+            numberFormat.format(firstRunProgress.total),
         ),
         primaryAction = EnoStateAction(
             label = stringResource(R.string.first_run_retry_now),
