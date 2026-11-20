@@ -201,6 +201,7 @@
     <string name="settings_index_retry">Повторить</string>
     <string name="settings_group_cloud">Облако</string>
     <string name="settings_group_library">Медиатека</string>
+    <string name="settings_group_app_library">Библиотека</string>
     <string name="account_signed_in_as">Вход: %1$s</string>
     <string name="diagnostics_title">Диагностика</string>
     <string name="diagnostics_entry_summary">Проверка соединения, сведения о воспроизведении и обновлении медиатеки — для сообщений об ошибках.</string>

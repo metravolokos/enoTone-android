@@ -42,6 +42,10 @@ Draft [PR #205](https://github.com/metravolokos/enoTone-android/pull/205), ве�
 Issue #201 имеет статус `state:review`; exact-HEAD CI отслеживается в PR #205.
 Huawei HOME-REC-01…05 не проверены.
 
+## D6-B #226 — шапка настроек и карточка «Библиотека»
+
+Draft [PR #234](https://github.com/metravolokos/enoTone-android/pull/234), base `e2007ac4d4390f8f31b996aa724b0ce892562ba6`. Реализованы шапка `enotone_wordmark` + `BanditIllustration(ARMCHAIR)`, версия и отдельная карточка страниц/обложек без экрана «О приложении». Четыре Roborazzi PNG сняты для Graphite/Porcelain. Сценарии D6-B-01/02; exact-HEAD CI отслеживается в PR. Huawei/device-test не заявлен.
+
 ## D6-0 #223 — общие состояния и лист ошибки
 
 В ветке `feature/d6-0-state-components` реализованы `EnoStateView` и `EnoErrorSheet`; локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. 14 PNG-эталонов перезаписаны на CI `workflow_dispatch`, визуально проверены и приложены к [PR #230](https://github.com/metravolokos/enoTone-android/pull/230); exact-HEAD CI отслеживается там же. Huawei не требуется.

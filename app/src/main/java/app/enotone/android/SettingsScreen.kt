@@ -1,12 +1,18 @@
 package app.enotone.android
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
@@ -36,6 +42,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.enotone.android.core.ui.component.BanditIllustration
+import app.enotone.android.core.ui.component.BanditPose
+import app.enotone.android.core.ui.component.EnoWordmark
 import app.enotone.library.LibraryPageVisibility
 
 @Composable
@@ -171,42 +180,47 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
         settings = { showingDiagnostics ->
             // Мини-плеера в настройках и диагностике нет (O-10).
             key(showingDiagnostics) {
-    Column(
-        modifier = Modifier.fillMaxSize().systemBarsPadding()
-            .verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        if (showingDiagnostics) {
-            SettingsHeader(stringResource(R.string.diagnostics_title), "") { nav = AppNavigator.back(nav) ?: nav }
-            SettingsDiagnosticsContent(diagnostics, indexing.status, diagnosticsModel)
-        } else {
-            val version = remember(appContext) { appVersionName(appContext) }
-            SettingsHeader(stringResource(R.string.settings_title), version) {
-                nav = AppNavigator.back(nav) ?: nav
-            }
-            SettingsGroup(stringResource(R.string.settings_group_cloud)) {
-                AccountSettingsSection(
-                    account = account,
-                    onEmailChange = accountModel::onEmailChanged,
-                    onPasswordChange = accountModel::onPasswordChanged,
-                    onVerify = accountModel::verifyConnection,
-                    onRequestSignOut = accountModel::requestSignOut,
-                    onConfirmSignOut = accountModel::confirmSignOut,
-                    onCancelSignOut = accountModel::cancelSignOut,
-                )
-            }
-            SettingsGroup(stringResource(R.string.settings_group_library)) {
-                SettingsIndexingSection(indexing, indexingModel)
-            }
-            SettingsGroup { LibraryVisibilitySettings() }
-            SettingsGroup { AppearanceSettings() }
-            SettingsGroup {
-                SettingsArtworkSection(artwork, artworkModel::changeMode, artworkModel::clear,
-                    artworkModel::pause, artworkModel::stop)
-            }
-            SettingsDiagnosticsEntry { nav = AppNavigator.openDiagnostics(nav) }
-        }
-            }
+                if (showingDiagnostics) {
+                    Column(
+                        modifier = Modifier.fillMaxSize().systemBarsPadding()
+                            .verticalScroll(rememberScrollState()).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        SettingsHeader(stringResource(R.string.diagnostics_title), "") {
+                            nav = AppNavigator.back(nav) ?: nav
+                        }
+                        SettingsDiagnosticsContent(diagnostics, indexing.status, diagnosticsModel)
+                    }
+                } else {
+                    val version = remember(appContext) { appVersionName(appContext) }
+                    SettingsHomeContent(
+                        version = version,
+                        cloudContent = {
+                            AccountSettingsSection(
+                                account = account,
+                                onEmailChange = accountModel::onEmailChanged,
+                                onPasswordChange = accountModel::onPasswordChanged,
+                                onVerify = accountModel::verifyConnection,
+                                onRequestSignOut = accountModel::requestSignOut,
+                                onConfirmSignOut = accountModel::confirmSignOut,
+                                onCancelSignOut = accountModel::cancelSignOut,
+                            )
+                        },
+                        mediaContent = { SettingsIndexingSection(indexing, indexingModel) },
+                        appearanceContent = { AppearanceSettings() },
+                        libraryPagesContent = { LibraryVisibilitySettings() },
+                        artworkContent = {
+                            SettingsArtworkSection(
+                                artwork,
+                                artworkModel::changeMode,
+                                artworkModel::clear,
+                                artworkModel::pause,
+                                artworkModel::stop,
+                            )
+                        },
+                        onOpenDiagnostics = { nav = AppNavigator.openDiagnostics(nav) },
+                    )
+                }
             }
         },
         playbackErrorSheet = {
@@ -216,6 +230,66 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             )
         },
     )
+    }
+}
+
+/**
+ * Layout for D6-B. The existing account, indexing, appearance, pages and artwork controls are
+ * supplied unchanged so this screen only changes their grouping and presentation.
+ */
+@Composable
+internal fun SettingsHomeContent(
+    version: String,
+    cloudContent: @Composable ColumnScope.() -> Unit,
+    mediaContent: @Composable ColumnScope.() -> Unit,
+    appearanceContent: @Composable ColumnScope.() -> Unit,
+    libraryPagesContent: @Composable ColumnScope.() -> Unit,
+    artworkContent: @Composable ColumnScope.() -> Unit,
+    onOpenDiagnostics: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().systemBarsPadding()
+            .verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        SettingsBrandHeader(version)
+        SettingsGroup(stringResource(R.string.settings_group_cloud)) {
+            cloudContent()
+            Text(stringResource(R.string.settings_group_library),
+                style = MaterialTheme.typography.titleMedium)
+            mediaContent()
+        }
+        SettingsGroup { appearanceContent() }
+        SettingsGroup(stringResource(R.string.settings_group_app_library)) {
+            libraryPagesContent()
+            artworkContent()
+        }
+        SettingsDiagnosticsEntry(onOpenDiagnostics)
+    }
+}
+
+@Composable
+private fun SettingsBrandHeader(version: String) {
+    Box(modifier = Modifier.fillMaxWidth().height(96.dp)) {
+        Column(
+            modifier = Modifier.align(Alignment.CenterStart),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            EnoWordmark(
+                contentDescription = stringResource(R.string.settings_title),
+                modifier = Modifier.width(150.dp).height(40.dp),
+            )
+            Text(
+                stringResource(R.string.settings_app_version, version),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        BanditIllustration(
+            pose = BanditPose.ARMCHAIR,
+            contentDescription = null,
+            modifier = Modifier.align(Alignment.CenterEnd).size(150.dp).offset(x = 16.dp),
+        )
     }
 }
 
