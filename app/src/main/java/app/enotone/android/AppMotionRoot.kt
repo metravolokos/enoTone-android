@@ -52,6 +52,7 @@ internal fun AppMotionRoot(
     music: @Composable () -> Unit,
     settings: @Composable (Boolean) -> Unit,
     player: @Composable () -> Unit,
+    playbackErrorSheet: @Composable () -> Unit = {},
 ) {
     val previewSettle = remember { Animatable(0f) }
     val latestBackProgress = remember { mutableFloatStateOf(0f) }
@@ -169,6 +170,8 @@ internal fun AppMotionRoot(
             queueSnackbarHorizontalPadding,
             if (playerExpanded) 16.dp else queueSnackbarBottomPadding,
         )
+        // D6-F error overlay is an independent root block; D6-FR owns its AppShell phase block.
+        playbackErrorSheet()
     }
 }
 
