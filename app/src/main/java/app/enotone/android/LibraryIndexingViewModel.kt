@@ -47,6 +47,7 @@ internal class LibraryIndexingViewModel(
     private var operationLogin: StoredWebDavLogin? = null
     private var activeLogin: StoredWebDavLogin? = null
     private var pendingLogin: StoredWebDavLogin? = null
+    private var pendingStartFromFirstRun = false
 
     init {
         viewModelScope.launch {
@@ -69,7 +70,7 @@ internal class LibraryIndexingViewModel(
         }
     }
 
-    override fun updateLibrary() {
+    override fun updateLibrary(fromFirstRun: Boolean) {
         if (!allowed()) return
         perform(R.string.local_store_failed) { login ->
             val result = gateway.update(login)
@@ -79,7 +80,7 @@ internal class LibraryIndexingViewModel(
                     importedTrackCount = result.presentTracks, pendingTagCount = result.pendingTags,
                     operationFailure = null)
             }
-            if (result.pendingTags > 0) requestStart(login)
+            if (result.pendingTags > 0) requestStart(login, fromFirstRun)
         }
     }
 
@@ -98,25 +99,28 @@ internal class LibraryIndexingViewModel(
         }
     }
 
-    override fun resume() {
+    override fun resume(fromFirstRun: Boolean) {
         if (!allowed()) return
-        requestStart(requireNotNull(session.state.value.login))
+        requestStart(requireNotNull(session.state.value.login), fromFirstRun)
     }
 
     /** Разрешение запрашивает Activity; Intent и секреты остаются вне Compose. */
     fun onNotificationPermission(granted: Boolean) {
         val login = pendingLogin ?: return
+        val fromFirstRun = pendingStartFromFirstRun
         clearPending()
         mutable.update { it.copy(permissionDenied = !granted) }
-        val available = !launcher.indexing.value.active && !session.state.value.busy
-        // Android permits a foreground service when POST_NOTIFICATIONS is denied. Keep first run
-        // moving; the ongoing notification remains visible in system active-apps controls.
-        if (login != session.state.value.login || !available) return
-        try {
-            launcher.startIndexing(login)
-        } catch (_: RuntimeException) {
-            session.report(text.get(R.string.managed_index_failed))
-            mutable.publishFailure(FirstRunIndexingFailure.FILES_UNREADABLE)
+        if (granted || fromFirstRun) {
+            val available = !launcher.indexing.value.active && !session.state.value.busy
+            // Android permits foreground indexing without the notification only during first run.
+            if (login == session.state.value.login && available) {
+                try {
+                    launcher.startIndexing(login)
+                } catch (_: RuntimeException) {
+                    session.report(text.get(R.string.managed_index_failed))
+                    mutable.publishFailure(FirstRunIndexingFailure.FILES_UNREADABLE)
+                }
+            }
         }
     }
 
@@ -131,6 +135,7 @@ internal class LibraryIndexingViewModel(
     private fun clearPending() {
         mutable.update { it.copy(permissionPending = false) }
         pendingLogin = null
+        pendingStartFromFirstRun = false
     }
 
     private fun allowed(): Boolean {
@@ -139,9 +144,10 @@ internal class LibraryIndexingViewModel(
             !launcher.indexing.value.active && pendingLogin == null
     }
 
-    private fun requestStart(login: StoredWebDavLogin) {
+    private fun requestStart(login: StoredWebDavLogin, fromFirstRun: Boolean = false) {
         if (login != session.state.value.login) return
         pendingLogin = login
+        pendingStartFromFirstRun = fromFirstRun
         mutable.update { it.copy(permissionRequest = it.permissionRequest + 1, permissionPending = true) }
     }
 

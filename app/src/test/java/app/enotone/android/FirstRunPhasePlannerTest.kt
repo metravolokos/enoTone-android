@@ -10,7 +10,7 @@ class FirstRunPhasePlannerTest {
             FirstRunPlanningState(signOutPending = true, hasLogin = true, firstRunCompleted = false) to
                 FirstRunPlan(FirstRunPhase.APP),
             FirstRunPlanningState(signOutPending = false, hasLogin = false, firstRunCompleted = true) to
-                FirstRunPlan(FirstRunPhase.LOGIN, writeFirstRunCompleted = false),
+                FirstRunPlan(FirstRunPhase.LOGIN),
             FirstRunPlanningState(signOutPending = false, hasLogin = true, firstRunCompleted = null) to
                 FirstRunPlan(FirstRunPhase.APP, writeFirstRunCompleted = true),
             FirstRunPlanningState(signOutPending = false, hasLogin = true, firstRunCompleted = false,
@@ -29,6 +29,21 @@ class FirstRunPhasePlannerTest {
 
         rows.forEach { (input, expected) ->
             assertEquals("$input", expected, FirstRunPhasePlanner.plan(input))
+        }
+    }
+
+    @Test
+    fun loginDoesNotWriteFirstRunFlagWhenCredentialsCannotBeRestored() {
+        listOf(null, false, true).forEach { completedFlag ->
+            val plan = FirstRunPhasePlanner.plan(
+                FirstRunPlanningState(
+                    signOutPending = false,
+                    hasLogin = false,
+                    firstRunCompleted = completedFlag,
+                ),
+            )
+
+            assertEquals(FirstRunPlan(FirstRunPhase.LOGIN), plan)
         }
     }
 

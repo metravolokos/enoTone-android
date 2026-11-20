@@ -26,7 +26,7 @@ internal data class FirstRunPlan(
 internal object FirstRunPhasePlanner {
     fun plan(state: FirstRunPlanningState): FirstRunPlan = when {
         state.signOutPending -> appPhase()
-        !state.hasLogin -> FirstRunPlan(FirstRunPhase.LOGIN, writeFirstRunCompleted = false)
+        !state.hasLogin -> FirstRunPlan(FirstRunPhase.LOGIN)
         // Existing installs keep their old entry point. Migrate before reading library state.
         state.firstRunCompleted == null -> appPhase(writeCompleted = true)
         state.firstRunCompleted -> appPhase()

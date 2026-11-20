@@ -21,9 +21,10 @@ private fun retryCloud(
     indexingModel: LibraryIndexingViewModel,
 ) {
     if (phase == FirstRunPhase.LOGIN) accountModel.verifyConnection()
-    else indexingModel.updateLibrary()
+    else indexingModel.updateLibrary(fromFirstRun = true)
 }
 
 private fun retryIndexing(fromImport: Boolean, indexingModel: LibraryIndexingViewModel) {
-    if (fromImport) indexingModel.updateLibrary() else indexingModel.resume()
+    if (fromImport) indexingModel.updateLibrary(fromFirstRun = true)
+    else indexingModel.resume(fromFirstRun = true)
 }

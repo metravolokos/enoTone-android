@@ -53,7 +53,7 @@ internal fun FirstRunImportEffect(
     ) {
         if (shouldStartFirstRunImport(account, indexing, plan, hasValidatedInternet, started)) {
             started = true
-            indexingModel.updateLibrary()
+            indexingModel.updateLibrary(fromFirstRun = true)
         }
     }
 }
