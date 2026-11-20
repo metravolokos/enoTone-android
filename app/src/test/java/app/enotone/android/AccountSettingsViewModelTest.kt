@@ -90,6 +90,29 @@ class AccountSettingsViewModelTest {
         }
     }
 
+    @Test fun `empty credential restore is distinguished from failure and reauthentication`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val cleanInstall = AccountSettingsViewModel(Fake())
+            advanceUntilIdle()
+            assertTrue(cleanInstall.state.value.restoreCompletedWithoutCredentials)
+
+            val restoreFailure = AccountSettingsViewModel(Fake().apply { restoreFails = true })
+            advanceUntilIdle()
+            assertEquals(AccountError.RESTORE, restoreFailure.state.value.error)
+            assertFalse(restoreFailure.state.value.restoreCompletedWithoutCredentials)
+
+            val reauthenticationWithoutSavedLogin = AccountSettingsViewModel(Fake().apply {
+                reauthentication = true
+            })
+            advanceUntilIdle()
+            assertEquals("", reauthenticationWithoutSavedLogin.state.value.email)
+            assertFalse(reauthenticationWithoutSavedLogin.state.value.restoreCompletedWithoutCredentials)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     @Test fun `restored login marked for reauthentication is shown as a fresh login form`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {

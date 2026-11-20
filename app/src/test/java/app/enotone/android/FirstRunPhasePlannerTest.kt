@@ -33,13 +33,30 @@ class FirstRunPhasePlannerTest {
     }
 
     @Test
-    fun loginDoesNotWriteFirstRunFlagWhenCredentialsCannotBeRestored() {
+    fun cleanInstallationWritesFalseAfterSuccessfulEmptyCredentialRestore() {
+        val plan = FirstRunPhasePlanner.plan(
+            FirstRunPlanningState(
+                signOutPending = false,
+                hasLogin = false,
+                firstRunCompleted = null,
+                restoreCompletedWithoutCredentials = true,
+            ),
+        )
+
+        assertEquals(FirstRunPlan(FirstRunPhase.LOGIN, writeFirstRunCompleted = false), plan)
+    }
+
+    @Test
+    fun restoreFailureAndReauthenticationWithoutEmailDoNotWriteFirstRunFlag() {
         listOf(null, false, true).forEach { completedFlag ->
+            // Restore errors and reauthentication with no recoverable email both leave the
+            // explicit "restore completed without credentials" signal false.
             val plan = FirstRunPhasePlanner.plan(
                 FirstRunPlanningState(
                     signOutPending = false,
                     hasLogin = false,
                     firstRunCompleted = completedFlag,
+                    restoreCompletedWithoutCredentials = false,
                 ),
             )
 

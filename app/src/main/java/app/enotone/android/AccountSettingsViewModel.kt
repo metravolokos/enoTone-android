@@ -129,6 +129,8 @@ internal data class AccountUiState(
     /** Выход начат, но не завершён: импорт, индексация, обложки и медиатека заблокированы до повтора. */
     val signOutFailed: Boolean = false,
     val restoring: Boolean = true,
+    /** Restore completed successfully and found neither saved credentials nor a reauth marker. */
+    val restoreCompletedWithoutCredentials: Boolean = false,
     val checking: Boolean = false,
     val loggedIn: Boolean = false,
     val signingOut: Boolean = false,
@@ -160,7 +162,11 @@ internal class AccountSettingsViewModel(
         viewModelScope.launch {
             try {
                 val saved = gateway.restore()
-                if (saved != null) {
+                if (saved == null) {
+                    if (!gateway.reauthenticationRequired()) {
+                        mutable.update { it.copy(restoreCompletedWithoutCredentials = true) }
+                    }
+                } else {
                     val pending = gateway.signOutPending()
                     if (pending) {
                         activeEmail = saved.email
@@ -201,6 +207,11 @@ internal class AccountSettingsViewModel(
     fun onPasswordChanged(value: String) {
         if (mutable.value.loggedIn) return
         mutable.update { it.copy(password = value, error = null) }
+    }
+
+    /** Marks the currently presented account error as handled by the first-run sheet. */
+    fun dismissError() {
+        mutable.update { it.copy(error = null) }
     }
 
     /** Failed verification must never write to the vault. */

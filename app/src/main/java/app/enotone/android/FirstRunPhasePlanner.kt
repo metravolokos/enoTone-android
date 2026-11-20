@@ -8,6 +8,8 @@ internal data class FirstRunPlanningState(
     val hasLogin: Boolean,
     /** Null means the installation predates the first-run flag. */
     val firstRunCompleted: Boolean?,
+    /** Restore finished without error and found no saved login or reauthentication marker. */
+    val restoreCompletedWithoutCredentials: Boolean = false,
     val indexingActive: Boolean = false,
     val indexingComplete: Boolean = false,
     val libraryImportFinished: Boolean = false,
@@ -26,7 +28,10 @@ internal data class FirstRunPlan(
 internal object FirstRunPhasePlanner {
     fun plan(state: FirstRunPlanningState): FirstRunPlan = when {
         state.signOutPending -> appPhase()
-        !state.hasLogin -> FirstRunPlan(FirstRunPhase.LOGIN)
+        !state.hasLogin -> FirstRunPlan(
+            FirstRunPhase.LOGIN,
+            writeFirstRunCompleted = false.takeIf { state.restoreCompletedWithoutCredentials },
+        )
         // Existing installs keep their old entry point. Migrate before reading library state.
         state.firstRunCompleted == null -> appPhase(writeCompleted = true)
         state.firstRunCompleted -> appPhase()

@@ -65,8 +65,12 @@ internal fun FirstRunRoute(
             onConnect = accountModel::verifyConnection,
             onListenWhileReading = { completeFirstRun(preferences) { firstRunCompleted = it } },
             onGoToMusic = { completeFirstRun(preferences) { firstRunCompleted = it } },
-            onErrorDismiss = { firstRunError = null },
+            onErrorDismiss = {
+                if (plan.phase == FirstRunPhase.LOGIN) accountModel.dismissError()
+                firstRunError = null
+            },
             onErrorAction = { error ->
+                if (plan.phase == FirstRunPhase.LOGIN) accountModel.dismissError()
                 firstRunError = null
                 handleFirstRunError(error, plan.phase, indexingErrorFromImport, accountModel, indexingModel)
             },
@@ -101,6 +105,7 @@ private fun rememberFirstRunPlan(
             signOutPending = signOutPending,
             hasLogin = account.libraryLogin != null,
             firstRunCompleted = effectiveFirstRunCompleted,
+            restoreCompletedWithoutCredentials = account.restoreCompletedWithoutCredentials,
             indexingActive = indexing.status.active,
             indexingComplete = indexing.importVersion > 0 &&
                 indexing.status.state == ManagedScanState.COMPLETE,
