@@ -49,7 +49,7 @@ internal fun FirstRunImportErrorEffect(
 }
 
 private fun isNewImportFailure(version: Int, handledVersion: Int, phase: FirstRunPhase?): Boolean =
-    version > handledVersion && isFirstRunIndexingPhase(phase)
+    version > handledVersion && phase in setOf(FirstRunPhase.INDEXING, FirstRunPhase.INDEXING_OFFLINE)
 
 private fun FirstRunIndexingFailure?.toFirstRunError(): FirstRunError = when (this) {
     FirstRunIndexingFailure.AUTHENTICATION -> FirstRunError.INDEXING_AUTHENTICATION
@@ -67,13 +67,19 @@ internal fun FirstRunManagedErrorEffect(
 ) {
     var handledErrorKey by remember { mutableStateOf<String?>(null) }
     val status = indexing.status
-    val errorKey = status.firstRunErrorKey()
+    val errorKey = listOf(
+        status.failureStage.orEmpty(),
+        status.failureReason.orEmpty(),
+        status.progress?.stopCode.orEmpty(),
+    ).joinToString(":")
     LaunchedEffect(phase, status.state, errorKey, hasValidatedInternet, currentError) {
         if (status.state != ManagedScanState.ERROR) {
             handledErrorKey = null
-        } else if (isFirstRunIndexingPhase(phase) && errorKey != handledErrorKey) {
+        } else if (phase in setOf(FirstRunPhase.INDEXING, FirstRunPhase.INDEXING_OFFLINE) &&
+            errorKey != handledErrorKey
+        ) {
             handledErrorKey = errorKey
-            val error = status.firstRunError()
+            val error = status.toFirstRunError()
             if (currentError == null && shouldShowFirstRunError(error, phase, hasValidatedInternet)) {
                 onError(error)
             }
@@ -88,22 +94,17 @@ internal fun shouldShowFirstRunError(
 ): Boolean = error != FirstRunError.CLOUD_UNAVAILABLE ||
     phase != FirstRunPhase.INDEXING_OFFLINE || hasValidatedInternet
 
-private fun isFirstRunIndexingPhase(phase: FirstRunPhase?): Boolean =
-    phase == FirstRunPhase.INDEXING || phase == FirstRunPhase.INDEXING_OFFLINE
-
 private fun String.toFirstRunError(): FirstRunError = when {
     contains("AUTH_REJECTED") -> FirstRunError.INDEXING_AUTHENTICATION
     contains("RETRY_BACKOFF") || contains("NETWORK_POLICY") -> FirstRunError.CLOUD_UNAVAILABLE
     else -> FirstRunError.INDEXING_FILES
 }
 
-internal fun ManagedScanStatus.firstRunErrorKey(): String = listOf(
+internal fun ManagedScanStatus.toFirstRunError(): FirstRunError = listOf(
     failureStage.orEmpty(),
     failureReason.orEmpty(),
     progress?.stopCode.orEmpty(),
-).joinToString(":")
-
-internal fun ManagedScanStatus.firstRunError(): FirstRunError = firstRunErrorKey().toFirstRunError()
+).joinToString(":").toFirstRunError()
 
 internal fun ManagedScanStatus.isNetworkFirstRunError(): Boolean =
-    state == ManagedScanState.ERROR && firstRunError() == FirstRunError.CLOUD_UNAVAILABLE
+    state == ManagedScanState.ERROR && toFirstRunError() == FirstRunError.CLOUD_UNAVAILABLE

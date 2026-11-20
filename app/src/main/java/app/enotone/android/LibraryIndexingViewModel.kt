@@ -66,16 +66,16 @@ internal class LibraryIndexingViewModel(
                     }
                 }
                 mutable.update { it.copy(busy = work.busy, hasLogin = work.login != null, report = work.report) }
-                if (pendingLogin != null && work.login != pendingLogin) clearPending()
+                if (pendingLogin != null && work.login != pendingLogin) {
+                    mutable.update { it.copy(permissionPending = false) }
+                    pendingLogin = null
+                    pendingStartFromFirstRun = false
+                }
             }
         }
     }
 
-    override fun updateLibrary(fromFirstRun: Boolean) {
-        updateLibraryAccepted(fromFirstRun)
-    }
-
-    internal fun updateLibraryAccepted(fromFirstRun: Boolean): Boolean {
+    override fun updateLibrary(fromFirstRun: Boolean): Boolean {
         if (!allowed()) return false
         return perform(R.string.local_store_failed) { login ->
             val result = gateway.update(login)
@@ -104,11 +104,7 @@ internal class LibraryIndexingViewModel(
         }
     }
 
-    override fun resume(fromFirstRun: Boolean) {
-        resumeAccepted(fromFirstRun)
-    }
-
-    internal fun resumeAccepted(fromFirstRun: Boolean): Boolean {
+    override fun resume(fromFirstRun: Boolean): Boolean {
         if (!allowed()) return false
         return requestStart(requireNotNull(session.state.value.login), fromFirstRun)
     }
@@ -117,7 +113,9 @@ internal class LibraryIndexingViewModel(
     fun onNotificationPermission(granted: Boolean) {
         val login = pendingLogin ?: return
         val fromFirstRun = pendingStartFromFirstRun
-        clearPending()
+        mutable.update { it.copy(permissionPending = false) }
+        pendingLogin = null
+        pendingStartFromFirstRun = false
         mutable.update { it.copy(permissionDenied = !granted) }
         if (granted || fromFirstRun) {
             val available = !launcher.indexing.value.active && !session.state.value.busy
@@ -141,12 +139,6 @@ internal class LibraryIndexingViewModel(
         }
     }
 
-    private fun clearPending() {
-        mutable.update { it.copy(permissionPending = false) }
-        pendingLogin = null
-        pendingStartFromFirstRun = false
-    }
-
     private fun allowed(): Boolean {
         if (session.state.value.login == null) session.report(text.get(R.string.missing_credentials))
         return session.state.value.login != null && !session.state.value.busy &&
@@ -164,34 +156,47 @@ internal class LibraryIndexingViewModel(
     @Suppress("TooGenericExceptionCaught") // Gateway/parser failures must leave the import in an explicit failed state.
     private fun perform(failure: Int, action: suspend (StoredWebDavLogin) -> Unit): Boolean {
         val work = session.begin() ?: return false
-        val login = work.login ?: run {
+        val login = work.login
+        if (login == null) {
             session.finish(work.revision)
-            return false
-        }
-        operationLogin = login
-        mutable.update { it.copy(operationFailure = null) }
-        operation = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
-            try {
-                action(login)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failureException: FlatWebDavHttpError) {
-                // Код ответа виден в «Диагностике» → «Проверить соединение»; на основном экране — человеческий текст.
-                session.report(text.get(R.string.library_update_network_failed), work.revision)
-                mutable.publishFailure(classifyFirstRunIndexingFailure(failureException))
-            } catch (failureException: IOException) {
-                session.report(text.get(R.string.library_update_network_failed), work.revision)
-                mutable.publishFailure(classifyFirstRunIndexingFailure(failureException))
-            } catch (failureException: RuntimeException) {
-                session.report(text.get(failure), work.revision)
-                mutable.publishFailure(classifyFirstRunIndexingFailure(failureException))
-            } finally {
-                session.finish(work.revision)
+        } else {
+            operationLogin = login
+            mutable.update { it.copy(operationFailure = null) }
+            operation = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+                try {
+                    action(login)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failureException: FlatWebDavHttpError) {
+                    // HTTP-код виден в «Диагностике» → «Проверить соединение».
+                    // На основном экране показывается человеческий текст.
+                    session.report(text.get(R.string.library_update_network_failed), work.revision)
+                    mutable.publishFailure(classifyFirstRunIndexingFailure(failureException))
+                } catch (failureException: IOException) {
+                    session.report(text.get(R.string.library_update_network_failed), work.revision)
+                    mutable.publishFailure(classifyFirstRunIndexingFailure(failureException))
+                } catch (failureException: RuntimeException) {
+                    session.report(text.get(failure), work.revision)
+                    mutable.publishFailure(classifyFirstRunIndexingFailure(failureException))
+                } finally {
+                    session.finish(work.revision)
+                }
             }
         }
-        return true
+        return login != null
     }
 }
+
+/** Reuses a saved checkpoint and rejects retries while the service is still terminating. */
+internal fun LibraryIndexingViewModel.retryFirstRun(): Boolean {
+    val current = state.value
+    return when {
+        current.permissionPending || current.status.terminating || scanIsTerminating -> false
+        current.importVersion > 0 && (current.pendingTagCount ?: 0) > 0 -> resume(fromFirstRun = true)
+        else -> updateLibrary(fromFirstRun = true)
+    }
+}
+
 private fun MutableStateFlow<LibraryIndexingUiState>.publishFailure(failure: FirstRunIndexingFailure) {
     update { it.copy(operationFailure = failure, operationFailureVersion = it.operationFailureVersion + 1) }
 }
@@ -204,15 +209,4 @@ private fun classifyFirstRunIndexingFailure(failure: Exception): FirstRunIndexin
     }
     is IOException -> FirstRunIndexingFailure.CLOUD_UNAVAILABLE
     else -> FirstRunIndexingFailure.FILES_UNREADABLE
-}
-
-/** Reuses the saved tag checkpoint after interruption; only requests a listing if no checkpoint exists. */
-internal fun LibraryIndexingViewModel.retryFirstRun(): Boolean {
-    val current = state.value
-    if (current.permissionPending || current.status.terminating || scanIsTerminating) return false
-    if (current.importVersion > 0 && (current.pendingTagCount ?: 0) > 0) {
-        return resumeAccepted(fromFirstRun = true)
-    } else {
-        return updateLibraryAccepted(fromFirstRun = true)
-    }
 }

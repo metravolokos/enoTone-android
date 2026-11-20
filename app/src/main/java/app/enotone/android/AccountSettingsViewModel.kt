@@ -238,12 +238,8 @@ internal class AccountSettingsViewModel(
     /** Failed verification must never write to the vault. */
     fun verifyConnection() {
         val current = mutable.value
-        if (current.busy || current.email.isBlank() || current.password.isBlank() ||
-            current.error == AccountError.OTHER_ACCOUNT
-        ) return
-        if ((current.loggedIn && activeEmail != current.email) ||
-            (current.reauthenticationEmail != null && current.reauthenticationEmail != current.email)
-        ) {
+        if (!current.canVerifyConnection()) return
+        if (current.belongsToAnotherAccount(activeEmail)) {
             mutable.update { it.copy(error = AccountError.OTHER_ACCOUNT) }
             return
         }
@@ -375,3 +371,17 @@ internal class AccountSettingsViewModel(
             }
     }
 }
+
+private fun AccountUiState.canVerifyConnection(): Boolean =
+    !isBusyOrMissingEmail() && password.isNotBlank() && error != AccountError.OTHER_ACCOUNT
+
+private fun AccountUiState.isBusyOrMissingEmail(): Boolean = busy || email.isBlank()
+
+private fun AccountUiState.belongsToAnotherAccount(activeEmail: String?): Boolean =
+    belongsToAnotherSignedInAccount(activeEmail) || belongsToAnotherReauthenticationAccount()
+
+private fun AccountUiState.belongsToAnotherSignedInAccount(activeEmail: String?): Boolean =
+    loggedIn && activeEmail != email
+
+private fun AccountUiState.belongsToAnotherReauthenticationAccount(): Boolean =
+    reauthenticationEmail != null && reauthenticationEmail != email

@@ -7,6 +7,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.isDialog
@@ -33,6 +36,38 @@ import app.enotone.android.core.ui.theme.EnoToneTheme as EnoTheme
 @Config(sdk = [35], qualifiers = "ru-rRU-w377dp-h816dp-xxxhdpi")
 class FirstRunAccountErrorUiTest {
     @get:Rule val rule = createComposeRule()
+
+    @Test fun reauthenticationEmailIsReadOnlyInFirstRunLogin() {
+        val email = "bandit@example.invalid"
+        rule.setContent {
+            EnoTheme(darkTheme = false) {
+                FirstRunExperience(
+                    phase = FirstRunPhase.LOGIN,
+                    account = AccountUiState(
+                        email = email,
+                        reauthenticationEmail = email,
+                        restoring = false,
+                    ),
+                    indexing = LibraryIndexingUiState(),
+                    songCount = 0,
+                    albumCount = 0,
+                    artistCount = 0,
+                    error = null,
+                    onEmailChange = {},
+                    onPasswordChange = {},
+                    onConnect = {},
+                    onListenWhileReading = {},
+                    onRetryNow = {},
+                    onGoToMusic = {},
+                    onErrorAction = {},
+                    onErrorDismiss = {},
+                )
+            }
+        }
+
+        rule.onNodeWithContentDescription("Почта")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.IsEditable, false))
+    }
 
     @Test fun dismissedLoginErrorsStayHiddenUntilANewFailure() {
         val accountModel = AccountSettingsViewModel(FakeAccountGateway(
