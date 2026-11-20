@@ -12,10 +12,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
-import com.github.takahirom.roborazzi.captureRoboImage
 import app.enotone.library.ManagedIndexProgress
-import java.text.NumberFormat
-import java.util.Locale
+import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -25,6 +23,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import java.text.NumberFormat
+import java.util.Locale
 import app.enotone.android.core.ui.theme.EnoToneTheme as EnoTheme
 
 /** D6-FR first-run screens and issue-specified error copy at the shared 377 × 816 dp size. */

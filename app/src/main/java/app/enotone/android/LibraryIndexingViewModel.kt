@@ -48,6 +48,7 @@ internal class LibraryIndexingViewModel(
     private var activeLogin: StoredWebDavLogin? = null
     private var pendingLogin: StoredWebDavLogin? = null
     private var pendingStartFromFirstRun = false
+    internal val scanIsTerminating: Boolean get() = launcher.indexing.value.terminating
 
     init {
         viewModelScope.launch {
@@ -102,18 +103,6 @@ internal class LibraryIndexingViewModel(
     override fun resume(fromFirstRun: Boolean) {
         if (!allowed()) return
         requestStart(requireNotNull(session.state.value.login), fromFirstRun)
-    }
-
-    /** Reuses the saved tag checkpoint after a network interruption, fetching the listing only if needed. */
-    fun retryFirstRun() {
-        val current = mutable.value
-        if (current.permissionPending || current.status.terminating || launcher.indexing.value.terminating) return
-        if (!allowed()) return
-        if (current.importVersion > 0 && (current.pendingTagCount ?: 0) > 0) {
-            resume(fromFirstRun = true)
-        } else {
-            updateLibrary(fromFirstRun = true)
-        }
     }
 
     /** Разрешение запрашивает Activity; Intent и секреты остаются вне Compose. */
@@ -202,4 +191,15 @@ private fun classifyFirstRunIndexingFailure(failure: Exception): FirstRunIndexin
     }
     is IOException -> FirstRunIndexingFailure.CLOUD_UNAVAILABLE
     else -> FirstRunIndexingFailure.FILES_UNREADABLE
+}
+
+/** Reuses the saved tag checkpoint after interruption; only requests a listing if no checkpoint exists. */
+internal fun LibraryIndexingViewModel.retryFirstRun() {
+    val current = state.value
+    if (current.permissionPending || current.status.terminating || scanIsTerminating) return
+    if (current.importVersion > 0 && (current.pendingTagCount ?: 0) > 0) {
+        resume(fromFirstRun = true)
+    } else {
+        updateLibrary(fromFirstRun = true)
+    }
 }

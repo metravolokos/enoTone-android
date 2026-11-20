@@ -49,10 +49,7 @@ internal fun FirstRunRoute(
         indexingErrorFromImport = false
     }
     LaunchedEffect(plan?.phase, hasValidatedInternet, firstRunError) {
-        if (plan?.phase == FirstRunPhase.APP ||
-            (plan?.phase == FirstRunPhase.INDEXING_OFFLINE && !hasValidatedInternet &&
-                firstRunError == FirstRunError.CLOUD_UNAVAILABLE)
-        ) {
+        if (shouldClearFirstRunError(plan, hasValidatedInternet, firstRunError)) {
             firstRunError = null
         }
     }
@@ -67,10 +64,7 @@ internal fun FirstRunRoute(
             songCount = visibleSongCount,
             albumCount = libraryState?.takeIf { !it.loading }?.groupIndex?.albums?.size ?: 0,
             artistCount = libraryState?.takeIf { !it.loading }?.groupIndex?.artists?.size ?: 0,
-            error = firstRunError.takeUnless {
-                it == FirstRunError.CLOUD_UNAVAILABLE && plan.phase == FirstRunPhase.INDEXING_OFFLINE &&
-                    !hasValidatedInternet
-            },
+            error = firstRunError.takeUnless { isOfflineNetworkError(plan, hasValidatedInternet, it) },
             onEmailChange = accountModel::onEmailChanged,
             onPasswordChange = accountModel::onPasswordChanged,
             onConnect = accountModel::verifyConnection,
@@ -93,6 +87,19 @@ internal fun FirstRunRoute(
         )
     }
 }
+
+private fun shouldClearFirstRunError(
+    plan: FirstRunPlan?,
+    hasValidatedInternet: Boolean,
+    error: FirstRunError?,
+): Boolean = plan?.phase == FirstRunPhase.APP || isOfflineNetworkError(plan, hasValidatedInternet, error)
+
+private fun isOfflineNetworkError(
+    plan: FirstRunPlan?,
+    hasValidatedInternet: Boolean,
+    error: FirstRunError?,
+): Boolean = plan?.phase == FirstRunPhase.INDEXING_OFFLINE &&
+    !hasValidatedInternet && error == FirstRunError.CLOUD_UNAVAILABLE
 
 @Composable
 private fun FirstRunRestoring() {
