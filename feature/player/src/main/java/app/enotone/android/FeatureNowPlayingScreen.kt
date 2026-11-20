@@ -111,7 +111,6 @@ fun FeatureNowPlayingScreen(
     albumYear: Int? = null,
     artwork: Bitmap?,
     playbackState: String,
-    errorCode: Int,
     positionMs: Long,
     durationMs: Long,
     canSeek: Boolean,
@@ -184,7 +183,7 @@ fun FeatureNowPlayingScreen(
     val readyGlowColor = EnoColors.accentText.copy(alpha = READY_GLOW_ALPHA)
     val isPlaying = playbackState == "PLAYING" || playbackState == "BUFFERING"
     val realError = when (playbackState) {
-        "ERROR" -> stringResource(ids.playbackError, errorCode)
+        "ERROR" -> stringResource(ids.playbackError)
         "MISSING_PASSWORD" -> stringResource(ids.playbackMissingPassword)
         "MISSING_TRACK" -> stringResource(ids.playbackMissingTrack)
         else -> null

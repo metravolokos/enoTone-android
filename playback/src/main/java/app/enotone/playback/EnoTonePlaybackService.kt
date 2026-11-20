@@ -314,6 +314,7 @@ open class EnoTonePlaybackService : MediaSessionService() {
 
     fun pause() = playback.pause()
     fun resume() = playback.resume()
+    fun retryCurrent(): Boolean = playback.retryCurrent()
 
     /** Explicit Stop forgets both files. Android Settings 'Force stop' does not. */
     fun stopPlayback() {

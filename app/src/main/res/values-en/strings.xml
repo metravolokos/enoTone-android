@@ -40,7 +40,12 @@
     <string name="playback_playing">Playing</string>
     <string name="playback_paused">Paused</string>
     <string name="playback_ended">Stopped / finished</string>
-    <string name="playback_error">Playback error code %1$d. Private details are hidden.</string>
+    <string name="playback_error">Playback error.</string>
+    <string name="error_sheet_no_cloud">There’s no connection to the Cloud, so it’s time for a little rest!</string>
+    <string name="error_sheet_cloud_access">The Cloud won’t let me play this song, so I’ll go rest!</string>
+    <string name="error_sheet_unreadable">This file can’t be read, so I’ll take a little rest!</string>
+    <string name="error_sheet_fallback">The track didn’t open, so I’ll rest a little. Thank you, error!</string>
+    <string name="error_sheet_retry">Retry</string>
     <string name="playback_missing_password">Go back and enter your Cloud.Mail.ru app password to play.</string>
     <string name="playback_missing_track">Track not found in local library.</string>
     <string name="playback_pause">Pause</string>
