@@ -822,6 +822,11 @@ class PreviewAudioPlayback(
 
     fun pause() = player.pause()
 
+    /** Retry the errored media item in place without touching queue, routes or cache. */
+    fun retryCurrent(): Boolean = PlaybackErrorRetry.retryCurrent(player) {
+        deferredPrepare = false
+    }
+
     fun resume() {
         // Ошибка оставляет плеер в IDLE с сохранённым playerError: обычный play()
         // не готовит источник, и Play перестаёт работать до смены трека.
