@@ -84,8 +84,15 @@ internal class WebDavMedia3DataSource(
             conn.setRequestProperty("Range", "bytes=${dataSpec.position}-$end")
             conn.setRequestProperty("Accept-Encoding", "identity")
             if (strongEtag != null) conn.setRequestProperty("If-Range", strongEtag)
-            if (conn.responseCode != HttpURLConnection.HTTP_PARTIAL) {
-                throw PlaybackDataIssueException(PlaybackDataIssue.OPEN_STATUS)
+            val responseCode = conn.responseCode
+            if (responseCode != HttpURLConnection.HTTP_PARTIAL) {
+                val issue = if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED ||
+                    responseCode == HttpURLConnection.HTTP_FORBIDDEN) {
+                    PlaybackDataIssue.OPEN_ACCESS
+                } else {
+                    PlaybackDataIssue.OPEN_STATUS
+                }
+                throw PlaybackDataIssueException(issue)
             }
             try {
                 WebDavPlaybackRange.count(conn.getHeaderField("Content-Range"),

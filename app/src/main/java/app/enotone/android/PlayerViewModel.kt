@@ -34,7 +34,7 @@ internal fun interface CredentialsProvider {
 
 internal class VaultCredentialsProvider(private val context: Context) : CredentialsProvider {
     override suspend fun credentials(): StoredWebDavLogin? =
-        if (SignOutMarker.pending(context)) null
+        if (SignOutMarker.pending(context) || FirstRunPreferences(context).reauthenticationRequired()) null
         else runCatching { LocalCredentialVault.restore(context) }.getOrNull()
 }
 
@@ -364,6 +364,7 @@ internal class PlayerViewModel(
         )
     }
     fun onPlayPause() = connection.playPause()
+    fun onRetryCurrent(): Boolean = connection.retryCurrent()
     fun onNext() = connection.playNext()
     fun onPrevious() = connection.playPrevious()
     fun onQueuePositionSelected(position: Int) = connection.skipToQueuePosition(position)

@@ -34,13 +34,17 @@
     <string name="library_back">Back</string>
     <string name="library_loading">Reading local library…</string>
     <string name="library_failed">Unable to read local library.</string>
-    <string name="library_empty">No tracks yet. First save the /AllMusic file list on this device.</string>
     <string name="playback_loading">Connecting to track…</string>
     <string name="playback_buffering">Buffering…</string>
     <string name="playback_playing">Playing</string>
     <string name="playback_paused">Paused</string>
     <string name="playback_ended">Stopped / finished</string>
-    <string name="playback_error">Playback error code %1$d. Private details are hidden.</string>
+    <string name="playback_error">Playback error.</string>
+    <string name="error_sheet_no_cloud">There’s no connection to the Cloud, so it’s time for a little rest!</string>
+    <string name="error_sheet_cloud_access">The Cloud won’t let me play this song, so I’ll go rest!</string>
+    <string name="error_sheet_unreadable">This file can’t be read, so I’ll take a little rest!</string>
+    <string name="error_sheet_fallback">The track didn’t open, so I’ll rest a little. Thank you, error!</string>
+    <string name="error_sheet_retry">Retry</string>
     <string name="playback_missing_password">Go back and enter your Cloud.Mail.ru app password to play.</string>
     <string name="playback_missing_track">Track not found in local library.</string>
     <string name="playback_pause">Pause</string>
@@ -194,7 +198,8 @@
     <string name="settings_index_resume">Continue</string>
     <string name="settings_index_retry">Retry</string>
     <string name="settings_group_cloud">Cloud</string>
-    <string name="settings_group_library">Library</string>
+    <string name="settings_group_library">Media library</string>
+    <string name="settings_group_app_library">Library</string>
     <string name="account_signed_in_as">Signed in: %1$s</string>
     <string name="diagnostics_title">Diagnostics</string>
     <string name="diagnostics_entry_summary">Connection check, playback and library update details — for bug reports.</string>
@@ -257,6 +262,11 @@
         <item quantity="one">%1$s album artist found</item>
         <item quantity="other">%1$s album artists found</item>
     </plurals>
+    <string name="state_not_found_title">Nothing found</string>
+    <string name="state_not_found_message">Try a different spelling — I search by title, artist, and album.</string>
+    <string name="state_music_missing_title">Where is the music?</string>
+    <string name="state_music_missing_message">There are no MP3 or FLAC files in /AllMusic.</string>
+    <string name="state_music_missing_action">Check connection</string>
     <string name="library_found_nothing">Nothing found</string>
     <!-- D3.2: "Translucent bars" setting, off by default (ADR-0088). -->
     <string name="appearance_translucent_dock">Translucent bars</string>
@@ -287,4 +297,34 @@
     <string name="diagnostics_library_duplicates">Duplicates=%1$d, albums=%2$d</string>
     <string name="player_destination_unavailable">Album or artist is unavailable</string>
     <string name="diagnostics_library_album">Last album: rows=%1$d, header=%2$d, repeated IDs=%3$d</string>
+    <string name="first_run_login_title">Hi! I’m Bandit</string>
+    <string name="first_run_login_message">Connect Mail.ru Cloud and I’ll find the music in your AllMusic folder.</string>
+    <string name="first_run_email">Email</string>
+    <string name="first_run_app_password">External app password</string>
+    <string name="first_run_connect">Connect</string>
+    <string name="first_run_indexing_title">Reading your music…</string>
+    <string name="first_run_progress">%1$s of %2$s songs</string>
+    <string name="first_run_listen_while_reading">Listen while I read</string>
+    <string name="first_run_done_title">All done!</string>
+    <string name="first_run_summary">%1$s, %2$s, %3$s</string>
+    <string name="first_run_go_to_music">Go to music</string>
+    <string name="first_run_error_login_credentials">Hooray, an error: the email or password didn’t match! I can take a little break now.</string>
+    <string name="first_run_error_cloud_unavailable">The Cloud isn’t answering—great, I can take a little break!</string>
+    <string name="first_run_error_auth_expired">The password doesn’t work anymore, and I was just ready to rest!</string>
+    <string name="first_run_error_files">The files won’t read: a perfect excuse to take a little break!</string>
+    <string name="first_run_error_enter_again">Enter again</string>
+    <string name="first_run_error_retry">Retry</string>
+    <string name="first_run_error_sign_in_again">Sign in again</string>
+    <plurals name="first_run_song_count">
+        <item quantity="one">%1$s song</item>
+        <item quantity="other">%1$s songs</item>
+    </plurals>
+    <plurals name="first_run_album_count">
+        <item quantity="one">%1$s album</item>
+        <item quantity="other">%1$s albums</item>
+    </plurals>
+    <plurals name="first_run_artist_count">
+        <item quantity="one">%1$s artist</item>
+        <item quantity="other">%1$s artists</item>
+    </plurals>
 </resources>

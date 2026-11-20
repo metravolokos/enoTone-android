@@ -61,7 +61,7 @@ internal fun AppMusicShell(
     val artworkPreviewRepository = (LocalContext.current.applicationContext as EnoToneApplication)
         .container.artworkPreviewRepository
     val selecting = library?.selecting == true
-    val miniVisible = player.playback.queueTotal > 0
+    val miniVisible = appMiniPlayerVisible(nav, library, player.playback.queueTotal)
     val navBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     // Последняя строка списка поднимается над панелью и мини-плеером (вариант B).
     val contentPadding = PaddingValues(bottom = dockHeight(miniVisible) + navBar)
@@ -130,6 +130,7 @@ internal fun AppMusicShell(
                             blur = blur,
                             routeActive = active,
                             routeSnapshot = snapshot,
+                            onOpenSettings = onSettings,
                         )
                     }
                 }
@@ -162,6 +163,19 @@ internal fun AppMusicShell(
             }
         }
     }
+}
+
+internal fun appMiniPlayerVisible(
+    nav: AppNavState,
+    library: LibraryUiState?,
+    queueTotal: Int,
+): Boolean {
+    val emptyLibraryTab = nav.tab is AppTab.Library && library?.let {
+        !it.loading && !it.failed && it.tracks.isEmpty() && it.search.isBlank() &&
+            it.managedScanStatus.state == ManagedScanState.COMPLETE &&
+            !it.managedScanStatus.terminating
+    } == true
+    return queueTotal > 0 && !emptyLibraryTab
 }
 
 private fun AppNavState.renderedContentTab(): AppTab {
@@ -285,7 +299,6 @@ internal fun AppNowPlaying(
         albumYear = currentTrack?.year,
         artwork = player.largeArtwork ?: player.artwork,
         playbackState = playback.playbackState,
-        errorCode = playback.errorCode,
         positionMs = playback.positionMs,
         durationMs = playback.durationMs,
         bufferedFraction = playback.knownDurationMs

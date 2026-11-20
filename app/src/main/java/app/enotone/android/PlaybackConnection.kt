@@ -82,6 +82,9 @@ internal interface PlaybackConnection {
     /** Returns false when the local MediaSession binder is unavailable. */
     fun stopPlayback(): Boolean
     fun playPause()
+
+    /** Retry only the current errored item; returns false when there is no error or service. */
+    fun retryCurrent(): Boolean = false
     fun playNext()
     fun playPrevious()
     fun skipToQueuePosition(position: Int) = Unit
@@ -328,6 +331,11 @@ internal class AndroidPlaybackConnection(
                 it.pause() else it.resume()
         }
         publish()
+    }
+    override fun retryCurrent(): Boolean {
+        val retried = service?.retryCurrent() ?: false
+        publish()
+        return retried
     }
     override fun playNext() { service?.playNext(); publish() }
     override fun playPrevious() { service?.playPrevious(); publish() }

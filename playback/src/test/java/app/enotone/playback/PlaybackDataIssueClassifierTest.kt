@@ -19,4 +19,10 @@ class PlaybackDataIssueClassifierTest {
         assertEquals("Playback data issue",
             PlaybackDataIssueException(PlaybackDataIssue.READ_TRUNCATED).message)
     }
+
+    @Test fun classifiesAccessDenialAsAFixedIssue() {
+        val error = IOException("wrapper", PlaybackDataIssueException(PlaybackDataIssue.OPEN_ACCESS))
+        assertEquals(PlaybackDataIssue.OPEN_ACCESS,
+            PlaybackDataIssueClassifier.classify(error))
+    }
 }

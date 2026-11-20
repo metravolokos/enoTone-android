@@ -5,6 +5,7 @@ import java.io.IOException
 /** Fixed diagnostic codes only. Never keep exception text, URLs or headers. */
 enum class PlaybackDataIssue {
     OPEN_NETWORK,
+    OPEN_ACCESS,
     OPEN_STATUS,
     OPEN_RANGE,
     OPEN_ENCODING,

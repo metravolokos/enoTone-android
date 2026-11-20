@@ -2,7 +2,7 @@
 
 > Короткий срез, не журнал и не очередь задач. История — [CHANGELOG](../CHANGELOG.md), статусы задач — в GitHub Issues по [WORKFLOW](WORKFLOW.md), известные ограничения — [KNOWN_ISSUES](KNOWN_ISSUES.md), решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-**Срез:** 2026-11-19 · `main` `cdf8b6ea49339eb79740e89f63d03c564ee1fc79` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`), переход тулчейна (#216, `351bd92`) и Compose BOM (#217, `cdf8b6e`).
+**Срез:** 2026-11-20 · `main` `e2007ac4d4390f8f31b996aa724b0ce892562ba6` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`), переход тулчейна (#216, `351bd92`), Compose BOM (#217, `cdf8b6e`), ADR-0101 (#222, `31ff8e4`) и D6-E (#232, `a66b7a0`), D6-0 (#223, PR #230, `e2007ac`).
 
 ## Реализовано в `main`
 
@@ -30,7 +30,7 @@
 
 - #201 (D4c) остаётся в работе; код #179 слит в PR #204, Issue #179 ждёт device-test (PLAY-10 не проверен). У песен первого импорта отсутствуют даты; решение остаётся открытым в #201.
 - DEPS-01 (#203): последний шаг обновляет Compose BOM `2026.06.00` → `2026.09.00` в ветке `deps/deps-01-step-2-compose-bom`; Foundation/UI `1.11.3` → `1.12.1`, Material3 `1.4.0` без изменений. Dependabot #88 остаётся открытым для закрытия владельцем.
-- D6 (Бандит и состояния): [ADR-0101](DECISIONS/ADR-0101-first-run-flow-error-sheet.md) принят владельцем 2026-11-19 (PR #222); задания D6-0, D6-FR, D6-A, D6-B, D6-E, D6-F, D6-FR2 заведены как Issues без меток `state:`/`P`.
+- D6 (Бандит и состояния): [ADR-0101](DECISIONS/ADR-0101-first-run-flow-error-sheet.md) принят владельцем 2026-11-19 (PR #222); D6-E (#227), ADR-0102 и процессный NetworkMonitor слиты в main через PR #232 (`a66b7a0`); D6-0 (#223) слит через PR #230 (`e2007ac`); D6-A (#225) в работе в канонической ветке `feature/d6-a-empty-states`; остальные задачи D6 — по оперативным меткам GitHub.
 - TAG-EDIT (#200) — будущий функционал в backlog, начало только по решению владельца.
 - Остальные действующие ограничения и открытые решения — [KNOWN_ISSUES](KNOWN_ISSUES.md) и [OPEN_QUESTIONS](OPEN_QUESTIONS.md). Статусы отдельных сценариев не копируются сюда и не меняются по результатам CI.
 
@@ -41,3 +41,23 @@ Draft [PR #205](https://github.com/metravolokos/enoTone-android/pull/205), ве�
 Реализованы Home-секции и экраны «Все»; восемь Roborazzi эталонов включены в PR.
 Issue #201 имеет статус `state:review`; exact-HEAD CI отслеживается в PR #205.
 Huawei HOME-REC-01…05 не проверены.
+
+## D6-B #226 — шапка настроек и карточка «Библиотека»
+
+Draft [PR #234](https://github.com/metravolokos/enoTone-android/pull/234), base `e2007ac4d4390f8f31b996aa724b0ce892562ba6`. Реализованы шапка `enotone_wordmark` + `BanditIllustration(ARMCHAIR)`, версия и отдельная карточка страниц/обложек без экрана «О приложении». Четыре Roborazzi PNG сняты для Graphite/Porcelain. Сценарии D6-B-01/02; exact-HEAD CI отслеживается в PR. Huawei/device-test не заявлен.
+
+## D6-0 #223 — общие состояния и лист ошибки
+
+В ветке `feature/d6-0-state-components` реализованы `EnoStateView` и `EnoErrorSheet`; локально прошли `:core:ui:testDebugUnitTest`, `:core:ui:lintDebug` и `detekt`. 14 PNG-эталонов перезаписаны на CI `workflow_dispatch`, визуально проверены и приложены к [PR #230](https://github.com/metravolokos/enoTone-android/pull/230); exact-HEAD CI отслеживается там же. Huawei не требуется.
+
+## D6-F #228 — ошибка плеера и повтор текущего трека
+
+По решению владельца 2026-11-20 добавлена отдельная команда `retryCurrent()` через `PreviewAudioPlayback`, `EnoTonePlaybackService`, `PlaybackConnection` и `PlayerViewModel`. Она подготавливает текущий элемент с прежней позицией; очередь, маршруты, кэш и Play-обход ADR-0093 не меняются. `EnoErrorSheet` подключён отдельным корневым блоком; числовой код остаётся только в «Диагностике». Класс риска R; exact-HEAD CI и два независимых ревью отслеживаются в PR #233. Смена Wi-Fi↔LTE остаётся в KNOWN_ISSUES; аппаратная проверка не выполнялась.
+
+## D6-A #225 — пустые состояния медиатеки
+
+Ветка `feature/d6-a-empty-states`, Draft [PR #235](https://github.com/metravolokos/enoTone-android/pull/235), base `e2007ac4d4390f8f31b996aa724b0ce892562ba6`: поиск без совпадений и отсутствие музыки после индексации реализованы через `EnoStateView`; четыре Roborazzi PNG включены в обеих темах. В сценариях D6-A-01/02 зафиксированы проверки поля поиска, мини-плеера, кнопки перехода в «Настройки» и завершения индексации. Эти экраны не показывают `ModalBottomSheet`. «Домой» не менялся; старой заглушки пустой медиатеки на нём не найдено. Exact-HEAD CI отслеживается в PR.
+
+## D6-FR #224 — поток первого запуска
+
+Draft [PR #236](https://github.com/metravolokos/enoTone-android/pull/236), base `e2007ac4d4390f8f31b996aa724b0ce892562ba6`. В ветке `feature/d6-fr-first-run` добавлены LOGIN/INDEXING/DONE, планировщик ADR-0101, no-backup флаг, миграция старой установки и повторная авторизация без удаления медиатеки. Импорт использует существующее инкрементальное обновление; `AppShell.kt` остаётся отдельной областью D6-F (#228). 14 Roborazzi PNG приложены; exact-HEAD CI запускается на последнем SHA. Два независимых ревью ждут назначения владельцем; сценарии на устройстве не проверялись.

@@ -34,13 +34,17 @@
     <string name="library_back">Назад</string>
     <string name="library_loading">Читаем локальную медиатеку…</string>
     <string name="library_failed">Не удалось прочитать локальную медиатеку.</string>
-    <string name="library_empty">Здесь пока пусто. Сначала сохраните список /AllMusic на устройстве.</string>
     <string name="playback_loading">Подключение к треку…</string>
     <string name="playback_buffering">Буферизация…</string>
     <string name="playback_playing">Воспроизведение</string>
     <string name="playback_paused">Пауза</string>
     <string name="playback_ended">Остановлено / завершено</string>
-    <string name="playback_error">Ошибка воспроизведения, код %1$d. Личные данные не выводятся.</string>
+    <string name="playback_error">Ошибка воспроизведения.</string>
+    <string name="error_sheet_no_cloud">Связи с Облаком нет, самое время немного отдохнуть!</string>
+    <string name="error_sheet_cloud_access">Облако не пускает к песне, пойду отдыхать!</string>
+    <string name="error_sheet_unreadable">Файл не читается, значит, я немного отдохну!</string>
+    <string name="error_sheet_fallback">Трек не открылся, так что я немного отдохну. Спасибо, ошибка!</string>
+    <string name="error_sheet_retry">Повторить</string>
     <string name="playback_missing_password">Вернитесь назад и введите пароль приложения Cloud.Mail.ru для воспроизведения.</string>
     <string name="playback_missing_track">Трек не найден в локальном списке.</string>
     <string name="playback_pause">Пауза</string>
@@ -197,6 +201,7 @@
     <string name="settings_index_retry">Повторить</string>
     <string name="settings_group_cloud">Облако</string>
     <string name="settings_group_library">Медиатека</string>
+    <string name="settings_group_app_library">Библиотека</string>
     <string name="account_signed_in_as">Вход: %1$s</string>
     <string name="diagnostics_title">Диагностика</string>
     <string name="diagnostics_entry_summary">Проверка соединения, сведения о воспроизведении и обновлении медиатеки — для сообщений об ошибках.</string>
@@ -277,6 +282,11 @@
         <item quantity="many">Найдено %1$s авторов</item>
         <item quantity="other">Найдено %1$s автора</item>
     </plurals>
+    <string name="state_not_found_title">Ничего не нашлось</string>
+    <string name="state_not_found_message">Попробуйте другое написание — я ищу по названию, исполнителю и альбому.</string>
+    <string name="state_music_missing_title">Где же музыка?</string>
+    <string name="state_music_missing_message">В папке /AllMusic нет файлов MP3 или FLAC.</string>
+    <string name="state_music_missing_action">Проверить подключение</string>
     <string name="library_found_nothing">Ничего не нашлось</string>
     <!-- D3.2: настройка «Прозрачные панели», по умолчанию выключена (ADR-0088). -->
     <string name="appearance_translucent_dock">Прозрачные панели</string>
@@ -309,4 +319,40 @@
     <string name="diagnostics_library_duplicates">Дубли=%1$d, альбомов=%2$d</string>
     <string name="player_destination_unavailable">Альбом или исполнитель недоступен</string>
     <string name="diagnostics_library_album">Последний альбом: строк=%1$d, в шапке=%2$d, повторов ID=%3$d</string>
+    <string name="first_run_login_title">Привет! Я Бандит</string>
+    <string name="first_run_login_message">Подключите Облако Mail.ru — я найду музыку в папке AllMusic.</string>
+    <string name="first_run_email">Почта</string>
+    <string name="first_run_app_password">Пароль для внешнего приложения</string>
+    <string name="first_run_connect">Подключить</string>
+    <string name="first_run_indexing_title">Читаю вашу музыку…</string>
+    <string name="first_run_progress">%1$s из %2$s песен</string>
+    <string name="first_run_listen_while_reading">Слушать, пока читаю</string>
+    <string name="first_run_done_title">Всё готово!</string>
+    <string name="first_run_summary">%1$s, %2$s, %3$s</string>
+    <string name="first_run_go_to_music">К музыке</string>
+    <string name="first_run_error_login_credentials">Ура, ошибка: почта или пароль не подошли! Теперь можно немного отдохнуть.</string>
+    <string name="first_run_error_cloud_unavailable">Облако не отвечает, вот и славно: я немного отдохну!</string>
+    <string name="first_run_error_auth_expired">Пароль больше не подходит, а я как раз хотел отдохнуть!</string>
+    <string name="first_run_error_files">Файлы не читаются: отличный повод немного отдохнуть!</string>
+    <string name="first_run_error_enter_again">Ввести заново</string>
+    <string name="first_run_error_retry">Повторить</string>
+    <string name="first_run_error_sign_in_again">Войти заново</string>
+    <plurals name="first_run_song_count">
+        <item quantity="one">%1$s песня</item>
+        <item quantity="few">%1$s песни</item>
+        <item quantity="many">%1$s песен</item>
+        <item quantity="other">%1$s песни</item>
+    </plurals>
+    <plurals name="first_run_album_count">
+        <item quantity="one">%1$s альбом</item>
+        <item quantity="few">%1$s альбома</item>
+        <item quantity="many">%1$s альбомов</item>
+        <item quantity="other">%1$s альбома</item>
+    </plurals>
+    <plurals name="first_run_artist_count">
+        <item quantity="one">%1$s исполнитель</item>
+        <item quantity="few">%1$s исполнителя</item>
+        <item quantity="many">%1$s исполнителей</item>
+        <item quantity="other">%1$s исполнителя</item>
+    </plurals>
 </resources>

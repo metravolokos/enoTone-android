@@ -59,6 +59,26 @@ class NowPlayingUiTest {
     @get:Rule val rule = createComposeRule()
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
 
+    @Test fun errorStatusDoesNotShowTheNumericCode() {
+        rule.setContent {
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "ERROR",
+                    positionMs = 0L, durationMs = 60_000L,
+                    canSeek = false, controlsEnabled = true,
+                    hasPrevious = false, hasNext = false,
+                    queuePosition = 1, queueTotal = 1,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                    onClose = {}, onSeekFraction = {}, onPlayPause = {},
+                    onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                )
+            }
+        }
+        rule.onNodeWithText(context.getString(R.string.playback_error)).assertExists()
+        rule.onNodeWithText("2001").assertDoesNotExist()
+    }
+
     private fun assertNowPlayingPaneTitle() {
         rule.onNodeWithTag("now-playing-gesture-root", useUnmergedTree = true).assert(
             SemanticsMatcher.expectValue(
@@ -74,7 +94,7 @@ class NowPlayingUiTest {
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
-                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    album = null, artwork = null, playbackState = "PLAYING",
                     positionMs = 0L, durationMs = 60_000L,
                     canSeek = true, controlsEnabled = true,
                     hasPrevious = false, hasNext = true,
@@ -109,7 +129,7 @@ class NowPlayingUiTest {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture title", artist = "Fixture artist",
                     album = "Fixture album", albumYear = 2019, artwork = null, playbackState = "PAUSED",
-                    errorCode = 0, positionMs = 15000, durationMs = 120000,
+                    positionMs = 15000, durationMs = 120000,
                     canSeek = true, controlsEnabled = true,
                     hasPrevious = true, hasNext = true,
                     queuePosition = 2, queueTotal = 3,
@@ -174,7 +194,7 @@ class NowPlayingUiTest {
                     NowPlayingScreen(
                         trackId = track.id, title = track.title, artist = track.artist,
                         album = track.album, albumYear = track.year,
-                        artwork = null, playbackState = "PAUSED", errorCode = 0,
+                        artwork = null, playbackState = "PAUSED",
                         positionMs = 15_000, durationMs = 120_000,
                         canSeek = true, controlsEnabled = true,
                         hasPrevious = true, hasNext = true,
@@ -221,7 +241,7 @@ class NowPlayingUiTest {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
                     album = null, artwork = null, playbackState = "PAUSED",
-                    errorCode = 0, positionMs = 0, durationMs = 60_000,
+                    positionMs = 0, durationMs = 60_000,
                     canSeek = true, controlsEnabled = true,
                     hasPrevious = true, hasNext = true,
                     queuePosition = 1, queueTotal = 3,
@@ -274,7 +294,7 @@ class NowPlayingUiTest {
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Paused title", artist = null,
-                    album = null, artwork = null, playbackState = "PAUSED", errorCode = 0,
+                    album = null, artwork = null, playbackState = "PAUSED",
                     positionMs = 30000, durationMs = 120000,
                     canSeek = false, controlsEnabled = false,
                     hasPrevious = false, hasNext = false,
@@ -297,7 +317,7 @@ class NowPlayingUiTest {
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
-                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    album = null, artwork = null, playbackState = "PLAYING",
                     positionMs = 86_000L, durationMs = 228_000L,
                     canSeek = true, controlsEnabled = true,
                     hasPrevious = true, hasNext = true,
@@ -343,7 +363,7 @@ class NowPlayingUiTest {
                 SideEffect { loadingDotColor = textSecondary }
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
-                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    album = null, artwork = null, playbackState = "PLAYING",
                     positionMs = 10_000L, durationMs = 120_000L,
                     canSeek = true, controlsEnabled = true,
                     hasPrevious = true, hasNext = true,
@@ -388,7 +408,7 @@ class NowPlayingUiTest {
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
-                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    album = null, artwork = null, playbackState = "PLAYING",
                     positionMs = 10_000L, durationMs = 120_000L,
                     canSeek = true, controlsEnabled = true,
                     hasPrevious = true, hasNext = true,
@@ -427,7 +447,7 @@ class NowPlayingUiTest {
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
-                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    album = null, artwork = null, playbackState = "PLAYING",
                     positionMs = 86_000L, durationMs = 0L,
                     canSeek = false, controlsEnabled = true,
                     hasPrevious = true, hasNext = true,
@@ -456,7 +476,7 @@ class NowPlayingUiTest {
             EnoToneTheme {
                 NowPlayingScreen(
                     trackId = "fixture-id", title = "Fixture", artist = null,
-                    album = null, artwork = null, playbackState = "PLAYING", errorCode = 0,
+                    album = null, artwork = null, playbackState = "PLAYING",
                     positionMs = 86_000L, durationMs = 228_000L,
                     canSeek = true, controlsEnabled = true,
                     hasPrevious = true, hasNext = true,

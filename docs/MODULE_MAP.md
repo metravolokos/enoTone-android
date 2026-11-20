@@ -12,7 +12,7 @@
 | Редактирование и восстановление очереди | `:playback/QueueEditPlanner.kt`, `QueueStateFileStore.kt`, `PersistedQueueState.kt`; `:app/TrackActionsHost.kt`, `PlaybackConnection.kt` | ADR-0075, ADR-0089; QED/REST |
 | Временный аудиокэш | `:playback/TransientMediaCache.kt`, `TransientCachePolicy.kt`, `WebDavMedia3DataSource.kt` | Отличать от постоянного кэша обложек |
 | Room и плейлисты | `:core:database` и `:data:playlist/PlaylistRepository.kt` | ADR-0085, миграции без потерь, UI ещё отдельно |
-| Сеть и WebDAV | `:core:network/FlatLibraryWebDavClient.kt`, `:data:library/WebDavRangeReader.kt`, `:playback/WebDavMedia3DataSource.kt` | HTTPS; унификация — отдельный ADR |
+| Сеть и WebDAV | `:core:network/NetworkMonitor.kt`, `FlatLibraryWebDavClient.kt`; `:data:library/WebDavRangeReader.kt`, `:playback/WebDavMedia3DataSource.kt` | ADR-0102; HTTPS; монитор системной доступности не проверяет WebDAV |
 | Android v2 | `:core:ui`, `:feature:player`, экраны в `:app` | ADR-0084, ADR-0090; design/README.md, design/docs/DECISIONS_ANDROID_V2_UI.md, design/tools/sync_android.py |
 | Настройки/секреты | `:app/SettingsScreen.kt`, `AccountSettingsViewModel.kt`, `LocalCredentialVault.kt`, `AndroidAccountSignOutPort.kt` | ADR-0080/0081; секреты не логировать, Keystore последним |
 | CI/тесты/выпуск | `.github/workflows/ci.yml`, `tools/`, `docs/TESTING.md`, `src/test` | Exact HEAD, detekt baseline, GMS gate |
