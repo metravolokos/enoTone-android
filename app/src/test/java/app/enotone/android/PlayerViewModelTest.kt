@@ -65,6 +65,7 @@ class PlayerViewModelTest {
         var disconnects = 0
         var nowPlayingVisibleValue = false
         var plays = 0
+        var retries = 0
         var restores = 0
         var lastRestored: PersistedQueueState? = null
         var lastQueue: List<QueueTrack> = emptyList()
@@ -93,6 +94,7 @@ class PlayerViewModelTest {
         }
         override fun stopPlayback(): Boolean = true
         override fun playPause() = Unit
+        override fun retryCurrent(): Boolean { retries++; return true }
         override fun playNext() = Unit
         override fun playPrevious() = Unit
         override fun cycleRepeatMode() {
@@ -150,6 +152,20 @@ class PlayerViewModelTest {
             model.onShuffle()
             advanceUntilIdle()
             assertFalse(model.state.value.playback.shuffleEnabled)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun retryCurrentDelegatesToTheDedicatedConnectionCommand() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val connection = Connection()
+            val model = PlayerViewModel(
+                connection, Repo(catalog()), CredentialsProvider { null }, NoArtwork,
+                StandardTestDispatcher(testScheduler), { true })
+            advanceUntilIdle()
+
+            assertTrue(model.onRetryCurrent())
+            assertEquals(1, connection.retries)
         } finally { Dispatchers.resetMain() }
     }
 

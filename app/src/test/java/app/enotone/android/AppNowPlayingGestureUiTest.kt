@@ -32,7 +32,7 @@ class AppNowPlayingGestureUiTest {
                 NowPlayingScreen(
                     trackId = "gesture-id", title = "Gesture song", artist = "Artist",
                     album = "Album", artwork = null, playbackState = "PAUSED",
-                    errorCode = 0, positionMs = 4000L, durationMs = 120000L,
+                    positionMs = 4000L, durationMs = 120000L,
                     canSeek = true, controlsEnabled = true, hasPrevious = true, hasNext = true,
                     queuePosition = 1, queueTotal = 2,
                     repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,

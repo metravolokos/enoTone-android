@@ -285,7 +285,6 @@ internal fun AppNowPlaying(
         albumYear = currentTrack?.year,
         artwork = player.largeArtwork ?: player.artwork,
         playbackState = playback.playbackState,
-        errorCode = playback.errorCode,
         positionMs = playback.positionMs,
         durationMs = playback.durationMs,
         bufferedFraction = playback.knownDurationMs

@@ -209,6 +209,12 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
             }
             }
         },
+        playbackErrorSheet = {
+            PlaybackErrorSheetHost(
+                playback = player.playback,
+                onRetryCurrent = playerModel::onRetryCurrent,
+            )
+        },
     )
     }
 }
