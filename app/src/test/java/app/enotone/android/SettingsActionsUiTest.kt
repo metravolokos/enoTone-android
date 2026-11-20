@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -23,6 +26,26 @@ import org.robolectric.annotation.Config
 class SettingsActionsUiTest {
     @get:Rule val rule = createComposeRule()
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
+
+    @Test fun reauthenticationEmailIsReadOnlyInSettingsSection() {
+        val email = "fixture@example.invalid"
+        rule.setContent {
+            EnoToneTheme {
+                AccountSettingsSection(
+                    account = AccountUiState(
+                        email = email,
+                        reauthenticationEmail = email,
+                        restoring = false,
+                    ),
+                    onEmailChange = {}, onPasswordChange = {}, onVerify = {},
+                    onRequestSignOut = {}, onConfirmSignOut = {}, onCancelSignOut = {},
+                )
+            }
+        }
+
+        rule.onNodeWithText(email)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.IsEditable, false))
+    }
 
     @Test fun fullReindexConfirmationCanBeCancelledWithoutStarting() {
         var showing by mutableStateOf(false)

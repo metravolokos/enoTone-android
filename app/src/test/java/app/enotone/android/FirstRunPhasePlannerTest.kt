@@ -1,6 +1,8 @@
 package app.enotone.android
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FirstRunPhasePlannerTest {
@@ -80,6 +82,53 @@ class FirstRunPhasePlannerTest {
         assertEquals(
             FirstRunPlan(FirstRunPhase.APP, writeFirstRunCompleted = true),
             FirstRunPhasePlanner.plan(empty),
+        )
+    }
+
+    @Test
+    fun validatedNetworkSignalMovesBetweenIndexingPhasesWithoutChangingProgress() {
+        val inProgress = FirstRunPlanningState(
+            signOutPending = false,
+            hasLogin = true,
+            firstRunCompleted = false,
+            indexingActive = true,
+            songCount = 3590,
+            pendingTagCount = 2350,
+            hasValidatedInternet = true,
+        )
+
+        assertEquals(FirstRunPhase.INDEXING, FirstRunPhasePlanner.plan(inProgress).phase)
+        assertEquals(
+            FirstRunPhase.INDEXING_OFFLINE,
+            FirstRunPhasePlanner.plan(inProgress.copy(hasValidatedInternet = false)).phase,
+        )
+        assertEquals(FirstRunPhase.INDEXING, FirstRunPhasePlanner.plan(inProgress).phase)
+        assertEquals(3590, inProgress.songCount)
+        assertEquals(2350, inProgress.pendingTagCount)
+    }
+
+    @Test
+    fun unvalidatedNetworkDoesNotTurnCloudUnavailableIntoAnIndexingError() {
+        assertFalse(
+            shouldShowFirstRunError(
+                FirstRunError.CLOUD_UNAVAILABLE,
+                FirstRunPhase.INDEXING_OFFLINE,
+                hasValidatedInternet = false,
+            ),
+        )
+        assertTrue(
+            shouldShowFirstRunError(
+                FirstRunError.INDEXING_AUTHENTICATION,
+                FirstRunPhase.INDEXING_OFFLINE,
+                hasValidatedInternet = false,
+            ),
+        )
+        assertTrue(
+            shouldShowFirstRunError(
+                FirstRunError.CLOUD_UNAVAILABLE,
+                FirstRunPhase.INDEXING,
+                hasValidatedInternet = true,
+            ),
         )
     }
 }

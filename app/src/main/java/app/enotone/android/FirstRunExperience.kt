@@ -54,6 +54,7 @@ internal fun FirstRunExperience(
     onPasswordChange: (String) -> Unit,
     onConnect: () -> Unit,
     onListenWhileReading: () -> Unit,
+    onRetryNow: () -> Unit,
     onGoToMusic: () -> Unit,
     onErrorAction: (FirstRunError) -> Unit,
     onErrorDismiss: () -> Unit,
@@ -68,10 +69,13 @@ internal fun FirstRunExperience(
                 onPasswordChange = onPasswordChange,
                 onConnect = onConnect,
             )
-            FirstRunPhase.INDEXING,
-            FirstRunPhase.INDEXING_OFFLINE -> FirstRunIndexing(
+            FirstRunPhase.INDEXING -> FirstRunIndexing(
                 indexing = indexing,
                 onListenWhileReading = onListenWhileReading,
+            )
+            FirstRunPhase.INDEXING_OFFLINE -> FirstRunSleeping(
+                indexing = indexing,
+                onRetryNow = onRetryNow,
             )
             FirstRunPhase.DONE -> FirstRunDone(
                 songCount = songCount,
@@ -131,6 +135,7 @@ private fun ColumnScope.FirstRunLoginFields(
             onValueChange = onEmailChange,
             label = stringResource(R.string.first_run_email),
             enabled = !account.busy,
+            readOnly = account.reauthenticationEmail != null,
         )
         FirstRunField(
             value = account.password,
@@ -166,6 +171,7 @@ private fun FirstRunField(
     label: String,
     enabled: Boolean,
     password: Boolean = false,
+    readOnly: Boolean = false,
 ) {
     val shape = RoundedCornerShape(FIELD_RADIUS)
     Column(
@@ -184,6 +190,7 @@ private fun FirstRunField(
             value = value,
             onValueChange = onValueChange,
             enabled = enabled,
+            readOnly = readOnly,
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge.copy(
                 color = EnoColors.text,
@@ -209,11 +216,13 @@ private fun FirstRunIndexing(
     onListenWhileReading: () -> Unit,
 ) {
     val progress = indexing.status.progress
-    val completed = progress?.attempted ?: 0
-    val total = progress?.let { it.attempted + it.remaining }
-        ?: indexing.pendingTagCount
-        ?: indexing.importedTrackCount
-        ?: 0
+    val firstRunProgress = calculateFirstRunProgress(
+        indexing.importedTrackCount,
+        indexing.pendingTagCount,
+        progress,
+    )
+    val completed = firstRunProgress.completed
+    val total = firstRunProgress.total
     val fraction = if (total == 0) 0f else (completed.toFloat() / total).coerceIn(0f, 1f)
     val locale = LocalConfiguration.current.locales[0]
     val numberFormat = NumberFormat.getIntegerInstance(locale)
@@ -246,6 +255,36 @@ private fun FirstRunIndexing(
                 )
             }
         },
+    )
+}
+
+@Composable
+private fun FirstRunSleeping(
+    indexing: LibraryIndexingUiState,
+    onRetryNow: () -> Unit,
+) {
+    val progress = indexing.status.progress
+    val firstRunProgress = calculateFirstRunProgress(
+        indexing.importedTrackCount,
+        indexing.pendingTagCount,
+        progress,
+    )
+    val locale = LocalConfiguration.current.locales[0]
+    val numberFormat = NumberFormat.getIntegerInstance(locale)
+
+    EnoStateView(
+        pose = BanditPose.SLEEPING_BOOKS,
+        title = stringResource(R.string.first_run_sleeping_title),
+        message = stringResource(
+            R.string.first_run_sleeping_message,
+            numberFormat.format(firstRunProgress.completed),
+            numberFormat.format(firstRunProgress.total),
+        ),
+        primaryAction = EnoStateAction(
+            label = stringResource(R.string.first_run_retry_now),
+            onClick = onRetryNow,
+        ),
+        modifier = Modifier.fillMaxSize().padding(top = INDEXING_TOP_PADDING),
     )
 }
 

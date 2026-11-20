@@ -36,6 +36,7 @@ internal fun AccountSettingsSection(
                 label = { Text(stringResource(R.string.email)) },
                 modifier = Modifier.fillMaxWidth(), singleLine = true,
                 enabled = !account.busy,
+                readOnly = account.reauthenticationEmail != null,
             )
             OutlinedTextField(
                 value = account.password, onValueChange = onPasswordChange,

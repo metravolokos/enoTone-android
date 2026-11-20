@@ -26,6 +26,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -96,6 +97,7 @@ class VaultCredentialsProviderReauthenticationTest {
             val container = AppContainer(context, io = dispatcher, main = dispatcher, networkMonitor = NoNetwork)
             AndroidAccountSettingsGateway(context, container).save(EMAIL, NEW_PASSWORD)
             advanceUntilIdle()
+            assertEquals(true, preferences.firstRunCompleted())
             assertFalse(preferences.reauthenticationRequired())
 
             val allowedRepository = FixtureRepository()
@@ -117,6 +119,50 @@ class VaultCredentialsProviderReauthenticationTest {
             assertEquals(1, allowedConnection.restores)
             assertEquals(NEW_PASSWORD, allowedConnection.restoredPassword)
             assertEquals(0, allowedConnection.plays)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun cleanLoginLeavesFirstRunIncompleteBeforeReturningSavedCredentials() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val preferences = FirstRunPreferences(context)
+            assertNull(preferences.firstRunCompleted())
+            val container = AppContainer(context, io = dispatcher, main = dispatcher, networkMonitor = NoNetwork)
+
+            AndroidAccountSettingsGateway(context, container).save(EMAIL, NEW_PASSWORD)
+
+            assertEquals(false, preferences.firstRunCompleted())
+            assertFalse(preferences.reauthenticationRequired())
+            assertEquals(StoredWebDavLogin(EMAIL, NEW_PASSWORD), LocalCredentialVault.restore(context))
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun reauthenticationCannotReplaceTheSavedAccountOrChangeItsLibraryState() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        try {
+            val preferences = FirstRunPreferences(context)
+            preferences.setFirstRunCompleted(true)
+            LocalCredentialVault.save(context, EMAIL, PASSWORD)
+            preferences.setReauthenticationRequired(true)
+            val gateway = AndroidAccountSettingsGateway(
+                context,
+                AppContainer(context, io = dispatcher, main = dispatcher, networkMonitor = NoNetwork),
+            )
+            val trackCountBefore = gateway.countTracks(EMAIL)
+
+            val failure = runCatching { gateway.save(OTHER_EMAIL, NEW_PASSWORD) }.exceptionOrNull()
+
+            assertTrue(failure is IllegalStateException)
+            assertEquals(true, preferences.firstRunCompleted())
+            assertEquals(true, preferences.reauthenticationRequired())
+            assertEquals(StoredWebDavLogin(EMAIL, PASSWORD), LocalCredentialVault.restore(context))
+            assertEquals(trackCountBefore, gateway.countTracks(EMAIL))
         } finally {
             Dispatchers.resetMain()
         }
@@ -245,6 +291,7 @@ class VaultCredentialsProviderReauthenticationTest {
     private companion object {
         const val KEYSTORE_PROVIDER = "AndroidKeyStore"
         const val EMAIL = "first-run@example.invalid"
+        const val OTHER_EMAIL = "other-account@example.invalid"
         const val PASSWORD = "stored-password"
         const val NEW_PASSWORD = "accepted-password"
         const val TRACK_ID = "0000000000000000000000000000000000000000000000000000000000000001"

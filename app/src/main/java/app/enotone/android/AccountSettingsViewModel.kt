@@ -86,9 +86,19 @@ internal class AndroidAccountSettingsGateway(
 
     override suspend fun save(email: String, password: String) {
         withContext(container.io) {
-            FirstRunPreferences(context).setFirstRunCompleted(false)
+            val firstRunPreferences = FirstRunPreferences(context)
+            val reauthenticationRequired = firstRunPreferences.reauthenticationRequired()
+            if (reauthenticationRequired) {
+                val savedLogin = LocalCredentialVault.restore(context)
+                check(savedLogin?.email == email) {
+                    "Reauthentication must use the saved account"
+                }
+            }
+            val preservingCompletedFirstRun = reauthenticationRequired &&
+                firstRunPreferences.firstRunCompleted() == true
+            if (!preservingCompletedFirstRun) firstRunPreferences.setFirstRunCompleted(false)
             LocalCredentialVault.save(context, email, password)
-            FirstRunPreferences(context).setReauthenticationRequired(false)
+            firstRunPreferences.setReauthenticationRequired(false)
         }
         // Only publish ACTIVE after the encrypted write actually succeeds.
         container.accountSession.signedIn(LibrarySnapshotPlanner.accountKey(email))
@@ -124,6 +134,8 @@ internal data class AccountUiState(
     /** Редактируемые поля формы входа: до проверки никуда не передаются. */
     val email: String = "",
     val password: String = "",
+    /** A reauthentication form is pinned to the saved account until the user signs out. */
+    val reauthenticationEmail: String? = null,
     /** Подтверждённый вход: восстановлен из Keystore или успешно проверен и сохранён. */
     val active: StoredWebDavLogin? = null,
     /** Выход начат, но не завершён: импорт, индексация, обложки и медиатека заблокированы до повтора. */
@@ -178,7 +190,8 @@ internal class AccountSettingsViewModel(
                     } else if (gateway.reauthenticationRequired()) {
                         // Keep the email for the form; the rejected secret is never used as a working login.
                         mutable.update {
-                            it.copy(email = saved.email, password = "", active = null, loggedIn = false)
+                            it.copy(email = saved.email, password = "", active = null, loggedIn = false,
+                                reauthenticationEmail = saved.email)
                         }
                     } else {
                         activeEmail = saved.email
@@ -200,7 +213,15 @@ internal class AccountSettingsViewModel(
     }
 
     fun onEmailChanged(value: String) {
-        if (mutable.value.loggedIn) return
+        val current = mutable.value
+        if (current.loggedIn) return
+        current.reauthenticationEmail?.let { pinnedEmail ->
+            mutable.update {
+                it.copy(email = pinnedEmail,
+                    error = if (value == pinnedEmail) null else AccountError.OTHER_ACCOUNT)
+            }
+            return
+        }
         mutable.update { it.copy(email = value, error = null) }
     }
 
@@ -217,8 +238,8 @@ internal class AccountSettingsViewModel(
     /** Failed verification must never write to the vault. */
     fun verifyConnection() {
         val current = mutable.value
-        if (current.busy || current.email.isBlank() || current.password.isBlank()) return
-        if (current.loggedIn && activeEmail != current.email) {
+        if (!current.canVerifyConnection()) return
+        if (current.belongsToAnotherAccount(activeEmail)) {
             mutable.update { it.copy(error = AccountError.OTHER_ACCOUNT) }
             return
         }
@@ -231,6 +252,10 @@ internal class AccountSettingsViewModel(
                     AccountVerificationResult.CLOUD_UNAVAILABLE ->
                         mutable.update { it.copy(error = AccountError.CONNECTION) }
                     AccountVerificationResult.ACCEPTED -> {
+                        if (mutable.value.reauthenticationEmail?.let { it != current.email } == true) {
+                            mutable.update { it.copy(error = AccountError.OTHER_ACCOUNT) }
+                            return@launch
+                        }
                         try {
                             gateway.save(current.email, current.password)
                         } catch (cancelled: CancellationException) {
@@ -243,6 +268,7 @@ internal class AccountSettingsViewModel(
                         mutable.update {
                             it.copy(loggedIn = true, error = null,
                                 active = StoredWebDavLogin(current.email, current.password),
+                                reauthenticationEmail = null,
                                 verifiedVersion = it.verifiedVersion + 1)
                         }
                     }
@@ -286,6 +312,7 @@ internal class AccountSettingsViewModel(
                 activeEmail = null
                 mutable.update {
                     it.copy(password = "", active = null, loggedIn = false,
+                        reauthenticationEmail = current.email,
                         signOutFailed = false, error = null)
                 }
             } catch (cancelled: CancellationException) {
@@ -308,6 +335,7 @@ internal class AccountSettingsViewModel(
                 activeEmail = null
                 mutable.update {
                     it.copy(email = "", password = "", loggedIn = false, active = null, signOutFailed = false,
+                        reauthenticationEmail = null,
                         trackCount = 0, failureStep = null,
                         signedOutVersion = it.signedOutVersion + 1)
                 }
@@ -343,3 +371,17 @@ internal class AccountSettingsViewModel(
             }
     }
 }
+
+private fun AccountUiState.canVerifyConnection(): Boolean =
+    !isBusyOrMissingEmail() && password.isNotBlank() && error != AccountError.OTHER_ACCOUNT
+
+private fun AccountUiState.isBusyOrMissingEmail(): Boolean = busy || email.isBlank()
+
+private fun AccountUiState.belongsToAnotherAccount(activeEmail: String?): Boolean =
+    belongsToAnotherSignedInAccount(activeEmail) || belongsToAnotherReauthenticationAccount()
+
+private fun AccountUiState.belongsToAnotherSignedInAccount(activeEmail: String?): Boolean =
+    loggedIn && activeEmail != email
+
+private fun AccountUiState.belongsToAnotherReauthenticationAccount(): Boolean =
+    reauthenticationEmail != null && reauthenticationEmail != email
