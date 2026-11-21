@@ -35,16 +35,20 @@ class LegacySignOutRecoveryTest {
         // Credentials are deleted last, so an absent login proves the cleanup finished.
         assertEquals(
             LegacySignOutAction.COMPLETE_TAIL,
-            LegacySignOutRecovery.decide(state(libraryRowCount = 0, hasAnyManifest = true)),
+            LegacySignOutRecovery.decide(state(hasStoredLogin = false, hasAnyManifest = true)),
         )
     }
 
     @Test
     fun `manifest surviving without library rows completes the tail`() {
         // Process died inside the tail: Room rows are gone, the manifest remains.
+        // Distinguished from the case above by the explicit zero row count while the
+        // ledger still names the account's reference hashes.
         assertEquals(
             LegacySignOutAction.COMPLETE_TAIL,
-            LegacySignOutRecovery.decide(state(libraryRowCount = 0, hasAnyManifest = true)),
+            LegacySignOutRecovery.decide(
+                state(libraryRowCount = 0, hasAnyManifest = true),
+            ),
         )
     }
 

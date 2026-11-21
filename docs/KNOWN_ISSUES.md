@@ -18,7 +18,7 @@
 | Временный аудиокэш удаляется при старте службы; нет закрепления current/next, только LRU 512 МиБ | Повторный трафик после перезапуска | Позже, отдельный ADR |
 | `EnoTonePlaybackService` `exported="false"`, нет `MediaLibraryService` | Внешние MediaController / Android Auto могут не подключиться (не проверено) | Позже |
 | Bluetooth MediaSession после смерти процесса не умеет onPlaybackResumption | Автоматическое возобновление гарнитурой без открытия приложения недоступно | Отдельный PR |
-| Legacy-журнал выхода `pending=true` при пустом vault без `cleanupConfirmed=true` и корректного `sourceKey` | Восстановление опирается на позиционное доказательство: удаление входа — последний шаг перед снятием флага, поэтому отсутствие входа доказывает завершённую очистку ([ADR-0103](DECISIONS/ADR-0103-legacy-signout-recovery.md)). Состояние «в Room есть треки, а manifest нет» остаётся fail-closed | Решение владельца по такому остатку — [Issue #240](https://github.com/metravolokos/enoTone-android/issues/240); до него не снимать marker и не открывать APP |
+| Legacy-журнал выхода `pending=true` при пустом vault без `cleanupConfirmed=true` и корректного `sourceKey` | Восстановление опирается на позиционное доказательство: удаление входа — последний шаг перед снятием флага, поэтому отсутствие входа доказывает завершённую очистку ([ADR-0103](DECISIONS/ADR-0103-legacy-signout-recovery.md)). Marker снимается, поток переходит на LOGIN; Room, обложки и настройки не затрагиваются | Если в Room есть треки, а manifest отсутствует, состояние остаётся fail-closed — решение владельца по [Issue #240](https://github.com/metravolokos/enoTone-android/issues/240) |
 
 ## Закрытая запись #188 — переход из восстановленного плеера
 

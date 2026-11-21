@@ -99,8 +99,11 @@ internal class AndroidAccountSettingsGateway(
                 LegacySignOutAction.BLOCKED -> false
                 LegacySignOutAction.COMPLETE_TAIL -> {
                     LocalCredentialVault.clear(context)
-                    AccountArtworkManifest.clearAllOrphaned(context.noBackupFilesDir)
+                    // Remove the marker before the manifest: a failed marker write must
+                    // leave the state re-recoverable. Deleting the manifest first would
+                    // destroy the `hasAnyManifest` evidence and turn a retry into BLOCKED.
                     SignOutMarker.finish(context)
+                    AccountArtworkManifest.clearAllOrphaned(context.noBackupFilesDir)
                     true
                 }
             }
