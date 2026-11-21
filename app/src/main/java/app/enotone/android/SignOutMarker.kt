@@ -27,13 +27,13 @@ internal object SignOutMarker {
     fun sourceKey(context: Context): String? = prefs(context).getString(SOURCE_KEY, null)
         ?.takeIf(SOURCE_KEY_PATTERN::matches)
 
-    fun begin(context: Context, sourceKey: String) {
+    fun begin(context: Context, sourceKey: String): Boolean {
         require(SOURCE_KEY_PATTERN.matches(sourceKey))
-        check(prefs(context).edit()
+        return prefs(context).edit()
             .putBoolean(PENDING, true)
             .putString(SOURCE_KEY, sourceKey)
             .remove(CLEANUP_CONFIRMED)
-            .commit()) { "Unable to persist sign-out marker" }
+            .commit()
     }
 
     fun markCleanupComplete(context: Context) {

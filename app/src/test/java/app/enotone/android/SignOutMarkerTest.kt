@@ -22,7 +22,7 @@ class SignOutMarkerTest {
     @Test fun pendingExitSurvivesSeparateContextAccessUntilFinished() {
         SignOutMarker.finish(context)
         assertFalse(SignOutMarker.pending(context))
-        SignOutMarker.begin(context, sourceKey)
+        assertTrue(SignOutMarker.begin(context, sourceKey))
         val anotherContext = context.applicationContext
         assertTrue(SignOutMarker.pending(anotherContext))
         assertTrue(SignOutMarker.sourceKey(anotherContext) == sourceKey)

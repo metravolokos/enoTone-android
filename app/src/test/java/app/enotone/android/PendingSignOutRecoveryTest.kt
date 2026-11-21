@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 import java.nio.file.Files
 
 class PendingSignOutRecoveryTest {
@@ -123,6 +124,54 @@ class PendingSignOutRecoveryTest {
             assertEquals(2, state.clearCalls)
             assertTrue(state.manifestDeleteCalls.all { it == sourceKey })
         }
+    }
+
+    @Test fun `manifest deletion failure preserves journal and retries safely`() {
+        val state = State()
+        var failManifestDelete = true
+        val recovery = PendingSignOutRecovery(
+            pending = { state.pending },
+            cleanupConfirmed = { state.cleanupConfirmed },
+            sourceKey = { state.sourceKey },
+            clearCredentials = {
+                state.clearCalls++
+                state.vaultEntry = false
+                state.keyAlias = false
+            },
+            deleteArtworkManifest = { savedSourceKey ->
+                state.manifestDeleteCalls += savedSourceKey
+                if (failManifestDelete) throw IOException("simulated manifest delete failure")
+                state.manifests.remove(savedSourceKey)
+            },
+            finish = {
+                state.pending = false
+                state.cleanupConfirmed = false
+                state.sourceKey = null
+            },
+        )
+
+        try {
+            recovery.run()
+            throw AssertionError("Expected manifest deletion failure")
+        } catch (_: IOException) {
+            // Marker and proof remain durable until manifest deletion succeeds.
+        }
+
+        assertTrue(state.pending)
+        assertTrue(state.cleanupConfirmed)
+        assertEquals(sourceKey, state.sourceKey)
+        assertFalse(state.vaultEntry)
+        assertFalse(state.keyAlias)
+        assertTrue(state.manifests.contains(sourceKey))
+        assertTrue(state.manifests.contains(otherSourceKey))
+
+        failManifestDelete = false
+        assertTrue(recovery.run())
+        assertFalse(state.pending)
+        assertFalse(state.cleanupConfirmed)
+        assertFalse(state.manifests.contains(sourceKey))
+        assertTrue(state.manifests.contains(otherSourceKey))
+        assertEquals(listOf(sourceKey, sourceKey), state.manifestDeleteCalls)
     }
 
     @Test fun `recovery removes only recorded source manifest and next sign out uses fresh artwork keys`() = runTest {

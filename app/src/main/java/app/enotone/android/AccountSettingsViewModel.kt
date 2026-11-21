@@ -126,9 +126,12 @@ internal class AndroidAccountSettingsGateway(
         val key = LibrarySnapshotPlanner.accountKey(email)
         container.accountSession.beginSignOut(key)
         try {
-            // The account hash and pending state must be durable before the first destructive step.
-            withContext(container.io) { SignOutMarker.begin(context, key) }
-            container.accountSignOut(email).run(key)
+            JournaledAccountSignOut(
+                writePending = { sourceKey ->
+                    withContext(container.io) { SignOutMarker.begin(context, sourceKey) }
+                },
+                cleanup = { sourceKey -> container.accountSignOut(email).run(sourceKey) },
+            ).run(key)
             withContext(container.io) { SignOutMarker.finish(context) }
             container.accountSession.finishSignOut(key)
         } catch (cancelled: CancellationException) {

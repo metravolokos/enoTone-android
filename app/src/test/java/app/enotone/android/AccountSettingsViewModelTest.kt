@@ -374,6 +374,28 @@ class AccountSettingsViewModelTest {
         }
     }
 
+    @Test fun `undecryptable vault with pending sign out is not treated as empty`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply {
+                pending = true
+                restoreFails = true
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+
+            assertTrue(model.state.value.signOutFailed)
+            assertEquals(AccountError.SIGN_OUT, model.state.value.error)
+            assertFalse(model.state.value.loggedIn)
+            assertFalse(model.state.value.restoreCompletedWithoutCredentials)
+            assertNull(model.state.value.workingLogin)
+            assertEquals(0, fake.recoverCalls)
+            assertEquals(0, fake.verifyCalls)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     @Test fun `confirmed cleanup with empty vault reopens login after idempotent recovery`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
