@@ -96,6 +96,45 @@ internal class AccountArtworkManifest(private val file: File) {
     companion object {
         private val DIGEST = Regex("[0-9a-f]{64}")
 
+        private const val PREFIX = "enotone-signout-"
+        private const val SUFFIX = ".keys"
+
+        /**
+         * Removes every sign-out manifest in [directory]. Used only when a legacy
+         * journal proves the cleanup finished (ADR-0103): the files hold one-way
+         * reference hashes and nothing personal, so deleting them needs no account
+         * identity. Returns the number of removed manifests.
+         */
+        fun clearAllOrphaned(directory: File): Int {
+            val files = directory.listFiles().orEmpty().filter { candidate ->
+                candidate.isFile && candidate.name.startsWith(PREFIX) &&
+                    candidate.name.endsWith(SUFFIX) &&
+                    DIGEST.matches(
+                        candidate.name.removePrefix(PREFIX).removeSuffix(SUFFIX),
+                    )
+            }
+            var removed = 0
+            for (candidate in files) {
+                if (Files.deleteIfExists(candidate.toPath())) removed++
+            }
+            val temporaries = directory.listFiles().orEmpty().filter { candidate ->
+                candidate.isFile && candidate.name.startsWith(PREFIX) &&
+                    candidate.name.endsWith(SUFFIX + ".tmp")
+            }
+            for (temporary in temporaries) Files.deleteIfExists(temporary.toPath())
+            return removed
+        }
+
+        /**
+         * Whether any sign-out manifest survives in [directory]. A legacy recovery uses
+         * this to detect a state that contradicts a finished cleanup (ADR-0103).
+         */
+        fun hasAny(directory: File): Boolean = directory.listFiles().orEmpty().any { candidate ->
+            candidate.isFile && candidate.name.startsWith(PREFIX) &&
+                candidate.name.endsWith(SUFFIX) &&
+                DIGEST.matches(candidate.name.removePrefix(PREFIX).removeSuffix(SUFFIX))
+        }
+
         fun forSource(directory: File, sourceKey: String): AccountArtworkManifest {
             require(DIGEST.matches(sourceKey))
             return AccountArtworkManifest(File(directory, "enotone-signout-$sourceKey.keys"))

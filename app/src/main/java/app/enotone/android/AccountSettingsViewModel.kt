@@ -70,16 +70,44 @@ internal class AndroidAccountSettingsGateway(
     }
 
     override suspend fun recoverPendingSignOut(): Boolean = withContext(container.io) {
-        PendingSignOutRecovery(
-            pending = { SignOutMarker.pending(context) },
-            cleanupConfirmed = { SignOutMarker.cleanupConfirmed(context) },
-            sourceKey = { SignOutMarker.sourceKey(context) },
-            clearCredentials = { LocalCredentialVault.clear(context) },
-            deleteArtworkManifest = { sourceKey ->
-                AccountArtworkManifest.forSource(context.noBackupFilesDir, sourceKey).clear()
-            },
-            finish = { SignOutMarker.finish(context) },
-        ).run()
+        val journalSourceKey = SignOutMarker.sourceKey(context)
+        val cleanupConfirmed = SignOutMarker.cleanupConfirmed(context)
+        if (journalSourceKey != null && cleanupConfirmed) {
+            // Journal from PR #239 or later: finish only the credential tail.
+            PendingSignOutRecovery(
+                pending = { SignOutMarker.pending(context) },
+                cleanupConfirmed = { SignOutMarker.cleanupConfirmed(context) },
+                sourceKey = { SignOutMarker.sourceKey(context) },
+                clearCredentials = { LocalCredentialVault.clear(context) },
+                deleteArtworkManifest = { sourceKey ->
+                    AccountArtworkManifest.forSource(context.noBackupFilesDir, sourceKey).clear()
+                },
+                finish = { SignOutMarker.finish(context) },
+            ).run()
+        } else {
+            // Legacy journal from before #239: no proof was ever written.
+            val decision = LegacySignOutRecovery.decide(
+                LegacySignOutState(
+                    pending = SignOutMarker.pending(context),
+                    hasStoredLogin = LocalCredentialVault.restore(context) != null,
+                    libraryRowCount = container.database.remoteTrackDao().countAll(),
+                    hasAnyManifest = AccountArtworkManifest.hasAny(context.noBackupFilesDir),
+                ),
+            )
+            when (decision) {
+                LegacySignOutAction.NONE -> SignOutMarker.pending(context).not()
+                LegacySignOutAction.BLOCKED -> false
+                LegacySignOutAction.COMPLETE_TAIL -> {
+                    LocalCredentialVault.clear(context)
+                    // Remove the marker before the manifest: a failed marker write must
+                    // leave the state re-recoverable. Deleting the manifest first would
+                    // destroy the `hasAnyManifest` evidence and turn a retry into BLOCKED.
+                    SignOutMarker.finish(context)
+                    AccountArtworkManifest.clearAllOrphaned(context.noBackupFilesDir)
+                    true
+                }
+            }
+        }
     }
 
     override suspend fun verify(email: String, password: String): Boolean =
