@@ -29,6 +29,9 @@ internal interface AccountSettingsGateway {
     /** Выход начат и не завершён (в том числе до перезапуска процесса): новые операции запрещены. */
     suspend fun signOutPending(): Boolean = false
 
+    /** Complete only the credential tail when the durable cleanup proof is present. */
+    suspend fun recoverPendingSignOut(): Boolean = false
+
     suspend fun verify(email: String, password: String): Boolean
 
     suspend fun verifyOutcome(email: String, password: String): AccountVerificationResult =
@@ -47,7 +50,11 @@ internal class AndroidAccountSettingsGateway(
     private val container: AppContainer,
 ) : AccountSettingsGateway {
     override suspend fun restore(): StoredWebDavLogin? = withContext(container.io) {
-        LocalCredentialVault.restore(context)
+        LocalCredentialVault.restore(context)?.also { saved ->
+            if (SignOutMarker.pending(context)) {
+                container.accountSession.failSignOut(LibrarySnapshotPlanner.accountKey(saved.email))
+            }
+        }
     }
 
     override suspend fun reauthenticationRequired(): Boolean = withContext(container.io) {
@@ -59,14 +66,16 @@ internal class AndroidAccountSettingsGateway(
     }
 
     override suspend fun signOutPending(): Boolean {
-        val pending = withContext(container.io) { SignOutMarker.pending(context) }
-        if (pending) {
-            // Блокирует медиатеку и плеер этого аккаунта так же, как неудачный выход в текущем сеансе.
-            withContext(container.io) { LocalCredentialVault.restore(context) }?.let {
-                container.accountSession.failSignOut(LibrarySnapshotPlanner.accountKey(it.email))
-            }
-        }
-        return pending
+        return withContext(container.io) { SignOutMarker.pending(context) }
+    }
+
+    override suspend fun recoverPendingSignOut(): Boolean = withContext(container.io) {
+        PendingSignOutRecovery(
+            pending = { SignOutMarker.pending(context) },
+            cleanupConfirmed = { SignOutMarker.cleanupConfirmed(context) },
+            clearCredentials = { LocalCredentialVault.clear(context) },
+            finish = { SignOutMarker.finish(context) },
+        ).run()
     }
 
     override suspend fun verify(email: String, password: String): Boolean =
@@ -172,14 +181,24 @@ internal class AccountSettingsViewModel(
 
     init {
         viewModelScope.launch {
+            var pending = false
             try {
+                // Read the no-backup marker before accepting any restored login as usable.
+                pending = gateway.signOutPending()
                 val saved = gateway.restore()
-                if (saved == null) {
+                if (pending && saved == null) {
+                    if (gateway.recoverPendingSignOut()) {
+                        // The marker was cleared only after the idempotent vault tail succeeded.
+                        mutable.update { it.copy(signOutFailed = false, error = null) }
+                    } else {
+                        // Legacy/ambiguous state remains blocked; an empty vault alone is not proof.
+                        mutable.update { it.copy(signOutFailed = true, error = AccountError.SIGN_OUT) }
+                    }
+                } else if (saved == null) {
                     if (!gateway.reauthenticationRequired()) {
                         mutable.update { it.copy(restoreCompletedWithoutCredentials = true) }
                     }
                 } else {
-                    val pending = gateway.signOutPending()
                     if (pending) {
                         activeEmail = saved.email
                         // Keep the previous sign-out recovery path higher priority than re-login.
@@ -205,7 +224,7 @@ internal class AccountSettingsViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                mutable.update { it.copy(error = AccountError.RESTORE) }
+                mutable.update { it.copy(error = AccountError.RESTORE, signOutFailed = it.signOutFailed || pending) }
             } finally {
                 mutable.update { it.copy(restoring = false) }
             }
@@ -375,7 +394,7 @@ internal class AccountSettingsViewModel(
 private fun AccountUiState.canVerifyConnection(): Boolean =
     !isBusyOrMissingEmail() && password.isNotBlank() && error != AccountError.OTHER_ACCOUNT
 
-private fun AccountUiState.isBusyOrMissingEmail(): Boolean = busy || email.isBlank()
+private fun AccountUiState.isBusyOrMissingEmail(): Boolean = busy || email.isBlank() || signOutFailed
 
 private fun AccountUiState.belongsToAnotherAccount(activeEmail: String?): Boolean =
     belongsToAnotherSignedInAccount(activeEmail) || belongsToAnotherReauthenticationAccount()

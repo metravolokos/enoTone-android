@@ -9,6 +9,9 @@ interface AccountSignOutPort {
     suspend fun deleteTracks(sourceKey: String)
     suspend fun deleteArtwork(sourceKey: String)
     suspend fun resetCheckpoints(sourceKey: String)
+
+    /** Persist cleanup completion before the final Keystore/vault deletion. */
+    suspend fun markCleanupComplete()
     suspend fun deleteCredentials()
 }
 
@@ -31,7 +34,10 @@ class AccountSignOut(private val port: AccountSignOutPort) {
         execute(AccountSignOutFailure.Step.INDEXERS) { port.stopIndexers() }
         execute(AccountSignOutFailure.Step.TRACKS) { port.deleteTracks(sourceKey) }
         execute(AccountSignOutFailure.Step.ARTWORK) { port.deleteArtwork(sourceKey) }
-        execute(AccountSignOutFailure.Step.CHECKPOINTS) { port.resetCheckpoints(sourceKey) }
+        execute(AccountSignOutFailure.Step.CHECKPOINTS) {
+            port.resetCheckpoints(sourceKey)
+            port.markCleanupComplete()
+        }
         execute(AccountSignOutFailure.Step.CREDENTIALS) { port.deleteCredentials() }
     }
 

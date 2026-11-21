@@ -11,6 +11,7 @@ class AccountSignOutTest {
         val events = mutableListOf<String>()
         var credentials = true
         var failOnTracks = false
+        var failOnCleanupConfirmation = false
         val catalog = mutableMapOf("mine" to 3, "other" to 9)
         override suspend fun stopPlayback() { events += "playback" }
         override suspend fun stopIndexers() { events += "indexers" }
@@ -21,6 +22,10 @@ class AccountSignOutTest {
         }
         override suspend fun deleteArtwork(sourceKey: String) { events += "artwork:$sourceKey" }
         override suspend fun resetCheckpoints(sourceKey: String) { events += "checkpoints:$sourceKey" }
+        override suspend fun markCleanupComplete() {
+            events += "cleanup-confirmed"
+            if (failOnCleanupConfirmation) error("journal write failed")
+        }
         override suspend fun deleteCredentials() {
             events += "credentials"
             credentials = false
@@ -31,9 +36,24 @@ class AccountSignOutTest {
         val fake = Fake()
         AccountSignOut(fake).run("mine")
         assertEquals(listOf("playback", "indexers", "tracks:mine", "artwork:mine",
-            "checkpoints:mine", "credentials"), fake.events)
+            "checkpoints:mine", "cleanup-confirmed", "credentials"), fake.events)
         assertEquals(9, fake.catalog["other"])
         assertFalse(fake.credentials)
+    }
+
+    @Test fun `cleanup proof is required before credentials can be deleted`() = runTest {
+        val fake = Fake().apply { failOnCleanupConfirmation = true }
+
+        try {
+            AccountSignOut(fake).run("mine")
+            throw AssertionError("Expected sign-out failure")
+        } catch (failure: AccountSignOutFailure) {
+            assertEquals(AccountSignOutFailure.Step.CHECKPOINTS, failure.step)
+        }
+
+        assertTrue(fake.credentials)
+        assertEquals(listOf("playback", "indexers", "tracks:mine", "artwork:mine",
+            "checkpoints:mine", "cleanup-confirmed"), fake.events)
     }
 
     @Test fun `failed Room delete preserves vault and retry works`() = runTest {

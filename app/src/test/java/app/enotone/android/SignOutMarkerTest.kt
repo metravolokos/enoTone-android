@@ -27,4 +27,21 @@ class SignOutMarkerTest {
         SignOutMarker.finish(anotherContext)
         assertFalse(SignOutMarker.pending(context))
     }
+
+    @Test fun cleanupProofIsDurableAndASecondExitStartsWithoutIt() {
+        SignOutMarker.finish(context)
+        SignOutMarker.begin(context)
+        assertFalse(SignOutMarker.cleanupConfirmed(context))
+
+        SignOutMarker.markCleanupComplete(context)
+        assertTrue(SignOutMarker.cleanupConfirmed(context))
+
+        SignOutMarker.begin(context)
+        assertTrue(SignOutMarker.pending(context))
+        assertFalse(SignOutMarker.cleanupConfirmed(context))
+
+        SignOutMarker.finish(context)
+        assertFalse(SignOutMarker.pending(context))
+        assertFalse(SignOutMarker.cleanupConfirmed(context))
+    }
 }

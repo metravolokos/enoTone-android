@@ -108,6 +108,11 @@ internal class AndroidAccountSignOutPort(
         FirstRunPreferences(context).resetAfterSignOut()
     }
 
+    override suspend fun markCleanupComplete() = withContext(io) {
+        // The marker is the durable proof required when the process dies during vault clear.
+        SignOutMarker.markCleanupComplete(context)
+    }
+
     override suspend fun deleteCredentials() {
         withContext(io) {
             LocalCredentialVault.clear(context)

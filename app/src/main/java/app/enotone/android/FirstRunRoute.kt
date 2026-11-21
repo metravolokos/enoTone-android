@@ -126,7 +126,9 @@ private fun rememberFirstRunPlan(
     val plan = if (account.restoring) null else FirstRunPhasePlanner.plan(
         FirstRunPlanningState(
             signOutPending = signOutPending,
-            hasLogin = account.libraryLogin != null,
+            // A saved vault keeps the old retry path available, but a failed sign-out
+            // never exposes that login as a working account.
+            hasLogin = account.active != null,
             firstRunCompleted = effectiveFirstRunCompleted,
             restoreCompletedWithoutCredentials = account.restoreCompletedWithoutCredentials,
             indexingActive = indexing.status.active,
