@@ -26,12 +26,7 @@ internal class AccountArtworkFileCleanup(private val directory: File) {
         }
         // Masters are content-addressed: inspect ALL surviving references, including
         // those belonging to other accounts, before reclaiming an unreferenced file.
-        val referenced = directory.listFiles().orEmpty()
-            .asSequence().filter { it.name.startsWith("ref-") && it.name.endsWith(".txt") }
-            .mapNotNull { file ->
-                runCatching { file.readText(Charsets.US_ASCII) }.getOrNull()
-                    ?.takeIf { DIGEST.matches(it) }
-            }.toSet()
+        val referenced = survivingReferences() ?: return
         directory.listFiles().orEmpty()
             .filter { it.name.startsWith("art-") && it.name.endsWith(".webp") }
             .forEach { master ->
@@ -40,6 +35,27 @@ internal class AccountArtworkFileCleanup(private val directory: File) {
                     throw IOException("Cannot remove orphaned master")
                 }
             }
+    }
+
+    /**
+     * Digests named by readable `ref-*.txt` files, or null when any reference cannot be
+     * parsed. A reference we cannot read may still point at a live master, so acting on
+     * an incomplete set would destroy another account's artwork.
+     */
+    private fun survivingReferences(): Set<String>? {
+        var complete = true
+        val referenced = directory.listFiles().orEmpty()
+            .asSequence().filter { it.name.startsWith("ref-") && it.name.endsWith(".txt") }
+            .mapNotNull { file ->
+                val digest = runCatching { file.readText(Charsets.US_ASCII) }.getOrNull()
+                if (digest != null && DIGEST.matches(digest)) {
+                    digest
+                } else {
+                    complete = false
+                    null
+                }
+            }.toSet()
+        return referenced.takeIf { complete }
     }
 
     private companion object {

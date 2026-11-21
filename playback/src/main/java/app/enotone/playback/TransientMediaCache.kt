@@ -130,8 +130,8 @@ class TransientMediaCache(context: Context) : AutoCloseable {
             }
         }
         activeWriter = writer
-        worker.execute {
-            if (closed.get() || generation.get() != ticket) return@execute
+        enqueue {
+            if (closed.get() || generation.get() != ticket) return@enqueue
             var completed = false
             try {
                 writer.cache()
@@ -174,9 +174,9 @@ class TransientMediaCache(context: Context) : AutoCloseable {
             return
         }
         nextStatus.set(TransientCacheStatus(CachePhase.DOWNLOADING, 0L, size))
-        worker.execute {
+        enqueue {
             if (closed.get() || generation.get() != currentTicket ||
-                nextGeneration.get() != nextTicket) return@execute
+                nextGeneration.get() != nextTicket) return@enqueue
             var writer: CacheWriter? = null
             try {
                 writer = newWriter(key, uri, size, upstream) { bytes ->
@@ -208,6 +208,22 @@ class TransientMediaCache(context: Context) : AutoCloseable {
         activeNextWriter?.cancel()
         activeNextWriter = null
         nextStatus.set(TransientCacheStatus(CachePhase.IDLE, 0L, 0L))
+    }
+
+    /**
+     * Enqueues worker work without letting a concurrent [close] surface as a crash.
+     * `close()` sets the flag and then shuts the executor down, so a submission that
+     * loses the race throws [java.util.concurrent.RejectedExecutionException]; callers
+     * run on the main thread or a service callback, where that would kill the process.
+     * Dropping the task is correct: the cache is closing and its directory is deleted.
+     */
+    private fun enqueue(task: () -> Unit) {
+        if (closed.get()) return
+        try {
+            worker.execute(task)
+        } catch (_: java.util.concurrent.RejectedExecutionException) {
+            // close() won the race; the cache is being torn down.
+        }
     }
 
     fun stopCurrent() {

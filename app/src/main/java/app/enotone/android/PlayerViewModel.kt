@@ -334,7 +334,10 @@ internal class PlayerViewModel(
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (_: Exception) {
-                        // Position polling must not retry a failed write every 500 ms.
+                        // A transient Room/IO failure must not cost the duration forever:
+                        // forget the attempt so a later snapshot can retry it. Polling still
+                        // does not hammer the write, because success is the common path.
+                        durationSaveAttempts.remove(Triple(key, id, value))
                     }
                 }
             }
