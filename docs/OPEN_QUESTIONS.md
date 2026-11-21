@@ -45,5 +45,5 @@
 
 ## Открытые решения — 2026-11-18
 
-- TAG-EDIT: библиотека записи тегов, резервные копии в облаке и ограничение только Wi‑Fi — [Issue #200](https://github.com/metravolokos/enoTone-android/issues/200).
+- ~~TAG-EDIT: библиотека записи тегов, резервные копии в облаке и ограничение только Wi‑Fi~~ — **вопрос снят 2026-11-21** вместе с отменой функционала владельцем ([Issue #200](https://github.com/metravolokos/enoTone-android/issues/200) закрыта как `not planned`). Запись тегов в облако не планируется; чтение тегов не затрагивается.
 - Даты у песен первого импорта: решать ли ретро-заполнение, например по `remoteModified`, — [Issue #201](https://github.com/metravolokos/enoTone-android/issues/201).
