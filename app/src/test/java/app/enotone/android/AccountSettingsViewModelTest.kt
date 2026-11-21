@@ -416,13 +416,42 @@ class AccountSettingsViewModelTest {
 
             assertTrue(model.state.value.signOutFailed)
             assertEquals(AccountError.SIGN_OUT, model.state.value.error)
+            assertEquals("", model.state.value.email)
+            assertEquals("", model.state.value.password)
             model.onEmailChanged("new@invalid.test")
             model.onPasswordChanged("secret")
+            model.dismissError()
             model.verifyConnection()
             advanceUntilIdle()
+            assertEquals("", model.state.value.email)
+            assertEquals("", model.state.value.password)
+            assertEquals(AccountError.SIGN_OUT, model.state.value.error)
             assertEquals(0, fake.verifyCalls)
             assertEquals(0, fake.saves)
             assertNull(model.state.value.workingLogin)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `ordinary login still verifies and persists credentials`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply { accepted = true }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+
+            model.onEmailChanged("new@invalid.test")
+            model.onPasswordChanged("app-password")
+            model.verifyConnection()
+            advanceUntilIdle()
+
+            assertTrue(model.state.value.loggedIn)
+            assertFalse(model.state.value.signOutFailed)
+            assertEquals(1, fake.verifyCalls)
+            assertEquals(1, fake.saves)
+            assertEquals(StoredWebDavLogin("new@invalid.test", "app-password"),
+                model.state.value.workingLogin)
         } finally {
             Dispatchers.resetMain()
         }

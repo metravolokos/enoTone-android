@@ -73,7 +73,11 @@ internal class AndroidAccountSettingsGateway(
         PendingSignOutRecovery(
             pending = { SignOutMarker.pending(context) },
             cleanupConfirmed = { SignOutMarker.cleanupConfirmed(context) },
+            sourceKey = { SignOutMarker.sourceKey(context) },
             clearCredentials = { LocalCredentialVault.clear(context) },
+            deleteArtworkManifest = { sourceKey ->
+                AccountArtworkManifest.forSource(context.noBackupFilesDir, sourceKey).clear()
+            },
             finish = { SignOutMarker.finish(context) },
         ).run()
     }
@@ -121,9 +125,9 @@ internal class AndroidAccountSettingsGateway(
     override suspend fun signOut(email: String) {
         val key = LibrarySnapshotPlanner.accountKey(email)
         container.accountSession.beginSignOut(key)
-        // Флаг без личных данных переживает гибель процесса: незавершённый выход блокирует работу и после запуска.
-        withContext(container.io) { SignOutMarker.begin(context) }
         try {
+            // The account hash and pending state must be durable before the first destructive step.
+            withContext(container.io) { SignOutMarker.begin(context, key) }
             container.accountSignOut(email).run(key)
             withContext(container.io) { SignOutMarker.finish(context) }
             container.accountSession.finishSignOut(key)
@@ -224,7 +228,12 @@ internal class AccountSettingsViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                mutable.update { it.copy(error = AccountError.RESTORE, signOutFailed = it.signOutFailed || pending) }
+                mutable.update {
+                    it.copy(
+                        error = if (pending) AccountError.SIGN_OUT else AccountError.RESTORE,
+                        signOutFailed = it.signOutFailed || pending,
+                    )
+                }
             } finally {
                 mutable.update { it.copy(restoring = false) }
             }
@@ -233,7 +242,7 @@ internal class AccountSettingsViewModel(
 
     fun onEmailChanged(value: String) {
         val current = mutable.value
-        if (current.loggedIn) return
+        if (current.loggedIn || current.signOutFailed) return
         current.reauthenticationEmail?.let { pinnedEmail ->
             mutable.update {
                 it.copy(email = pinnedEmail,
@@ -245,12 +254,13 @@ internal class AccountSettingsViewModel(
     }
 
     fun onPasswordChanged(value: String) {
-        if (mutable.value.loggedIn) return
+        if (mutable.value.loggedIn || mutable.value.signOutFailed) return
         mutable.update { it.copy(password = value, error = null) }
     }
 
     /** Marks the currently presented account error as handled by the first-run sheet. */
     fun dismissError() {
+        if (mutable.value.signOutFailed) return
         mutable.update { it.copy(error = null) }
     }
 

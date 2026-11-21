@@ -7,15 +7,19 @@ package app.enotone.android
 internal class PendingSignOutRecovery(
     private val pending: () -> Boolean,
     private val cleanupConfirmed: () -> Boolean,
+    private val sourceKey: () -> String?,
     private val clearCredentials: () -> Unit,
+    private val deleteArtworkManifest: (String) -> Unit,
     private val finish: () -> Unit,
 ) {
     /** Returns true when the pending sign-out is complete or was already absent. */
     fun run(): Boolean {
         val isPending = pending()
-        val canRecover = !isPending || cleanupConfirmed()
+        val journalSourceKey = sourceKey()
+        val canRecover = !isPending || (cleanupConfirmed() && journalSourceKey != null)
         if (isPending && canRecover) {
             clearCredentials()
+            deleteArtworkManifest(checkNotNull(journalSourceKey))
             finish()
         }
         return canRecover

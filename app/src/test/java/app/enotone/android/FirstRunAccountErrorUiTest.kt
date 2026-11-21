@@ -11,6 +11,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -36,6 +37,59 @@ import app.enotone.android.core.ui.theme.EnoToneTheme as EnoTheme
 @Config(sdk = [35], qualifiers = "ru-rRU-w377dp-h816dp-xxxhdpi")
 class FirstRunAccountErrorUiTest {
     @get:Rule val rule = createComposeRule()
+
+    @Test fun signOutFailureDisablesLoginFormAndKeepsItsMessageVisible() {
+        var emailChanges = 0
+        var passwordChanges = 0
+        var connectCalls = 0
+        rule.setContent {
+            EnoTheme(darkTheme = false) {
+                FirstRunExperience(
+                    phase = FirstRunPhase.LOGIN,
+                    account = AccountUiState(
+                        restoring = false,
+                        signOutFailed = true,
+                        error = AccountError.SIGN_OUT,
+                    ),
+                    indexing = LibraryIndexingUiState(),
+                    songCount = 0,
+                    albumCount = 0,
+                    artistCount = 0,
+                    error = null,
+                    onEmailChange = { emailChanges++ },
+                    onPasswordChange = { passwordChanges++ },
+                    onConnect = { connectCalls++ },
+                    onListenWhileReading = {},
+                    onRetryNow = {},
+                    onGoToMusic = {},
+                    onErrorAction = {},
+                    onErrorDismiss = {},
+                )
+            }
+        }
+
+        val email = rule.onNodeWithContentDescription("Почта")
+        val password = rule.onNodeWithContentDescription("Пароль для внешнего приложения")
+        val connect = rule.onNodeWithText("Подключить")
+        email.assertIsNotEnabled()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.IsEditable, false))
+        password.assertIsNotEnabled()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.IsEditable, false))
+        connect.assertIsNotEnabled()
+        rule.onNodeWithText("Не удалось полностью удалить данные аккаунта. Вход сохранён; повторите выход.")
+            .assertExists()
+
+        email.performTouchInput { click() }
+        password.performTouchInput { click() }
+        connect.performTouchInput { click() }
+        rule.runOnIdle {
+            assertEquals(0, emailChanges)
+            assertEquals(0, passwordChanges)
+            assertEquals(0, connectCalls)
+        }
+        rule.onNodeWithText("Не удалось полностью удалить данные аккаунта. Вход сохранён; повторите выход.")
+            .assertExists()
+    }
 
     @Test fun reauthenticationEmailIsReadOnlyInFirstRunLogin() {
         val email = "bandit@example.invalid"

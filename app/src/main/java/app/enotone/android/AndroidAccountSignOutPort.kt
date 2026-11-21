@@ -22,10 +22,8 @@ internal class AndroidAccountSignOutPort(
     private val context = context.applicationContext
     private val io: CoroutineDispatcher = container.io
     private val main: CoroutineDispatcher = container.main
-    private val manifest = AccountArtworkManifest(
-        File(context.noBackupFilesDir,
-            "enotone-signout-" + LibrarySnapshotPlanner.accountKey(email) + ".keys"),
-    )
+    private val sourceKey = LibrarySnapshotPlanner.accountKey(email)
+    private val manifest = AccountArtworkManifest.forSource(context.noBackupFilesDir, sourceKey)
 
     override suspend fun stopPlayback() {
         AccountPlaybackStop(
@@ -73,12 +71,11 @@ internal class AndroidAccountSignOutPort(
     }
 
     override suspend fun deleteTracks(sourceKey: String) = withContext(io) {
+        require(sourceKey == this@AndroidAccountSignOutPort.sourceKey)
         val dao = container.database.remoteTrackDao()
-        if (manifest.read() == null) {
+        manifest.ensure {
             val rows = dao.allForSource(sourceKey)
-            manifest.save(container.artworkPreviewRepository.keysForAccount(
-                email, sourceKey, rows,
-            ))
+            container.artworkPreviewRepository.keysForAccount(email, sourceKey, rows)
         }
         container.database.deleteAccountData(sourceKey)
         Unit
@@ -116,8 +113,7 @@ internal class AndroidAccountSignOutPort(
     override suspend fun deleteCredentials() {
         withContext(io) {
             LocalCredentialVault.clear(context)
-            // Only hashed file names are journaled; best-effort removal after
-            // successful vault clearing cannot invalidate the completed exit.
+            // Keep the sign-out marker until this account-scoped manifest is gone.
             manifest.clear()
         }
     }

@@ -112,6 +112,7 @@ private fun FirstRunLogin(
             label = stringResource(R.string.first_run_connect),
             onClick = onConnect,
             fillWidth = true,
+            enabled = !account.signOutFailed,
         ),
         modifier = Modifier.fillMaxSize().padding(top = LOGIN_TOP_PADDING),
         content = {
@@ -134,7 +135,7 @@ private fun ColumnScope.FirstRunLoginFields(
             value = account.email,
             onValueChange = onEmailChange,
             label = stringResource(R.string.first_run_email),
-            enabled = !account.busy,
+            enabled = !account.busy && !account.signOutFailed,
             readOnly = account.reauthenticationEmail != null,
         )
         FirstRunField(
@@ -142,7 +143,7 @@ private fun ColumnScope.FirstRunLoginFields(
             onValueChange = onPasswordChange,
             label = stringResource(R.string.first_run_app_password),
             password = true,
-            enabled = !account.busy,
+            enabled = !account.busy && !account.signOutFailed,
         )
         when (account.error) {
             AccountError.RESTORE, AccountError.STORAGE ->

@@ -9,4 +9,5 @@ data class EnoStateAction(
     val onClick: () -> Unit,
     /** Растянуть кнопку на ширину контейнера, например для формы входа. */
     val fillWidth: Boolean = false,
+    val enabled: Boolean = true,
 )

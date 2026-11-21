@@ -18,6 +18,7 @@
 | Временный аудиокэш удаляется при старте службы; нет закрепления current/next, только LRU 512 МиБ | Повторный трафик после перезапуска | Позже, отдельный ADR |
 | `EnoTonePlaybackService` `exported="false"`, нет `MediaLibraryService` | Внешние MediaController / Android Auto могут не подключиться (не проверено) | Позже |
 | Bluetooth MediaSession после смерти процесса не умеет onPlaybackResumption | Автоматическое возобновление гарнитурой без открытия приложения недоступно | Отдельный PR |
+| Legacy-журнал выхода `pending=true` при пустом vault без `cleanupConfirmed=true` и корректного `sourceKey` | Невозможно доказать полноту account-scoped очистки; приложение должно оставаться fail-closed | Отдельное решение и безопасный путь восстановления в [Issue #240](https://github.com/metravolokos/enoTone-android/issues/240); до него не снимать marker и не открывать APP |
 
 ## Закрытая запись #188 — переход из восстановленного плеера
 
