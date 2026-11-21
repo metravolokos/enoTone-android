@@ -16,6 +16,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class FirstRunPreferencesTest {
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
+    private val sourceKey = "a".repeat(64)
 
     @After fun clearAccountState() {
         context.getSharedPreferences(ACCOUNT_STATE_PREFERENCES, Context.MODE_PRIVATE)
@@ -53,7 +54,7 @@ class FirstRunPreferencesTest {
         val preferences = FirstRunPreferences(context)
         preferences.setFirstRunCompleted(false)
         preferences.setReauthenticationRequired(true)
-        SignOutMarker.begin(context)
+        SignOutMarker.begin(context, sourceKey)
 
         assertTrue(SignOutMarker.pending(context.applicationContext))
         assertFalse(FirstRunPreferences(context).firstRunCompleted() == true)

@@ -11,6 +11,8 @@ class FirstRunPhasePlannerTest {
         val rows = listOf(
             FirstRunPlanningState(signOutPending = true, hasLogin = true, firstRunCompleted = false) to
                 FirstRunPlan(FirstRunPhase.APP),
+            FirstRunPlanningState(signOutPending = true, hasLogin = false, firstRunCompleted = false) to
+                FirstRunPlan(FirstRunPhase.LOGIN),
             FirstRunPlanningState(signOutPending = false, hasLogin = false, firstRunCompleted = true) to
                 FirstRunPlan(FirstRunPhase.LOGIN),
             FirstRunPlanningState(signOutPending = false, hasLogin = true, firstRunCompleted = null) to

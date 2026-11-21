@@ -82,6 +82,7 @@ fun EnoStateView(
         action?.let {
             Button(
                 onClick = it.onClick,
+                enabled = it.enabled,
                 modifier = Modifier.padding(top = STATE_ACTION_TOP)
                     .heightIn(min = STATE_ACTION_HEIGHT)
                     .then(if (it.fillWidth) Modifier.fillMaxWidth() else Modifier),

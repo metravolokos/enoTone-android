@@ -27,7 +27,8 @@ internal data class FirstRunPlan(
 /** Pure implementation of the priority table in ADR-0101. */
 internal object FirstRunPhasePlanner {
     fun plan(state: FirstRunPlanningState): FirstRunPlan = when {
-        state.signOutPending -> appPhase()
+        state.signOutPending && state.hasLogin -> appPhase()
+        state.signOutPending -> FirstRunPlan(FirstRunPhase.LOGIN)
         !state.hasLogin -> FirstRunPlan(
             FirstRunPhase.LOGIN,
             writeFirstRunCompleted = false.takeIf { state.restoreCompletedWithoutCredentials },

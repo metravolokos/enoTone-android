@@ -3,6 +3,7 @@ package app.enotone.android
 import app.enotone.playback.AtomicFileReplace
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 
 /** Filename digests only; never contain email, WebDAV paths or track names. */
 internal data class AccountArtworkKeys(
@@ -82,12 +83,22 @@ internal class AccountArtworkManifest(private val file: File) {
         }
     }
 
-    fun clear() {
-        file.delete()
-        File(file.parentFile, file.name + ".tmp").delete()
+    /** Rebuild after a completed old sign-out was recovered and its manifest removed. */
+    suspend fun ensure(keys: suspend () -> AccountArtworkKeys) {
+        if (read() == null) save(keys())
     }
 
-    private companion object {
-        val DIGEST = Regex("[0-9a-f]{64}")
+    fun clear() {
+        Files.deleteIfExists(file.toPath())
+        Files.deleteIfExists(File(file.parentFile, file.name + ".tmp").toPath())
+    }
+
+    companion object {
+        private val DIGEST = Regex("[0-9a-f]{64}")
+
+        fun forSource(directory: File, sourceKey: String): AccountArtworkManifest {
+            require(DIGEST.matches(sourceKey))
+            return AccountArtworkManifest(File(directory, "enotone-signout-$sourceKey.keys"))
+        }
     }
 }

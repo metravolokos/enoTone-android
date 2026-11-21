@@ -24,12 +24,20 @@ class AccountSettingsViewModelTest {
         var exitCalls = 0
         var failExit = false
         var pending = false
+        var recoverPending = false
+        var recoverCalls = 0
         var restoreFails = false
         var reauthentication = false
         var verificationResult: AccountVerificationResult? = null
         override suspend fun restore(): StoredWebDavLogin? =
             if (restoreFails) error("Invalid credential envelope") else persisted
         override suspend fun signOutPending(): Boolean = pending
+        override suspend fun recoverPendingSignOut(): Boolean {
+            recoverCalls++
+            if (!recoverPending) return false
+            pending = false
+            return true
+        }
         override suspend fun reauthenticationRequired(): Boolean = reauthentication
         override suspend fun markReauthenticationRequired() { reauthentication = true }
         override suspend fun verify(email: String, password: String): Boolean {
@@ -361,6 +369,111 @@ class AccountSettingsViewModelTest {
             assertFalse(model.state.value.restoring)
             assertEquals(AccountError.RESTORE, model.state.value.error)
             assertNull(model.state.value.workingLogin)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `undecryptable vault with pending sign out is not treated as empty`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply {
+                pending = true
+                restoreFails = true
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+
+            assertTrue(model.state.value.signOutFailed)
+            assertEquals(AccountError.SIGN_OUT, model.state.value.error)
+            assertFalse(model.state.value.loggedIn)
+            assertFalse(model.state.value.restoreCompletedWithoutCredentials)
+            assertNull(model.state.value.workingLogin)
+            assertEquals(0, fake.recoverCalls)
+            assertEquals(0, fake.verifyCalls)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `confirmed cleanup with empty vault reopens login after idempotent recovery`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply {
+                pending = true
+                recoverPending = true
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+
+            assertEquals(1, fake.recoverCalls)
+            assertFalse(model.state.value.loggedIn)
+            assertFalse(model.state.value.signOutFailed)
+            assertNull(model.state.value.active)
+            assertFalse(model.state.value.restoring)
+            assertEquals(
+                FirstRunPhase.LOGIN,
+                FirstRunPhasePlanner.plan(
+                    FirstRunPlanningState(
+                        signOutPending = false,
+                        hasLogin = model.state.value.active != null,
+                        firstRunCompleted = false,
+                    ),
+                ).phase,
+            )
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `empty vault without cleanup proof stays blocked and cannot start a new login`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply {
+                pending = true
+                accepted = true
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+
+            assertTrue(model.state.value.signOutFailed)
+            assertEquals(AccountError.SIGN_OUT, model.state.value.error)
+            assertEquals("", model.state.value.email)
+            assertEquals("", model.state.value.password)
+            model.onEmailChanged("new@invalid.test")
+            model.onPasswordChanged("secret")
+            model.dismissError()
+            model.verifyConnection()
+            advanceUntilIdle()
+            assertEquals("", model.state.value.email)
+            assertEquals("", model.state.value.password)
+            assertEquals(AccountError.SIGN_OUT, model.state.value.error)
+            assertEquals(0, fake.verifyCalls)
+            assertEquals(0, fake.saves)
+            assertNull(model.state.value.workingLogin)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `ordinary login still verifies and persists credentials`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply { accepted = true }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+
+            model.onEmailChanged("new@invalid.test")
+            model.onPasswordChanged("app-password")
+            model.verifyConnection()
+            advanceUntilIdle()
+
+            assertTrue(model.state.value.loggedIn)
+            assertFalse(model.state.value.signOutFailed)
+            assertEquals(1, fake.verifyCalls)
+            assertEquals(1, fake.saves)
+            assertEquals(StoredWebDavLogin("new@invalid.test", "app-password"),
+                model.state.value.workingLogin)
         } finally {
             Dispatchers.resetMain()
         }
