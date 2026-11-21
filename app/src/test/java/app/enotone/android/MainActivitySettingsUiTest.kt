@@ -3,6 +3,7 @@ package app.enotone.android
 import android.content.Context
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -86,6 +87,10 @@ class MainActivitySettingsUiTest {
     }
 
     @Test fun freshInstallShowsLoginBeforeRegularAppNavigation() {
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithText(label(R.string.first_run_login_title))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithText(label(R.string.first_run_login_title)).assertExists()
         assertTrue(composeRule.onAllNodesWithContentDescription(label(R.string.settings_title))
             .fetchSemanticsNodes().isEmpty())
