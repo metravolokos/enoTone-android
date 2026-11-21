@@ -20,6 +20,13 @@ interface RemoteTrackDao {
     @Query("SELECT COUNT(*) FROM remote_tracks WHERE sourceKey != :sourceKey")
     suspend fun countOtherSources(sourceKey: String): Int
 
+    /**
+     * Read-only guard for legacy sign-out recovery (ADR-0103): a non-zero count with
+     * no surviving manifest contradicts a completed cleanup and must stay fail-closed.
+     */
+    @Query("SELECT COUNT(*) FROM remote_tracks")
+    suspend fun countAll(): Int
+
     /** Resolve a local track ID only within its active account/snapshot. */
     @Query("""
         SELECT * FROM remote_tracks
