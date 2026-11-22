@@ -2,7 +2,7 @@
 
 > Как проверяется enoTone: автоматические проверки и правила ручной проверки. **Что** проверять — каталог сценариев [SCENARIOS](SCENARIOS.md) с последними результатами; **как** вести ревью и аудит — [AUDIT_PROTOCOL](AUDIT_PROTOCOL.md). Журналы ручных проверок: [2026-11-08…11](archive/TESTING_JOURNAL_2026-11-08_11.md), [2026-11-12…13](archive/TESTING_JOURNAL_2026-11-12_13.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`; срез 2026-11-22, `main` `5ff315fdc3d4ce51ea7a95495ddca7d468b8e660`, версия `0.6.2`)
+## 1. Автоматические проверки (CI, `.github/workflows/ci.yml`; срез 2026-11-22, `main` `2ae9db928a922ae42f0ae759f848fcd45544bb72`, версия `0.6.2`)
 
 Тулчейн после DEPS-01 шага 3 ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)): **Gradle 9.9.1** (дистрибутив и SHA-256 проверяются в CI и в `distributionSha256Sum`), **AGP 9.5.1** со встроенным Kotlin 2.4.21 (плагин `org.jetbrains.kotlin.android` не применяется), **compileSdk 37** (`platforms;android-37.0`, `build-tools;36.0.0`). `targetSdk 36` и `minSdk 26` не менялись. DEPS-01 обновляет только Compose BOM `2026.06.00` → `2026.09.00`: Foundation/UI `1.11.3` → `1.12.1`, Material3 остаётся `1.4.0` ([официальная карта](https://developer.android.com/develop/ui/compose/bom/bom-mapping)). KSP 2.3.13, Room 2.8.5, Roborazzi 1.79.0 и detekt 1.23.8 остаются прежними.
 

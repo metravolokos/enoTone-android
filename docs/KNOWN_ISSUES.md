@@ -2,7 +2,7 @@
 
 > Только **текущие** проблемы. Исправленное — удалять отсюда и отмечать в CHANGELOG. История 2026-11-08…11 — [archive/KNOWN_ISSUES_JOURNAL_2026-11-08_11.md](archive/KNOWN_ISSUES_JOURNAL_2026-11-08_11.md). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md). План устранения — [ADR-0074](DECISIONS/ADR-0074-m6-0-tech-debt-plan.md) (номера шагов M6-0/N).
 
-**Срез:** 2026-11-22 · версия `0.6.2` · `main` `5ff315fdc3d4ce51ea7a95495ddca7d468b8e660`. Приёмка — по автоматическим проверкам ([ADR-0104](DECISIONS/ADR-0104-auto-acceptance.md)): PR слит, CI точного HEAD зелёный, ревью пройдено. Отдельной стадии проверки на устройстве нет; найденный дефект заводится отдельной Issue с меткой `bug`.
+**Срез:** 2026-11-22 · версия `0.6.2` · `main` `2ae9db928a922ae42f0ae759f848fcd45544bb72`. Приёмка — по автоматическим проверкам ([ADR-0104](DECISIONS/ADR-0104-auto-acceptance.md)): PR слит, CI точного HEAD зелёный, ревью пройдено. Отдельной стадии проверки на устройстве нет; найденный дефект заводится отдельной Issue с меткой `bug`.
 
 Сюда попадают только дефекты, подтверждённые на текущем коде. Находки, требующие решения владельца или нового ADR, ведутся в задачах и Issues, а не списком здесь.
 
@@ -18,12 +18,18 @@
 | `EnoTonePlaybackService` `exported="false"`, нет `MediaLibraryService` | Внешние MediaController / Android Auto могут не подключиться (не проверено) | Позже |
 | Bluetooth MediaSession после смерти процесса не умеет onPlaybackResumption | Автоматическое возобновление гарнитурой без открытия приложения недоступно | Отдельный PR |
 
+| Бюджет попыток восстановления очереди не работает: `restoreAttempts` обнуляется перед каждой попыткой, а тест эмитит равные снимки и даёт ложный PASS | `StateFlow` не эмитит равенство — при неизменном состоянии повторной попытки нет, при изменяющемся бюджет не ограничивает | [#254](https://github.com/metravolokos/enoTone-android/issues/254) |
+| Гонка отмены prefetch в `TransientMediaCache.prefetchNext` | Загрузка стартует после смены трека или Stop | [#255](https://github.com/metravolokos/enoTone-android/issues/255) |
+| `bindService` вернул `true`, но служба не подключилась: показывается `ERROR`, повторного `bind` нет, `retryCurrent()` бесполезен при `service == null` | Тупик без выхода, кроме перезапуска | [#258](https://github.com/metravolokos/enoTone-android/issues/258) |
 ## Данные и приватность
 
 | Проблема | Последствие | План |
 |---|---|---|
 | При удалении мастеров обложек нечитаемый `ref-*.txt` молча считается отсутствующим | Мастер, на который ссылается другой аккаунт, может быть удалён как «сирота» — тихая потеря данных при нескольких аккаунтах | Отдельный PR; при одиночном аккаунте не проявляется ([AccountArtworkFileCleanup.kt:27-43](app/src/main/java/app/enotone/android/AccountArtworkFileCleanup.kt#L27-L43)) |
 
+| Выход не гарантирует удаление аудиоданных до очистки Keystore: `stopPlayback()` только ставит очистку в IO-очередь, ошибки подавляются, открытый `SimpleCache` не закрывается | Keystore удаляется, пока файлы могут лежать на диске — нарушен fail-closed порядок ADR-0080 | [#256](https://github.com/metravolokos/enoTone-android/issues/256), класс R |
+| Scoped sign-out при наличии другого аккаунта чистит только постоянное хранилище обложек; legacy `cacheDir/enotone-artwork-v2` остаётся и восстанавливается после повторного входа | Старая обложка возвращается после «Выйти» → «Войти» | [#256](https://github.com/metravolokos/enoTone-android/issues/256), класс R |
+| `QueueStateFileStore.clear()` игнорирует результат каждого `delete()` | Тихий сбой удаления не останавливает выход | [#256](https://github.com/metravolokos/enoTone-android/issues/256) |
 ## Данные и сеть
 
 | Проблема | Последствие | План |
@@ -47,6 +53,11 @@
 | Нет release-workflow по тегу | PR #198 (R-A1) добавил сборку минифицированного APK, но не подпись и не публикацию по тегу |
 | Нет файла `LICENSE` (решение владельца) | M6-0/8 |
 
+| При исчерпании лимита сессии индексации (`SESSION_BATCH_LIMIT`, `SESSION_TIME_BUDGET`) `IndexingRunner` ставит `COMPLETE`, и первый запуск показывает «Всё готово» при непрочитанной библиотеке | Пользователь не знает, что часть файлов не проиндексирована | [#257](https://github.com/metravolokos/enoTone-android/issues/257) |
+| `LibraryDataRevision` учитывает только `savedWithTags`, игнорируя `completedWithoutTags`; терминальный `COMPLETE` публикуется с `terminating = true` | Открытая медиатека поздно видит успешно обработанные файлы без тегов | [#257](https://github.com/metravolokos/enoTone-android/issues/257) |
+| Invalidation удаляет постоянный ref, но следующий запрос мигрирует legacy-копию; `remoteModified` не входит в ключ | Изменение файла с прежними ETag/size показывает старое изображение без GET | [#256](https://github.com/metravolokos/enoTone-android/issues/256) |
+| `artworkJob` может быть отменён повторным `refreshArtwork()`, пока `selecting` удерживает `LOADING`; переход в `PLAYING` без смены `trackId` обложку не перезапускает | Обложка текущего трека не загружается | замер и тест перед исправлением |
+| После обновления альбома вызываются `reload()` и `LibraryDataRevision.bump()` — два reload | Лишняя работа на каждый рефреш | [#258](https://github.com/metravolokos/enoTone-android/issues/258) |
 ## Требует решения владельца
 
 | Проблема | Что решить |

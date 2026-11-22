@@ -4,6 +4,24 @@
 
 # CHANGELOG
 
+## Внешний аудит зафиксирован, работа разложена на задачи (2026-11-22)
+
+Проведён внешний аудит Kimi k3.1 pro на коммите `2ae9db92` (read-only, без сборки и тестов). Отчёт с доказательствами и планом — [docs/archive/AUDIT_EXTERNAL_2026-11-22.md](docs/archive/AUDIT_EXTERNAL_2026-11-22.md).
+
+**Три дефекта высокой серьёзности:**
+
+1. **Выход не гарантирует удаление аудиоданных до очистки Keystore.** `stopPlayback()` только ставит очистку в IO-очередь, подавляет ошибки и не закрывает открытый `SimpleCache`; `AccountSignOut` идёт дальше к удалению Keystore. Нарушен fail-closed порядок ADR-0080. Дополнительно: при отсутствующем binder аудиокэш не чистится вовсе, `QueueStateFileStore.clear()` игнорирует результат каждого `delete()`.
+2. **Первый запуск показывает «Всё готово» при непрочитанной библиотеке.** `IndexingRunner` считает ошибкой только три кода, а `SESSION_BATCH_LIMIT` и `SESSION_TIME_BUDGET` превращает в `COMPLETE`.
+3. **Scoped sign-out оставляет legacy-обложки.** `removeAccount()` чистит только постоянное хранилище; `cacheDir/enotone-artwork-v2` остаётся и восстанавливается после повторного входа через `migrateLegacy()`.
+
+**Дефект в собственной работе.** Бюджет попыток восстановления очереди из PR #253 не работает: `restoreAttempts` обнуляется перед каждой попыткой. Тест давал ложный PASS, потому что эмитил равные снимки, а `StateFlow` отбрасывает равенство — повторной попытки не было вовсе. Это брак проектирования и тестирования, а не пропущенная находка.
+
+Разбор причин: исполнитель шёл по `KNOWN_ISSUES`, а не по коду; проверял точки, а не пути исполнения; тестировал свою реализацию, а не требование.
+
+**Заведены задачи:** [#254](https://github.com/metravolokos/enoTone-android/issues/254) (A: бюджет восстановления), [#255](https://github.com/metravolokos/enoTone-android/issues/255) (B: гонка prefetch), [#256](https://github.com/metravolokos/enoTone-android/issues/256) (C: fail-closed выход и legacy-обложки, класс R), [#257](https://github.com/metravolokos/enoTone-android/issues/257) (D: преждевременное DONE и ревизия медиатеки), [#258](https://github.com/metravolokos/enoTone-android/issues/258) (E: улучшения).
+
+`KNOWN_ISSUES` дополнен 10 записями. Удалена устаревшая метка `state:device-test`, отменённая ADR-0104.
+
 ## Исправлены три дефекта качества (2026-11-22)
 
 **Аудиокэш не удалялся при выходе (приватность).** Выход вызывает `stopPlayback()`, но не `stopService`, поэтому служба остаётся живой и `onDestroy` → `TransientMediaCache.close()` не срабатывает. Скачанные фрагменты аккаунта оставались в `cacheDir/enotone-m5-temporary-audio` после «Выйти», что расходится с ADR-0080 (данные аккаунта удаляются до Keystore). Добавлен `TransientMediaCache.deleteDirectory(context)`, Stop вызывает его на той же IO-полосе, что и очистку чекпоинта. Покрыто `SignOutClearsTransientCacheTest`.
