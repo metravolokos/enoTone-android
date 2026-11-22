@@ -8,7 +8,9 @@ internal fun handleFirstRunError(
     indexingModel: LibraryIndexingViewModel,
 ) {
     when (error) {
-        FirstRunError.LOGIN_CREDENTIALS -> Unit
+        // «Ввести заново»: очистить отклонённый пароль, иначе Connect отправит его снова
+        // и кнопка выглядит декоративной. Почта сохраняется — меняется только секрет.
+        FirstRunError.LOGIN_CREDENTIALS -> accountModel.clearPasswordForRetry()
         FirstRunError.CLOUD_UNAVAILABLE -> retryCloud(phase, accountModel, indexingModel)
         FirstRunError.INDEXING_AUTHENTICATION -> accountModel.requestReauthentication()
         FirstRunError.INDEXING_FILES -> retryIndexing(indexingErrorFromImport, indexingModel)

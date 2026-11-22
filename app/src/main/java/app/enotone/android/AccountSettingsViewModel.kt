@@ -295,6 +295,16 @@ internal class AccountSettingsViewModel(
         mutable.update { it.copy(error = null) }
     }
 
+    /**
+     * "Ввести заново" must actually clear the rejected password: leaving it in the field
+     * makes the retry button look decorative, because Connect would resubmit the same
+     * rejected value. The email is kept — only the secret is cleared.
+     */
+    fun clearPasswordForRetry() {
+        if (mutable.value.loggedIn || mutable.value.signOutFailed) return
+        mutable.update { it.copy(password = "", error = null) }
+    }
+
     /** Failed verification must never write to the vault. */
     fun verifyConnection() {
         val current = mutable.value

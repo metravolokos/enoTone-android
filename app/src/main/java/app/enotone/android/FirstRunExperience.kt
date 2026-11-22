@@ -145,6 +145,13 @@ private fun ColumnScope.FirstRunLoginFields(
             password = true,
             enabled = !account.busy && !account.signOutFailed,
         )
+        // Обычный пароль Mail.ru не подходит: WebDAV требует отдельный пароль приложения.
+        // Без этой подсказки первый запуск упирается в отказ без объяснения причины.
+        Text(
+            text = stringResource(R.string.first_run_app_password_hint),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
         when (account.error) {
             AccountError.RESTORE, AccountError.STORAGE ->
                 Text(stringResource(R.string.credential_vault_failed),
