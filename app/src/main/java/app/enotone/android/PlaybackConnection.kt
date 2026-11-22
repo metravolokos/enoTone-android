@@ -36,6 +36,9 @@ import kotlinx.coroutines.launch
 // 500 ms preserves the existing position/seek polling cadence without a CPU spin.
 private const val POSITION_POLL_MS = 500L
 
+    /** A bound service that has not connected within this window is reported as an error. */
+    private const val CONNECT_TIMEOUT_MS = 3_000L
+
 /** No service/binder reference escapes to the ViewModel or the composable. */
 internal data class PlaybackSnapshot(
     val connected: Boolean = false,
@@ -178,6 +181,9 @@ internal class AndroidPlaybackConnection(
     private var nowPlayingVisible = false
     private var ticker: Job? = null
 
+    /** Fails the connection when bindService succeeded but the service never answers. */
+    private var connectTimeout: Job? = null
+
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = publish()
     }
@@ -203,9 +209,27 @@ internal class AndroidPlaybackConnection(
                     .setAction(EnoTonePlaybackService.ACTION_LOCAL_BIND),
                 connection, Context.BIND_AUTO_CREATE,
             )
-            if (!bound) mutable.value = PlaybackSnapshot(playbackState = "ERROR")
+            if (!bound) {
+                mutable.value = PlaybackSnapshot(playbackState = "ERROR")
+                connectTimeout?.cancel()
+                connectTimeout = null
+            } else {
+                // bindService returning true only means the request was accepted. A
+                // foreground-service restriction or a crashed service can leave
+                // onServiceConnected pending forever, and the UI would show a frozen
+                // snapshot with a spinning ticker and no explanation.
+                connectTimeout?.cancel()
+                connectTimeout = scope.launch {
+                    delay(CONNECT_TIMEOUT_MS)
+                    if (service == null) {
+                        mutable.value = PlaybackSnapshot(playbackState = "ERROR")
+                    }
+                }
+            }
         } catch (_: Exception) {
             mutable.value = PlaybackSnapshot(playbackState = "ERROR")
+            connectTimeout?.cancel()
+            connectTimeout = null
         }
         ticker = scope.launch {
             while (isActive) {
@@ -218,6 +242,8 @@ internal class AndroidPlaybackConnection(
     override fun disconnect() {
         ticker?.cancel()
         ticker = null
+        connectTimeout?.cancel()
+        connectTimeout = null
         nowPlayingVisible = false
         service?.player?.removeListener(listener)
         if (bound) runCatching { context.unbindService(connection) }

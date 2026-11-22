@@ -69,6 +69,13 @@ internal class PlayerViewModel(
     private var covers: AlbumArtworkCatalog? = null
     private var artworkJob: Job? = null
     private var restoredAccount: String? = null
+
+    /**
+     * Failed restore attempts for the current account. [maybeRestore] runs on every
+     * playback-state publish, so releasing the claim alone would retry a persistent
+     * failure forever; a small budget lets a transient error recover without spinning.
+     */
+    private var restoreAttempts = 0
     private var hostResumed = false
 
     // Ключ включает длительность: если файл заменили (импорт сбросил durationMs в null) и у новой
@@ -148,6 +155,7 @@ internal class PlayerViewModel(
             covers = null
             loadingAccount = null
             restoredAccount = null
+            restoreAttempts = 0
         }
         restoreAllowed = true
         saveKnownDuration(connection.state.value)
@@ -177,6 +185,7 @@ internal class PlayerViewModel(
         catalog = null
         covers = null
         restoredAccount = null
+        restoreAttempts = 0
         loadingAccount = null
         artworkJob?.cancel()
         mutable.value = SharedPlayerUiState()
@@ -216,6 +225,18 @@ internal class PlayerViewModel(
         }
     }
 
+    /**
+     * Releases the restore claim after a failed attempt so a later publish can retry,
+     * but stops after [MAX_RESTORE_ATTEMPTS] to avoid retrying a persistent failure on
+     * every 500 ms playback tick.
+     */
+    private fun releaseRestoreClaim() {
+        restoreAttempts += 1
+        if (restoreAttempts < MAX_RESTORE_ATTEMPTS) {
+            restoredAccount = null
+        }
+    }
+
     // Guarded once per source to prevent repeated bind/restore races on Home.
     @Suppress("CyclomaticComplexMethod", "ReturnCount")
     private fun maybeRestore() {
@@ -233,48 +254,70 @@ internal class PlayerViewModel(
         }
         val sourceKey = LibrarySnapshotPlanner.accountKey(saved.email)
         if (restoredAccount == sourceKey) return
+        // Claiming the account before the attempt stops maybeRestore() from launching a
+        // second restore while one is in flight. Any failure must release the claim,
+        // otherwise a single transient error blocks restoration until process death.
         restoredAccount = sourceKey
+        restoreAttempts = 0
         viewModelScope.launch {
-            try {
-                val checkpoint = repository.readSavedQueue() ?: return@launch
-                if (!QueueEditSource.belongsTo(checkpoint.sourceKey, sourceKey)) {
-                    QueuePersistenceDiagnostics.result(QueueRestoreCode.SOURCE_MISMATCH)
-                    return@launch
-                }
-                val filtered = withContext(io) {
-                    QueueStateRestorer.filter(checkpoint, cached.preparedById.keys)
-                }
-                if (filtered == null) {
-                    QueuePersistenceDiagnostics.result(QueueRestoreCode.NO_TRACKS_IN_ROOM)
-                    return@launch
-                }
-                val queue = filtered.trackIds.mapNotNull(cached.preparedById::get)
-                if (queue.size != filtered.trackIds.size) {
-                    QueuePersistenceDiagnostics.result(QueueRestoreCode.NO_TRACKS_IN_ROOM)
-                    return@launch
-                }
-                // An in-flight restore may have started before the user
-                // confirmed sign-out. Never repopulate the queue during cleanup.
-                if (!restoreAllowed || login != saved ||
-                    accountEvents.value.blocks(sourceKey)) return@launch
-                if (connection.state.value.queueTotal > 0) {
-                    QueuePersistenceDiagnostics.result(QueueRestoreCode.SERVICE_HAS_QUEUE)
-                    return@launch
-                }
-                val success = connection.restoreQueue(saved.email, saved.password, queue,
-                    filtered, useCache(), queue.size != checkpoint.trackIds.size)
-                if (success) {
-                    QueuePersistenceDiagnostics.result(QueueRestoreCode.RESTORED)
-                    loadArtwork()
-                } else {
-                    QueuePersistenceDiagnostics.result(QueueRestoreCode.SERVICE_HAS_QUEUE)
-                }
+            val restored = try {
+                restoreQueueForAccount(saved, cached, sourceKey)
             } catch (cancelled: CancellationException) {
+                releaseRestoreClaim()
                 throw cancelled
             } catch (_: Exception) {
                 QueuePersistenceDiagnostics.result(QueueRestoreCode.POSITION_INVALID)
+                releaseRestoreClaim()
+                return@launch
+            }
+            if (restored) {
+                QueuePersistenceDiagnostics.result(QueueRestoreCode.RESTORED)
+                loadArtwork()
+            } else {
+                releaseRestoreClaim()
             }
         }
+    }
+
+    /**
+     * One restore attempt for [sourceKey]. Reports the terminal outcome code and returns
+     * true only when the queue was restored, so the caller can release the claim after
+     * any rejection — the failure is otherwise retried until process death.
+     */
+    @Suppress("ReturnCount")
+    private suspend fun restoreQueueForAccount(
+        saved: StoredWebDavLogin,
+        cached: LibrarySnapshot,
+        sourceKey: String,
+    ): Boolean {
+        val checkpoint = repository.readSavedQueue() ?: return false
+        if (!QueueEditSource.belongsTo(checkpoint.sourceKey, sourceKey)) {
+            QueuePersistenceDiagnostics.result(QueueRestoreCode.SOURCE_MISMATCH)
+            return false
+        }
+        val filtered = withContext(io) {
+            QueueStateRestorer.filter(checkpoint, cached.preparedById.keys)
+        } ?: return false
+        val queue = filtered.trackIds.mapNotNull(cached.preparedById::get)
+        // An in-flight restore may have started before the user confirmed sign-out.
+        // Never repopulate the queue during cleanup.
+        if (!restoreAllowed || login != saved || accountEvents.value.blocks(sourceKey)) {
+            return false
+        }
+        if (queue.size != filtered.trackIds.size) {
+            QueuePersistenceDiagnostics.result(QueueRestoreCode.NO_TRACKS_IN_ROOM)
+            return false
+        }
+        if (connection.state.value.queueTotal > 0) {
+            QueuePersistenceDiagnostics.result(QueueRestoreCode.SERVICE_HAS_QUEUE)
+            return false
+        }
+        val success = connection.restoreQueue(saved.email, saved.password, queue,
+            filtered, useCache(), queue.size != checkpoint.trackIds.size)
+        if (!success) {
+            QueuePersistenceDiagnostics.result(QueueRestoreCode.SERVICE_HAS_QUEUE)
+        }
+        return success
     }
 
     private fun loadArtwork() {
@@ -381,6 +424,8 @@ internal class PlayerViewModel(
     }
 
     companion object {
+        /** Failed restore attempts before giving up until the account changes. */
+        private const val MAX_RESTORE_ATTEMPTS = 3
         fun factory(container: AppContainer): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
