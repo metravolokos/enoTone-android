@@ -39,7 +39,7 @@ data class TransientCacheStatus(
  */
 @OptIn(UnstableApi::class)
 class TransientMediaCache(context: Context) : AutoCloseable {
-    private val directory = File(context.cacheDir, "enotone-m5-temporary-audio")
+    private val directory = File(context.cacheDir, DIRECTORY_NAME)
     private val cache: SimpleCache
     private val worker = Executors.newSingleThreadExecutor { task ->
         Thread(task, "enotone-cache-current-next").apply { isDaemon = true }
@@ -248,5 +248,21 @@ class TransientMediaCache(context: Context) : AutoCloseable {
                 directory.deleteRecursively()
             }
         }, "enotone-cache-cleanup").apply { isDaemon = true }.start()
+    }
+
+    companion object {
+        private const val DIRECTORY_NAME = "enotone-m5-temporary-audio"
+
+        /**
+         * Deletes the cache directory without an open cache instance.
+         *
+         * Sign-out needs this: `EnoTonePlaybackService` stays alive after Stop, so
+         * `close()` never runs and the previous account's audio would remain on disk.
+         * ADR-0080 requires account data to be gone before the Keystore is cleared.
+         * A later queue recreates the directory through the constructor. Called on the
+         * service IO lane, never the main thread.
+         */
+        fun deleteDirectory(context: android.content.Context): Boolean =
+            File(context.cacheDir, DIRECTORY_NAME).deleteRecursively()
     }
 }

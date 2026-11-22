@@ -41,10 +41,17 @@ class PlayerViewModelTest {
     private class Repo(val items: LibrarySnapshot) : LibraryRepository {
         var checkpoint: PersistedQueueState? = null
         var reads = 0
+
+        /** Первые N чтений падают — моделирует транзиентный сбой. */
+        var failReads = 0
         val durationSaves = mutableListOf<Triple<String, String, Long>>()
         override suspend fun load(email: String) = items
         override suspend fun readSavedQueue(): PersistedQueueState? {
             reads++
+            if (failReads > 0) {
+                failReads -= 1
+                error("transient read failure")
+            }
             return checkpoint
         }
         override suspend fun refreshAlbum(
@@ -212,6 +219,52 @@ class PlayerViewModelTest {
             assertTrue(connection.lastFiltered)
             assertEquals(0, connection.plays)
             assertEquals("PAUSED", model.state.value.playback.playbackState)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun failedRestoreIsRetriedInsteadOfBlockedUntilProcessDeath() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val repo = Repo(catalog())
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            // Первое чтение падает: раньше это навсегда блокировало восстановление.
+            repo.failReads = 1
+            val connection = Connection()
+            val model = PlayerViewModel(connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true })
+            advanceUntilIdle()
+            assertEquals(0, connection.restores)
+
+            // Новый снимок плеера запускает повторную попытку. Значение должно
+            // отличаться: StateFlow отбрасывает повторно эмитированное равенство.
+            connection.emit(PlaybackSnapshot(connected = true, positionMs = 1))
+            advanceUntilIdle()
+
+            assertEquals(1, connection.restores)
+            assertEquals(listOf(id(1), id(2)), connection.lastRestored?.trackIds)
+            assertEquals("PAUSED", model.state.value.playback.playbackState)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun restoreStopsRetryingAfterBudgetSoPersistentFailureDoesNotSpin() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val repo = Repo(catalog())
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            repo.failReads = Int.MAX_VALUE
+            val connection = Connection()
+            PlayerViewModel(connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true })
+            advanceUntilIdle()
+            repeat(10) {
+                connection.emit(PlaybackSnapshot(connected = true))
+                advanceUntilIdle()
+            }
+            // Бюджет попыток конечен: тикер снимков не превращается в бесконечные чтения.
+            assertTrue("reads=${repo.reads}", repo.reads <= 4)
+            assertEquals(0, connection.restores)
         } finally { Dispatchers.resetMain() }
     }
 

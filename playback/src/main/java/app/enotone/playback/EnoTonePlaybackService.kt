@@ -328,6 +328,13 @@ open class EnoTonePlaybackService : MediaSessionService() {
         submitIo {
             try { store.clear() } catch (_: Exception) { }
         }
+        // Sign-out calls Stop and then leaves the service alive, so onDestroy() never
+        // runs and the transient cache would keep the previous account's audio on disk.
+        // ADR-0080 requires account data to be gone before the Keystore, so the cache
+        // is dropped here, on the same IO lane as the queue checkpoint.
+        submitIo {
+            try { TransientMediaCache.deleteDirectory(applicationContext) } catch (_: Exception) { }
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {

@@ -2,7 +2,7 @@
 
 > **Источник истины о статусе ADR — эта таблица**, а не строка «Статус» внутри файла: многие ранние ADR сохранили статус «Draft / до CI», хотя их код давно объединён в `main`. Сами файлы ADR не переписываются (история). При создании нового ADR или замене старого — **обязательно обновить эту таблицу**.
 >
-> Сводка действующих решений — [CURRENT_DECISIONS](../CURRENT_DECISIONS.md). Сверено с `main` `0f5e988174f0d697327ef7a3d242d417eaf02c8d` 2026-11-22, версия `0.6.2`; последний принятый ADR в `main` — 0104. ADR-0102 привязан к слиянию [PR #232](https://github.com/metravolokos/enoTone-android/pull/232) по Issue #227, ADR-0103 — к [PR #241](https://github.com/metravolokos/enoTone-android/pull/241), ADR-0104 — к [PR #244](https://github.com/metravolokos/enoTone-android/pull/244). Ревью «что удалить» — [REDUCTION_REVIEWS](../REDUCTION_REVIEWS.md).
+> Сводка действующих решений — [CURRENT_DECISIONS](../CURRENT_DECISIONS.md). Сверено с `main` `5ff315fdc3d4ce51ea7a95495ddca7d468b8e660` 2026-11-22, версия `0.6.2`; последний принятый ADR в `main` — 0104. ADR-0102 привязан к слиянию [PR #232](https://github.com/metravolokos/enoTone-android/pull/232) по Issue #227, ADR-0103 — к [PR #241](https://github.com/metravolokos/enoTone-android/pull/241), ADR-0104 — к [PR #244](https://github.com/metravolokos/enoTone-android/pull/244). Ревью «что удалить» — [REDUCTION_REVIEWS](../REDUCTION_REVIEWS.md).
 
 Обозначения: **Действует** — решение реализовано в `main` и не заменено; **Частично** — реализована только часть; **Заменено** — см. колонку «Чем»; **Историческое** — этап пройден, решение развито последующими ADR.
 
