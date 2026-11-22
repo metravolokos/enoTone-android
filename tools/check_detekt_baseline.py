@@ -12,10 +12,16 @@ import sys
 
 ID = re.compile(r"<ID>")
 
+# Каталоги, которые не принадлежат проекту: артефакты сборки, служебные копии
+# рабочих деревьев агентов и локальные кэши. Без этого rglob считает baseline
+# дважды, если рядом лежит worktree с тем же исходником.
+SKIP_PARTS = frozenset({"build", ".agents", ".gradle", ".git", ".idea", ".kotlin"})
+
 
 def count_tree(root: pathlib.Path) -> int:
     return sum(len(ID.findall(p.read_text(encoding="utf-8")))
-               for p in root.rglob("detekt-baseline.xml") if "build" not in p.parts)
+               for p in root.rglob("detekt-baseline.xml")
+               if not SKIP_PARTS.intersection(p.parts))
 
 
 def count_ref(ref: str) -> int | None:

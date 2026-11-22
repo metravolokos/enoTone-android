@@ -302,7 +302,7 @@
     <string name="first_run_login_message">Connect Mail.ru Cloud and I’ll find the music in your AllMusic folder.</string>
     <string name="first_run_email">Email</string>
     <string name="first_run_app_password">External app password</string>
-    <string name="first_run_app_password_hint">A regular password will not work: use an app password created in Cloud.Mail.ru settings under "Passwords for external apps".</string>
+    <string name="first_run_app_password_hint">Use an app password, not your regular one: Cloud.Mail.ru → Settings → Passwords for external apps</string>
     <string name="first_run_connect">Connect</string>
     <string name="first_run_indexing_title">Reading your music…</string>
     <string name="first_run_progress">%1$s of %2$s songs</string>
