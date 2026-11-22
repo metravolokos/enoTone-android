@@ -285,6 +285,7 @@
     <string name="queue_already_playing">Already playing</string>
     <string name="queue_full">Queue is full</string>
     <string name="queue_empty_selection">No songs to add</string>
+    <string name="playback_connecting">Connecting to the playeru{2026}</string>
     <string name="queue_unavailable">Player unavailable</string>
     <string name="queue_edit_failed">Could not edit the queue</string>
     <string name="artist_actions">Artist actions</string>

@@ -59,6 +59,8 @@ internal fun ArtistDetailScreen(
     contentPadding: PaddingValues,
     onOpenDetail: (LibraryDetail) -> Unit,
     blur: EnoBlurState? = null,
+    /** Shown when a tap cannot start playback yet because the service is still binding. */
+    onPlaybackNotReady: () -> Unit = {},
 ) {
     val blurState = blur ?: rememberEnoBlurState()
     val plan = state.artistPlans[artist.key] ?: ArtistDetailPlan(emptyList(), emptyList(), true)
@@ -175,7 +177,9 @@ internal fun ArtistDetailScreen(
                         title = track.title,
                         subtitle = track.album.orEmpty(),
                         onClick = {
+                            // Same rule as the library list: never drop a tap silently.
                             if (canPlay) actions.onTrackClicked(track, plan.songs)
+                            else if (!state.selecting) onPlaybackNotReady()
                         },
                         onMore = { openedActions = track },
                         onLongClick = { openedActions = track },

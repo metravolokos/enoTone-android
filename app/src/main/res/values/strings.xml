@@ -305,6 +305,7 @@
     <string name="queue_already_playing">Уже играет</string>
     <string name="queue_full">Очередь заполнена</string>
     <string name="queue_empty_selection">Нет песен для добавления</string>
+    <string name="playback_connecting">Подключаюсь к плееру…</string>
     <string name="queue_unavailable">Плеер недоступен</string>
     <string name="queue_edit_failed">Не удалось изменить очередь</string>
     <string name="artist_actions">Действия исполнителя</string>

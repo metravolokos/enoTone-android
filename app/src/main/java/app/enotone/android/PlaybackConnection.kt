@@ -198,11 +198,51 @@ internal class AndroidPlaybackConnection(
             service?.player?.removeListener(listener)
             service = null
             publish()
+            // A killed service unbinds us but leaves `bound` true. Without re-binding the
+            // UI stays disconnected forever: taps are ignored and Play does nothing.
+            // BIND_AUTO_CREATE restarts the service, so a single retry is enough.
+            reattach()
         }
+        override fun onBindingDied(name: ComponentName?) {
+            // The process hosting the service is gone; the old binding is unusable and
+            // must be dropped before a new bindService call.
+            service?.player?.removeListener(listener)
+            service = null
+            publish()
+            rebind()
+        }
+    }
+
+    /** Re-establishes a lost binding without dropping the ticker or the UI snapshot. */
+    private fun reattach() {
+        if (!bound) return
+        runCatching { context.unbindService(connection) }
+        bound = false
+        service = null
+        bindNow()
+    }
+
+    /** Full rebind after the service process died: drop the stale binding, then bind. */
+    private fun rebind() {
+        ticker?.cancel()
+        ticker = null
+        runCatching { context.unbindService(connection) }
+        bound = false
+        connect()
     }
 
     override fun connect() {
         if (bound || ticker != null) return
+        bindNow()
+        ticker = scope.launch {
+            while (isActive) {
+                publish()
+                delay(POSITION_POLL_MS)
+            }
+        }
+    }
+
+    private fun bindNow() {
         try {
             bound = context.bindService(
                 Intent(context, EnoTonePlaybackService::class.java)
@@ -221,21 +261,13 @@ internal class AndroidPlaybackConnection(
                 connectTimeout?.cancel()
                 connectTimeout = scope.launch {
                     delay(CONNECT_TIMEOUT_MS)
-                    if (service == null) {
-                        mutable.value = PlaybackSnapshot(playbackState = "ERROR")
-                    }
+                    if (service == null) reattach()
                 }
             }
         } catch (_: Exception) {
             mutable.value = PlaybackSnapshot(playbackState = "ERROR")
             connectTimeout?.cancel()
             connectTimeout = null
-        }
-        ticker = scope.launch {
-            while (isActive) {
-                publish()
-                delay(POSITION_POLL_MS)
-            }
         }
     }
 
