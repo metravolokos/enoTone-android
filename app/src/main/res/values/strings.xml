@@ -324,6 +324,7 @@
     <string name="first_run_login_message">Подключите Облако Mail.ru — я найду музыку в папке AllMusic.</string>
     <string name="first_run_email">Почта</string>
     <string name="first_run_app_password">Пароль для внешнего приложения</string>
+    <string name="first_run_app_password_hint">Обычный пароль не подойдёт: нужен пароль для внешнего приложения — он создаётся в настройках Cloud.Mail.ru в разделе «Пароли для внешних приложений».</string>
     <string name="first_run_connect">Подключить</string>
     <string name="first_run_indexing_title">Читаю вашу музыку…</string>
     <string name="first_run_progress">%1$s из %2$s песен</string>

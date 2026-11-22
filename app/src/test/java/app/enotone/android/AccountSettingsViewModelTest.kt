@@ -235,6 +235,49 @@ class AccountSettingsViewModelTest {
         }
     }
 
+    @Test fun `enter again clears the rejected password but keeps the email`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply { verificationResult = AccountVerificationResult.CREDENTIALS_REJECTED }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+            model.onEmailChanged("example@invalid.test")
+            model.onPasswordChanged("wrong")
+            model.verifyConnection()
+            advanceUntilIdle()
+            assertEquals(AccountError.CREDENTIALS_REJECTED, model.state.value.error)
+
+            // «Ввести заново» обязано очистить отклонённый пароль: иначе Connect отправит
+            // то же значение, и кнопка выглядит декоративной.
+            model.clearPasswordForRetry()
+            advanceUntilIdle()
+
+            assertEquals("", model.state.value.password)
+            assertEquals("example@invalid.test", model.state.value.email)
+            assertNull("ошибка снимается вместе с паролем", model.state.value.error)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `enter again does not clear a password while signed in`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val fake = Fake().apply { persisted = StoredWebDavLogin("example@invalid.test", "secret") }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+            val before = model.state.value.password
+
+            // Во время активного входа секрет менять нельзя — только на экране ошибки.
+            model.clearPasswordForRetry()
+            advanceUntilIdle()
+
+            assertEquals(before, model.state.value.password)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
     @Test fun `confirmation cancel keeps data and failed sign out can retry`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
