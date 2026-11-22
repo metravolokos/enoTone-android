@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -46,10 +47,14 @@ import app.enotone.android.core.ui.component.BanditIllustration
 import app.enotone.android.core.ui.component.BanditPose
 import app.enotone.android.core.ui.component.EnoWordmark
 import app.enotone.library.LibraryPageVisibility
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val appContext = LocalContext.current.applicationContext
+    val snackbarScope = rememberCoroutineScope()
+    val destinationUnavailableMessage =
+        LocalContext.current.resources.getText(R.string.player_destination_unavailable).toString()
     val container = (appContext as EnoToneApplication).container
     val sessionModel: SettingsSessionViewModel = viewModel(factory = SettingsSessionFactory)
     val session = sessionModel.session
@@ -174,6 +179,13 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                     val next = AppNavigator.push(nav, detail)
                     nav = next
                     next.overlay == null && next.details.lastOrNull() == detail
+                },
+                // Без этого колбэка недоступный переход молчал: Toast убран в #270,
+                // а замена не была подключена к продакшн-вызову. Строка разрешается
+                // в композиции (stringResource-эквивалент через ресурсы приложения),
+                // а не внутри корутины через LocalContext — требование lint.
+                onDestinationUnavailable = {
+                    snackbarScope.launch { queueSnackbar.showSnackbar(destinationUnavailableMessage) }
                 },
             )
         },

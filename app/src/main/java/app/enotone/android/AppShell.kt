@@ -248,8 +248,12 @@ internal fun AppNowPlaying(
     account: AccountUiState,
     onOpenDetail: (LibraryDetail) -> Boolean,
     libraryModelOverride: LibraryViewModel? = null,
-    /** Shown instead of a Toast when a destination cannot be resolved (D5-C language). */
-    onDestinationUnavailable: () -> Unit = {},
+    /**
+     * Shown instead of a Toast when a destination cannot be resolved (D5-C language).
+     * No default value on purpose: a silent `{}` is exactly the regression that made
+     * the message disappear in #270 while the test still passed.
+     */
+    onDestinationUnavailable: () -> Unit,
 ) {
     val playback = player.playback
     val login = account.libraryLogin
