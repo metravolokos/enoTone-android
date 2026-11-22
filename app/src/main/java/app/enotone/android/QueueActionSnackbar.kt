@@ -29,11 +29,28 @@ internal fun rememberQueueSnackbar(model: LibraryViewModel?): SnackbarHostState 
     val host = remember { SnackbarHostState() }
     val resources = LocalContext.current.resources
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val context = LocalContext.current
     LaunchedEffect(model, resources, lifecycle) {
         if (model != null) lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             model.queueMessages.collectLatest { message ->
                 host.currentSnackbarData?.dismiss()
                 host.showSnackbar(message.text(resources), duration = SnackbarDuration.Short)
+            }
+        }
+    }
+    LaunchedEffect(model, resources, lifecycle) {
+        if (model != null) lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            model.playbackNotReady.collectLatest {
+                // Ask the process-scoped connection to re-bind; a lost binding is the
+                // usual reason a tap cannot start playback. The Snackbar keeps the tap
+                // from looking like a frozen screen while that happens.
+                (context.applicationContext as? EnoToneApplication)?.container
+                    ?.playbackConnection?.connect()
+                host.currentSnackbarData?.dismiss()
+                host.showSnackbar(
+                    resources.getString(R.string.playback_connecting),
+                    duration = SnackbarDuration.Short,
+                )
             }
         }
     }

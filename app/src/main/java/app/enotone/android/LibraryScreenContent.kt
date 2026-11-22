@@ -103,6 +103,8 @@ internal fun LibraryScreenContent(
     detail: LibraryDetail? = null,
     onOpenDetail: (LibraryDetail) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    /** Shown when a tap cannot start playback yet because the service is still binding. */
+    onPlaybackNotReady: () -> Unit = {},
 ) {
     androidx.compose.runtime.SideEffect { LibraryAlbumDiagnostics.record(state) }
     val section = state.section
@@ -471,7 +473,16 @@ internal fun LibraryScreenContent(
                             listOfNotNull(track.artist, track.album).joinToString(" · ")
                         },
                         onClick = {
-                            if (!selecting && state.playbackConnected) actions.onTrackClicked(track, visible)
+                            // A silent no-op reads as a broken app. While the service is
+                            // still binding, the tap must reconnect and answer; the
+                            // connection layer retries the bind on its own timeout too.
+                            if (!selecting) {
+                                if (state.playbackConnected) {
+                                    actions.onTrackClicked(track, visible)
+                                } else {
+                                    onPlaybackNotReady()
+                                }
+                            }
                         },
                         onMore = { openedActions = track },
                         onLongClick = { openedActions = track },

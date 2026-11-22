@@ -17,6 +17,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -563,6 +564,57 @@ class LibraryViewModelTest {
             library.onPageSelected(LibraryPage.ALBUMS)
             assertEquals(LibraryPage.TRACKS, library.state.value.section)
             advanceUntilIdle()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `a tap before the service is bound asks for feedback instead of vanishing`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            // Регрессия владельца: после «Выйти» → «Войти» тап по песне ничего не делал,
+            // пока пользователь не поставит песню в очередь. Тап обязан давать отклик и
+            // просить переподключение, а не молчать.
+            val connection = FakeConnection()
+            val library = model(this, FakeRepository(catalog(row(1, "A"))), player = connection)
+            advanceUntilIdle()
+            val requests = mutableListOf<Unit>()
+            val collection = launch { library.playbackNotReady.collect { requests += it } }
+            advanceUntilIdle()
+
+            library.onPlaybackNotReady()
+            advanceUntilIdle()
+
+            assertEquals("тап без соединения должен давать отклик", 1, requests.size)
+            collection.cancel()
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `playback feedback is suppressed while the account is signing out`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val connection = FakeConnection()
+            val events = MutableStateFlow(AccountState())
+            val library = model(this, FakeRepository(catalog(row(1, "A"))),
+                player = connection, events = events)
+            advanceUntilIdle()
+            val requests = mutableListOf<Unit>()
+            val collection = launch { library.playbackNotReady.collect { requests += it } }
+            advanceUntilIdle()
+
+            // Во время выхода данные аккаунта стираются — сообщений быть не должно.
+            events.value = AccountState(
+                sourceKey = LibrarySnapshotPlanner.accountKey(email),
+                phase = AccountPhase.SIGNING_OUT,
+            )
+            advanceUntilIdle()
+            library.onPlaybackNotReady()
+            advanceUntilIdle()
+
+            assertEquals(0, requests.size)
+            collection.cancel()
         } finally {
             Dispatchers.resetMain()
         }

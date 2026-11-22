@@ -94,6 +94,7 @@ internal fun OfflineLibraryScreen(
             contentPadding = contentPadding,
             onOpenDetail = onOpenDetail,
             blur = blur,
+            onPlaybackNotReady = model::onPlaybackNotReady,
         )
     } else LibraryScreenContent(
         state = state,
@@ -104,6 +105,7 @@ internal fun OfflineLibraryScreen(
         accountEmail = accountEmail,
         appPassword = appPassword,
         onOpenSettings = onOpenSettings,
+        onPlaybackNotReady = model::onPlaybackNotReady,
         contentPadding = contentPadding,
         scrollToTop = scrollToTop,
         blur = blur,

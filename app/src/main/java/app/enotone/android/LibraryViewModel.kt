@@ -121,6 +121,12 @@ internal interface LibraryScreenActions {
     fun onRepeat()
     fun onShuffle()
     fun onSeekFraction(fraction: Float)
+
+    /**
+     * Called when the user taps a row before the playback service is bound. The tap must
+     * never be a silent no-op: retry the connection and tell the user what is happening.
+     */
+    fun onPlaybackNotReady() = Unit
 }
 
 internal data class QueueActionMessage(
@@ -187,6 +193,10 @@ internal class LibraryViewModel(
     val state: StateFlow<LibraryUiState> = mutable
     private val mutableQueueMessages = MutableSharedFlow<QueueActionMessage>(extraBufferCapacity = 1)
     val queueMessages: SharedFlow<QueueActionMessage> = mutableQueueMessages
+
+    /** Emitted when a tap cannot start playback because the service is not bound yet. */
+    private val mutablePlaybackNotReady = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val playbackNotReady: SharedFlow<Unit> = mutablePlaybackNotReady
     private val searchByRoute = mutableMapOf<Pair<LibraryPage, String?>, String>()
     private var catalogue = LibrarySnapshot(emptyList(), emptyMap())
     private val sourceKey by lazy { LibrarySnapshotPlanner.accountKey(accountEmail) }
@@ -521,6 +531,19 @@ internal class LibraryViewModel(
 
     override fun onTrackClicked(track: OfflineTrackRow, context: List<OfflineTrackRow>) {
         startQueue(track, context)
+    }
+
+    /**
+     * The service binding can be lost or still pending — most visibly after sign-out
+     * followed by sign-in, when the process-scoped connection is reused. A tap in that
+     * state used to be dropped silently, which reads as a frozen app. Retry the bind and
+     * tell the user, so the next tap works.
+     */
+    override fun onPlaybackNotReady() {
+        if (unavailable()) return
+        // tryEmit: the callback is not suspend. extraBufferCapacity = 1 keeps a burst of
+        // taps from stacking messages; a dropped duplicate is harmless.
+        mutablePlaybackNotReady.tryEmit(Unit)
     }
 
     override fun onShuffleTracks(track: OfflineTrackRow, context: List<OfflineTrackRow>) {
