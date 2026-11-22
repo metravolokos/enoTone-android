@@ -12,7 +12,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -33,6 +35,7 @@ import app.enotone.playback.QueueTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -174,9 +177,15 @@ class NowPlayingActionNavigationUiTest {
         rule.runOnIdle {
             assertTrue(player.state.value.nowPlaying)
             assertEquals(AppNavState(), nav.value)
-            assertEquals(context.getString(R.string.player_destination_unavailable),
-                org.robolectric.shadows.ShadowToast.getTextOfLatestToast())
         }
+        // Сообщение показывается общим Snackbar над доком (визуальный язык D5-C),
+        // а не Toast: раньше проверялся ShadowToast.
+        val message = context.getString(R.string.player_destination_unavailable)
+        rule.waitUntil(10_000) {
+            runCatching { rule.onAllNodesWithText(message).fetchSemanticsNodes().isNotEmpty() }
+                .getOrDefault(false)
+        }
+        rule.onNodeWithText(message).assertIsDisplayed()
     }
 
     @Test fun queueMessageFromPlayerActionIsVisibleAbovePlayer() {
@@ -296,6 +305,8 @@ class NowPlayingActionNavigationUiTest {
             onCancel = backController::cancel,
         )
         val context = LocalContext.current
+        val unavailableMessage = stringResource(R.string.player_destination_unavailable)
+        val scope = rememberCoroutineScope()
         val artwork = remember(context) { ArtworkPreviewRepository(context) }
         val snapshots = remember { AppLibraryRouteSnapshots() }
         val queueSnackbar = rememberQueueSnackbar(library)
@@ -348,6 +359,11 @@ class NowPlayingActionNavigationUiTest {
                         acceptNavigation && nav.value.details.lastOrNull() == it
                     },
                     libraryModelOverride = library,
+                    onDestinationUnavailable = {
+                        // Configuration-aware строка: stringResource, а не LocalContext.
+                        val message = unavailableMessage
+                        scope.launch { queueSnackbar.showSnackbar(message) }
+                    },
                 )
             },
         )

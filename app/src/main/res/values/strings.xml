@@ -184,6 +184,7 @@
     <string name="appearance_light">Светлый</string>
     <string name="library_shuffle_all">Перемешать</string>
     <string name="home_library_sections">Разделы медиатеки</string>
+    <string name="library_play_connecting">Подключаюсь к плееру — кнопки станут доступны через секунду</string>
     <string name="ui_play">Играть</string>
     <string name="ui_songs_title">Песни</string>
     <string name="ui_search_songs">Поиск в песнях</string>

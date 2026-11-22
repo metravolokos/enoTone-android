@@ -314,6 +314,16 @@ internal fun LibraryScreenContent(
                         onClick = { actions.onShuffleAll() },
                     )
                 }
+                // Выключенная кнопка без причины читается как поломка: пока служба
+                // привязывается, объясняем это текстом, а не молчанием.
+                if (!playEnabled && !selecting) {
+                    Text(
+                        text = stringResource(R.string.library_play_connecting),
+                        color = EnoColors.textSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(bottom = 18.dp),
+                    )
+                }
             }
         }
     }
