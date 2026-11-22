@@ -1,17 +1,55 @@
-> **Актуально на 2026-11-14 в Draft PR #125** (база `main` `f979991`, #124): `main` остаётся на Room v4; PR переводит Room v4 в v5. Миграции сохраняют данные; новые решения описывает [ADR-0085](DECISIONS/ADR-0085-room-v5-duration-playlist-model.md), принятые ограничения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md). Исторические утверждения ниже относятся к ранним этапам.
+# Модель данных enoTone Android
 
-## Модель Room v5 в Draft M6-0/6
+> **Актуально на 2026-11-22**, `main` `0f5e9881`, версия `0.6.2`. Room **v7**. Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md), миграции — [ADR-0085](DECISIONS/ADR-0085-room-v5-duration-playlist-model.md) и [ADR-0091](DECISIONS/ADR-0091-no-fts-memory-search.md).
 
-- `remote_tracks.firstSeenEpochMs` (nullable) — когда трек впервые появился в медиатеке; `null` у строк до v5 и после первого импорта аккаунта; не меняется при новой версии файла (ADR-0085).
-- `remote_tracks` получает nullable `durationMs`; `null` значит неизвестно. При неизменённом ETag/size/mtime значение сохраняется, при новой версии сбрасывается. Длительность читается только из уже загруженных FLAC STREAMINFO или MP3 Xing/Info/VBRI блоков либо сохраняется при известной длительности Media3. CBR-MP3 без счётчика кадров остаётся с `null`.
-- `playlists`: `id` (UUID), `sourceKey`, `name`, `kind` (`USER`/`FAVORITES`), `createdEpochMs`, `updatedEpochMs`. Один FAVORITES на source обеспечивается DAO-транзакцией `getOrCreate`.
-- `playlist_items`: `playlistId`, `trackId`, `position`, `addedEpochMs`; составной ключ `(playlistId, trackId)` не допускает дубль. Оба внешних ключа используют `ON DELETE CASCADE`; индексы — `trackId` и `(playlistId, position)`.
-- Элемент сохраняется при `missingScans > 0`, запрос возвращает `present = false`. Выход удаляет плейлисты аккаунта перед треками в одной Room-транзакции. Переименование файла создаёт новый track ID; эвристики переноса элементов нет.
-- `remote_tracks` также содержит `id`, `sourceKey`, WebDAV version `remoteEtag/remoteSize/remoteModified`, `title`, `artist`, `album`, `albumArtist`, `year`, `trackNumber`, `discNumber`, `genre`, `tagScanCode`, `missingScans`. Импорт сохраняет теги только у неизменённой версии; `size` и `mtime` могут отменить ошибочно прежний ETag.
-- Группировка Album, ARTIST и ALBUM ARTIST — виртуальные представления локальных тегов. Неизвестный альбом не записывается как поддельный ALBUM. Пользовательские меню для scoped reindex отложены, backend есть.
-- **Обложки физически вне Room:** `filesDir/enotone-artwork-v2`, WebP-мастера **до 1200 px**, файлы `art-<sha256>.webp` + `ref-<source-hash>.txt` + `album-<album-key>.txt`. Хэши для дедупликации и ссылок, **не** для хранения имён/путей в открытом виде в файловых именах. Источник привязан к аккаунту и версии; album record задаёт одну выбранную обложку для настоящего альбома, Unknown Album использует независимые single-track группы. Никакого дискового LRU 64 МиБ, только явно подтверждаемая очистка.
-- `ON_DEMAND` / `AUTO_AFTER_IMPORT` — пользовательская настройка режима получения обложек. Source/album refs инвалидируются при явной переиндексации. **Для будущих плейлистов** допускается ссылка на тот же мастер, однако **нет реализованной модели назначения обложки плейлисту** в Room или интерфейсе. Не создавать новую таблицу только ради подготовки.
-- **Кэш аудио отдельно:** временный, ограниченный, не связан с постоянными WebP. Длительность и плейлисты не имеют UI в M6-0/6; показ длительности ожидает D4.
+## Room v7 — текущая схема
+
+Экспортированные схемы лежат в `core/database/schemas/1.json … 7.json` и коммитятся. Миграции выполняются только без потери данных.
+
+### `remote_tracks`
+
+| Поле | Тип | Смысл |
+|---|---|---|
+| `id` | TEXT | SHA-256 от `sourceKey + encodedPath`; устойчив к переименованию только при неизменном пути |
+| `sourceKey` | TEXT | хеш аккаунта; по нему ограничены все операции выхода |
+| `encodedPath` | TEXT | WebDAV-путь внутри `/AllMusic` |
+| `remoteEtag`, `remoteSize`, `remoteModified` | — | версия файла; изменение любого признака инвалидирует теги и обложку |
+| `title`, `artist`, `album`, `albumArtist`, `genre`, `year`, `trackNumber`, `discNumber` | TEXT/INT | локальные теги |
+| `durationMs` | INTEGER? | `null` значит неизвестно; CBR-MP3 без счётчика кадров остаётся `null` |
+| `firstSeenEpochMs` | INTEGER? | когда трек впервые появился; `null` у строк до v5 и у первого импорта |
+| `lastSeenEpoch`, `missingScans` | — | признак «файл ещё в источнике»; при `missingScans > 0` запрос возвращает `present = false` |
+
+Уникальный индекс — `(sourceKey, encodedPath)`.
+
+### `playlists` и `playlist_items`
+
+- `playlists`: `id` (UUID), `sourceKey`, `name`, `kind` (`USER` / `FAVORITES`), `createdEpochMs`, `updatedEpochMs`. Один `FAVORITES` на аккаунт.
+- `playlist_items`: `playlistId`, `trackId`, `position`, `addedEpochMs`; составной ключ `(playlistId, trackId)` не допускает дублей; элементы каскадно удаляются вместе с плейлистом.
+- Элемент сохраняется при `missingScans > 0` и показывается как `present = false`. Выход из аккаунта удаляет плейлисты этого `sourceKey` каскадом; данные другого аккаунта не затрагиваются.
+
+### Поиск
+
+FTS4 **отменён** ([ADR-0091](DECISIONS/ADR-0091-no-fts-memory-search.md)). Таблица `track_search` удалена миграцией 6→7. Поиск идёт по нормализованным ключам, подготовленным при загрузке медиатеки, с русской сортировкой (`Collator`) и правилами ё/е.
+
+### Группировка
+
+Album, ARTIST и ALBUM ARTIST — виртуальные представления локальных тегов, а не отдельные таблицы. «Неизвестный альбом» не смешивает треки без тегов с реальным альбомом, который называется похоже.
+
+## Обложки и аудиокэш — вне Room
+
+- **Обложки:** постоянный `filesDir/enotone-artwork-v2`, WebP-мастера **до 1200 px**, имена `art-<sha256>.webp`; ссылки `ref-<hash>.txt` (аккаунт) и `album-<hash>.txt` (альбом) хранят только хеши. Режимы `ON_DEMAND` / `AUTO_AFTER_IMPORT`, ручная очистка с показом объёма. Автоматического LRU и удаления нет ([ADR-0067](DECISIONS/ADR-0067-permanent-album-artwork.md)).
+- **Аудиокэш:** временный, отдельный от обложек, ограничен 512 МиБ через LRU и очищается при старте службы. Это не постоянное offline-хранилище.
+
+## Журналы вне Room
+
+| Хранилище | Содержимое |
+|---|---|
+| `noBackupFilesDir/enotone-queue-v1.json` + `enotone-position-v1.json` | очередь и позиция; пишутся парой (сначала структура, затем позиция), при обрыве пара восстанавливается по предыдущей структуре |
+| `noBackupFilesDir/enotone-signout-<sourceKey>.keys` | хеши ссылок на обложки для идемпотентного повтора выхода |
+| `SharedPreferences enotone_account_state` | `firstRunCompleted`, `reauthenticationRequired`, флаг незавершённого выхода и его доказательства |
+| `SharedPreferences enotone_private_auth_v1` | только AES-GCM шифротекст входа; ключ — в AndroidKeyStore ([ADR-0080](DECISIONS/ADR-0080-permanent-login-sign-out.md)) |
+
+Плейлисты и обложки плейлистов не имеют пользовательского интерфейса: модель данных готова, экрана нет.
 
 ## Историческая модель Room v1–v4
 
