@@ -182,6 +182,7 @@
     <string name="appearance_light">Light</string>
     <string name="library_shuffle_all">Shuffle</string>
     <string name="home_library_sections">Library sections</string>
+    <string name="library_play_connecting">Connecting to the player — the buttons will be available in a moment</string>
     <string name="ui_play">Play</string>
     <string name="ui_songs_title">Songs</string>
     <string name="ui_search_songs">Search in songs</string>

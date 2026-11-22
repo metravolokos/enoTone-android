@@ -248,6 +248,8 @@ internal fun AppNowPlaying(
     account: AccountUiState,
     onOpenDetail: (LibraryDetail) -> Boolean,
     libraryModelOverride: LibraryViewModel? = null,
+    /** Shown instead of a Toast when a destination cannot be resolved (D5-C language). */
+    onDestinationUnavailable: () -> Unit = {},
 ) {
     val playback = player.playback
     val login = account.libraryLogin
@@ -274,10 +276,7 @@ internal fun AppNowPlaying(
         },
         navigate = onOpenDetail,
         close = { playerModel.onNowPlaying(false) },
-        unavailable = {
-            android.widget.Toast.makeText(context,
-                R.string.player_destination_unavailable, android.widget.Toast.LENGTH_SHORT).show()
-        },
+        unavailable = onDestinationUnavailable,
     )
     val requestDetail: (LibraryPage) -> Unit = { page ->
         if (!openingDetail) {

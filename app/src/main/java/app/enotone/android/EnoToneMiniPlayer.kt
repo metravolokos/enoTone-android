@@ -41,6 +41,11 @@ internal fun EnoToneMiniPlayer(
         subtitle = subtitle,
         isPlaying = playing,
         progress = PlaybackSeekPolicy.fraction(playback.positionMs, playback.durationMs),
+        // D5: слой буфера на тонком прогрессе. Снимок уже несёт bufferedPositionMs —
+        // раньше компонент умел его рисовать, но значение не передавалось.
+        buffered = PlaybackSeekPolicy.fraction(
+            playback.bufferedPositionMs, playback.durationMs,
+        ),
         labels = EnoMiniPlayerLabels(
             open = stringResource(R.string.library_player_open),
             play = stringResource(R.string.playback_resume),
