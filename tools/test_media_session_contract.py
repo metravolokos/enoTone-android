@@ -1,6 +1,6 @@
 """M3 static security and lifecycle contract tests run in existing Python CI.
 
-The on-device behavior still requires Huawei smoke testing. These tests protect
+The on-device behavior still requires a smoke test on a physical device. These tests protect
 the explicit media service permissions, non-exported binder, and RAM-only auth.
 """
 import pathlib

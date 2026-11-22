@@ -1,6 +1,6 @@
 # Обновления зависимостей — только через PR с полным CI (ТЗ, раздел 9).
 # Media3, Compose BOM, AGP, Kotlin/KSP: каждое обновление проверяется
-# на Huawei перед слиянием; Dependabot сам ничего не сливает.
+# на устройстве перед слиянием; Dependabot сам ничего не сливает.
 version: 2
 updates:
   - package-ecosystem: gradle

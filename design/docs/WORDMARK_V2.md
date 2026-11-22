@@ -35,4 +35,4 @@
 
 ## Не проверено
 
-Вид на Huawei Nova 15 Pro; отрисовка VectorDrawable с цветами из ресурсов на Android 8–9.
+Вид на устройстве Nova 15 Pro; отрисовка VectorDrawable с цветами из ресурсов на Android 8–9.

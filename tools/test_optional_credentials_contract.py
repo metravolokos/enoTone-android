@@ -1,6 +1,6 @@
 """Security regression: non-exportable Keystore AES-GCM and disabled backup.
 
-This static test complements Android build/JUnit and Huawei device tests; it
+This static test complements Android build/JUnit and physical device tests; it
 cannot itself prove that an Android device accepts a Keystore key.
 """
 import pathlib

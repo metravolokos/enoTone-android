@@ -1,4 +1,4 @@
-"""Huawei #314 visual regression contracts (ADR-0070)."""
+"""Device build #314 visual regression contracts (ADR-0070)."""
 from pathlib import Path
 import unittest
 
