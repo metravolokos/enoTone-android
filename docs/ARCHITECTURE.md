@@ -1,7 +1,7 @@
 
 # Архитектура enoTone Android
 
-**Фактический срез:** 2026-11-22 · `main` `5ff315fdc3d4ce51ea7a95495ddca7d468b8e660` · версия `0.6.2`. Структура сверена с `settings.gradle.kts` и `app/build.gradle.kts`; детали контрактов — [MODULE_MAP](MODULE_MAP.md), [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [индекс ADR](DECISIONS/README.md). Тулчейн — Gradle 9.9.1 / AGP 9.5.1 / compileSdk 37 ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
+**Фактический срез:** 2026-11-22 · `main` `2ae9db928a922ae42f0ae759f848fcd45544bb72` · версия `0.6.2`. Структура сверена с `settings.gradle.kts` и `app/build.gradle.kts`; детали контрактов — [MODULE_MAP](MODULE_MAP.md), [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [индекс ADR](DECISIONS/README.md). Тулчейн — Gradle 9.9.1 / AGP 9.5.1 / compileSdk 37 ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
 
 ## Общая схема
 
