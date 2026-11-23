@@ -84,7 +84,7 @@ On Windows use `gradlew.bat`. Full local run takes roughly 3–5 minutes on a wa
 | Symptom | Cause | Fix |
 |---|---|---|
 | `FileNotFoundException ... .lck` | Another Gradle daemon holds the lock, or a filesystem sandbox blocks it | Stop daemons, or run with full file access |
-| `BindException: Cannot assign assigned address` | VPN intercepting loopback | Disable VPN |
+| `BindException: Cannot assign requested address` | VPN intercepting loopback | Disable VPN |
 | Robolectric tests fail with `MavenArtifactFetcher` / `IOException` | Robolectric cannot download its `android-all` jar | Re-run; if CI-only, it is an infrastructure flake, not a code defect |
 | Golden PNG mismatch after a UI change | Screenshots not updated | `./gradlew :app:recordRoborazziDebug`, review the diff visually |
 
