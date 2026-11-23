@@ -72,7 +72,7 @@
 
 ## 2026-11-23 — диагностика на устройстве
 
-Прогон на Huawei KLE-LX9 (Android 12), сборка `0.6.2-preview.1206` = `a2acdfcd`. Read-only, без root, `run-as` недоступен.
+Прогон на смартфоне без сервисов Google (Android 12), сборка `0.6.2-preview.1206` = `a2acdfcd`. Read-only, без root, `run-as` недоступен.
 
 **Привязка к коммиту доказана трижды:** ревизия из `META-INF/version-control-info.textproto` установленного APK, сертификат по pinned SHA-256, номер CI на том же SHA. Метод стоит зафиксировать в `TESTING.md`.
 

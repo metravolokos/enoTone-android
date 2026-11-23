@@ -22,7 +22,7 @@ First, because these are what the user sees and trips over.
 
 | Priority | Issue | What | Status |
 |---|---|---|---|
-| **P1** | [#272](https://github.com/metravolokos/enoTone-android/issues/272) | Neutral device references, README brought up to date | **PR ready** |
+| **P1** | [#275](https://github.com/metravolokos/enoTone-android/issues/275) | Documentation: neutral device references, README, DEVLOG, QUEUE, English set | **PR #276, CI green, awaiting merge command** |
 | **P2** | [#273](https://github.com/metravolokos/enoTone-android/issues/273) | `device` — playback service never releases its binding: FGS norm or tech debt? | awaiting owner decision |
 | **P3** | [#274](https://github.com/metravolokos/enoTone-android/issues/274) | `device` — `OPEN_NOW_PLAYING` contract requires flags | awaiting owner decision |
 

@@ -23,7 +23,7 @@
 
 | Приоритет | Issue | Что | Статус |
 |---|---|---|---|
-| **P1** | [#272](https://github.com/metravolokos/enoTone-android/issues/272) | Нейтральные упоминания устройства, README в актуальном состоянии | **PR готов** |
+| **P1** | [#275](https://github.com/metravolokos/enoTone-android/issues/275) | Документация: нейтральные упоминания, README, DEVLOG, QUEUE, английский комплект | **PR #276, CI зелёный, ждёт команды на merge** |
 | **P2** | [#273](https://github.com/metravolokos/enoTone-android/issues/273) | `device` — служба не отпускает соединение: норма FGS или техдолг | ждёт решения владельца |
 | **P3** | [#274](https://github.com/metravolokos/enoTone-android/issues/274) | `device` — контракт `OPEN_NOW_PLAYING` требует флагов | ждёт решения владельца |
 
