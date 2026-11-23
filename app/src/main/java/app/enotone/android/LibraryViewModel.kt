@@ -59,6 +59,7 @@ internal data class LibraryUiState(
     val recentlyAddedTracks: List<OfflineTrackRow> = emptyList(),
     val groupIndex: LibraryGroupIndex = LibraryGroupIndex(),
     val artistPlans: Map<String, ArtistDetailPlan> = emptyMap(),
+    val albumArtistPlans: Map<String, ArtistDetailPlan> = emptyMap(),
     val groups: List<OfflineLibraryGroup> = emptyList(),
     val shownGroups: List<OfflineLibraryGroup> = emptyList(),
     val selectedGroup: OfflineLibraryGroup? = null,
@@ -314,11 +315,20 @@ internal class LibraryViewModel(
                 val artistPlans = withContext(io) {
                     index.artists.associate { it.key to ArtistDetailPlanner.plan(it, index) }
                 }
+                // The album-artist screen reuses the artist screen (owner decision
+                // 2026-11-24), so it needs the same plan shape. The planner is already
+                // group-agnostic: albums are matched by subtitle, and for the synthetic
+                // "Разные исполнители" group nothing matches, which yields the approved
+                // ARS-04 "compilations only" mode for free.
+                val albumArtistPlans = withContext(io) {
+                    index.albumArtists.associate { it.key to ArtistDetailPlanner.plan(it, index) }
+                }
                 if (unavailable()) return@launch
                 mutable.update {
                     it.copy(tracks = result.tracks, recentlyAddedAlbums = recentAlbums,
                         recentlyAddedTracks = recentTracks, groupIndex = index,
-                        artistPlans = artistPlans, artworkCatalog = covers,
+                        artistPlans = artistPlans,
+                        albumArtistPlans = albumArtistPlans, artworkCatalog = covers,
                         loading = false, failed = false)
                 }
                 derivePages()

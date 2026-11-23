@@ -97,7 +97,12 @@ internal fun OfflineLibraryScreen(
     }
     val live by model.state.collectAsStateWithLifecycle()
     val state = routeSnapshot ?: live
-    if (detail is LibraryDetail.Artist && state.selectedGroup?.key == detail.key) {
+    // The album-artist screen is the artist screen (owner decision 2026-11-24): same
+    // composition, its own plans and detail type. The synthetic "Разные исполнители"
+    // group falls into the approved ARS-04 compilations-only mode by itself, because no
+    // album subtitle matches that name.
+    val performer = performerDetailOf(state, detail)
+    if (performer != null) {
         ArtistDetailScreen(
             state = state,
             artist = requireNotNull(state.selectedGroup),
@@ -109,6 +114,9 @@ internal fun OfflineLibraryScreen(
             onOpenDetail = onOpenDetail,
             blur = blur,
             onPlaybackNotReady = model::onPlaybackNotReady,
+            plans = performer.plans,
+            detail = performer.detail,
+            headerTag = performer.headerTag,
         )
     } else LibraryScreenContent(
         state = state,
@@ -191,4 +199,37 @@ private fun PreviewLibraryData() {
         artist = "Sample artist", album = "Sample album")
     PreviewLibrary(LibraryUiState(loading = false, tracks = listOf(row),
         visible = listOf(row)))
+}
+
+/** What the shared performer screen needs, derived once from the route detail. */
+private class PerformerRoute(
+    val plans: Map<String, ArtistDetailPlan>,
+    val detail: (String) -> LibraryDetail,
+    val headerTag: String,
+)
+
+/**
+ * Both performer screens share one composition; only the plan source, the detail type and
+ * the test tag differ. Returns null when the route is not a performer detail or the group
+ * has not loaded yet — the caller must keep protecting the fade-through from a blank header.
+ */
+private fun performerDetailOf(state: LibraryUiState, detail: LibraryDetail?): PerformerRoute? {
+    val loadedKey = state.selectedGroup?.key
+    return when (detail) {
+        is LibraryDetail.Artist -> if (loadedKey == detail.key) {
+            PerformerRoute(state.artistPlans, { LibraryDetail.Artist(it) }, "artist-detail-header")
+        } else {
+            null
+        }
+        is LibraryDetail.AlbumArtist -> if (loadedKey == detail.key) {
+            PerformerRoute(
+                state.albumArtistPlans,
+                { LibraryDetail.AlbumArtist(it) },
+                "album-artist-detail-header",
+            )
+        } else {
+            null
+        }
+        else -> null
+    }
 }
