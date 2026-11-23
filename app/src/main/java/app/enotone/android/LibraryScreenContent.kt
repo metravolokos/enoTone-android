@@ -346,7 +346,22 @@ internal fun LibraryScreenContent(
             managedIndexStatus.state == ManagedScanState.COMPLETE && !managedIndexStatus.terminating
         when {
             loading -> { header(); Text(stringResource(R.string.library_loading)) }
-            failed -> { header(); Text(stringResource(R.string.library_failed)) }
+            failed -> {
+                header()
+                // Dead end before: only a text line, no way to retry without restarting
+                // the app. Now the failure state offers the same single action pattern
+                // as every other empty state.
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                        .padding(bottom = contentPadding.calculateBottomPadding()),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    LibraryFailedState(
+                        onRetry = actions::onRetryLibrary,
+                        modifier = Modifier.fillMaxWidth().padding(top = MUSIC_MISSING_STATE_TOP),
+                    )
+                }
+            }
             emptySearchResults -> {
                 Box(
                     modifier = Modifier.fillMaxWidth().weight(1f)
@@ -643,6 +658,20 @@ private fun MusicMissingState(onOpenSettings: () -> Unit, modifier: Modifier = M
         secondaryAction = EnoStateAction(
             label = stringResource(R.string.state_music_missing_action),
             onClick = onOpenSettings,
+        ),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun LibraryFailedState(onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    EnoStateView(
+        pose = BanditPose.THINKING,
+        title = stringResource(R.string.state_library_failed_title),
+        message = stringResource(R.string.state_library_failed_message),
+        secondaryAction = EnoStateAction(
+            label = stringResource(R.string.state_library_failed_action),
+            onClick = onRetry,
         ),
         modifier = modifier,
     )

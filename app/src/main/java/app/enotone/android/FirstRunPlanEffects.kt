@@ -108,8 +108,16 @@ internal fun canAutomaticallyRetryFirstRunImport(indexing: LibraryIndexingUiStat
         ManagedScanState.ERROR -> indexing.operationFailure?.let {
             it == FirstRunIndexingFailure.CLOUD_UNAVAILABLE
         } ?: indexing.status.isNetworkFirstRunError()
+        // PAUSED means the run was interrupted without finishing: an unmounted session,
+        // a service timeout, or a network loss the user did not cause. Refusing to resume
+        // left the first-run screen frozen with progress on it and one unrelated action
+        // ("listen while reading"), which is a dead end. Resuming from a checkpoint is
+        // safe: the session continues from the last saved batch.
+        //
+        // STOPPED stays terminal on purpose: it is an explicit user or system stop, and
+        // resuming it silently would fight that decision.
+        ManagedScanState.PAUSED -> true
         ManagedScanState.RUNNING,
-        ManagedScanState.PAUSED,
         ManagedScanState.STOPPED,
         ManagedScanState.COMPLETE -> false
     }

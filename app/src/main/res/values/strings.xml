@@ -33,6 +33,9 @@
     <string name="local_store_failed">Не удалось обновить или прочитать локальную медиатеку. Личные данные не включены в отчёт.</string>
     <string name="library_back">Назад</string>
     <string name="library_loading">Читаем локальную медиатеку…</string>
+    <string name="state_library_failed_title">Не получилось прочитать</string>
+    <string name="state_library_failed_message">Локальная медиатека не открылась. Попробуем ещё раз?</string>
+    <string name="state_library_failed_action">Повторить</string>
     <string name="library_failed">Не удалось прочитать локальную медиатеку.</string>
     <string name="playback_loading">Подключение к треку…</string>
     <string name="playback_buffering">Буферизация…</string>
