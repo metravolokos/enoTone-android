@@ -61,9 +61,20 @@ internal fun ArtistDetailScreen(
     blur: EnoBlurState? = null,
     /** Shown when a tap cannot start playback yet because the service is still binding. */
     onPlaybackNotReady: () -> Unit = {},
+    /**
+     * Plans keyed by group key. Artists and album artists live in separate maps, so the
+     * screen takes the map explicitly instead of reading state.artistPlans: the same
+     * composition serves both, and the owner confirmed the album-artist screen is the
+     * artist screen (decision 2026-11-24).
+     */
+    plans: Map<String, ArtistDetailPlan> = state.artistPlans,
+    /** Detail this screen belongs to; drives the "go to artist" action in the sheet. */
+    detail: (String) -> LibraryDetail = { LibraryDetail.Artist(it) },
+    /** Test tag for route-transition assertions; one per screen kind. */
+    headerTag: String = "artist-detail-header",
 ) {
     val blurState = blur ?: rememberEnoBlurState()
-    val plan = state.artistPlans[artist.key] ?: ArtistDetailPlan(emptyList(), emptyList(), true)
+    val plan = plans[artist.key] ?: ArtistDetailPlan(emptyList(), emptyList(), true)
     val listState = rememberLazyListState()
     val stripVisible by remember(listState) {
         derivedStateOf {
@@ -84,7 +95,7 @@ internal fun ArtistDetailScreen(
         ) {
             item(key = "artist-head") {
                 Column(
-                    modifier = Modifier.fillMaxWidth().testTag("artist-detail-header")
+                    modifier = Modifier.fillMaxWidth().testTag(headerTag)
                         .padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -232,7 +243,7 @@ internal fun ArtistDetailScreen(
             track = track,
             groupIndex = state.groupIndex,
             actions = actions,
-            currentDetail = LibraryDetail.Artist(artist.key),
+            currentDetail = detail(artist.key),
             artworkCatalog = state.artworkCatalog,
             artworkRepository = artworkRepository,
             accountEmail = accountEmail,
