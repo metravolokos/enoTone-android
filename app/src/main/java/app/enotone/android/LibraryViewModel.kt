@@ -127,6 +127,13 @@ internal interface LibraryScreenActions {
      * never be a silent no-op: retry the connection and tell the user what is happening.
      */
     fun onPlaybackNotReady() = Unit
+
+    /**
+     * Retry a failed library read from the UI. Without it a read failure is a dead end:
+     * the only escape is restarting the app, because reload() is otherwise triggered
+     * only by a data revision or an account change.
+     */
+    fun onRetryLibrary() = Unit
 }
 
 internal data class QueueActionMessage(
@@ -539,6 +546,11 @@ internal class LibraryViewModel(
      * state used to be dropped silently, which reads as a frozen app. Retry the bind and
      * tell the user, so the next tap works.
      */
+    override fun onRetryLibrary() {
+        if (unavailable()) return
+        reload()
+    }
+
     override fun onPlaybackNotReady() {
         if (unavailable()) return
         // tryEmit: the callback is not suspend. extraBufferCapacity = 1 keeps a burst of

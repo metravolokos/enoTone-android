@@ -124,8 +124,29 @@ class FirstRunNetworkRecoveryTest {
         )
     }
 
-    @Test fun pausedIndexingDoesNotResumeWhenNetworkReturns() {
-        assertStoppedStatusDoesNotRetry(ManagedScanState.PAUSED, "PAUSED")
+    @Test fun pausedIndexingResumesWhenNetworkReturns() {
+        // PAUSED means the run was interrupted before finishing. Refusing to resume left
+        // the first-run screen frozen with progress on it: a dead end the user could not
+        // escape. Resuming continues from the last saved checkpoint, so it is safe.
+        val fixture = recoveryFixture()
+        prepareFailedOfflineScan(fixture)
+        rule.runOnIdle {
+            fixture.launcher.indexing.value = ManagedScanStatus(
+                state = ManagedScanState.PAUSED,
+                progress = networkFailureProgress().copy(stopCode = "PAUSED"),
+            )
+        }
+        rule.waitForIdle()
+        showFirstRunRoute(fixture)
+
+        fixture.network.setAvailable(true)
+        // The retry path asks for the notification permission before starting, exactly
+        // like the network-recovery path above. Grant it to reach the actual resume.
+        rule.waitUntil(10_000) { fixture.model.state.value.permissionPending }
+        rule.runOnIdle { fixture.model.onNotificationPermission(granted = false) }
+        rule.waitForIdle()
+
+        assertEquals("PAUSED must resume from its checkpoint", 2, fixture.launcher.indexingStarts)
     }
 
     @Test fun stoppedIndexingDoesNotResumeWhenNetworkReturns() {

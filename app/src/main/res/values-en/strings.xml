@@ -33,6 +33,9 @@
     <string name="local_store_failed">Could not update or read the local library. Private data is not included in this report.</string>
     <string name="library_back">Back</string>
     <string name="library_loading">Reading local library…</string>
+    <string name="state_library_failed_title">Could not read</string>
+    <string name="state_library_failed_message">The local library did not open. Try again?</string>
+    <string name="state_library_failed_action">Retry</string>
     <string name="library_failed">Unable to read local library.</string>
     <string name="playback_loading">Connecting to track…</string>
     <string name="playback_buffering">Buffering…</string>
