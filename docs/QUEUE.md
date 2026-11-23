@@ -68,7 +68,7 @@
 
 ## Что считается закрытым
 
-Задача закрыта, когда (по [ADR-0104](../DECISIONS/ADR-0104-auto-acceptance.md)):
+Задача закрыта, когда (по [ADR-0104](DECISIONS/ADR-0104-auto-acceptance.md)):
 - PR слит в `main`;
 - CI на точном HEAD после merge зелёный;
 - независимое ревью пройдено;
@@ -79,9 +79,9 @@
 | Вопрос | Документ |
 |---|---|
 | Что делать сейчас | **этот файл** |
-| Состояние проекта | [STATUS](../STATUS.md) |
-| Известные дефекты | [KNOWN_ISSUES](../KNOWN_ISSUES.md) |
-| Этапы и их последовательность | [ROADMAP](../ROADMAP.md) |
-| Требования и доказательства | [REQUIREMENTS](../REQUIREMENTS.md) |
-| Сценарии и их приёмка | [SCENARIOS](../SCENARIOS.md) |
-| Процесс работы | [WORKFLOW](../WORKFLOW.md) |
+| Состояние проекта | [STATUS](STATUS.md) |
+| Известные дефекты | [KNOWN_ISSUES](KNOWN_ISSUES.md) |
+| Этапы и их последовательность | [ROADMAP](ROADMAP.md) |
+| Требования и доказательства | [REQUIREMENTS](REQUIREMENTS.md) |
+| Сценарии и их приёмка | [SCENARIOS](SCENARIOS.md) |
+| Процесс работы | [WORKFLOW](WORKFLOW.md) |

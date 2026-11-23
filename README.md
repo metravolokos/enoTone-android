@@ -2,7 +2,7 @@
 
 **enoTone** — нативный Android-аудиоплеер на Kotlin и Jetpack Compose для личной музыки из Cloud.Mail.ru через HTTPS WebDAV. Основная проверенная структура — плоская папка `/AllMusic`. Приложение не зависит от Google Play Services и Firebase, работает на смартфонах без сервисов Google. Старый Flutter-прототип не используется.
 
-**Срез: 23 ноября 2026, `main` `92348b9f`, версия приложения `0.6.2`.** Проект в разработке, это не публичный релиз. Оперативные факты — [STATUS](docs/STATUS.md), известные ограничения — [KNOWN_ISSUES](docs/KNOWN_ISSUES.md), план — [ROADMAP](docs/ROADMAP.md).
+**Срез: 23 ноября 2026, `main` `59dd26a4`, версия приложения `0.6.2`.** Проект в разработке, это не публичный релиз. Оперативные факты — [STATUS](docs/STATUS.md), известные ограничения — [KNOWN_ISSUES](docs/KNOWN_ISSUES.md), план — [ROADMAP](docs/ROADMAP.md).
 
 ## Реализовано в `main`
 

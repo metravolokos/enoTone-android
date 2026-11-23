@@ -1,7 +1,7 @@
 
 # Архитектура enoTone Android
 
-**Фактический срез:** 2026-11-22 · `main` `2ae9db928a922ae42f0ae759f848fcd45544bb72` · версия `0.6.2`. Структура сверена с `settings.gradle.kts` и `app/build.gradle.kts`; детали контрактов — [MODULE_MAP](MODULE_MAP.md), [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [индекс ADR](DECISIONS/README.md). Тулчейн — Gradle 9.9.1 / AGP 9.5.1 / compileSdk 37 ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
+**Фактический срез:** 2026-11-23 · `main` `59dd26a4c3cc9e0bd27c8c0c8470361fca4a92a9` · версия `0.6.2`. Структура сверена с `settings.gradle.kts` и `app/build.gradle.kts`; детали контрактов — [MODULE_MAP](MODULE_MAP.md), [CURRENT_DECISIONS](CURRENT_DECISIONS.md), [индекс ADR](DECISIONS/README.md). Тулчейн — Gradle 9.9.1 / AGP 9.5.1 / compileSdk 37 ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
 
 ## Общая схема
 
@@ -53,4 +53,4 @@ flowchart TD
 
 Единственный действующий источник дизайн-ресурсов/эталонов — [`design/`](../design/README.md) **в этом репозитории**; перенос ресурсов — только `design/tools/sync_android.py` ([ADR-0090](DECISIONS/ADR-0090-design-in-app-repo.md)). Визуальное руководство — [ADR-0084](DECISIONS/ADR-0084-android-v2-design-system.md); Graphite Material 3 (ADR-0073) и ранние концепции заменены.
 
-Проверки: JUnit, Robolectric/Compose UI, Roborazzi, detekt/ktlint, Room schema, контроль GMS и синхронизации дизайна ([TESTING](TESTING.md)). CI подтверждает только автоматические свойства; результат устройство — исключительно [SCENARIOS](SCENARIOS.md). Остаются отдельные вопросы унификации трёх сетевых стеков, работы на Windows, восстановления после ошибок и offline-функций ([KNOWN_ISSUES](KNOWN_ISSUES.md)).
+Проверки: JUnit, Robolectric/Compose UI, Roborazzi, detekt/ktlint, Room schema, контроль GMS и синхронизации дизайна ([TESTING](TESTING.md)). CI подтверждает только автоматические свойства; результат на устройстве — исключительно [SCENARIOS](SCENARIOS.md). Остаются отдельные вопросы унификации трёх сетевых стеков, работы на Windows, восстановления после ошибок и offline-функций ([KNOWN_ISSUES](KNOWN_ISSUES.md)).

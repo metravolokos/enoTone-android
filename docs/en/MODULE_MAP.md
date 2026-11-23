@@ -1,6 +1,6 @@
 # Module map — where each concern lives
 
-> **Translated from:** `docs/MODULE_MAP.md` at `main` `92348b9f`, 2026-11-23. Russian is canonical.
+> **Translated from:** `docs/MODULE_MAP.md` at `main` `59dd26a4`, 2026-11-23. Russian is canonical.
 
 Use this to jump straight to the code for a concern instead of searching the tree.
 

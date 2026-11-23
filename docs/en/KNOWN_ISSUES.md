@@ -1,8 +1,8 @@
 # KNOWN ISSUES — current defects and limitations
 
-> **Translated from:** `docs/KNOWN_ISSUES.md` at `main` `92348b9f`, 2026-11-23. Russian is canonical.
+> **Translated from:** `docs/KNOWN_ISSUES.md` at `main` `59dd26a4`, 2026-11-23. Russian is canonical: if they disagree, Russian wins.
 
-**Snapshot:** 2026-11-23 · version `0.6.2` · `main` `92348b9f`. Acceptance is by automated checks ([ADR-0104](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0104-auto-acceptance.md)). A defect found on a device becomes a separate Issue labelled `bug`.
+**Snapshot:** 2026-11-23 · version `0.6.2` · `main` `59dd26a4`. Acceptance is by automated checks ([ADR-0104](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0104-auto-acceptance.md)). A defect found on a device becomes a separate Issue labelled `bug`.
 
 Only defects confirmed on the current code belong here. Findings that need an owner decision or a new ADR are tracked in Issues, not in this list.
 
@@ -10,52 +10,67 @@ Only defects confirmed on the current code belong here. Findings that need an ow
 
 | Problem | Consequence | Plan |
 |---|---|---|
-| The first queue after a service start may play without the transient cache: it is prepared in the background and picked up for the next queue (ADR-0094) | The first track after a service restart is fetched over the network | Revisit if it becomes noticeable: warm the cache on app start rather than in `playQueue` |
+| The first queue after a service start may play without the transient cache: it is prepared in the background and picked up for the next queue (ADR-0094) | The first track after a service restart is fetched over the network; prefetch of the next track starts from the second queue | Revisit if it becomes noticeable: warm the cache on app start rather than in `playQueue` |
 | File size and ETag are captured when the queue is created; response `416` is not handled | A file changed on the server will not play until the queue is recreated | Requires an ADR on the network layer |
-| The playback service keeps its binding while paused in the background: `isForeground=true`, `am stopservice` is rejected | The states that `#258` (silent `bindService`) and the #268 regression were written for are nearly unreachable in practice | See [#273](https://github.com/metravolokos/enoTone-android/issues/273) — awaiting an owner decision |
-| `OPEN_NOW_PLAYING` extra does not open Now Playing on an already running activity without `NEW_TASK` / single-top | External calls break; the notification itself sends correct flags, so the user path is unaffected | See [#274](https://github.com/metravolokos/enoTone-android/issues/274) |
-| `restoredAccount` is not released after a failed restore | A single transient read failure can block queue restore; the fix ships with a bounded retry budget | [#254](https://github.com/metravolokos/enoTone-android/issues/254) |
-| Prefetch cancellation race in `TransientMediaCache.prefetchNext` | A download can start after the track changed or playback stopped | [#255](https://github.com/metravolokos/enoTone-android/issues/255) |
-| Bluetooth MediaSession does not implement `onPlaybackResumption` after process death | Headset auto-resume does not work without opening the app | Separate PR |
-| `bindService` returned `true` but the service never connected: an error is shown, but no automatic re-bind | Dead end without restarting the app | [#258](https://github.com/metravolokos/enoTone-android/issues/258) |
+| Tracks from the first import have no `firstSeenEpochMs` | They do not appear in "Recently added"; backfilling from `remoteModified` was not approved by the owner | Retro-fill decision — [Issue #201](https://github.com/metravolokos/enoTone-android/issues/201) |
+| Switching Wi-Fi ↔ LTE during a track produces an error; a network signal exists (ADR-0102) but the player does not use it | Manual retry after switching networks | Separate task |
+| The transient audio cache is wiped on service start; there is no pinning of current/next, only a 512 MiB LRU | Repeated traffic after a restart | Later, needs an ADR |
+| `EnoTonePlaybackService` is `exported="false"` and there is no `MediaLibraryService` | External `MediaController` / Android Auto may fail to connect (unverified) | Later |
+| Bluetooth MediaSession does not implement `onPlaybackResumption` after process death | A headset cannot auto-resume without opening the app | Separate PR |
+| The playback service keeps its binding while paused in the background: `isForeground=true`, `am stopservice` is rejected | The states that #258 and the #268 regression were written for are nearly unreachable in practice | See [#273](https://github.com/metravolokos/enoTone-android/issues/273) — awaiting an owner decision |
+| The queue-restore attempt budget does not work: `restoreAttempts` is reset before every attempt, and the test emits equal snapshots, producing a false pass | `StateFlow` does not emit equal values: with an unchanged state there is no retry at all, and with a changing state the budget does not limit anything | [#254](https://github.com/metravolokos/enoTone-android/issues/254) |
+| Prefetch cancellation race in `TransientMediaCache.prefetchNext` | A download starts after the track changed or playback stopped | [#255](https://github.com/metravolokos/enoTone-android/issues/255) |
+| `bindService` returned `true` but the service never connected: `ERROR` is shown, there is no re-bind, and `retryCurrent()` is useless when `service == null` | Dead end with no way out but restarting the app | [#258](https://github.com/metravolokos/enoTone-android/issues/258) |
+| The `OPEN_NOW_PLAYING` extra does not open Now Playing on an already running activity without `NEW_TASK` / `singleTop` | External calls break; the notification itself sends correct flags, so the user path is unaffected | See [#274](https://github.com/metravolokos/enoTone-android/issues/274) |
 
 ## Data and privacy
 
 | Problem | Consequence | Plan |
 |---|---|---|
-| Sign-out does not guarantee that audio data is removed before the Keystore is cleared: `stopPlayback()` only enqueues cleanup, suppresses errors and does not close the open `SimpleCache` | The Keystore is cleared while files may still be on disk — the fail-closed order of ADR-0080 is violated | [#256](https://github.com/metravolokos/enoTone-android/issues/256), risk class R |
-| Scoped sign-out with another account present cleans only the permanent artwork store; legacy `cacheDir/enotone-artwork-v2` survives and is restored after signing in again | An old cover image returns after sign-out → sign-in | [#256](https://github.com/metravolokos/enoTone-android/issues/256), risk class R |
+| When artwork masters are deleted, an unreadable `ref-*.txt` is silently treated as absent | A master referenced by another account can be deleted as an "orphan" — silent data loss with multiple accounts | Separate PR; does not occur with a single account ([AccountArtworkFileCleanup.kt:27-43](https://github.com/metravolokos/enoTone-android/blob/main/app/src/main/java/app/enotone/android/AccountArtworkFileCleanup.kt#L27-L43)) |
+| Sign-out does not guarantee that audio data is removed before the Keystore is cleared: `stopPlayback()` only enqueues cleanup, suppresses errors, and does not close the open `SimpleCache` | The Keystore is cleared while files may still be on disk — the fail-closed order of ADR-0080 is violated | [#256](https://github.com/metravolokos/enoTone-android/issues/256), risk class R |
+| Scoped sign-out with another account present cleans only the permanent artwork store; legacy `cacheDir/enotone-artwork-v2` survives and is restored after signing in again | An old artwork master returns after sign-out → sign-in | [#256](https://github.com/metravolokos/enoTone-android/issues/256), risk class R |
+| `QueueStateFileStore.clear()` ignores the result of every `delete()` | A silent deletion failure does not stop sign-out | [#256](https://github.com/metravolokos/enoTone-android/issues/256) |
 
 ## Data and network
 
 | Problem | Consequence | Plan |
 |---|---|---|
-| Track ID is `SHA-256(source + encodedPath)` without encoding canonicalisation; a rename becomes a new track | Renaming loses the playlist entry | Limitation of ADR-0085 |
-| Tags are read for MP3/FLAC only; ID3v2.3 tag-level unsync is deliberately rejected; MPEG-2/2.5 and hybrid unsync lack fixtures | Other formats and rare ID3 cases are partially supported | Separate decision and tests ([#182](https://github.com/metravolokos/enoTone-android/issues/182)) |
+| Track ID is `SHA-256(source + encodedPath)` without encoding canonicalisation; a rename becomes a new track | Renaming does not carry a playlist entry over to the new ID | Limitation of ADR-0085 |
+| FTS4 abandoned (#143, ADR-0091): the index is removed, Room v7, search runs over precomputed keys | No separate measurement of search latency ≤20 ms | Per [ADR-0104](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0104-auto-acceptance.md) acceptance does not require a measurement; a complaint becomes a separate Issue |
 | Three HTTP stacks (Ktor CIO, `HttpURLConnection`, `HttpsURLConnection`) with no shared backoff with jitter | Duplicated logic; system proxy/VPN behaviour for Ktor CIO is unverified | Requires an ADR on a unified HTTP stack |
+| Tags are read for MP3/FLAC only; ID3v2.3 tag-level unsync is deliberately rejected; MPEG-2/2.5 and hybrid unsync lack fixtures (#182) | Other formats and rare ID3 cases are only partially supported | Separate decision and tests ([#182](https://github.com/metravolokos/enoTone-android/issues/182)) |
 
 ## Architecture and quality
 
 | Problem | Plan |
 |---|---|
-| Installing the APK outside an app store triggers a generic "threat detected" warning from the installer on some vendor ROMs. This is a general warning for apps outside the store; permissions and libraries have been checked, there are no third-party SDKs | Tap "Install"; the only way to remove the warning is publishing to a store — see OPEN_QUESTIONS |
+| Indexing-session limits (`SESSION_BATCH_LIMIT`, `SESSION_TIME_BUDGET`) make `IndexingRunner` report `COMPLETE`, so the first run shows "All done" while part of the library is unread. **The first run can show "All done" with unread tracks** | [#257](https://github.com/metravolokos/enoTone-android/issues/257) |
+| `LibraryDataRevision` counts only `savedWithTags` and ignores `completedWithoutTags`; the terminal `COMPLETE` is published with `terminating = true` | [#257](https://github.com/metravolokos/enoTone-android/issues/257) |
+| Invalidation removes the permanent ref, but the next request migrates the legacy copy; `remoteModified` is not part of the key | [#256](https://github.com/metravolokos/enoTone-android/issues/256) |
+| `artworkJob` can be cancelled by a repeated `refreshArtwork()` while `selecting` holds `LOADING`; a transition to `PLAYING` without a `trackId` change does not restart artwork loading | Measurement and a test before fixing |
+| After an album refresh both `reload()` and `LibraryDataRevision.bump()` run — two reloads | [#258](https://github.com/metravolokos/enoTone-android/issues/258) |
+| Installing the APK outside an app store triggers a generic "threat detected" warning from the installer on some vendor ROMs (first seen on `0.6.0-preview.429`). This is a general warning for apps outside the store; permissions and libraries have been checked, there are no third-party SDKs | Tap "Install"; the only way to remove the warning is publishing to AppGallery / F-Droid — see OPEN_QUESTIONS |
 | Compose BOM `2026.11.01` (Compose 1.13) requires compileSdk `37.1`; waiting for publication and an owner decision | Stay on the published stable BOM `2026.09.00`; do not change compileSdk without an owner decision |
 | Some older `tools/test_*_contract.py` still check source text instead of behaviour; 6 contract files were already replaced, 16 remain | Replace the rest with behavioural JUnit/Robolectric tests; do not add new text contracts |
 | 429 pre-existing detekt findings in the baseline | Must decrease; growth is blocked by CI ([ADR-0076](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0076-quality-tooling.md)) |
-| No release workflow triggered by a tag | PR #198 added a minified APK build but not signing or tag publishing |
-| No `LICENSE` file (owner decision) | Owner has not chosen a license yet |
+| There is no separate confirmation that KSP 2.3.13, Room 2.8.5 and Roborazzi 1.79.0 officially support Gradle 9.9.1 + AGP 9.5.1 | Empirically the Android M0 CI is green; this is not a vendor guarantee ([ADR-0100](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)) |
+| detekt 1.23.8 does not officially support Gradle 9 and AGP 9; detekt 2.x exists only as alphas | Migration to 2.x only by a separate owner decision once a stable release exists |
+| R8 in AGP 9 prunes resources more aggressively: `isShrinkResources = true` removed 156 resources, including notification layouts from `androidx.core` and Media3 | Both indexing services use the platform `Notification.Builder`; `EnoTonePlaybackService` extends `MediaSessionService` and keeps the standard Media3 provider. Verify against the release build artefacts in CI (`resources.txt`, `mapping.txt`), not on a device ([ADR-0100](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)) |
+| No release workflow triggered by a tag | PR #198 (R-A1) added a minified APK build but not signing or tag publishing |
+| No `LICENSE` file (owner decision) | M6-0/8 |
 
 ## Requires an owner decision
 
 | Problem | What to decide |
 |---|---|
 | Legacy sign-out journal with `pending=true`, empty vault and non-empty Room without a manifest | Fail-closed per [ADR-0103](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0103-legacy-signout-recovery.md): such a leftover is not recovered automatically. Either build a manual completion screen (option 2 in the ADR) or accept it as is |
-| Six scenarios without automated coverage | Either add tests or explicitly accept the gap — see `docs/SCENARIOS.md` (Russian) |
+| Ten scenarios without automated coverage | Either add tests or explicitly accept the gap — see `docs/SCENARIOS.md` (Russian) |
 | Sorting, playlists, offline cache, global search, diagnostics export | See [#266](https://github.com/metravolokos/enoTone-android/issues/266) |
 
 ## Not implemented from the original spec (scope, not defects)
 
-Diagnostic report export and a ring log buffer; `ACTION_VIEW/SEND`; SAF source; AI settings and interfaces; playlist UI; landscape and tablets (orientation is locked to portrait).
+Diagnostic report export and a ring log buffer; `ACTION_VIEW`/`SEND`; SAF source; AI settings and interfaces; playlist UI; landscape and tablets (orientation is locked to portrait).
 
 Queue deletion and reordering (Q2, #193) were cancelled by the owner; returning to them requires the owner's initiative and a design. Tag editing with cloud write-back (TAG-EDIT, #200) was **cancelled by the owner on 2026-11-21** — not deferred: the feature is too complex for a simple player. Tag reading, indexing and tag-based grouping remain in place.
 

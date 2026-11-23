@@ -1,6 +1,6 @@
 # Architecture — enoTone Android
 
-> **Translated from:** `docs/ARCHITECTURE.md` at `main` `92348b9f`, 2026-11-23.
+> **Translated from:** `docs/ARCHITECTURE.md` at `main` `59dd26a4`, 2026-11-23.
 > The Russian document is canonical. If they disagree, Russian wins.
 
 ## Overview

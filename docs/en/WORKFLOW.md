@@ -1,6 +1,6 @@
 # Workflow — coordinating enoTone development through GitHub
 
-> **Translated from:** `docs/WORKFLOW.md` at `main` `92348b9f`, 2026-11-23. Russian is canonical.
+> **Translated from:** `docs/WORKFLOW.md` at `main` `59dd26a4`, 2026-11-23. Russian is canonical.
 
 ## 1. Sources of truth
 

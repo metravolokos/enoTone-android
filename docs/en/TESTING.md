@@ -1,6 +1,6 @@
 # Testing and acceptance
 
-> **Translated from:** `docs/TESTING.md` at `main` `92348b9f`, 2026-11-23. Russian is canonical.
+> **Translated from:** `docs/TESTING.md` at `main` `59dd26a4`, 2026-11-23. Russian is canonical.
 
 ## 1. What runs in CI
 
