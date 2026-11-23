@@ -22,8 +22,11 @@ class MiniPlayerUiTest {
     @get:Rule val rule = createComposeRule()
 
     @Test fun errorSubtitleDoesNotShowTheNumericCode() {
+        // Since #264 the subtitle is also the retry affordance, so ERROR shows the
+        // retry variant. The point of this test is unchanged: the numeric code must
+        // never reach the UI.
         val errorSubtitle = ApplicationProvider.getApplicationContext<Context>()
-            .getString(R.string.playback_error)
+            .getString(R.string.playback_error_retry)
         rule.setContent {
             EnoToneTheme {
                 EnoToneMiniPlayer(

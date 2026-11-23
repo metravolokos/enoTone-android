@@ -39,6 +39,7 @@
     <string name="playback_playing">Playing</string>
     <string name="playback_paused">Paused</string>
     <string name="playback_ended">Stopped / finished</string>
+    <string name="playback_error_retry">Playback error · Tap to retry</string>
     <string name="playback_error">Playback error.</string>
     <string name="error_sheet_no_cloud">There’s no connection to the Cloud, so it’s time for a little rest!</string>
     <string name="error_sheet_cloud_access">The Cloud won’t let me play this song, so I’ll go rest!</string>

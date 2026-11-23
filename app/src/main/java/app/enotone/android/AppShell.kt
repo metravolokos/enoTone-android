@@ -151,6 +151,7 @@ internal fun AppMusicShell(
                             onOpen = { playerModel.onNowPlaying(true) },
                             onPlayPause = playerModel::onPlayPause,
                             onNext = playerModel::onNext,
+                            onRetryCurrent = { playerModel.onRetryCurrent() },
                         )
                     },
                     bottomBar = {

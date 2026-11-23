@@ -39,6 +39,7 @@
     <string name="playback_playing">Воспроизведение</string>
     <string name="playback_paused">Пауза</string>
     <string name="playback_ended">Остановлено / завершено</string>
+    <string name="playback_error_retry">Ошибка воспроизведения · Повторить</string>
     <string name="playback_error">Ошибка воспроизведения.</string>
     <string name="error_sheet_no_cloud">Связи с Облаком нет, самое время немного отдохнуть!</string>
     <string name="error_sheet_cloud_access">Облако не пускает к песне, пойду отдыхать!</string>
