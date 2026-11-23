@@ -57,6 +57,8 @@ fun EnoMiniPlayer(
     buffered: Float? = null,
     playEnabled: Boolean = true,
     nextEnabled: Boolean = true,
+    /** Makes the subtitle a retry affordance; null leaves it plain text. */
+    onSubtitleClick: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(EnoRadii.m)
     Box(
@@ -116,8 +118,14 @@ fun EnoMiniPlayer(
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (subtitle.isNotBlank()) {
+                        val subtitleModifier = if (onSubtitleClick != null) {
+                            Modifier.clickable(onClick = onSubtitleClick)
+                        } else {
+                            Modifier
+                        }
                         Text(
                             text = subtitle,
+                            modifier = subtitleModifier,
                             style = MaterialTheme.typography.bodySmall,
                             color = EnoColors.textSecondary,
                             maxLines = 1,

@@ -23,14 +23,18 @@ internal fun EnoToneMiniPlayer(
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
     selecting: Boolean = false,
+    onRetryCurrent: () -> Unit = {},
 ) {
     val playback = player.playback
     if (playback.queueTotal <= 0) return
     val state = playback.playbackState
     val playing = state == "PLAYING" || state == "BUFFERING"
     // Ошибка видна сразу в мини-плеере, а не только на «Сейчас играет».
+    // С #264 подпись ошибки — ещё и постоянная точка повтора: лист ошибки показывается
+    // один раз на вход в ERROR, а после его закрытия повторить трек было нечем.
+    val isError = state == "ERROR"
     val subtitle = when (state) {
-        "ERROR" -> stringResource(R.string.playback_error)
+        "ERROR" -> stringResource(R.string.playback_error_retry)
         "MISSING_PASSWORD" -> stringResource(R.string.playback_missing_password)
         "MISSING_TRACK" -> stringResource(R.string.playback_missing_track)
         else -> playback.artist.orEmpty()
@@ -55,6 +59,7 @@ internal fun EnoToneMiniPlayer(
         onOpen = onOpen,
         onPlayPause = onPlayPause,
         onNext = onNext,
+        onSubtitleClick = if (isError) onRetryCurrent else null,
         modifier = modifier,
         artwork = artwork?.let { bitmap ->
             @Composable {
