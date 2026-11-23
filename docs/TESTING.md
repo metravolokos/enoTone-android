@@ -59,7 +59,7 @@ Mock-сервер: `python3 tools/mock_webdav.py` (только HTTP на loopba
 ### Robolectric и Compose UI (начиная с #118, дополнены в D3.5/D5)
 
 - JVM под Robolectric 4.17 (SDK 35), **без эмулятора**: `./gradlew :core:database:testDebugUnitTest :data:playlist:testDebugUnitTest :app:testDebugUnitTest`. Экспортированные схемы Room v1–v5 читаются из `core/database/schemas` как debug assets.
-- `EnoToneMigrationTest` начался с проверок миграций через v5 (длительность и модель плейлистов); актуальная схема — **Room v7** после удаления FTS4 (#143). CI сверяет экспортированные v1–v7. **На Windows локальный запуск 7 тестов миграций проходит** после тест-локального обхода дефекта `androidx.sqlite` ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), находка F-01 [аудита](audit/AUDIT_2026-11-17_local-state.md)): `SupportSQLiteDriver` сравнивает пути через `substringAfterLast('/')` и на Windows отвергает абсолютный путь, поэтому тест передаёт `MigrationTestHelper` фабрику `PathAwareSQLiteOpenHelperFactory`, сообщающую драйверу тот же абсолютный путь. Локальный прогон в любом случае не подтверждает поведение v6→v7 на Huawei — это отдельное доказательство.
+- `EnoToneMigrationTest` начался с проверок миграций через v5 (длительность и модель плейлистов); актуальная схема — **Room v7** после удаления FTS4 (#143). CI сверяет экспортированные v1–v7. **На Windows локальный запуск 7 тестов миграций проходит** после тест-локального обхода дефекта `androidx.sqlite` ([ADR-0097](DECISIONS/ADR-0097-migration-test-helper-windows.md), находка F-01 [аудита](audit/AUDIT_2026-11-17_local-state.md)): `SupportSQLiteDriver` сравнивает пути через `substringAfterLast('/')` и на Windows отвергает абсолютный путь, поэтому тест передаёт `MigrationTestHelper` фабрику `PathAwareSQLiteOpenHelperFactory`, сообщающую драйверу тот же абсолютный путь. Локальный прогон в любом случае не подтверждает поведение v6→v7 на устройстве — это отдельное доказательство.
 - `RemoteTrackDaoTest`: изоляция аккаунтов, CAS тегов, fast-scan, очередь выборочной/полной переиндексации без потери тегов, аудит с лимитом 30, удаление по sourceKey.
 - M6-0/6: `PlaylistRepositoryTest` проверяет конкурирующий get-or-create «Избранного», отсутствие дублей, порядок и `present`, FK-каскады и изоляцию очистки аккаунта; парсер длительности тестирует синтетические FLAC/MP3-заголовки без дополнительных Range-запросов.
 - `NowPlayingUiTest`, `SettingsActionsUiTest`, `HomeNavigationUiTest`, `LibraryVisibilityUiTest`, `MainActivitySettingsUiTest`: Compose-семантика и нажатия через фейковые действия, без WebDAV и реальной переиндексации.
@@ -94,7 +94,7 @@ D4c (#201) добавляет `RecentlyAddedPlannerTest`, `RecentlyAddedUiTest` 
 покрывают обе темы: `home_recent_both_*`, `home_recent_empty_*`,
 `home_recent_all_albums_*` и `home_recent_all_songs_*`. Эталоны записаны через
 CI workflow dispatch с `record_roborazzi=true` и включены в PR #205; exact-HEAD
-CI и Huawei-приёмка отслеживаются отдельно.
+CI и Device-приёмка отслеживаются отдельно.
 
 D2b добавляет `ComponentsScreenshotTest` (две галереи компонентов в обеих темах), `EnoLetterAvatarTest` (Unicode/grapheme/детерминированность), dual-Preview у каждого компонента. PNG-эталоны D2b: `core/ui/src/test/screenshots/components_graphite.png`, `components_porcelain.png`, записываются тем же `record_roborazzi=true` на stacked-ветке после D2a.
 
@@ -102,7 +102,7 @@ D2b добавляет `ComponentsScreenshotTest` (две галереи ком�
 
 ### Текущий контур motion/Now Playing (D3.5, D5)
 
-После merge #169/#176 страницы используют единый fade-through, полный плеер — вертикальную шторку. JVM/Compose UI тесты `AppMotionTest`, `AppMotionFrameUiTest`, `AppPlayerSheetBackUiTest`, `AppNowPlayingGestureUiTest`, `AppDockOpaqueUiTest` проверяют переходы и отдельные кадры на Robolectric; Roborazzi проверяет зафиксированные PNG для Android v2 и состояний буфера. Это **не** системный predictive Back, FPS, TalkBack или время отклика на физическом Huawei. Владелец 2026-11-17 общим сообщением подтвердил принятые ранее PR (включая NAV-15…17 и PLAY-10), но **отдельных замеров и поимённых PASS нет**: итог сценариев — только [SCENARIOS](SCENARIOS.md).
+После merge #169/#176 страницы используют единый fade-through, полный плеер — вертикальную шторку. JVM/Compose UI тесты `AppMotionTest`, `AppMotionFrameUiTest`, `AppPlayerSheetBackUiTest`, `AppNowPlayingGestureUiTest`, `AppDockOpaqueUiTest` проверяют переходы и отдельные кадры на Robolectric; Roborazzi проверяет зафиксированные PNG для Android v2 и состояний буфера. Это **не** системный predictive Back, FPS, TalkBack или время отклика на физическом устройстве. Владелец 2026-11-17 общим сообщением подтвердил принятые ранее PR (включая NAV-15…17 и PLAY-10), но **отдельных замеров и поимённых PASS нет**: итог сценариев — только [SCENARIOS](SCENARIOS.md).
 
 Резервное зеркало компилятора: с [ADR-0098](DECISIONS/ADR-0098-ci-compiler-mirror-version-from-catalog.md) шаг CI читает версию `kotlin` из `gradle/libs.versions.toml` и берёт SHA-256 из таблицы пинов, поэтому зеркало обслуживает тот компилятор, который запрашивает сборка (2.4.21, пин `ef19419c…f1d02`). Неизвестная версия — падение шага с `::error::` до любых сетевых запросов, а не молчаливая подмена. Проверяется поведением, а не отдельным файлом-контрактом (AGENTS.md §4): подъём Kotlin без пина красит CI на точном HEAD, поэтому дополнительных тестов на текст `ci.yml` нет. Хеш остаётся ручным: Maven Central не публикует `.jar.sha256` для этого артефакта.
 
@@ -113,7 +113,7 @@ D2b добавляет `ComponentsScreenshotTest` (две галереи ком�
 
 ### Проверки новых элементов D5-C (#183)
 
-После слияния #183 (squash `61ced66`) поведение общего листа и переходы тестируются `NowPlayingActionNavigationUiTest`, сообщения очереди — `AppQueueSnackbarLayoutUiTest`, визуал — восемью PNG в двух темах. CI #1001 (попытка 2) подтвердил тесты для кодового HEAD #183; это не отчёт об аппаратной приёмке. На Huawei после merge требуется проверить ACT-01/03, сообщения очереди над плеером и доком, вход в «Настройки» без мигания, новые DES-01/O-08 в обеих темах и положение нижнего ряда; вертикальная раскладка принята владельцем как есть.
+После слияния #183 (squash `61ced66`) поведение общего листа и переходы тестируются `NowPlayingActionNavigationUiTest`, сообщения очереди — `AppQueueSnackbarLayoutUiTest`, визуал — восемью PNG в двух темах. CI #1001 (попытка 2) подтвердил тесты для кодового HEAD #183; это не отчёт об аппаратной приёмке. На устройстве после merge требуется проверить ACT-01/03, сообщения очереди над плеером и доком, вход в «Настройки» без мигания, новые DES-01/O-08 в обеих темах и положение нижнего ряда; вертикальная раскладка принята владельцем как есть.
 
 ## 2. Приёмка и проверка на устройстве
 
@@ -139,7 +139,7 @@ D2b добавляет `ComponentsScreenshotTest` (две галереи ком�
 идёт общим порядком: ветка, тесты, CI точного HEAD, ревью, merge. Это не отменяет
 приёмку уже слитых сценариев и не требует пересмотра прежних результатов.
 
-Текущая аппаратная база: Huawei KLE-LX9 (Android 12), установлена
+Текущая аппаратная база: устройство KLE-LX9 (Android 12), установлена
 `app.enotone.android.preview` версии `0.6.2-preview.1161` (2026-11-20). Базовая
 приёмка прошла на Stable Preview #301: владелец сообщил «Работает». Это принятие
 базовой работоспособности, а не поимённый PASS отдельных сценариев; после
