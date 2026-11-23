@@ -132,7 +132,12 @@ class LibraryEmptyStatesUiTest {
         }
 
         rule.onNodeWithText("Где же музыка?").assertIsDisplayed()
-        rule.onNodeWithText("В папке /AllMusic нет файлов MP3 или FLAC.").assertIsDisplayed()
+        // Путь /AllMusic убран с экрана (И-10): музыка — это папка пользователя,
+        // а не техническая константа, которую он должен знать.
+        rule.onNodeWithText(
+            "В вашей музыке нет файлов MP3 или FLAC. Проверьте, что они лежат в облаке.",
+        ).assertIsDisplayed()
+        // Без действия обновления кнопка остаётся прежней и ведёт в «Настройки».
         rule.onNodeWithText("Проверить подключение").performClick()
         rule.runOnIdle { assertEquals(1, openedSettings) }
     }

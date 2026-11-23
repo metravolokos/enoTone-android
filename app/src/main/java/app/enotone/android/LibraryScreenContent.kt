@@ -105,6 +105,12 @@ internal fun LibraryScreenContent(
     onOpenSettings: () -> Unit = {},
     /** Shown when a tap cannot start playback yet because the service is still binding. */
     onPlaybackNotReady: () -> Unit = {},
+    /**
+     * Refresh the library from here instead of sending the user to Settings: someone who
+     * added an album in the cloud has no way to guess that the action lives there.
+     * Null hides the action (previews, screenshots).
+     */
+    onRefreshLibrary: (() -> Unit)? = null,
 ) {
     androidx.compose.runtime.SideEffect { LibraryAlbumDiagnostics.record(state) }
     val section = state.section
@@ -381,6 +387,7 @@ internal fun LibraryScreenContent(
                 ) {
                     MusicMissingState(
                         onOpenSettings = onOpenSettings,
+                        onRefreshLibrary = onRefreshLibrary,
                         modifier = Modifier.fillMaxWidth().padding(top = MUSIC_MISSING_STATE_TOP),
                     )
                 }
@@ -650,14 +657,24 @@ private fun SearchNotFoundState(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MusicMissingState(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+private fun MusicMissingState(
+    onOpenSettings: () -> Unit,
+    onRefreshLibrary: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    // Refreshing in place is strictly better than sending the user to Settings: the
+    // empty library is exactly the moment they suspect the app missed new files.
+    val refresh = onRefreshLibrary
     EnoStateView(
         pose = BanditPose.BOOKS,
         title = stringResource(R.string.state_music_missing_title),
         message = stringResource(R.string.state_music_missing_message),
         secondaryAction = EnoStateAction(
-            label = stringResource(R.string.state_music_missing_action),
-            onClick = onOpenSettings,
+            label = stringResource(
+                if (refresh != null) R.string.state_music_missing_refresh
+                else R.string.state_music_missing_action,
+            ),
+            onClick = refresh ?: onOpenSettings,
         ),
         modifier = modifier,
     )

@@ -106,7 +106,7 @@
     <string name="library_tab_album_artists">Авторы альбомов</string>
     <string name="library_unknown_album">Неизвестный альбом</string>
     <string name="library_group_back">К списку групп</string>
-    <string name="library_groups_empty">Нет распознанных групп. Теги можно обрабатывать отдельно небольшими партиями.</string>
+    <string name="library_groups_empty">Пока не вижу групп. Попробуйте обновить медиатеку — я перечитаю теги.</string>
     <string name="managed_index_title">Ход обработки медиатеки</string>
     <string name="managed_notification_started">Индексация тегов выполняется в фоне</string>
     <string name="managed_notification_progress">Обработано в сессии: %1$d, осталось: %2$d, запросов: %3$d</string>
@@ -290,7 +290,8 @@
     <string name="state_not_found_title">Ничего не нашлось</string>
     <string name="state_not_found_message">Попробуйте другое написание — я ищу по названию, исполнителю и альбому.</string>
     <string name="state_music_missing_title">Где же музыка?</string>
-    <string name="state_music_missing_message">В папке /AllMusic нет файлов MP3 или FLAC.</string>
+    <string name="state_music_missing_message">В вашей музыке нет файлов MP3 или FLAC. Проверьте, что они лежат в облаке.</string>
+    <string name="state_music_missing_refresh">Обновить медиатеку</string>
     <string name="state_music_missing_action">Проверить подключение</string>
     <string name="library_found_nothing">Ничего не нашлось</string>
     <!-- D3.2: настройка «Прозрачные панели», по умолчанию выключена (ADR-0088). -->

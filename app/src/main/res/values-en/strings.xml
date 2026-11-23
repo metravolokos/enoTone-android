@@ -106,7 +106,7 @@
     <string name="library_tab_album_artists">Album artists</string>
     <string name="library_unknown_album">Unknown Album</string>
     <string name="library_group_back">Back to groups</string>
-    <string name="library_groups_empty">No recognized groups yet. Tags can be indexed later in small batches.</string>
+    <string name="library_groups_empty">I cannot see any groups yet. Refresh the library and I will re-read the tags.</string>
     <string name="managed_index_title">Library processing progress</string>
     <string name="managed_notification_started">Indexing music tags in background</string>
     <string name="managed_notification_progress">Processed this session: %1$d, remaining: %2$d, requests: %3$d</string>
@@ -270,7 +270,8 @@
     <string name="state_not_found_title">Nothing found</string>
     <string name="state_not_found_message">Try a different spelling — I search by title, artist, and album.</string>
     <string name="state_music_missing_title">Where is the music?</string>
-    <string name="state_music_missing_message">There are no MP3 or FLAC files in /AllMusic.</string>
+    <string name="state_music_missing_message">There are no MP3 or FLAC files in your music. Check that they are in the cloud.</string>
+    <string name="state_music_missing_refresh">Refresh the library</string>
     <string name="state_music_missing_action">Check connection</string>
     <string name="library_found_nothing">Nothing found</string>
     <!-- D3.2: "Translucent bars" setting, off by default (ADR-0088). -->

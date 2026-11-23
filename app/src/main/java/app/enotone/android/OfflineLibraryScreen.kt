@@ -68,6 +68,20 @@ internal fun OfflineLibraryScreen(
 ) {
     val context = LocalContext.current.applicationContext
     val container = (context as EnoToneApplication).container
+    // Обновление медиатеки доступно и отсюда: кнопка в «Настройках» — единственный путь,
+    // и пользователь, добавивший альбом в облако, не догадывается её искать (П-6).
+    val sessionModel: SettingsSessionViewModel = viewModel(factory = SettingsSessionFactory)
+    val indexingModel: LibraryIndexingViewModel = viewModel(
+        factory = remember(container, sessionModel) {
+            SettingsViewModelFactory(container, sessionModel.session)
+        },
+    )
+    val indexing by indexingModel.state.collectAsStateWithLifecycle()
+    val refreshLibrary: (() -> Unit)? = if (indexing.hasLogin) {
+        { indexingModel.updateLibrary() }
+    } else {
+        null
+    }
     // Аудит п. 3: ViewModel живёт дольше экрана — страница и видимость передаются событиями.
     LaunchedEffect(model, visiblePages) { model.onVisiblePagesChanged(visiblePages) }
     LaunchedEffect(model, page, detail, routeActive) {
@@ -106,6 +120,7 @@ internal fun OfflineLibraryScreen(
         appPassword = appPassword,
         onOpenSettings = onOpenSettings,
         onPlaybackNotReady = model::onPlaybackNotReady,
+        onRefreshLibrary = refreshLibrary,
         contentPadding = contentPadding,
         scrollToTop = scrollToTop,
         blur = blur,
