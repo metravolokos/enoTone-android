@@ -19,7 +19,7 @@
 
 ## Сборка и проверка
 
-Требуются **JDK 17, Android SDK 36**; `minSdk 26`, `targetSdk 36`. Проект — Gradle Kotlin DSL, модули описаны в [ARCHITECTURE](docs/ARCHITECTURE.md).
+Требуются **JDK 17, Android SDK 37**; `minSdk 26`, `targetSdk 36`. Проект — Gradle Kotlin DSL, модули описаны в [ARCHITECTURE](docs/ARCHITECTURE.md).
 
 ```bash
 ./gradlew :app:assembleDebug

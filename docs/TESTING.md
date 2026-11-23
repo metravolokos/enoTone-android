@@ -94,7 +94,7 @@ D4c (#201) добавляет `RecentlyAddedPlannerTest`, `RecentlyAddedUiTest` 
 покрывают обе темы: `home_recent_both_*`, `home_recent_empty_*`,
 `home_recent_all_albums_*` и `home_recent_all_songs_*`. Эталоны записаны через
 CI workflow dispatch с `record_roborazzi=true` и включены в PR #205; exact-HEAD
-CI и Device-приёмка отслеживаются отдельно.
+CI и проверка на устройстве отслеживаются отдельно.
 
 D2b добавляет `ComponentsScreenshotTest` (две галереи компонентов в обеих темах), `EnoLetterAvatarTest` (Unicode/grapheme/детерминированность), dual-Preview у каждого компонента. PNG-эталоны D2b: `core/ui/src/test/screenshots/components_graphite.png`, `components_porcelain.png`, записываются тем же `record_roborazzi=true` на stacked-ветке после D2a.
 
@@ -139,7 +139,7 @@ D2b добавляет `ComponentsScreenshotTest` (две галереи ком�
 идёт общим порядком: ветка, тесты, CI точного HEAD, ревью, merge. Это не отменяет
 приёмку уже слитых сценариев и не требует пересмотра прежних результатов.
 
-Текущая аппаратная база: устройство KLE-LX9 (Android 12), установлена
+Текущая аппаратная база: смартфон без сервисов Google (Android 12), установлена
 `app.enotone.android.preview` версии `0.6.2-preview.1161` (2026-11-20). Базовая
 приёмка прошла на Stable Preview #301: владелец сообщил «Работает». Это принятие
 базовой работоспособности, а не поимённый PASS отдельных сценариев; после
