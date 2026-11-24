@@ -259,6 +259,14 @@ internal class AccountSettingsViewModel(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
+                // The durable proof outranks a broken vault: recoverPendingSignOut checks
+                // the marker itself, so a completed cleanup can finish its tail without
+                // reading the secret. Skipping it left the user on a screen claiming the
+                // login was kept, with no way out.
+                if (pending && runCatching { gateway.recoverPendingSignOut() }.getOrDefault(false)) {
+                    mutable.update { it.copy(signOutFailed = false, error = null) }
+                    return@launch
+                }
                 mutable.update {
                     it.copy(
                         error = if (pending) AccountError.SIGN_OUT else AccountError.RESTORE,

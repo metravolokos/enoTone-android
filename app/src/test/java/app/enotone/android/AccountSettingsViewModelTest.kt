@@ -432,7 +432,12 @@ class AccountSettingsViewModelTest {
             assertFalse(model.state.value.loggedIn)
             assertFalse(model.state.value.restoreCompletedWithoutCredentials)
             assertNull(model.state.value.workingLogin)
-            assertEquals(0, fake.recoverCalls)
+            // Recovery is now attempted even when the vault cannot be read: only it can
+            // tell whether a durable cleanup proof exists. Without a proof it returns
+            // false and the state stays blocked, which is what matters here.
+            assertEquals(1, fake.recoverCalls)
+            assertTrue(model.state.value.signOutFailed)
+            assertEquals(AccountError.SIGN_OUT, model.state.value.error)
             assertEquals(0, fake.verifyCalls)
         } finally {
             Dispatchers.resetMain()
@@ -517,6 +522,52 @@ class AccountSettingsViewModelTest {
             assertEquals(1, fake.saves)
             assertEquals(StoredWebDavLogin("new@invalid.test", "app-password"),
                 model.state.value.workingLogin)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `durable cleanup proof outranks an unreadable vault`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            // Regression: sign-out completed, proof was written, then the Keystore key
+            // became unreadable (PIN change, restore from backup). restore() threw, so the
+            // old gate (pending && saved == null) never ran recovery and the user was left
+            // on a screen claiming the login was kept, with no sign-out button anywhere.
+            val fake = Fake().apply {
+                pending = true
+                recoverPending = true
+                restoreFails = true
+                persisted = StoredWebDavLogin("example@invalid.test", "secret")
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+
+            assertEquals("recovery must run despite the unreadable vault", 1, fake.recoverCalls)
+            assertEquals(null, model.state.value.error)
+            assertFalse("the dead end must be gone", model.state.value.signOutFailed)
+            assertFalse("marker is cleared by recovery", fake.pending)
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
+
+    @Test fun `without a proof an unreadable vault still blocks and reports`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            // No proof means the cleanup state is unknown: fail-closed is correct here.
+            val fake = Fake().apply {
+                pending = true
+                recoverPending = false
+                restoreFails = true
+            }
+            val model = AccountSettingsViewModel(fake)
+            advanceUntilIdle()
+
+            // One attempt is correct: the attempt itself is how the code discovers that
+            // no proof exists. What must hold is the blocked outcome, not a zero counter.
+            assertEquals(1, fake.recoverCalls)
+            assertEquals(AccountError.SIGN_OUT, model.state.value.error)
         } finally {
             Dispatchers.resetMain()
         }
