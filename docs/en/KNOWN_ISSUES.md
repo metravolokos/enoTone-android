@@ -27,10 +27,9 @@ Only defects confirmed on the current code belong here. Findings that need an ow
 
 | Problem | Consequence | Plan |
 |---|---|---|
+| Library import does not check `AccountSession.blocks()`: the `LibrarySnapshotStore.save()` transaction can commit after `deleteAccountData` and after the Keystore is cleared | The cleanup proof becomes false; the next launch falls into fail-closed. Data is **not** lost — the guard fails in the safe direction | Low priority: the window is narrow (tap Refresh and Sign out in a row), and fail-closed already prevents loss. Fix by checking `blocks()` in `LibraryIndexingGateway.update()` |
 | When artwork masters are deleted, an unreadable `ref-*.txt` is silently treated as absent | A master referenced by another account can be deleted as an "orphan" — silent data loss with multiple accounts | Separate PR; does not occur with a single account ([AccountArtworkFileCleanup.kt:27-43](https://github.com/metravolokos/enoTone-android/blob/main/app/src/main/java/app/enotone/android/AccountArtworkFileCleanup.kt#L27-L43)) |
-| Sign-out does not guarantee that audio data is removed before the Keystore is cleared: `stopPlayback()` only enqueues cleanup, suppresses errors, and does not close the open `SimpleCache` | The Keystore is cleared while files may still be on disk — the fail-closed order of ADR-0080 is violated | [#256](https://github.com/metravolokos/enoTone-android/issues/256), risk class R |
-| Scoped sign-out with another account present cleans only the permanent artwork store; legacy `cacheDir/enotone-artwork-v2` survives and is restored after signing in again | An old artwork master returns after sign-out → sign-in | [#256](https://github.com/metravolokos/enoTone-android/issues/256), risk class R |
-| `QueueStateFileStore.clear()` ignores the result of every `delete()` | A silent deletion failure does not stop sign-out | [#256](https://github.com/metravolokos/enoTone-android/issues/256) |
+| Scoped sign-out with another account present cleans only the permanent artwork store; legacy `cacheDir/enotone-artwork-v2` survives, and `migrateLegacy()` copies the master back on the next request | An old artwork master returns after sign-out → sign-in without any network call. The `storedBytes() == 0` check counts only the permanent directory and cannot see the leftover | Separate PR; risk class R ([ArtworkPreviewRepository.kt:563-574](https://github.com/metravolokos/enoTone-android/blob/main/app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt#L563-L574)) |
 
 ## Data and network
 
