@@ -25,10 +25,9 @@
 
 | Проблема | Последствие | План |
 |---|---|---|
+| Импорт медиатеки не проверяет `AccountSession.blocks()`: транзакция `LibrarySnapshotStore.save()` может закоммититься после `deleteAccountData` и после очистки Keystore | Доказательство очистки становится ложным; следующий запуск уходит в fail-closed. Данные при этом **не теряются** — защита срабатывает в другую сторону | Приоритет низкий: окно узкое (нужно нажать «Обновить» и «Выйти» подряд), а fail-closed уже не даёт потере случиться. Исправить проверкой `blocks()` в `LibraryIndexingGateway.update()` |
 | При удалении мастеров обложек нечитаемый `ref-*.txt` молча считается отсутствующим | Мастер, на который ссылается другой аккаунт, может быть удалён как «сирота» — тихая потеря данных при нескольких аккаунтах | Отдельный PR; при одиночном аккаунте не проявляется ([AccountArtworkFileCleanup.kt:27-43](app/src/main/java/app/enotone/android/AccountArtworkFileCleanup.kt#L27-L43)) |
-| Выход не гарантирует удаление аудиоданных до очистки Keystore: `stopPlayback()` только ставит очистку в IO-очередь, ошибки подавляются, открытый `SimpleCache` не закрывается | Keystore удаляется, пока файлы могут лежать на диске — нарушен fail-closed порядок ADR-0080 | [#256](https://github.com/metravolokos/enoTone-android/issues/256), класс R |
-| Scoped sign-out при наличии другого аккаунта чистит только постоянное хранилище обложек; legacy `cacheDir/enotone-artwork-v2` остаётся и восстанавливается после повторного входа | Старая обложка возвращается после «Выйти» → «Войти» | [#256](https://github.com/metravolokos/enoTone-android/issues/256), класс R |
-| `QueueStateFileStore.clear()` игнорирует результат каждого `delete()` | Тихий сбой удаления не останавливает выход | [#256](https://github.com/metravolokos/enoTone-android/issues/256) |
+| Scoped sign-out при наличии другого аккаунта чистит только постоянное хранилище обложек; legacy `cacheDir/enotone-artwork-v2` остаётся, а `migrateLegacy()` переносит мастер обратно при следующем запросе | Старая обложка возвращается после «Выйти» → «Войти» без сети. Проверка `storedBytes() == 0` считает только постоянный каталог и остаток не видит | Отдельный PR; класс R ([ArtworkPreviewRepository.kt:563-574](app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt#L563-L574)) |
 
 ## Данные и сеть
 
