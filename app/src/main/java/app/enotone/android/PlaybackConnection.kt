@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.CompletableFuture
 
 // 500 ms preserves the existing position/seek polling cadence without a CPU spin.
 private const val POSITION_POLL_MS = 500L
@@ -84,6 +85,17 @@ internal interface PlaybackConnection {
                      saved: PersistedQueueState, useCache: Boolean, filtered: Boolean): Boolean
     /** Returns false when the local MediaSession binder is unavailable. */
     fun stopPlayback(): Boolean
+
+    /**
+     * Stops playback and erases the account's audio data, completing only when deletion
+     * actually finished. Sign-out must await this before clearing the Keystore
+     * (ADR-0080). Default returns an already-failed future so a test double that only
+     * implements [stopPlayback] cannot silently look like a completed erase.
+     */
+    fun stopPlaybackAndEraseData(): CompletableFuture<Unit> =
+        CompletableFuture<Unit>().apply {
+            completeExceptionally(UnsupportedOperationException("erase not supported"))
+        }
     fun playPause()
 
     /** Retry only the current errored item; returns false when there is no error or service. */
@@ -381,6 +393,19 @@ internal class AndroidPlaybackConnection(
         active.stopPlayback()
         publish()
         return true
+    }
+
+    override fun stopPlaybackAndEraseData(): CompletableFuture<Unit> {
+        // Erasing on the service IO lane while the cache may be open would race with
+        // Media3. When the binding is gone the caller falls back to its own file-level
+        // cleanup, so report that instead of pretending the erase happened.
+        val active = service ?: return CompletableFuture<Unit>().apply {
+            // failedFuture needs API 31; minSdk is 26.
+            completeExceptionally(IllegalStateException("playback service not bound"))
+        }
+        val erased = active.stopPlaybackAndEraseData()
+        publish()
+        return erased
     }
 
     override fun playPause() {

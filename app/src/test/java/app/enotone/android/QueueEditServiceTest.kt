@@ -132,6 +132,10 @@ class QueueEditServiceTest {
             }
         } finally {
             onMain { controller.destroy() }
+            // destroy() schedules a final position write on the service IO lane and
+            // shuts it down; clear() must run after that lane drained, otherwise the
+            // checkpoint reappears right after deletion.
+            controller.get().awaitQueueWritesFinished(10_000L)
             QueueStateFileStore(context).clear()
         }
     }
@@ -157,6 +161,10 @@ class QueueEditServiceTest {
             }
         } finally {
             onMain { controller.destroy() }
+            // destroy() schedules a final position write on the service IO lane and
+            // shuts it down; clear() must run after that lane drained, otherwise the
+            // checkpoint reappears right after deletion.
+            controller.get().awaitQueueWritesFinished(10_000L)
             QueueStateFileStore(context).clear()
         }
     }
@@ -225,6 +233,10 @@ class QueueEditServiceTest {
             }
         } finally {
             onMain { controller.destroy() }
+            // destroy() schedules a final position write on the service IO lane and
+            // shuts it down; clear() must run after that lane drained, otherwise the
+            // checkpoint reappears right after deletion.
+            controller.get().awaitQueueWritesFinished(10_000L)
             QueueStateFileStore(context).clear()
         }
     }
@@ -258,6 +270,10 @@ class QueueEditServiceTest {
             }
         } finally {
             onMain { controller.destroy() }
+            // destroy() schedules a final position write on the service IO lane and
+            // shuts it down; clear() must run after that lane drained, otherwise the
+            // checkpoint reappears right after deletion.
+            controller.get().awaitQueueWritesFinished(10_000L)
             QueueStateFileStore(context).clear()
         }
     }
@@ -296,6 +312,10 @@ class QueueEditServiceTest {
             }
         } finally {
             onMain { controller.destroy() }
+            // destroy() schedules a final position write on the service IO lane and
+            // shuts it down; clear() must run after that lane drained, otherwise the
+            // checkpoint reappears right after deletion.
+            controller.get().awaitQueueWritesFinished(10_000L)
             QueueStateFileStore(context).clear()
         }
     }

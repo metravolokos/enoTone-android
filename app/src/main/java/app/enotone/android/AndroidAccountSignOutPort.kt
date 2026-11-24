@@ -9,11 +9,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * Android adapter for account cleanup. Album/source hashes are journaled
  * before deleting Room, so a second attempt can finish after process death.
  */
+/** Upper bound for awaiting the service erase; a stuck service must not block sign-out forever. */
+private const val ERASE_TIMEOUT_SECONDS = 30L
+
 internal class AndroidAccountSignOutPort(
     context: Context,
     private val container: AppContainer,
@@ -28,7 +32,20 @@ internal class AndroidAccountSignOutPort(
     override suspend fun stopPlayback() {
         AccountPlaybackStop(
             stopBoundService = {
+                // Returns false when no service is bound; the erase step is then skipped
+                // and only the queue files are cleared below.
                 withContext(main) { container.playbackConnection.stopPlayback() }
+            },
+            eraseAudioData = {
+                // Awaiting the service is what enforces ADR-0080: the Keystore is cleared
+                // only after the account's audio is actually gone. A failed erase throws,
+                // which stops sign-out at PLAYBACK and keeps the vault for a retry.
+                val erased = withContext(main) {
+                    container.playbackConnection.stopPlaybackAndEraseData()
+                }
+                // get() blocks this IO thread until the service finished deleting;
+                // the main thread is never blocked, and the timeout bounds a stuck service.
+                withContext(io) { erased.get(ERASE_TIMEOUT_SECONDS, TimeUnit.SECONDS) }
             },
             clearQueue = {
                 // A service may never have been bound. These files still exist

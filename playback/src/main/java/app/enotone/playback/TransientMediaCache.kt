@@ -264,5 +264,24 @@ class TransientMediaCache(context: Context) : AutoCloseable {
          */
         fun deleteDirectory(context: android.content.Context): Boolean =
             File(context.cacheDir, DIRECTORY_NAME).deleteRecursively()
+
+        /**
+         * Deletes the cache directory **and** its Media3 index rows.
+         *
+         * `SimpleCache` keeps its index in `databases/exoplayer_internal.db`, not in the
+         * cache directory, so deleting the tree alone leaves rows describing the previous
+         * account's cached files. [SimpleCache.delete] removes both through the supported
+         * API and tolerates an already-absent directory. Must be called after the cache
+         * instance is released, never while it is open.
+         */
+        fun deleteCacheAndIndex(context: android.content.Context) {
+            val directory = File(context.cacheDir, DIRECTORY_NAME)
+            if (!directory.exists()) return
+            SimpleCache.delete(
+                directory,
+                StandaloneDatabaseProvider(context.applicationContext),
+            )
+            if (directory.exists()) directory.deleteRecursively()
+        }
     }
 }
