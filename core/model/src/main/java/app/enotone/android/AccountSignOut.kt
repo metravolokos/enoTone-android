@@ -53,16 +53,23 @@ class AccountSignOut(private val port: AccountSignOutPort) {
 }
 
 /**
- * No bound MediaSession means no playback to stop. It must NEVER block
- * sign-out: disk checkpoints still need clearing before Room/Keystore.
- * A real stop exception or queue-file failure is not swallowed.
+ * Stops playback and erases the account's audio data before Room and the Keystore.
+ *
+ * A missing MediaSession must NEVER block sign-out — disk checkpoints and the transient
+ * cache still have to go. But a bound service that fails to erase MUST block it: the
+ * caller keeps the vault so the user can retry (ADR-0080 fail-closed order).
  */
 class AccountPlaybackStop(
     private val stopBoundService: suspend () -> Boolean,
+    private val eraseAudioData: suspend () -> Unit,
     private val clearQueue: suspend () -> Unit,
 ) {
     suspend fun run() {
-        stopBoundService() // false = service absent, not an error
+        val bound = stopBoundService() // false = service absent, not an error
+        // Erase through the service when it is bound: only it can release the Media3
+        // cache index and guarantee the deletion finished. Without a binding the caller
+        // clears the queue files itself; the service-owned cache cannot be open then.
+        if (bound) eraseAudioData()
         clearQueue()
     }
 }

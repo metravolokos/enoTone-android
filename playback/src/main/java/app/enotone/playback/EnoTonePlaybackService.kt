@@ -11,7 +11,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import java.io.IOException
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -316,7 +318,51 @@ open class EnoTonePlaybackService : MediaSessionService() {
     fun resume() = playback.resume()
     fun retryCurrent(): Boolean = playback.retryCurrent()
 
-    /** Explicit Stop forgets both files. Android Settings 'Force stop' does not. */
+    /**
+     * Explicit Stop forgets the queue checkpoint, the transient audio cache and the
+     * Media3 cache index. Android Settings 'Force stop' does not.
+     *
+     * Returns a future that completes only after the deletion actually finished, so the
+     * caller can order it before clearing the Keystore (ADR-0080). Sign-out relies on
+     * that ordering: an account's audio must be gone before its key is destroyed.
+     *
+     * The deletion runs on the service IO lane, never on the main thread: the cache may
+     * hold hundreds of megabytes.
+     */
+    fun stopPlaybackAndEraseData(): CompletableFuture<Unit> {
+        pendingPositionSave?.let(handler::removeCallbacks)
+        pendingPositionSave = null
+        activeRevision = null
+        layoutGeneration++
+        layoutWritePending = false
+        queueMutation = true
+        try {
+            // stop() releases the SimpleCache, so the directory and the Media3 index
+            // rows can be reclaimed below without being recreated by an open instance.
+            playback.stop()
+        } finally { queueMutation = false }
+        val done = CompletableFuture<Unit>()
+        submitIo {
+            try {
+                store.clear()
+                // SimpleCache keeps its index in databases/exoplayer_internal.db, which
+                // deleting the directory does not touch. Release it through the Media3 API
+                // so the rows for the previous account go too.
+                TransientMediaCache.deleteCacheAndIndex(applicationContext)
+                done.complete(Unit)
+            } catch (failure: IOException) {
+                // A failed deletion must stop sign-out, not be reported as success: the
+                // caller keeps the vault and the user can retry.
+                done.completeExceptionally(failure)
+            } catch (failure: IllegalStateException) {
+                // Media3 refuses to delete while another instance holds the cache.
+                done.completeExceptionally(failure)
+            }
+        }
+        return done
+    }
+
+    /** Stop without erasing data; used by the transport controls, not by sign-out. */
     fun stopPlayback() {
         pendingPositionSave?.let(handler::removeCallbacks)
         pendingPositionSave = null
@@ -327,13 +373,6 @@ open class EnoTonePlaybackService : MediaSessionService() {
         try { playback.stop() } finally { queueMutation = false }
         submitIo {
             try { store.clear() } catch (_: Exception) { }
-        }
-        // Sign-out calls Stop and then leaves the service alive, so onDestroy() never
-        // runs and the transient cache would keep the previous account's audio on disk.
-        // ADR-0080 requires account data to be gone before the Keystore, so the cache
-        // is dropped here, on the same IO lane as the queue checkpoint.
-        submitIo {
-            try { TransientMediaCache.deleteDirectory(applicationContext) } catch (_: Exception) { }
         }
     }
 

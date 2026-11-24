@@ -879,7 +879,9 @@ class PreviewAudioPlayback(
         stableShuffleApplied = false
         deferredPrepare = false
         pendingCache = null
-        temporaryCache?.stopCurrent()
+        // Release so sign-out can delete the directory and the Media3 index safely.
+        temporaryCache?.close()
+        temporaryCache = null
         cacheEnabledForQueue = false
         player.stop()
         player.clearMediaItems()

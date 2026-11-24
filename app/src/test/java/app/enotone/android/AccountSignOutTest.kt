@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 class AccountSignOutTest {
     private class Fake : AccountSignOutPort {
@@ -93,12 +94,17 @@ class AccountSignOutTest {
             )
             filenames.forEach { root.resolve(it).writeText("saved") }
             var attempts = 0
+            var eraseAttempts = 0
             val stop = AccountPlaybackStop(
                 stopBoundService = { attempts++; false },
+                eraseAudioData = { eraseAttempts++ },
                 clearQueue = { queue.clear() },
             )
             stop.run()
             assertEquals(1, attempts)
+            // No binding means the service cannot own an open cache, so the caller only
+            // clears the queue files itself; asking the absent service to erase is wrong.
+            assertEquals(0, eraseAttempts)
             assertTrue(filenames.none { root.resolve(it).exists() })
             stop.run() // no binder and no files is idempotent
             assertEquals(2, attempts)
@@ -111,12 +117,48 @@ class AccountSignOutTest {
         val fake = Fake()
         val stop = AccountPlaybackStop(
             stopBoundService = { false },
+            eraseAudioData = { },
             clearQueue = { Unit },
         )
         stop.run()
         AccountSignOut(fake).run("mine")
         assertFalse(fake.credentials)
         assertEquals(9, fake.catalog["other"])
+    }
+
+    @Test fun `failed audio erase stops sign-out and keeps the vault`() = runTest {
+        // ADR-0080 fail-closed: if the account's audio is not gone, the Keystore must not
+        // be cleared. Before this test the delete step could not fail at all, so the
+        // ordering guarantee was unenforceable.
+        val fake = Fake()
+        val stop = AccountPlaybackStop(
+            stopBoundService = { true },
+            eraseAudioData = { throw IOException("disk busy") },
+            clearQueue = { Unit },
+        )
+        val failure = runCatching { stop.run() }.exceptionOrNull()
+        assertTrue("erase failure must propagate", failure is IOException)
+        // A second attempt must be possible once the disk is free again.
+        var erased = 0
+        AccountPlaybackStop(
+            stopBoundService = { true },
+            eraseAudioData = { erased++ },
+            clearQueue = { Unit },
+        ).run()
+        assertEquals(1, erased)
+        // The vault was never touched: sign-out never reached the credentials stage.
+        assertTrue(fake.credentials)
+    }
+
+    @Test fun `bound service erases audio data before clearing credentials`() = runTest {
+        val fake = Fake()
+        val order = mutableListOf<String>()
+        AccountPlaybackStop(
+            stopBoundService = { order += "stop"; true },
+            eraseAudioData = { order += "erase" },
+            clearQueue = { order += "queue" },
+        ).run()
+        assertEquals(listOf("stop", "erase", "queue"), order)
     }
 
 }

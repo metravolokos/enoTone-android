@@ -23,6 +23,10 @@ class QueueStateFileStore private constructor(
     companion object {
         private const val MAX_LAYOUT_BYTES = 2_000_000L
 
+        /** A writer that is still alive can recreate the file; a few retries settle it. */
+        private const val CLEAR_ATTEMPTS = 5
+        private const val CLEAR_RETRY_MS = 20L
+
         fun inDirectory(directory: File, beforePositionWrite: () -> Unit = {}) =
             QueueStateFileStore(directory, beforePositionWrite)
     }
@@ -131,11 +135,29 @@ class QueueStateFileStore private constructor(
     }
 
     fun clear() {
-        queueFile.delete()
-        positionFile.delete()
-        previousQueueFile.delete()
-        File(directory, previousQueueFile.name + ".tmp").delete()
-        File(directory, queueFile.name + ".tmp").delete()
-        File(directory, positionFile.name + ".tmp").delete()
+        // Sign-out must not report success while a stale checkpoint survives: it would be
+        // restored on the next launch, after the Keystore is already gone. Absent files are
+        // success; only a file that still exists after deletion is a failure. Checking
+        // delete()'s own return value would break idempotency, because a second sign-out
+        // finds the files already missing.
+        val targets = listOf(
+            queueFile,
+            positionFile,
+            previousQueueFile,
+            File(directory, previousQueueFile.name + ".tmp"),
+            File(directory, queueFile.name + ".tmp"),
+            File(directory, positionFile.name + ".tmp"),
+        )
+        // A live service may rewrite a checkpoint right after deletion: this store has no
+        // way to stop the writer. Retry a few times instead of failing on that race, and
+        // fail only when the file is still there after the last attempt.
+        repeat(CLEAR_ATTEMPTS) { attempt ->
+            val stale = targets.firstOrNull { it.exists() && !it.delete() }
+            if (stale == null && targets.none { it.exists() }) return
+            if (attempt == CLEAR_ATTEMPTS - 1 && targets.any { it.exists() }) {
+                throw IOException("Cannot remove queue checkpoint")
+            }
+            Thread.sleep(CLEAR_RETRY_MS)
+        }
     }
 }
