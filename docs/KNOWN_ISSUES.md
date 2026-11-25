@@ -53,7 +53,7 @@
 | Нет файла `LICENSE` (решение владельца) | M6-0/8 |
 | При исчерпании лимита сессии индексации (`SESSION_BATCH_LIMIT`, `SESSION_TIME_BUDGET`) `IndexingRunner` ставит `COMPLETE`, и первый запуск показывает «Всё готово» при непрочитанной библиотеке | Пользователь не знает, что часть файлов не проиндексирована | [#257](https://github.com/metravolokos/enoTone-android/issues/257) |
 | `LibraryDataRevision` учитывает только `savedWithTags`, игнорируя `completedWithoutTags`; терминальный `COMPLETE` публикуется с `terminating = true` | Открытая медиатека поздно видит успешно обработанные файлы без тегов | [#257](https://github.com/metravolokos/enoTone-android/issues/257) |
-| Invalidation удаляет постоянный ref, но следующий запрос мигрирует legacy-копию; `remoteModified` не входит в ключ | Изменение файла с прежними ETag/size показывает старое изображение без GET | [#256](https://github.com/metravolokos/enoTone-android/issues/256) |
+| Invalidation удаляет постоянный ref, но следующий запрос мигрирует legacy-копию; `remoteModified` не входит в ключ | Изменение файла с прежними ETag/size показывает старое изображение без GET | [#292](https://github.com/metravolokos/enoTone-android/issues/292) |
 | `artworkJob` может быть отменён повторным `refreshArtwork()`, пока `selecting` удерживает `LOADING`; переход в `PLAYING` без смены `trackId` обложку не перезапускает | Обложка текущего трека не загружается | замер и тест перед исправлением |
 | После обновления альбома вызываются `reload()` и `LibraryDataRevision.bump()` — два reload | Лишняя работа на каждый рефреш | [#258](https://github.com/metravolokos/enoTone-android/issues/258) |
 ## Требует решения владельца

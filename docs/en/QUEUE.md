@@ -1,6 +1,6 @@
 # Work queue — the single order of work
 
-> **Translated from:** `docs/QUEUE.md` at `main` `59dd26a4`, 2026-11-23. Russian is canonical.
+> **Translated from:** `docs/QUEUE.md` at `main` `4befe126`, 2026-11-26. Russian is canonical.
 > **Single source of ordering.** If an Issue, ROADMAP or chat contradicts this file, this file wins.
 
 ## How to read it
@@ -31,14 +31,13 @@ First, because these are what the user sees and trips over.
 
 Defects in user journeys: dead ends, dead buttons, wrong expectations.
 
+**Every defect in this wave is closed:** PA-4 (#263) — PR #283, PA-5 (#264) — PR #284, PA-6 (#265) — PR #285 and #287. Only the question `#266` remains open in this wave.
+
 | Priority | Issue | What |
 |---|---|---|
-| **P1** | [#263](https://github.com/metravolokos/enoTone-android/issues/263) | Two dead ends: library read failure with no "Retry", frozen first run |
-| **P2** | [#264](https://github.com/metravolokos/enoTone-android/issues/264) | Retry track after error, scrolling at large font, accessibility |
-| **P2** | [#265](https://github.com/metravolokos/enoTone-android/issues/265) | Library: refresh entry, album-artist screen, Bandit-voice texts |
 | **P3** | [#266](https://github.com/metravolokos/enoTone-android/issues/266) | Sorting, playlists, offline, search, diagnostics — **needs owner decision** |
 
-**Why second.** These are UX defects, not data loss: the user can work around them but is annoyed. Wave 1 gives more effect per hour.
+**Why no work here.** These are scope questions, not defects: until the owner decides what belongs in the product, there is nothing to plan.
 
 ## Wave 3 — code audit
 
@@ -46,13 +45,14 @@ Technical defects: races, atomicity, cleanup ordering.
 
 | Priority | Issue | What |
 |---|---|---|
-| **P2 / R** | [#256](https://github.com/metravolokos/enoTone-android/issues/256) | Fail-closed sign-out + legacy artwork |
-| **P3** | [#254](https://github.com/metravolokos/enoTone-android/issues/254) | Queue restore budget doesn't work + a false-passing test |
 | **P3** | [#255](https://github.com/metravolokos/enoTone-android/issues/255) | Prefetch cancellation race |
 | **P3** | [#257](https://github.com/metravolokos/enoTone-android/issues/257) | Premature `DONE` + library revision |
 | **P3** | [#258](https://github.com/metravolokos/enoTone-android/issues/258) | Improvements: bind reconnect, double reload, docs |
+| **P3** | [#292](https://github.com/metravolokos/enoTone-android/issues/292) | Legacy copy resurrects an invalidated cover |
 
-**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#256` is risk class R and goes first within the wave because it touches credentials, Room and files.
+**Closed in this wave:** #254 (queue restore budget) — PR #291, `main` `4befe126`; #256 (fail-closed sign-out, legacy artwork, risk class R) — PR #288 and #289.
+
+**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254` and #256 are closed; the next by number is `#255`.
 
 **Note:** `#258` partially overlaps `#273`. If the owner decides the service not releasing its binding is normal, part of `#258` (bind reconnect) becomes protection against a theoretical scenario.
 
