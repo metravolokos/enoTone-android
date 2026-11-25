@@ -60,6 +60,20 @@ class PrefetchCancelDuringWindowTest {
         override fun createDataSource(): DataSource = source()
     }
 
+    /**
+     * Waits until [TransientMediaCache.close] released the folder. `close()` releases the
+     * `SimpleCache` on a daemon thread and deletes the directory as its last step, so the
+     * directory disappearing proves the release finished. Without this a following test
+     * method in the same class can construct a second cache over a still-locked folder.
+     */
+    private fun awaitReleased(cache: TransientMediaCache) {
+        cache.close()
+        val directory = java.io.File(context.cacheDir, "enotone-m5-temporary-audio")
+        val deadline = System.currentTimeMillis() + 5_000
+        while (directory.exists() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(25)
+        }
+    }
     private companion object {
         /**
          * How long to watch for an upload after the worker is released. The worker has no
@@ -98,7 +112,7 @@ class PrefetchCancelDuringWindowTest {
             )
         } finally {
             released.countDown()
-            cache.close()
+            awaitReleased(cache)
         }
     }
 
@@ -111,7 +125,7 @@ class PrefetchCancelDuringWindowTest {
             cache.prefetchNext("key", Uri.EMPTY, 1024L, Factory { CountingSource(opens) { finished.countDown() } })
             assertTrue("download attempt must happen", finished.await(10, TimeUnit.SECONDS))
         } finally {
-            cache.close()
+            awaitReleased(cache)
         }
 
         // Сети нет, поэтому open() бросает и загрузка помечается FAILED — важно, что
