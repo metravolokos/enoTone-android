@@ -47,7 +47,7 @@ class PrefetchCancelDuringWindowTest {
         override fun open(dataSpec: DataSpec): Long {
             opens.incrementAndGet()
             onOpen()
-            throw IllegalStateException("network must not be reached in this test")
+            error("network must not be reached in this test")
         }
 
         override fun read(buffer: ByteArray, offset: Int, length: Int): Int = -1
