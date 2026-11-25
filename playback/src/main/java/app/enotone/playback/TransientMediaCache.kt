@@ -187,6 +187,15 @@ class TransientMediaCache(context: Context) : AutoCloseable {
                     }
                 }
                 activeNextWriter = writer
+                // Cancellation can slip between the ticket check above and this publication:
+                // cancelNext() then had nothing to cancel, and without re-checking here the
+                // download would start after the track changed or playback stopped.
+                if (!TransientCachePolicy.ticketStillValid(
+                        closed.get(), generation.get(), currentTicket,
+                        nextGeneration.get(), nextTicket)) {
+                    writer.cancel()
+                    return@enqueue
+                }
                 writer.cache()
                 if (!closed.get() && generation.get() == currentTicket &&
                     nextGeneration.get() == nextTicket) {
