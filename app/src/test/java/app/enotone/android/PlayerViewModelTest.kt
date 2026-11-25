@@ -9,6 +9,8 @@ import app.enotone.library.LibrarySnapshotPlanner
 import app.enotone.library.OfflineTrackRow
 import app.enotone.playback.PersistedQueueState
 import app.enotone.playback.PlaybackModes
+import app.enotone.playback.QueuePersistenceDiagnostics
+import app.enotone.playback.QueueRestoreCode
 import app.enotone.playback.QueueTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
@@ -29,6 +32,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerViewModelTest {
     private val email = "test@example.invalid"
+    private val otherEmail = "second@example.invalid"
     private fun id(n: Int) = n.toString(16).padStart(64, '0')
     private fun catalog(): LibrarySnapshot {
         val ids = listOf(id(1), id(2))
@@ -38,16 +42,25 @@ class PlayerViewModelTest {
         )
     }
 
-    private class Repo(val items: LibrarySnapshot) : LibraryRepository {
+    private class Repo(items: LibrarySnapshot) : LibraryRepository {
+        /** Каталог можно заменить: импорт после непригодной медиатеки возвращает треки. */
+        var items: LibrarySnapshot = items
         var checkpoint: PersistedQueueState? = null
         var reads = 0
 
         /** Первые N чтений падают — моделирует транзиентный сбой. */
         var failReads = 0
+
+        /** Выполняется внутри чтения: позволяет подсунуть событие, пока раунд ещё в полёте. */
+        var duringRead: (() -> Unit)? = null
         val durationSaves = mutableListOf<Triple<String, String, Long>>()
         override suspend fun load(email: String) = items
         override suspend fun readSavedQueue(): PersistedQueueState? {
             reads++
+            duringRead?.let { hook ->
+                duringRead = null
+                hook()
+            }
             if (failReads > 0) {
                 failReads -= 1
                 error("transient read failure")
@@ -234,13 +247,9 @@ class PlayerViewModelTest {
                 CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
                 NoArtwork, StandardTestDispatcher(testScheduler), { true })
             advanceUntilIdle()
-            assertEquals(0, connection.restores)
 
-            // Новый снимок плеера запускает повторную попытку. Значение должно
-            // отличаться: StateFlow отбрасывает повторно эмитированное равенство.
-            connection.emit(PlaybackSnapshot(connected = true, positionMs = 1))
-            advanceUntilIdle()
-
+            // Повтор запускает таймер задания, а не эмиссия снимка.
+            assertEquals("timer-driven retry, not a snapshot-driven one", 2, repo.reads)
             assertEquals(1, connection.restores)
             assertEquals(listOf(id(1), id(2)), connection.lastRestored?.trackIds)
             assertEquals("PAUSED", model.state.value.playback.playbackState)
@@ -258,12 +267,121 @@ class PlayerViewModelTest {
                 CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
                 NoArtwork, StandardTestDispatcher(testScheduler), { true })
             advanceUntilIdle()
+            // Бюджет работает без единой эмиссии: повтор идёт по таймеру задания, а не по снимкам.
+            assertEquals("rounds must be exactly the budget", 3, repo.reads)
             repeat(10) {
-                connection.emit(PlaybackSnapshot(connected = true))
+                connection.emit(PlaybackSnapshot(connected = true, positionMs = it.toLong() + 1L))
                 advanceUntilIdle()
             }
-            // Бюджет попыток конечен: тикер снимков не превращается в бесконечные чтения.
-            assertTrue("reads=${repo.reads}", repo.reads <= 4)
+            assertEquals("snapshot ticks must not refill the budget", 3, repo.reads)
+            assertEquals(0, connection.restores)
+            assertEquals(QueueRestoreCode.RESTORE_BUDGET_EXHAUSTED,
+                QueuePersistenceDiagnostics.state.value.result)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun accountChangeRefillsTheRestoreBudget() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val repo = Repo(catalog())
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            repo.failReads = Int.MAX_VALUE
+            val connection = Connection()
+            val model = PlayerViewModel(connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true })
+            advanceUntilIdle()
+            assertEquals(3, repo.reads)
+            assertEquals(0, connection.restores)
+
+            repo.failReads = 0
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(otherEmail))
+            model.onCredentialsPersisted(otherEmail, "second-password")
+            advanceUntilIdle()
+
+            assertEquals("new account gets a full budget and one attempt", 4, repo.reads)
+            assertEquals(1, connection.restores)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun repersistingSameCredentialsDoesNotRefillTheRestoreBudget() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val repo = Repo(catalog())
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            repo.failReads = Int.MAX_VALUE
+            val connection = Connection()
+            val model = PlayerViewModel(connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true })
+            advanceUntilIdle()
+            assertEquals(3, repo.reads)
+
+            // Проверка WebDAV повторяется при каждом входе; та же учётная запись не возобновляет бюджет.
+            model.onCredentialsPersisted(email, "stored-password")
+            advanceUntilIdle()
+
+            assertEquals("re-persisting the same login must not reset the counter", 3, repo.reads)
+            assertEquals(0, connection.restores)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun budgetExhaustedRestoreHealsAfterServiceReconnect() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val repo = Repo(catalog())
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            repo.failReads = Int.MAX_VALUE
+            val connection = Connection()
+            PlayerViewModel(connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true })
+            advanceUntilIdle()
+            assertEquals(3, repo.reads)
+            assertEquals(0, connection.restores)
+
+            repo.failReads = 0
+            repeat(3) {
+                connection.emit(PlaybackSnapshot(connected = true, positionMs = 100L + it))
+                advanceUntilIdle()
+            }
+            assertEquals(3, repo.reads)
+
+            connection.emit(PlaybackSnapshot(connected = false))
+            advanceUntilIdle()
+            connection.emit(PlaybackSnapshot(connected = true, positionMs = 1L))
+            advanceUntilIdle()
+
+            assertEquals("healing after an external event", 4, repo.reads)
+            assertEquals(1, connection.restores)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun signOutStopsRestoreReadsPastTheBackoffWindow() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val session = AccountSession()
+            val repo = Repo(catalog())
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            repo.failReads = Int.MAX_VALUE
+            val connection = Connection()
+            PlayerViewModel(
+                connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true },
+                accountEvents = session.state,
+            )
+            testScheduler.runCurrent()
+            assertEquals("round 1 must have run", 1, repo.reads)
+
+            session.beginSignOut(LibrarySnapshotPlanner.accountKey(email))
+            advanceUntilIdle()
+            session.finishSignOut(LibrarySnapshotPlanner.accountKey(email))
+            advanceUntilIdle()
+            testScheduler.advanceTimeBy(60_000L)
+            testScheduler.runCurrent()
+
+            assertEquals("no reads after sign-out, even past the window", 1, repo.reads)
             assertEquals(0, connection.restores)
         } finally { Dispatchers.resetMain() }
     }
@@ -370,6 +488,58 @@ class PlayerViewModelTest {
             vm.onCredentialsPersisted(email, "stored-password")
             advanceUntilIdle()
             assertEquals(1, connection.restores) // blocked by account session
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun libraryRevisionReArmsTheBudgetAfterATerminalOutcome() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            // Медиатека пуста: checkpoint цел, но ни один трек не готов — исход терминальный.
+            val repo = Repo(LibrarySnapshot(emptyList(), emptyMap()))
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            val connection = Connection()
+            val revisions = MutableStateFlow(0L)
+            PlayerViewModel(connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true },
+                dataRevision = revisions)
+            advanceUntilIdle()
+            assertEquals("terminal outcome reads the checkpoint once", 1, repo.reads)
+            assertEquals(0, connection.restores)
+
+            // Импорт наполнил медиатеку: новая ревизия обязана вернуть бюджет,
+            // иначе заявка удерживается до пересоздания ViewModel.
+            repo.items = catalog()
+            revisions.value = 1L
+            advanceUntilIdle()
+
+            assertEquals("library revision re-arms the claim", 2, repo.reads)
+            assertEquals(1, connection.restores)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun rearmArrivingDuringARoundIsNotLostAfterATerminalOutcome() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            // Каталог пуст: раунд закончится терминально на устаревшем снимке.
+            val repo = Repo(LibrarySnapshot(emptyList(), emptyMap()))
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            val connection = Connection()
+            val revisions = MutableStateFlow(0L)
+            PlayerViewModel(connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true },
+                dataRevision = revisions)
+            // Импорт завершается, пока раунд ещё внутри чтения checkpoint.
+            repo.duringRead = {
+                repo.items = catalog()
+                revisions.value = 1L
+            }
+            advanceUntilIdle()
+
+            // Событие не должно потеряться: оно обязано вернуть бюджет и восстановить очередь.
+            assertEquals("re-arm must survive the in-flight round", 2, repo.reads)
+            assertEquals(1, connection.restores)
         } finally { Dispatchers.resetMain() }
     }
 

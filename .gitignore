@@ -12,3 +12,5 @@ local.properties
 .DS_Store
 __pycache__/
 *.pyc
+# dev-flow pipeline state (plans, drafts, evidence run logs) — never part of a commit.
+.devflow/
