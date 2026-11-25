@@ -541,6 +541,7 @@ class PlayerViewModelTest {
             // Событие не должно потеряться: бюджет возвращается и очередь восстанавливается,
             // причём новый цикл стартует с полным бюджетом, а не добирает остаток старого.
             assertEquals("re-arm must survive the in-flight round", 2, repo.reads)
+            assertEquals(1, connection.restores)
         } finally { Dispatchers.resetMain() }
     }
 
