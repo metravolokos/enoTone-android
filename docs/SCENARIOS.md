@@ -158,13 +158,13 @@
 
 | ID | Сценарий | Ожидается | Треб. | Проверка | Автотест | Последний результат |
 |---|---|---|---|---|---|---|
-| REST-01 | Пауза → смахнуть → открыть | тот же трек на паузе, точная позиция, shuffle и repeat сохранены, сетевых запросов до Play нет | R-6.6d | JVM, H | `PlayerViewModelTest`, `PersistedQueueStateTest` | принято по автоматическим проверкам |
+| REST-01 | Пауза → смахнуть → открыть | тот же трек на паузе, точная позиция, shuffle и repeat сохранены, сетевых запросов до Play нет | R-6.6d | JVM, H | `PlayerViewModelTest` (в т.ч. `restoreStopsRetryingAfterBudgetSoPersistentFailureDoesNotSpin`, `rejoinedCycleGetsItsOwnFullBudget`), `PersistedQueueStateTest` | принято по автоматическим проверкам |
 | REST-02 | Пауза → перемотать → подождать 5 с → смахнуть → открыть | новая позиция | аудит п. 4 | JVM, H | `PlaybackSeekPolicyTest` | принято по автоматическим проверкам |
 | REST-03 | Восстановленный трек, «Сейчас играет» до Play | шкала на сохранённой позиции, длительность видна | #96 | JVM, H | `PlayerViewModelTest` | принято по автоматическим проверкам |
 | REST-04 | Сменить очередь и сразу смахнуть | восстанавливается новая или прежняя очередь целиком, не пустая | аудит п. 7 | JVM, H | `QueueStateFileStoreTest` (гибель процесса) | принято по автоматическим проверкам |
 | REST-05 | Принудительная остановка во время воспроизведения | очередь восстанавливается, отставание позиции до 12 с | ADR-0075 | H | `PlayerViewModelTest`, `QueueStateFileStoreTest`; отставание ≤12 с не покрыто | принято по автоматическим проверкам |
 | REST-06 | Быстрое переключение трека N раз подряд | последней записывается позиция последнего трека | ADR-0075 | JVM | ❗ нет сквозного теста (есть только `PersistedQueueStateTest`: ограничение частоты) | принято по автоматическим проверкам |
-| REST-07 | Перезагрузка устройства | очередь восстанавливается при открытии, сама музыка не стартует | ADR-0075 | H | `PlayerViewModelTest.savedLoginRestoresOnlySurvivorsAndNeverPlaysAutomatically`, `RestoredPlayerDetailTest` | принято по автоматическим проверкам |
+| REST-07 | Перезагрузка устройства | очередь восстанавливается при открытии, сама музыка не стартует | ADR-0075 | H | `PlayerViewModelTest.savedLoginRestoresOnlySurvivorsAndNeverPlaysAutomatically`, `PlayerViewModelTest.budgetExhaustedRestoreHealsAfterServiceReconnect`, `RestoredPlayerDetailTest` | принято по автоматическим проверкам |
 | REST-08 | Восстановить сохранённую v1 очередь из 3 647 песен, обычную и shuffle | очередь не отвергается; окно содержит текущую и до 99 следующих по playback-order, у конца дополняется историей; сохраняются песня, позиция, repeat и shuffle; файлы сразу переписаны очередью в 100 | O-23, ADR-0099 | JVM, R | `PersistedQueueStateTest`, `QueueStateFileStoreTest`, `PlayerViewModelTest` | принято по автоматическим проверкам |
 
 ## QUE — просмотр и переход по очереди (Q1)

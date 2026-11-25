@@ -15,6 +15,7 @@ import app.enotone.playback.QueueStateRestorer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
@@ -26,6 +27,9 @@ import kotlinx.coroutines.withContext
 // Match the approved 512px mini artwork and 1200px full cover masters.
 private const val PLAYER_COMPACT_COVER_PX = 512
 private const val PLAYER_FULL_COVER_PX = 1200
+
+/** Terminal outcomes hold the claim; a transient one spends one budget round. */
+private enum class RestoreOutcome { RESTORED, TERMINAL, TRANSIENT }
 
 /** The credential storage policy is replaceable in M6-0/4b without changing player code. */
 internal fun interface CredentialsProvider {
@@ -68,14 +72,22 @@ internal class PlayerViewModel(
     private var catalog: LibrarySnapshot? = null
     private var covers: AlbumArtworkCatalog? = null
     private var artworkJob: Job? = null
+    private var restoreJob: Job? = null
     private var restoredAccount: String? = null
 
     /**
-     * Failed restore attempts for the current account. [maybeRestore] runs on every
-     * playback-state publish, so releasing the claim alone would retry a persistent
-     * failure forever; a small budget lets a transient error recover without spinning.
+     * Transient rounds already spent by the claim in [restoredAccount]; the claim is the
+     * budget's lifetime, so the counter is refilled only when the claim is released
+     * ([releaseRestoreClaim], account change, sign-out, service reconnect).
      */
     private var restoreAttempts = 0
+
+    /**
+     * Set when a re-arm event (reconnect, library revision) arrives while a round is still
+     * running. Without it the event would be dropped: the round ends with the claim held and
+     * no further trigger would ever retry.
+     */
+    private var restoreRearmPending = false
     private var hostResumed = false
 
     // Ключ включает длительность: если файл заменили (импорт сбросил durationMs в null) и у новой
@@ -115,6 +127,7 @@ internal class PlayerViewModel(
                     (current.queueTotal > 0 && old.queueTotal == 0)) {
                     loadArtwork()
                 }
+                if (current.connected && !old.connected) rearmRestoreBudget()
                 if (current.connected && current.queueTotal == 0) maybeRestore()
             }
         }
@@ -125,6 +138,10 @@ internal class PlayerViewModel(
                 catalog = null
                 covers = null
                 loadingAccount = null
+                // A terminal restore outcome usually means the catalog could not supply the
+                // checkpoint tracks; a new library revision is exactly the event that can fix
+                // that, so it re-arms the budget instead of leaving the claim held.
+                rearmRestoreBudget()
                 login?.takeIf { restoreAllowed }?.let(::ensureCatalog)
             }
         }
@@ -149,13 +166,13 @@ internal class PlayerViewModel(
             accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(email))) return
         val verified = StoredWebDavLogin(email, password)
         if (login != verified) {
+            restoreJob?.cancel()
             catalogGeneration++
             login = verified
             catalog = null
             covers = null
             loadingAccount = null
-            restoredAccount = null
-            restoreAttempts = 0
+            releaseRestoreClaim()
         }
         restoreAllowed = true
         saveKnownDuration(connection.state.value)
@@ -168,6 +185,7 @@ internal class PlayerViewModel(
     fun onSignOutStarted() {
         restoreAllowed = false
         artworkJob?.cancel()
+        restoreJob?.cancel()
         mutable.update { it.copy(nowPlaying = false, artwork = null, largeArtwork = null) }
         connection.setNowPlayingVisible(false)
     }
@@ -176,6 +194,9 @@ internal class PlayerViewModel(
         // Cleanup may have already deleted Room records. Keep credentials
         // for retry, but do not rehydrate a partially erased queue.
         restoreAllowed = false
+        // Restore writes the queue into the service; an in-flight round must not
+        // repopulate it after a failed cleanup.
+        restoreJob?.cancel()
     }
 
     fun onSignedOut() {
@@ -184,10 +205,10 @@ internal class PlayerViewModel(
         login = null
         catalog = null
         covers = null
-        restoredAccount = null
-        restoreAttempts = 0
+        releaseRestoreClaim()
         loadingAccount = null
         artworkJob?.cancel()
+        restoreJob?.cancel()
         mutable.value = SharedPlayerUiState()
         connection.setNowPlayingVisible(false)
     }
@@ -225,16 +246,89 @@ internal class PlayerViewModel(
         }
     }
 
-    /**
-     * Releases the restore claim after a failed attempt so a later publish can retry,
-     * but stops after [MAX_RESTORE_ATTEMPTS] to avoid retrying a persistent failure on
-     * every 500 ms playback tick.
-     */
+    /** Bounded pause before the next round; one-based [consumedRounds]. */
+    private fun restoreBackoffMs(consumedRounds: Int): Long =
+        if (consumedRounds == 1) RESTORE_BACKOFF_FIRST_MS else RESTORE_BACKOFF_SECOND_MS
+
+    /** Drops the claim and refills the budget; the next claim starts at round 1. */
     private fun releaseRestoreClaim() {
-        restoreAttempts += 1
-        if (restoreAttempts < MAX_RESTORE_ATTEMPTS) {
-            restoredAccount = null
+        restoredAccount = null
+        restoreAttempts = 0
+        restoreRearmPending = false
+    }
+
+    /**
+     * Re-arms the budget on an external event that can plausibly fix a failed restore
+     * (service reconnect, new library revision). A round in flight would only swallow the
+     * event, so it is recorded and replayed by [restartAfterRejoin] once that round ends.
+     */
+    private fun rearmRestoreBudget() {
+        if (restoreJob?.isActive == true) {
+            restoreRearmPending = true
+            return
         }
+        releaseRestoreClaim()
+    }
+
+    /**
+     * Restarts a restore that was re-armed while a round was still running. Runs from the
+     * job's completion handler, so [restoreJob] is already finished and [maybeRestore] can
+     * claim again instead of being rejected by its own in-flight guard.
+     */
+    private fun restartAfterRejoin() {
+        if (!restoreRearmPending) return
+        restoreRearmPending = false
+        releaseRestoreClaim()
+        maybeRestore()
+    }
+
+    @Suppress("ReturnCount")
+    private suspend fun runRestoreRounds(saved: StoredWebDavLogin, sourceKey: String) {
+        while (restoreAttempts < MAX_RESTORE_ATTEMPTS) {
+            // Каталог разрешается в момент выстрела, а не в момент планирования.
+            val cached = catalog ?: run {
+                releaseRestoreClaim()
+                ensureCatalog(saved)
+                return
+            }
+            restoreAttempts += 1
+            val outcome = try {
+                attemptRestore(saved, cached, sourceKey)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                QueuePersistenceDiagnostics.result(QueueRestoreCode.POSITION_INVALID)
+                RestoreOutcome.TRANSIENT
+            }
+            if (applyRestoreOutcome(outcome) || outcome != RestoreOutcome.TRANSIENT) return
+            delay(restoreBackoffMs(restoreAttempts))
+        }
+    }
+
+    /**
+     * Handles one round's outcome; returns true when the round loop must stop. A repair event
+     * that arrived while this round ran is left in [restoreRearmPending] and honoured by the
+     * job's completion handler, which is the only place able to claim again.
+     */
+    private fun applyRestoreOutcome(outcome: RestoreOutcome): Boolean {
+        val stop = when (outcome) {
+            RestoreOutcome.RESTORED -> true
+            RestoreOutcome.TERMINAL -> true
+            RestoreOutcome.TRANSIENT -> restoreAttempts >= MAX_RESTORE_ATTEMPTS
+        }
+        when (outcome) {
+            RestoreOutcome.RESTORED -> {
+                // Nothing left to repair: a pending re-arm must not leak into the next claim.
+                restoreRearmPending = false
+                QueuePersistenceDiagnostics.result(QueueRestoreCode.RESTORED)
+                loadArtwork()
+            }
+            RestoreOutcome.TERMINAL -> Unit
+            RestoreOutcome.TRANSIENT -> if (stop) {
+                QueuePersistenceDiagnostics.result(QueueRestoreCode.RESTORE_BUDGET_EXHAUSTED)
+            }
+        }
+        return stop
     }
 
     // Guarded once per source to prevent repeated bind/restore races on Home.
@@ -243,81 +337,58 @@ internal class PlayerViewModel(
         if (!restoreAllowed || login?.let {
                 accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(it.email))
             } == true) return
+        // Один владелец повторов: пока раунд жив, второй не стартует.
+        if (restoreJob?.isActive == true) return
         val snapshot = mutable.value.playback
         if (!snapshot.connected) return
         if (snapshot.queueTotal > 0) return
         val saved = login ?: return
-        val cached = catalog
-        if (cached == null) {
+        if (catalog == null) {
             ensureCatalog(saved)
             return
         }
         val sourceKey = LibrarySnapshotPlanner.accountKey(saved.email)
         if (restoredAccount == sourceKey) return
-        // Claiming the account before the attempt stops maybeRestore() from launching a
-        // second restore while one is in flight. Any failure must release the claim,
-        // otherwise a single transient error blocks restoration until process death.
         restoredAccount = sourceKey
-        restoreAttempts = 0
-        viewModelScope.launch {
-            val restored = try {
-                restoreQueueForAccount(saved, cached, sourceKey)
-            } catch (cancelled: CancellationException) {
-                releaseRestoreClaim()
-                throw cancelled
-            } catch (_: Exception) {
-                QueuePersistenceDiagnostics.result(QueueRestoreCode.POSITION_INVALID)
-                releaseRestoreClaim()
-                return@launch
-            }
-            if (restored) {
-                QueuePersistenceDiagnostics.result(QueueRestoreCode.RESTORED)
-                loadArtwork()
-            } else {
-                releaseRestoreClaim()
-            }
-        }
+        val job = viewModelScope.launch { runRestoreRounds(saved, sourceKey) }
+        restoreJob = job
+        // A re-arm that arrived mid-round is honoured here, after the guard above has been
+        // released by completion; doing it inside the round would be rejected as in-flight.
+        job.invokeOnCompletion { if (restoreRearmPending) restartAfterRejoin() }
     }
 
-    /**
-     * One restore attempt for [sourceKey]. Reports the terminal outcome code and returns
-     * true only when the queue was restored, so the caller can release the claim after
-     * any rejection — the failure is otherwise retried until process death.
-     */
     @Suppress("ReturnCount")
-    private suspend fun restoreQueueForAccount(
+    private suspend fun attemptRestore(
         saved: StoredWebDavLogin,
         cached: LibrarySnapshot,
         sourceKey: String,
-    ): Boolean {
-        val checkpoint = repository.readSavedQueue() ?: return false
+    ): RestoreOutcome {
+        val checkpoint = repository.readSavedQueue() ?: return RestoreOutcome.TERMINAL
         if (!QueueEditSource.belongsTo(checkpoint.sourceKey, sourceKey)) {
             QueuePersistenceDiagnostics.result(QueueRestoreCode.SOURCE_MISMATCH)
-            return false
+            return RestoreOutcome.TERMINAL
         }
         val filtered = withContext(io) {
             QueueStateRestorer.filter(checkpoint, cached.preparedById.keys)
-        } ?: return false
+        } ?: return RestoreOutcome.TERMINAL
         val queue = filtered.trackIds.mapNotNull(cached.preparedById::get)
         // An in-flight restore may have started before the user confirmed sign-out.
         // Never repopulate the queue during cleanup.
         if (!restoreAllowed || login != saved || accountEvents.value.blocks(sourceKey)) {
-            return false
+            return RestoreOutcome.TERMINAL
         }
         if (queue.size != filtered.trackIds.size) {
             QueuePersistenceDiagnostics.result(QueueRestoreCode.NO_TRACKS_IN_ROOM)
-            return false
+            return RestoreOutcome.TERMINAL
         }
         if (connection.state.value.queueTotal > 0) {
             QueuePersistenceDiagnostics.result(QueueRestoreCode.SERVICE_HAS_QUEUE)
-            return false
+            return RestoreOutcome.TERMINAL
         }
         val success = connection.restoreQueue(saved.email, saved.password, queue,
             filtered, useCache(), queue.size != checkpoint.trackIds.size)
-        if (!success) {
-            QueuePersistenceDiagnostics.result(QueueRestoreCode.SERVICE_HAS_QUEUE)
-        }
-        return success
+        if (!success) QueuePersistenceDiagnostics.result(QueueRestoreCode.SERVICE_HAS_QUEUE)
+        return if (success) RestoreOutcome.RESTORED else RestoreOutcome.TRANSIENT
     }
 
     private fun loadArtwork() {
@@ -424,8 +495,14 @@ internal class PlayerViewModel(
     }
 
     companion object {
-        /** Failed restore attempts before giving up until the account changes. */
+        /** Transient restore rounds per claim; the last one reports RESTORE_BUDGET_EXHAUSTED. */
         private const val MAX_RESTORE_ATTEMPTS = 3
+
+        /** Bounded pause after round 1 and round 2; the pair caps the retry window at 5 s. */
+        private const val RESTORE_BACKOFF_FIRST_MS = 1_000L
+
+        private const val RESTORE_BACKOFF_SECOND_MS = 4_000L
+
         fun factory(container: AppContainer): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
