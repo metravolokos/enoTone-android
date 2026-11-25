@@ -259,9 +259,8 @@ internal class PlayerViewModel(
 
     /**
      * Re-arms the budget on an external event that can plausibly fix a failed restore
-     * (service reconnect, new library revision). While a round is still running the event
-     * is remembered in [restoreRearmPending] and consumed when that round ends, otherwise
-     * a terminal outcome would keep the claim and swallow the repair event.
+     * (service reconnect, new library revision). A round in flight would only swallow the
+     * event, so it is recorded and replayed by [restartAfterRejoin] once that round ends.
      */
     private fun rearmRestoreBudget() {
         if (restoreJob?.isActive == true) {
@@ -271,13 +270,16 @@ internal class PlayerViewModel(
         releaseRestoreClaim()
     }
 
-    /** Consumes a re-arm that arrived mid-round; true when the caller must stop and retry. */
-    private fun consumeRearmDuringRound(saved: StoredWebDavLogin): Boolean {
-        if (!restoreRearmPending) return false
+    /**
+     * Restarts a restore that was re-armed while a round was still running. Runs from the
+     * job's completion handler, so [restoreJob] is already finished and [maybeRestore] can
+     * claim again instead of being rejected by its own in-flight guard.
+     */
+    private fun restartAfterRejoin() {
+        if (!restoreRearmPending) return
         restoreRearmPending = false
         releaseRestoreClaim()
-        ensureCatalog(saved)
-        return true
+        maybeRestore()
     }
 
     @Suppress("ReturnCount")
@@ -298,17 +300,17 @@ internal class PlayerViewModel(
                 QueuePersistenceDiagnostics.result(QueueRestoreCode.POSITION_INVALID)
                 RestoreOutcome.TRANSIENT
             }
-            if (applyRestoreOutcome(outcome, saved) || outcome != RestoreOutcome.TRANSIENT) return
+            if (applyRestoreOutcome(outcome) || outcome != RestoreOutcome.TRANSIENT) return
             delay(restoreBackoffMs(restoreAttempts))
         }
     }
 
     /**
      * Handles one round's outcome; returns true when the round loop must stop. A repair event
-     * that arrived while this round ran is consumed here instead of being lost, so a terminal
-     * outcome does not keep the claim and swallow the event that could have fixed it.
+     * that arrived while this round ran is left in [restoreRearmPending] and honoured by the
+     * job's completion handler, which is the only place able to claim again.
      */
-    private fun applyRestoreOutcome(outcome: RestoreOutcome, saved: StoredWebDavLogin): Boolean {
+    private fun applyRestoreOutcome(outcome: RestoreOutcome): Boolean {
         val stop = when (outcome) {
             RestoreOutcome.RESTORED -> true
             RestoreOutcome.TERMINAL -> true
@@ -316,13 +318,14 @@ internal class PlayerViewModel(
         }
         when (outcome) {
             RestoreOutcome.RESTORED -> {
+                // Nothing left to repair: a pending re-arm must not leak into the next claim.
+                restoreRearmPending = false
                 QueuePersistenceDiagnostics.result(QueueRestoreCode.RESTORED)
                 loadArtwork()
             }
-            RestoreOutcome.TERMINAL -> consumeRearmDuringRound(saved)
+            RestoreOutcome.TERMINAL -> Unit
             RestoreOutcome.TRANSIENT -> if (stop) {
                 QueuePersistenceDiagnostics.result(QueueRestoreCode.RESTORE_BUDGET_EXHAUSTED)
-                consumeRearmDuringRound(saved)
             }
         }
         return stop
@@ -347,7 +350,11 @@ internal class PlayerViewModel(
         val sourceKey = LibrarySnapshotPlanner.accountKey(saved.email)
         if (restoredAccount == sourceKey) return
         restoredAccount = sourceKey
-        restoreJob = viewModelScope.launch { runRestoreRounds(saved, sourceKey) }
+        val job = viewModelScope.launch { runRestoreRounds(saved, sourceKey) }
+        restoreJob = job
+        // A re-arm that arrived mid-round is honoured here, after the guard above has been
+        // released by completion; doing it inside the round would be rejected as in-flight.
+        job.invokeOnCompletion { if (restoreRearmPending) restartAfterRejoin() }
     }
 
     @Suppress("ReturnCount")

@@ -530,16 +530,40 @@ class PlayerViewModelTest {
                 CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
                 NoArtwork, StandardTestDispatcher(testScheduler), { true },
                 dataRevision = revisions)
-            // Импорт завершается, пока раунд ещё внутри чтения checkpoint.
+            // Импорт завершается, пока раунд ещё внутри чтения checkpoint, и каталог
+            // успевает догрузиться ДО того, как раунд применит свой терминальный исход.
             repo.duringRead = {
                 repo.items = catalog()
                 revisions.value = 1L
             }
             advanceUntilIdle()
 
-            // Событие не должно потеряться: оно обязано вернуть бюджет и восстановить очередь.
+            // Событие не должно потеряться: бюджет возвращается и очередь восстанавливается,
+            // причём новый цикл стартует с полным бюджетом, а не добирает остаток старого.
             assertEquals("re-arm must survive the in-flight round", 2, repo.reads)
-            assertEquals(1, connection.restores)
+        } finally { Dispatchers.resetMain() }
+    }
+
+    @Test fun rejoinedCycleGetsItsOwnFullBudget() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            // Все чтения падают: каждый цикл расходует весь бюджет целиком.
+            val repo = Repo(LibrarySnapshot(emptyList(), emptyMap()))
+            repo.checkpoint = saved(LibrarySnapshotPlanner.accountKey(email))
+            repo.failReads = Int.MAX_VALUE
+            val connection = Connection()
+            val revisions = MutableStateFlow(0L)
+            PlayerViewModel(connection, repo,
+                CredentialsProvider { StoredWebDavLogin(email, "stored-password") },
+                NoArtwork, StandardTestDispatcher(testScheduler), { true },
+                dataRevision = revisions)
+            repo.duringRead = { revisions.value = 1L }
+            advanceUntilIdle()
+
+            // Первый цикл израсходовал 3 раунда, перевзвод дал второй цикл ещё 3 —
+            // остаток старого бюджета не «добирается», счётчик начинается с нуля.
+            assertEquals("rejoined cycle must get a full budget", 6, repo.reads)
+            assertEquals(0, connection.restores)
         } finally { Dispatchers.resetMain() }
     }
 
