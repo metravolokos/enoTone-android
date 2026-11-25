@@ -10,8 +10,9 @@ import org.junit.Test
  * evaluated again after publication — otherwise the cancel finds nothing to cancel and the
  * download starts after the track changed or playback stopped.
  *
- * This exercises [TransientCachePolicy.ticketStillValid], the exact predicate
- * `TransientMediaCache.prefetchNext` uses for both checks.
+ * This covers [TransientCachePolicy.ticketStillValid] in isolation, which is the predicate the
+ * post-publication re-check in `prefetchNext` calls. The entry check is still inline there, and
+ * the call site itself is covered end-to-end by `PrefetchCancelDuringWindowTest` in `:app`.
  */
 class TransientCachePrefetchCancelRaceTest {
     @Test

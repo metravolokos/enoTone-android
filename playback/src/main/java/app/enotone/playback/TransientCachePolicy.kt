@@ -17,9 +17,9 @@ object TransientCachePolicy {
 
     /**
      * A prefetch may start only while both tickets are still current. `cancelNext()` bumps
-     * [nextTicket] exactly to invalidate an in-flight candidate, so a worker that already
-     * passed this check must pass it again after publishing its writer — otherwise a
-     * cancel landing in that window finds nothing to cancel and the download runs anyway.
+     * `nextGeneration` exactly to invalidate an in-flight candidate, so a worker that already
+     * passed this check must pass it again after publishing its writer — otherwise a cancel
+     * landing in that window finds nothing to cancel and the download runs anyway.
      */
     fun ticketStillValid(
         closed: Boolean,
