@@ -70,6 +70,89 @@ class IndexingRunnerTest {
         assertFalse(ManagedScanRuntime.status.value.terminating)
     }
 
+    @Test fun sessionLimitPausesInsteadOfReportingCompletion() = runTest {
+        // A bounded session that stopped at its batch budget has not read the whole library.
+        // Reporting COMPLETE here made the first-run screen announce "everything is ready".
+        val runner = runner({
+            IndexingSessionPort { _, _ ->
+                progress(3).copy(stopCode = "SESSION_BATCH_LIMIT")
+            }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+        assertEquals("SESSION_BATCH_LIMIT", ManagedScanRuntime.status.value.progress?.stopCode)
+        runner.onDestroy()
+        // The budget code must survive the teardown: the first-run resume guard keys off it.
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+        assertEquals("SESSION_BATCH_LIMIT", ManagedScanRuntime.status.value.progress?.stopCode)
+    }
+
+    @Test fun unknownStopCodePausesInsteadOfClaimingCompletion() = runTest {
+        // Fail-open was the structural flaw behind #257: a code nobody mapped must never
+        // announce a finished library.
+        val runner = runner({
+            IndexingSessionPort { _, _ -> progress(1).copy(stopCode = "SOME_FUTURE_CODE") }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+    }
+
+    @Test fun networkPolicyPausesInsteadOfClaimingCompletion() = runTest {
+        val runner = runner({
+            IndexingSessionPort { _, _ -> progress(0).copy(stopCode = "NETWORK_POLICY") }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+    }
+
+    @Test fun userPauseKeepsItsOwnCode() = runTest {
+        val held = CompletableDeferred<Unit>()
+        val runner = runner({
+            IndexingSessionPort { _, callback ->
+                callback(progress(1))
+                held.await()
+                progress(2)
+            }
+        })
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { runner.run(request) }
+        runner.pause(jobActive = true)
+        job.cancelAndJoin()
+        runner.onDestroy()
+        // A user pause must stay sticky, so it must not look like a budget pause.
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+        assertEquals("PAUSED", ManagedScanRuntime.status.value.progress?.stopCode)
+    }
+
+    @Test fun timeBudgetPausesInsteadOfReportingCompletion() = runTest {
+        val runner = runner({
+            IndexingSessionPort { _, _ ->
+                progress(5).copy(stopCode = "SESSION_TIME_BUDGET")
+            }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+    }
+
+    @Test fun authenticationFailureStaysAnError() = runTest {
+        val runner = runner({
+            IndexingSessionPort { _, _ ->
+                progress(0).copy(stopCode = "AUTH_REJECTED")
+            }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.ERROR, ManagedScanRuntime.status.value.state)
+    }
+
+    @Test fun exhaustedLibraryIsStillACompletion() = runTest {
+        val runner = runner({
+            IndexingSessionPort { _, _ ->
+                progress(2).copy(stopCode = "NO_ELIGIBLE_FILES")
+            }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.COMPLETE, ManagedScanRuntime.status.value.state)
+    }
+
     @Test fun pauseAndResumeStartsAtPersistedCheckpoint() = runTest {
         val held = CompletableDeferred<Unit>()
         var checkpoint = 0

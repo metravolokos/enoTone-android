@@ -64,12 +64,9 @@ internal object ManagedScanRuntime : ManagedScanStatusPort {
             (status.value.state != ManagedScanState.RUNNING || status.value.terminating)) return
         if (state != ManagedScanState.RUNNING) pending = null
         val last = status.value
-        val terminalCode = when (state) {
-            ManagedScanState.PAUSED -> "PAUSED"
-            ManagedScanState.STOPPED -> "STOPPED"
-            ManagedScanState.ERROR -> "FAILED_INTERNAL"
-            else -> null
-        }
+        // onDestroy() passes no progress, so the code to preserve must be read from the last
+        // snapshot as well; otherwise the teardown would rewrite a budget pause to "PAUSED".
+        val terminalCode = terminalCodeFor(state, progress ?: last.progress)
         val finalProgress = progress ?: last.progress?.let {
             if (terminalCode == null) it else it.copy(stopCode = terminalCode)
         }
@@ -78,6 +75,21 @@ internal object ManagedScanRuntime : ManagedScanStatusPort {
             failureStage = if (state == last.state) last.failureStage else null,
             failureReason = if (state == last.state) last.failureReason else null,
         )
+    }
+
+    /**
+     * The stop code a terminal snapshot carries. A budget pause keeps its own code so the
+     * first-run resume guard can tell it from the user pressing Pause, which stays sticky.
+     */
+    private fun terminalCodeFor(
+        state: ManagedScanState,
+        progress: ManagedIndexProgress?,
+    ): String? = when (state) {
+        ManagedScanState.PAUSED -> progress?.stopCode
+            ?.takeIf { it.startsWith(SESSION_LIMIT_PREFIX) } ?: "PAUSED"
+        ManagedScanState.STOPPED -> "STOPPED"
+        ManagedScanState.ERROR -> "FAILED_INTERNAL"
+        else -> null
     }
 
     @Synchronized override fun fail(stage: String, cause: Exception) {

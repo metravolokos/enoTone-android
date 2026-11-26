@@ -1,6 +1,6 @@
 # Work queue — the single order of work
 
-> **Translated from:** `docs/QUEUE.md` at `main` `8e170001`, 2026-11-26. Russian is canonical.
+> **Translated from:** `docs/QUEUE.md` at `main` `4418fe94`, 2026-11-26. Russian is canonical.
 > **Single source of ordering.** If an Issue, ROADMAP or chat contradicts this file, this file wins.
 
 ## How to read it
@@ -45,13 +45,12 @@ Technical defects: races, atomicity, cleanup ordering.
 
 | Priority | Issue | What |
 |---|---|---|
-| **P3** | [#257](https://github.com/metravolokos/enoTone-android/issues/257) | Premature `DONE` + library revision |
 | **P3** | [#258](https://github.com/metravolokos/enoTone-android/issues/258) | Improvements: bind reconnect, double reload, docs |
 | **P3** | [#292](https://github.com/metravolokos/enoTone-android/issues/292) | Legacy copy resurrects an invalidated cover |
 
-**Closed in this wave:** #254 (queue restore budget) — PR #291; #255 (prefetch cancellation race) — PR #294; #256 (fail-closed sign-out, legacy artwork, risk class R) — PR #288 and #289.
+**Closed in this wave:** #254 — PR #291; #255 — PR #294; #257 (premature `DONE` + library revision) — PR #295; #256 (fail-closed sign-out, legacy artwork, risk class R) — PR #288 and #289.
 
-**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`, #255 and #256 are closed; the next by number is `#257`.
+**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`, #255, #256 and #257 are closed; the next by number is `#258`.
 
 **Note:** `#258` partially overlaps `#273`. If the owner decides the service not releasing its binding is normal, part of `#258` (bind reconnect) becomes protection against a theoretical scenario.
 

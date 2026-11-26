@@ -32,7 +32,20 @@ internal fun FirstRunVerifiedAccountEffect(
     }
 }
 
+/**
+ * Whether a paused scan should resume on its own. Only a bounded-budget pause qualifies: a
+ * user pressing Pause keeps the code `PAUSED` and must stay sticky, and a limit hit with no
+ * progress in that session must not restart in a loop.
+ */
+internal fun budgetPauseNeedsResume(status: ManagedScanStatus): Boolean {
+    val progress = status.progress
+    return status.state == ManagedScanState.PAUSED && !status.terminating &&
+        progress != null && progress.stopCode.startsWith(SESSION_LIMIT_PREFIX) &&
+        progress.attempted > 0
+}
+
 @Composable
+@Suppress("LongParameterList")
 internal fun FirstRunImportEffect(
     account: AccountUiState,
     indexing: LibraryIndexingUiState,
@@ -63,6 +76,9 @@ internal fun FirstRunImportEffect(
         if (plan?.phase !in setOf(FirstRunPhase.INDEXING, FirstRunPhase.INDEXING_OFFLINE)) {
             return@LaunchedEffect
         }
+        // A budget pause is not a finished library and the screen has no resume action: clear the
+        // one-shot guard so the effect continues from the checkpoint.
+        if (budgetPauseNeedsResume(indexing.status)) started = false
         if (!hasValidatedInternet) {
             awaitingNetworkRecovery = true
             return@LaunchedEffect

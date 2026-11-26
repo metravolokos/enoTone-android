@@ -40,6 +40,13 @@ internal class RoomIndexingSessionFactory(
 }
 
 /**
+ * Budget pauses stop at a bounded limit and resume from their checkpoint. The prefix is shared
+ * with the first-run resume guard, which must not confuse a budget pause with a user pressing
+ * Pause — that one stays sticky.
+ */
+internal const val SESSION_LIMIT_PREFIX = "SESSION_"
+
+/**
  * Runs one explicit tag-indexing session. A gate prevents overlapping sessions
  * even if two starts race before the Android service stores its Job.
  * Room checkpoints are written by ManagedTagIndexSession before progress.
@@ -91,14 +98,15 @@ internal class IndexingRunner(
                     }
                 }
                 if (statusPort.status.value.state == ManagedScanState.RUNNING) {
-                    val error = final.stopCode in setOf(
-                        "AUTH_REJECTED", "RETRY_BACKOFF", "NO_PROGRESS",
-                    )
-                    statusPort.update(
-                        if (error) ManagedScanState.ERROR else ManagedScanState.COMPLETE,
-                        final,
-                        terminating = true,
-                    )
+                    // COMPLETE is an allow-list, not a default: a stop code this mapping does
+                    // not know must never announce a finished library. Session limits are a
+                    // bounded stop that resumes from the checkpoint, so they are a pause.
+                    val state = when (final.stopCode) {
+                        in COMPLETION_CODES -> ManagedScanState.COMPLETE
+                        in TERMINAL_ERROR_CODES -> ManagedScanState.ERROR
+                        else -> ManagedScanState.PAUSED
+                    }
+                    statusPort.update(state, final, terminating = true)
                 }
             }
             true
@@ -128,5 +136,13 @@ internal class IndexingRunner(
             // A fresh start is safe only after the old service has stopped.
             statusPort.update(last.state, terminating = false)
         }
+    }
+
+    private companion object {
+        /** The run cannot continue without a user decision; retrying blindly would spin. */
+        val TERMINAL_ERROR_CODES = setOf("AUTH_REJECTED", "RETRY_BACKOFF", "NO_PROGRESS")
+
+        /** Only these mean the library has nothing left to read. */
+        val COMPLETION_CODES = setOf("NO_ELIGIBLE_FILES", "COMPLETED")
     }
 }
