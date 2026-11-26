@@ -56,4 +56,4 @@
 
 ## 6. Сборка
 
-`./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt` — подробности в [docs/TESTING.md](docs/TESTING.md). Новый код не должен добавлять замечаний detekt ([ADR-0076](docs/DECISIONS/ADR-0076-quality-tooling.md)), даже пока detekt не блокирует CI.
+`./gradlew :app:assembleDebug testDebugUnitTest lintDebug detekt` — подробности в [docs/TESTING.md](docs/TESTING.md). Новый код не должен добавлять замечаний detekt ([ADR-0076](docs/DECISIONS/ADR-0076-quality-tooling.md)): detekt блокирует CI с базовой линией, которая может только сокращаться.

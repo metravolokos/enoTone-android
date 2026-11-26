@@ -4,6 +4,24 @@
 
 # CHANGELOG
 
+## Восстановление плеера без тупика, один reload, честные документы (#258)
+
+**Было (п.1):** после таймаута `bind` соединение уже переподключалось (это исправлено раньше, аудит устарел), но оставался тупик: `retryCurrent()` при `service == null` возвращал `false`, а `PlaybackErrorSheet` закрывается только по `true` — кнопка «Повторить» не делала ничего. Кроме того, повторный `bind` шёл с фиксированным интервалом 3 с без ограничения.
+
+**Стало (п.1):** при отсутствии службы «Повторить» вызывает `bindService` заново и возвращает фактический результат: лист закрывается только когда подключение действительно запрошено. Возврат `true` без действия был бы хуже исходного тупика — он маскировал бы отказ. Повторный `bind` идёт с backoff (0/1/4/10/30 с, дальше шаг повторяется), счётчик сбрасывается при успешном подключении и в `disconnect()`.
+
+**Было (п.2):** `onConfirmAlbumRefresh` вызывал `reload()` и сразу `LibraryDataRevision.bump()`. Ревизия доходит до собственного коллектора вьюмодели, поэтому одно обновление альбома давало два чтения каталога.
+
+**Стало (п.2):** остался только `bump()` — он нужен и плееру. Одно обновление альбома читает каталог один раз.
+
+**Было (п.4):** `REQUIREMENTS.md` утверждал «detekt пока не блокирует», `ROADMAP.md` — «уже блокирует». Факт: `ignoreFailures = false`, шаг CI «detekt + ktlint rules (blocking, with baseline)».
+
+**Стало (п.4):** `R-9.1` в `REQUIREMENTS.md` и `AGENTS.md` §6 приведены к факту: detekt блокирует CI с базовой линией, которая может только сокращаться. `PLAY-11` в `SCENARIOS` дополнен новой семантикой «Повторить» и именем нового теста.
+
+**Пункт 3 вынесен в [#296](https://github.com/metravolokos/enoTone-android/issues/296):** жадное построение планов артистов требует замера FPS, а приёмка по ADR-0104 — только автоматическими проверками. Оптимизировать до замера значило бы чинить по догадке.
+
+**Тесты:** `PlaybackRetryReconnectsTest` (2) на реальном `AndroidPlaybackConnection` под Robolectric — считает вызовы `bindService` и падает на прежнем поведении (`expected:<2> but was:<1>`, `expected:<false> but was:<true>`); `PlaybackConnectBackoffTest` (3) на шагах backoff; `an album refresh reloads the catalog once` в `LibraryViewModelTest`, падающий при возврате двойного вызова (`expected:<2> but was:<3>`). [PR #297](https://github.com/metravolokos/enoTone-android/pull/297), Issue [#258](https://github.com/metravolokos/enoTone-android/issues/258).
+
 ## Первый запуск больше не врёт «Всё готово», медиатека видит файлы без тегов (#257)
 
 **Было (H-2):** `IndexingRunner` считал ошибкой только `AUTH_REJECTED`, `RETRY_BACKOFF` и `NO_PROGRESS`, а всё остальное — включая `SESSION_BATCH_LIMIT` и `SESSION_TIME_BUDGET` — превращал в `COMPLETE`. Первый запуск по `indexingComplete` показывал `DONE`, не проверяя `remaining > 0`. При 80 пачках или четырёхчасовом лимите пользователь видел «Всё готово» над непрочитанной библиотекой.

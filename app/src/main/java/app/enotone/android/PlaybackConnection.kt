@@ -40,6 +40,16 @@ private const val POSITION_POLL_MS = 500L
     /** A bound service that has not connected within this window is reported as an error. */
     private const val CONNECT_TIMEOUT_MS = 3_000L
 
+/** Reconnect pauses, growing per failed attempt and capped, so a dead service backs off. */
+private val CONNECT_BACKOFF_STEPS_MS = longArrayOf(0L, 1_000L, 4_000L, 10_000L, 30_000L)
+
+/**
+ * How long to wait before the next reconnect attempt. Attempts past the table reuse the last
+ * value, so the retry keeps happening at a bounded rate instead of stopping for good.
+ */
+internal fun connectBackoffMs(attempts: Int): Long =
+    CONNECT_BACKOFF_STEPS_MS[attempts.coerceIn(0, CONNECT_BACKOFF_STEPS_MS.lastIndex)]
+
 /** No service/binder reference escapes to the ViewModel or the composable. */
 internal data class PlaybackSnapshot(
     val connected: Boolean = false,
@@ -98,7 +108,12 @@ internal interface PlaybackConnection {
         }
     fun playPause()
 
-    /** Retry only the current errored item; returns false when there is no error or service. */
+    /**
+     * Retry only the current errored item, or reconnect when the service is gone — the sheet
+     * that owns this action closes on true, and a dead service must not leave it stuck.
+     * Returns false when the command could not achieve anything: no error while the service
+     * is alive, or a reconnect that could not even bind.
+     */
     fun retryCurrent(): Boolean = false
     fun playNext()
     fun playPrevious()
@@ -196,6 +211,9 @@ internal class AndroidPlaybackConnection(
     /** Fails the connection when bindService succeeded but the service never answers. */
     private var connectTimeout: Job? = null
 
+    /** Consecutive reconnect attempts since the last successful connection; drives backoff. */
+    private var connectAttempts = 0
+
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = publish()
     }
@@ -204,6 +222,7 @@ internal class AndroidPlaybackConnection(
             service?.player?.removeListener(listener)
             service = (binder as? EnoTonePlaybackService.LocalBinder)?.service()
             service?.player?.addListener(listener)
+            connectAttempts = 0
             publish()
         }
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -226,12 +245,22 @@ internal class AndroidPlaybackConnection(
     }
 
     /** Re-establishes a lost binding without dropping the ticker or the UI snapshot. */
-    private fun reattach() {
-        if (!bound) return
+    private fun reattach(): Boolean {
+        if (!bound) return false
         runCatching { context.unbindService(connection) }
         bound = false
         service = null
         bindNow()
+        return bound
+    }
+
+    /**
+     * Binds again when there is nothing to unbind, e.g. after bindService returned false or
+     * threw: the earlier connect() already owns the ticker, so connect() would return early.
+     */
+    private fun rebindNow(): Boolean {
+        bindNow()
+        return bound
     }
 
     /** Full rebind after the service process died: drop the stale binding, then bind. */
@@ -273,6 +302,11 @@ internal class AndroidPlaybackConnection(
                 connectTimeout?.cancel()
                 connectTimeout = scope.launch {
                     delay(CONNECT_TIMEOUT_MS)
+                    if (service != null) return@launch
+                    // Reconnect, but back off: a service that keeps failing must not be
+                    // re-bound every three seconds for as long as the app is open.
+                    delay(connectBackoffMs(connectAttempts))
+                    connectAttempts += 1
                     if (service == null) reattach()
                 }
             }
@@ -288,6 +322,9 @@ internal class AndroidPlaybackConnection(
         ticker = null
         connectTimeout?.cancel()
         connectTimeout = null
+        // A fresh session must start from an immediate attempt, not inherit the previous
+        // session's slowest pause.
+        connectAttempts = 0
         nowPlayingVisible = false
         service?.player?.removeListener(listener)
         if (bound) runCatching { context.unbindService(connection) }
@@ -416,9 +453,21 @@ internal class AndroidPlaybackConnection(
         publish()
     }
     override fun retryCurrent(): Boolean {
-        val retried = service?.retryCurrent() ?: false
+        val active = service
+        if (active != null) {
+            val retried = active.retryCurrent()
+            publish()
+            return retried
+        }
+        // No service: retrying a track is impossible, but the user's tap must still do
+        // something. Reconnect instead of returning false, which left the error sheet open
+        // with a button that could never succeed. connect() would return early here — the
+        // ticker from the first connect() is still alive — so the reconnect goes through
+        // reattach(), which binds unconditionally.
+        connectAttempts = 0
+        val reconnected = reattach() || rebindNow()
         publish()
-        return retried
+        return reconnected
     }
     override fun playNext() { service?.playNext(); publish() }
     override fun playPrevious() { service?.playPrevious(); publish() }

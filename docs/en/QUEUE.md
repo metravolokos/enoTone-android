@@ -1,6 +1,6 @@
 # Work queue — the single order of work
 
-> **Translated from:** `docs/QUEUE.md` at `main` `4418fe94`, 2026-11-26. Russian is canonical.
+> **Translated from:** `docs/QUEUE.md` at `main` `18472bdc`, 2026-11-26. Russian is canonical.
 > **Single source of ordering.** If an Issue, ROADMAP or chat contradicts this file, this file wins.
 
 ## How to read it
@@ -45,14 +45,14 @@ Technical defects: races, atomicity, cleanup ordering.
 
 | Priority | Issue | What |
 |---|---|---|
-| **P3** | [#258](https://github.com/metravolokos/enoTone-android/issues/258) | Improvements: bind reconnect, double reload, docs |
 | **P3** | [#292](https://github.com/metravolokos/enoTone-android/issues/292) | Legacy copy resurrects an invalidated cover |
+| **P3** | [#296](https://github.com/metravolokos/enoTone-android/issues/296) | Eager artist-detail plans — needs a measurement |
 
-**Closed in this wave:** #254 — PR #291; #255 — PR #294; #257 (premature `DONE` + library revision) — PR #295; #256 (fail-closed sign-out, legacy artwork, risk class R) — PR #288 and #289.
+**Closed in this wave:** #254 — PR #291; #255 — PR #294; #257 (premature `DONE` + library revision) — PR #295; #258 (bind reconnect, double reload, docs) — PR #297; #256 (fail-closed sign-out, legacy artwork, risk class R) — PR #288 and #289.
 
-**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`, #255, #256 and #257 are closed; the next by number is `#258`.
+**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`, #255, #256, #257 and #258 are closed; #292 and #296 remain, both awaiting a measurement or a separate decision.
 
-**Note:** `#258` partially overlaps `#273`. If the owner decides the service not releasing its binding is normal, part of `#258` (bind reconnect) becomes protection against a theoretical scenario.
+**Note:** backoff only covers the bind-timeout branch. `onServiceDisconnected` and `onBindingDied` still reconnect immediately, so the overlap between `#258` and `#273` remains partial: whether the FGS binding is normal stays a separate owner decision.
 
 ## Ordering rules
 
