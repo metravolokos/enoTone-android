@@ -42,9 +42,6 @@ internal fun FirstRunImportEffect(
     onAutomaticRetry: () -> Unit,
 ) {
     var started by remember(account.libraryLogin?.email) { mutableStateOf(false) }
-    // Highest `attempted` reached by a paused run. A pause that made no progress must not
-    // auto-resume, otherwise a session limit would restart in a tight loop.
-    var lastAttempted by remember(account.libraryLogin?.email) { mutableStateOf(-1) }
     var awaitingNetworkRecovery by remember(account.libraryLogin?.email) {
         mutableStateOf(!hasValidatedInternet)
     }
@@ -66,16 +63,14 @@ internal fun FirstRunImportEffect(
         if (plan?.phase !in setOf(FirstRunPhase.INDEXING, FirstRunPhase.INDEXING_OFFLINE)) {
             return@LaunchedEffect
         }
-        // A session limit pauses the run without finishing the library, and the screen has no
-        // resume action: without clearing the one-shot guard it would sit on frozen progress.
-        // Resume only when that run actually advanced, so a limit hit at zero progress cannot
-        // restart in a loop.
+        // A budget pause is not a finished library and the screen has no resume action: clear the
+// one-shot guard so the effect continues from the checkpoint. Only a SESSION_ pause resumes —
+// a user pressing Pause keeps its code "PAUSED" and must stay sticky. Requiring progress in
+// the paused session (attempted > 0) stops a limit hit at zero work from looping.
         if (indexing.status.state == ManagedScanState.PAUSED && !indexing.status.terminating) {
-            val attempted = indexing.status.progress?.attempted ?: 0
-            if (attempted > lastAttempted) {
-                started = false
-                lastAttempted = attempted
-            }
+            val stopCode = indexing.status.progress?.stopCode.orEmpty()
+            val advanced = (indexing.status.progress?.attempted ?: 0) > 0
+            if (stopCode.startsWith(SESSION_LIMIT_PREFIX) && advanced) started = false
         }
         if (!hasValidatedInternet) {
             awaitingNetworkRecovery = true

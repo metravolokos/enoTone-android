@@ -15,6 +15,12 @@ internal data class FirstRunPlanningState(
     val libraryImportFinished: Boolean = false,
     val songCount: Int? = null,
     val pendingTagCount: Int? = null,
+    /**
+     * Live rows left unread, taken from the terminal indexing snapshot. Unlike
+     * [pendingTagCount] it is not a stale per-import value, so it is the honest input for
+     * "everything is ready".
+     */
+    val indexingRemaining: Int? = null,
     val hasValidatedInternet: Boolean = true,
 )
 
@@ -37,7 +43,7 @@ internal object FirstRunPhasePlanner {
         state.firstRunCompleted == null -> appPhase(writeCompleted = true)
         state.firstRunCompleted -> appPhase()
         state.indexingActive -> indexingPhase(state.hasValidatedInternet)
-        state.indexingComplete -> completedPhase(state.songCount, state.pendingTagCount)
+        state.indexingComplete -> completedPhase(state.songCount, state.indexingRemaining)
         state.libraryImportFinished -> importedPhase(state)
         else -> indexingPhase(state.hasValidatedInternet)
     }
@@ -49,12 +55,12 @@ internal object FirstRunPhasePlanner {
         else -> indexingPhase(state.hasValidatedInternet)
     }
 
-    private fun completedPhase(songCount: Int?, pendingTagCount: Int?): FirstRunPlan = when {
+    private fun completedPhase(songCount: Int?, remaining: Int?): FirstRunPlan = when {
         songCount == null -> FirstRunPlan(FirstRunPhase.INDEXING)
         songCount == 0 -> FirstRunPlan(FirstRunPhase.APP, writeFirstRunCompleted = true)
-        // "Everything is ready" requires nothing left to read. A terminal state with pending
-        // rows would otherwise announce completion over an unread part of the library.
-        pendingTagCount.orZero() > 0 -> FirstRunPlan(FirstRunPhase.INDEXING)
+        // "Everything is ready" requires nothing left to read. The live snapshot is the only
+        // honest source: the import-time pending count is never refreshed after indexing.
+        (remaining ?: 0) > 0 -> FirstRunPlan(FirstRunPhase.INDEXING)
         else -> FirstRunPlan(FirstRunPhase.DONE)
     }
 

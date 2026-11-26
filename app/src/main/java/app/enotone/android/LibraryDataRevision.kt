@@ -51,16 +51,15 @@ internal object LibraryRefreshPolicy {
     const val PROGRESS_STEP = 500
 
     fun indexingChanged(previous: ManagedScanStatus, current: ManagedScanStatus): Boolean {
-        val finished = previous.active && !current.active
         val before = processed(previous.progress)
         val after = processed(current.progress)
         val stepped = current.state == ManagedScanState.RUNNING && after / PROGRESS_STEP > before / PROGRESS_STEP
         // The terminal snapshot is published with terminating = true, so `active` stays true
-        // until the service is destroyed. Publish the revision on the transition itself,
-        // otherwise an open library misses the finished batch until teardown.
+        // until the service is destroyed. The transition itself is the signal; watching
+        // `active` as well would bump twice, once here and once when terminating clears.
         val terminal = previous.state == ManagedScanState.RUNNING &&
             current.state != ManagedScanState.RUNNING
-        return finished || stepped || terminal
+        return stepped || terminal
     }
 
     /** Both kinds of successful handling count: a track read without tags still changed the library. */

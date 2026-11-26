@@ -137,6 +137,7 @@ private fun rememberFirstRunPlan(
             libraryImportFinished = indexing.importVersion > 0,
             songCount = songCount,
             pendingTagCount = indexing.pendingTagCount,
+            indexingRemaining = indexing.status.progress?.remaining,
             hasValidatedInternet = hasValidatedInternet,
         ),
     )

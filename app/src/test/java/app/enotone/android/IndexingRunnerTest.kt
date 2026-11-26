@@ -81,6 +81,46 @@ class IndexingRunnerTest {
         assertTrue(runner.run(request))
         assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
         assertEquals("SESSION_BATCH_LIMIT", ManagedScanRuntime.status.value.progress?.stopCode)
+        runner.onDestroy()
+        // The budget code must survive the teardown: the first-run resume guard keys off it.
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+        assertEquals("SESSION_BATCH_LIMIT", ManagedScanRuntime.status.value.progress?.stopCode)
+    }
+
+    @Test fun unknownStopCodePausesInsteadOfClaimingCompletion() = runTest {
+        // Fail-open was the structural flaw behind #257: a code nobody mapped must never
+        // announce a finished library.
+        val runner = runner({
+            IndexingSessionPort { _, _ -> progress(1).copy(stopCode = "SOME_FUTURE_CODE") }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+    }
+
+    @Test fun networkPolicyPausesInsteadOfClaimingCompletion() = runTest {
+        val runner = runner({
+            IndexingSessionPort { _, _ -> progress(0).copy(stopCode = "NETWORK_POLICY") }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+    }
+
+    @Test fun userPauseKeepsItsOwnCode() = runTest {
+        val held = CompletableDeferred<Unit>()
+        val runner = runner({
+            IndexingSessionPort { _, callback ->
+                callback(progress(1))
+                held.await()
+                progress(2)
+            }
+        })
+        val job = launch(UnconfinedTestDispatcher(testScheduler)) { runner.run(request) }
+        runner.pause(jobActive = true)
+        job.cancelAndJoin()
+        runner.onDestroy()
+        // A user pause must stay sticky, so it must not look like a budget pause.
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+        assertEquals("PAUSED", ManagedScanRuntime.status.value.progress?.stopCode)
     }
 
     @Test fun timeBudgetPausesInsteadOfReportingCompletion() = runTest {

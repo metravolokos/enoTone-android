@@ -44,6 +44,13 @@ internal class RoomIndexingSessionFactory(
  * even if two starts race before the Android service stores its Job.
  * Room checkpoints are written by ManagedTagIndexSession before progress.
  */
+/**
+ * Budget pauses stop at a bounded limit and resume from their checkpoint. The prefix is shared
+ * with the first-run resume guard, which must not confuse a budget pause with a user pressing
+ * Pause — that one stays sticky.
+ */
+internal const val SESSION_LIMIT_PREFIX = "SESSION_"
+
 internal class IndexingRunner(
     private val sessions: IndexingSessionFactory,
     private val signOutPending: () -> Boolean,
@@ -91,14 +98,13 @@ internal class IndexingRunner(
                     }
                 }
                 if (statusPort.status.value.state == ManagedScanState.RUNNING) {
-                    // A session limit is not a finished library: the session stopped to respect
-                    // a bounded budget and can resume from its checkpoint. Reporting COMPLETE
-                    // here made the first-run screen announce "everything is ready" while
-                    // tracks were still unread.
+                    // COMPLETE is an allow-list, not a default: a stop code this mapping does
+                    // not know must never announce a finished library. Session limits are a
+                    // bounded stop that resumes from the checkpoint, so they are a pause.
                     val state = when (final.stopCode) {
+                        in COMPLETION_CODES -> ManagedScanState.COMPLETE
                         in TERMINAL_ERROR_CODES -> ManagedScanState.ERROR
-                        in SESSION_LIMIT_CODES -> ManagedScanState.PAUSED
-                        else -> ManagedScanState.COMPLETE
+                        else -> ManagedScanState.PAUSED
                     }
                     statusPort.update(state, final, terminating = true)
                 }
@@ -136,12 +142,7 @@ internal class IndexingRunner(
         /** The run cannot continue without a user decision; retrying blindly would spin. */
         val TERMINAL_ERROR_CODES = setOf("AUTH_REJECTED", "RETRY_BACKOFF", "NO_PROGRESS")
 
-        /**
-         * Bounded budgets the session stopped at. The library is not finished, and the session
-         * resumes from its checkpoint, so this is a pause rather than a completion.
-         */
-        val SESSION_LIMIT_CODES = setOf(
-            "SESSION_BATCH_LIMIT", "SESSION_TIME_BUDGET", "NETWORK_BUDGET", "TIME_BUDGET",
-        )
+        /** Only these mean the library has nothing left to read. */
+        val COMPLETION_CODES = setOf("NO_ELIGIBLE_FILES", "COMPLETED")
     }
 }
