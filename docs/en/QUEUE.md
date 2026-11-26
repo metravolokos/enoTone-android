@@ -52,7 +52,7 @@ Technical defects: races, atomicity, cleanup ordering.
 
 **Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`, #255, #256, #257 and #258 are closed; #292 and #296 remain, both awaiting a measurement or a separate decision.
 
-**Note:** reconnects are now rate-limited by backoff, so `#258` no longer overlaps `#273`: whether the FGS binding is normal stays a separate owner decision.
+**Note:** backoff only covers the bind-timeout branch. `onServiceDisconnected` and `onBindingDied` still reconnect immediately, so the overlap between `#258` and `#273` remains partial: whether the FGS binding is normal stays a separate owner decision.
 
 ## Ordering rules
 

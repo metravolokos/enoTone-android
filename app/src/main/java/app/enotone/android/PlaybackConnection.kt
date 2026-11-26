@@ -111,7 +111,8 @@ internal interface PlaybackConnection {
     /**
      * Retry only the current errored item, or reconnect when the service is gone — the sheet
      * that owns this action closes on true, and a dead service must not leave it stuck.
-     * Returns false only when there is no error to retry while the service is alive.
+     * Returns false when the command could not achieve anything: no error while the service
+     * is alive, or a reconnect that could not even bind.
      */
     fun retryCurrent(): Boolean = false
     fun playNext()
