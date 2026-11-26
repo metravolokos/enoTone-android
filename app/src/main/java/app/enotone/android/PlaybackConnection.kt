@@ -40,7 +40,7 @@ private const val POSITION_POLL_MS = 500L
     /** A bound service that has not connected within this window is reported as an error. */
     private const val CONNECT_TIMEOUT_MS = 3_000L
 
-/** Reconnect pauses, doubled per failed attempt and capped, so a dead service backs off. */
+/** Reconnect pauses, growing per failed attempt and capped, so a dead service backs off. */
 private val CONNECT_BACKOFF_STEPS_MS = longArrayOf(0L, 1_000L, 4_000L, 10_000L, 30_000L)
 
 /**
@@ -108,7 +108,11 @@ internal interface PlaybackConnection {
         }
     fun playPause()
 
-    /** Retry only the current errored item; returns false when there is no error or service. */
+    /**
+     * Retry only the current errored item, or reconnect when the service is gone — the sheet
+     * that owns this action closes on true, and a dead service must not leave it stuck.
+     * Returns false only when there is no error to retry while the service is alive.
+     */
     fun retryCurrent(): Boolean = false
     fun playNext()
     fun playPrevious()
@@ -240,12 +244,22 @@ internal class AndroidPlaybackConnection(
     }
 
     /** Re-establishes a lost binding without dropping the ticker or the UI snapshot. */
-    private fun reattach() {
-        if (!bound) return
+    private fun reattach(): Boolean {
+        if (!bound) return false
         runCatching { context.unbindService(connection) }
         bound = false
         service = null
         bindNow()
+        return bound
+    }
+
+    /**
+     * Binds again when there is nothing to unbind, e.g. after bindService returned false or
+     * threw: the earlier connect() already owns the ticker, so connect() would return early.
+     */
+    private fun rebindNow(): Boolean {
+        bindNow()
+        return bound
     }
 
     /** Full rebind after the service process died: drop the stale binding, then bind. */
@@ -307,6 +321,9 @@ internal class AndroidPlaybackConnection(
         ticker = null
         connectTimeout?.cancel()
         connectTimeout = null
+        // A fresh session must start from an immediate attempt, not inherit the previous
+        // session's slowest pause.
+        connectAttempts = 0
         nowPlayingVisible = false
         service?.player?.removeListener(listener)
         if (bound) runCatching { context.unbindService(connection) }
@@ -443,11 +460,13 @@ internal class AndroidPlaybackConnection(
         }
         // No service: retrying a track is impossible, but the user's tap must still do
         // something. Reconnect instead of returning false, which left the error sheet open
-        // with a button that could never succeed.
+        // with a button that could never succeed. connect() would return early here — the
+        // ticker from the first connect() is still alive — so the reconnect goes through
+        // reattach(), which binds unconditionally.
         connectAttempts = 0
-        if (bound) reattach() else connect()
+        val reconnected = reattach() || rebindNow()
         publish()
-        return true
+        return reconnected
     }
     override fun playNext() { service?.playNext(); publish() }
     override fun playPrevious() { service?.playPrevious(); publish() }
