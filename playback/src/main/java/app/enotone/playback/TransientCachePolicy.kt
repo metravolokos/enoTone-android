@@ -15,6 +15,20 @@ object TransientCachePolicy {
         fileBytes > 0 && fileBytes <= MAX_CURRENT_BYTES &&
             availableBytes >= fileBytes + MIN_FREE_AFTER_DOWNLOAD
 
+    /**
+     * A prefetch may start only while both tickets are still current. `cancelNext()` bumps
+     * `nextGeneration` exactly to invalidate an in-flight candidate, so a worker that already
+     * passed this check must pass it again after publishing its writer — otherwise a cancel
+     * landing in that window finds nothing to cancel and the download runs anyway.
+     */
+    fun ticketStillValid(
+        closed: Boolean,
+        generation: Long,
+        currentTicket: Long,
+        nextGeneration: Long,
+        nextTicket: Long,
+    ): Boolean = !closed && generation == currentTicket && nextGeneration == nextTicket
+
     /** Opaque cache key; no filename, URI, password or headers in its index. */
     fun key(track: QueueTrack): String {
         val value = listOf(track.id, track.remoteSize.toString(),
