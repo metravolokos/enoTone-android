@@ -316,7 +316,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             imageSlots.withPermit {
                 imageSlots.withPermit {
                     withContext(Dispatchers.IO) {
-                        AccountArtworkFileCleanup(directory).removeScoped(keys)
+                        AccountArtworkFileCleanup(directory, legacyDirectory).removeScoped(keys)
                         memoryCache.evictAll()
                     }
                 }
@@ -361,6 +361,11 @@ internal class ArtworkPreviewRepository(context: Context) {
                 lock.lock()
                 try {
                     referenceFile(key).delete()
+                    // The legacy cache holds its own ref-*.txt, and migrateLegacy() would copy
+                    // that stale master back into permanent storage on the next read, undoing
+                    // the invalidation. A tombstone makes the forget survive migration even
+                    // when the legacy file cannot be removed (read-only or still open).
+                    markInvalidated(key)
                 } finally {
                     lock.unlock()
                 }
@@ -375,6 +380,22 @@ internal class ArtworkPreviewRepository(context: Context) {
             }?.forEach { it.delete() }
         }
     }
+
+    /**
+     * Records that [key] must not be restored from the legacy cache. The marker lives next to
+     * the permanent refs so it survives process death, and it is removed only once a fresh
+     * master has been stored.
+     */
+    private fun markInvalidated(key: String) {
+        if (!directory.exists() && !directory.mkdirs()) return
+        runCatching { tombstoneFile(key).writeText("1", Charsets.US_ASCII) }
+        File(legacyDirectory, "ref-$key.txt").delete()
+    }
+
+    private fun tombstoneFile(sourceHash: String) =
+        File(directory, "forget-$sourceHash.txt")
+
+    private fun isInvalidated(key: String) = tombstoneFile(key).isFile
 
     private suspend fun loadOrFetch(
         key: String,
@@ -532,6 +553,8 @@ internal class ArtworkPreviewRepository(context: Context) {
             // A reference is written only after its master exists.
             if (master.isFile) {
                 atomicWrite(referenceFile(key), digest.toByteArray(Charsets.US_ASCII))
+                // A freshly stored master supersedes the invalidation that ordered it.
+                tombstoneFile(key).delete()
                 // No disk LRU: these files are permanent until user clears them.
             }
         } finally {
@@ -562,6 +585,9 @@ internal class ArtworkPreviewRepository(context: Context) {
      */
     private fun migrateLegacy(key: String) {
         if (referenceFile(key).isFile) return
+        // An invalidated source must not come back: the legacy copy is exactly the stale
+        // master the reindex asked to forget.
+        if (isInvalidated(key)) return
         val legacyRef = File(legacyDirectory, "ref-$key.txt")
         if (!legacyRef.isFile || legacyRef.length() != 64L) return
         val digest = legacyRef.readText(Charsets.US_ASCII)

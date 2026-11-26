@@ -4,6 +4,18 @@
 
 # CHANGELOG
 
+## Инвалидация обложки больше не отменяется legacy-кэшем (#292)
+
+**Было:** `invalidate()` удалял только постоянную ссылку `filesDir/enotone-artwork-v2/ref-<hash>.txt`. Legacy-кэш `cacheDir/enotone-artwork-v2` хранит собственную `ref-<hash>.txt`, а `migrateLegacy()` вызывается на каждом чтении и загрузке. Если файл на сервере заменён при совпавших ETag и размере, следующий запрос находил legacy-ссылку, декодировал старый мастер и вызывал `storeMaster` — пользователь видел **старую** обложку без сетевого запроса. Инвалидация отменялась миграцией.
+
+**Стало:** `invalidate()` ставит tombstone `forget-<hash>.txt` рядом с постоянными ссылками и удаляет legacy-ссылку. `migrateLegacy()` не воскрешает ключ с tombstone, а `storeMaster()` снимает tombstone, когда записан свежий мастер — то есть инвалидация живёт до первого успешного обновления и переживает перезапуск процесса.
+
+**Пункт 3 Issue — account-scoped cleanup.** `AccountArtworkFileCleanup` принимает legacy-каталог: `survivingReferences()` теперь смотрит ссылки **обоих** хранилищ, поэтому мастер, на который ссылается только legacy, не удаляется как сирота. Удаление ссылок аккаунта чистит и legacy, и tombstone — иначе он воскресил бы обложку после «Выйти».
+
+**Тесты:** `ArtworkInvalidateLegacyTest` (2) на реальном `ArtworkPreviewRepository` под Robolectric — проверяет, что после `invalidate()` остаётся tombstone, legacy-ссылка удалена, `cachedCover()` не отдаёт воскрешённую обложку, а legacy-мастер не тронут. `AccountArtworkFileCleanupTest` дополнен двумя случаями: мастер, на который ссылается только legacy, выживает; удаление аккаунта чистит legacy-ссылку и tombstone. Оба новых теста падают без исправления.
+
+[PR #298](https://github.com/metravolokos/enoTone-android/pull/298), Issue [#292](https://github.com/metravolokos/enoTone-android/issues/292).
+
 ## Восстановление плеера без тупика, один reload, честные документы (#258)
 
 **Было (п.1):** после таймаута `bind` соединение уже переподключалось (это исправлено раньше, аудит устарел), но оставался тупик: `retryCurrent()` при `service == null` возвращал `false`, а `PlaybackErrorSheet` закрывается только по `true` — кнопка «Повторить» не делала ничего. Кроме того, повторный `bind` шёл с фиксированным интервалом 3 с без ограничения.

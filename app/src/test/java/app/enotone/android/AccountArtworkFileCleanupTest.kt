@@ -37,6 +37,46 @@ class AccountArtworkFileCleanupTest {
         }
     }
 
+    @Test fun `a master referenced only from the legacy store survives removal`() {
+        // migrateLegacy() can still resolve a legacy ref, so deleting the master would make
+        // another account lose its artwork while the legacy copy claims it is alive.
+        val root = Files.createTempDirectory("artwork-legacy").toFile()
+        try {
+            val directory = root.resolve("art").apply { mkdirs() }
+            val legacy = root.resolve("legacy").apply { mkdirs() }
+            directory.resolve("ref-$account.txt").writeText(shared)
+            directory.resolve("art-$shared.webp").writeText("webp")
+            // Only the legacy store still points at this master.
+            legacy.resolve("ref-$other.txt").writeText(shared)
+            AccountArtworkFileCleanup(directory, legacy).removeScoped(
+                AccountArtworkKeys(setOf(account), emptySet()),
+            )
+            assertTrue("legacy-referenced master must survive",
+                directory.resolve("art-$shared.webp").exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test fun `removal also drops the legacy reference and the forget marker`() {
+        val root = Files.createTempDirectory("artwork-legacy-ref").toFile()
+        try {
+            val directory = root.resolve("art").apply { mkdirs() }
+            val legacy = root.resolve("legacy").apply { mkdirs() }
+            directory.resolve("ref-$account.txt").writeText(shared)
+            legacy.resolve("ref-$account.txt").writeText(shared)
+            directory.resolve("forget-$account.txt").writeText("1")
+            AccountArtworkFileCleanup(directory, legacy).removeScoped(
+                AccountArtworkKeys(setOf(account), emptySet()),
+            )
+            assertFalse("a legacy ref would be migrated back",
+                legacy.resolve("ref-$account.txt").exists())
+            assertFalse(directory.resolve("forget-$account.txt").exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun `manifest survives retry after Room deletion`() {
         val root = Files.createTempDirectory("signout-manifest").toFile()
         try {
