@@ -12,13 +12,16 @@ internal data class AccountArtworkKeys(
 )
 
 /** Pure filesystem implementation so shared-master preservation is JVM-testable. */
-internal class AccountArtworkFileCleanup(private val directory: File) {
+internal class AccountArtworkFileCleanup(
+    private val directory: File,
+    /**
+     * Legacy v2 cache. Masters there are still resolvable through `migrateLegacy`, so a
+     * reference living only in the legacy store keeps its master alive.
+     */
+    private val legacyDirectory: File? = null,
+) {
     fun removeScoped(keys: AccountArtworkKeys) {
-        keys.sourceRefs.forEach { key ->
-            require(DIGEST.matches(key))
-            val file = File(directory, "ref-$key.txt")
-            if (file.exists() && !file.delete()) throw IOException("Cannot remove source ref")
-        }
+        keys.sourceRefs.forEach(::removeSourceRef)
         keys.albumRefs.forEach { key ->
             require(DIGEST.matches(key))
             val file = File(directory, "album-$key.txt")
@@ -38,14 +41,30 @@ internal class AccountArtworkFileCleanup(private val directory: File) {
     }
 
     /**
+     * Removes one account's source reference from both stores. A legacy ref left behind would
+     * be migrated back into permanent storage on the next read, so it must go as well.
+     */
+    private fun removeSourceRef(key: String) {
+        require(DIGEST.matches(key))
+        val stores = listOfNotNull(File(directory, "ref-$key.txt"),
+            legacyDirectory?.let { File(it, "ref-$key.txt") })
+        for (file in stores) {
+            if (file.exists() && !file.delete()) throw IOException("Cannot remove source ref")
+        }
+        // A surviving marker would block this account's artwork forever after re-login, so a
+        // failure here is reported like any other cleanup failure rather than ignored.
+        val marker = File(directory, "forget-$key.txt")
+        if (marker.exists() && !marker.delete()) throw IOException("Cannot remove forget marker")
+    }
+
+    /**
      * Digests named by readable `ref-*.txt` files, or null when any reference cannot be
      * parsed. A reference we cannot read may still point at a live master, so acting on
      * an incomplete set would destroy another account's artwork.
      */
     private fun survivingReferences(): Set<String>? {
         var complete = true
-        val referenced = directory.listFiles().orEmpty()
-            .asSequence().filter { it.name.startsWith("ref-") && it.name.endsWith(".txt") }
+        val referenced = (listReferences(directory) + listReferences(legacyDirectory))
             .mapNotNull { file ->
                 val digest = runCatching { file.readText(Charsets.US_ASCII) }.getOrNull()
                 if (digest != null && DIGEST.matches(digest)) {
@@ -57,6 +76,10 @@ internal class AccountArtworkFileCleanup(private val directory: File) {
             }.toSet()
         return referenced.takeIf { complete }
     }
+
+    /** Reference files of one store; absent or unreadable directory means "none here". */
+    private fun listReferences(store: File?): List<File> = store?.listFiles().orEmpty()
+        .filter { it.name.startsWith("ref-") && it.name.endsWith(".txt") }
 
     private companion object {
         val DIGEST = Regex("[0-9a-f]{64}")

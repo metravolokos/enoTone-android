@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
+import androidx.annotation.VisibleForTesting
 import app.enotone.library.ArtworkLookupCode
 import app.enotone.library.EmbeddedArtworkPayloadReader
 import app.enotone.library.WebDavRangeReader
@@ -316,7 +317,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             imageSlots.withPermit {
                 imageSlots.withPermit {
                     withContext(Dispatchers.IO) {
-                        AccountArtworkFileCleanup(directory).removeScoped(keys)
+                        AccountArtworkFileCleanup(directory, legacyDirectory).removeScoped(keys)
                         memoryCache.evictAll()
                     }
                 }
@@ -361,6 +362,11 @@ internal class ArtworkPreviewRepository(context: Context) {
                 lock.lock()
                 try {
                     referenceFile(key).delete()
+                    // The legacy cache holds its own ref-*.txt, and migrateLegacy() would copy
+                    // that stale master back into permanent storage on the next read, undoing
+                    // the invalidation. A tombstone makes the forget survive migration even
+                    // when the legacy file cannot be removed (read-only or still open).
+                    markInvalidated(key)
                 } finally {
                     lock.unlock()
                 }
@@ -375,6 +381,30 @@ internal class ArtworkPreviewRepository(context: Context) {
             }?.forEach { it.delete() }
         }
     }
+
+    /**
+     * Forgets [key] for good. The permanent ref is gone; the legacy ref must go too, because
+     * `migrateLegacy()` copies it back on the next read. A marker is written only when that
+     * legacy file could not be removed — the marker is the fallback, not the normal path, so
+     * a healthy cache never accumulates tombstones in permanent storage.
+     */
+    private fun markInvalidated(key: String) {
+        val legacyRef = File(legacyDirectory, "ref-$key.txt")
+        if (legacyRef.exists() && !legacyRef.delete()) {
+            // The legacy file survived; the marker is what keeps migrateLegacy() away from it.
+            if (directory.exists() || directory.mkdirs()) {
+                runCatching { tombstoneFile(key).writeText("1", Charsets.US_ASCII) }
+            }
+        } else {
+            // Nothing legacy left to resurrect: a stale marker would only block nothing.
+            tombstoneFile(key).delete()
+        }
+    }
+
+    private fun tombstoneFile(sourceHash: String) =
+        File(directory, "forget-$sourceHash.txt")
+
+    private fun isInvalidated(key: String) = tombstoneFile(key).isFile
 
     private suspend fun loadOrFetch(
         key: String,
@@ -531,7 +561,12 @@ internal class ArtworkPreviewRepository(context: Context) {
             if (!master.isFile && !atomicWrite(master, encoded)) return
             // A reference is written only after its master exists.
             if (master.isFile) {
-                atomicWrite(referenceFile(key), digest.toByteArray(Charsets.US_ASCII))
+                val referenced = atomicWrite(referenceFile(key), digest.toByteArray(Charsets.US_ASCII))
+                // The tombstone may only go once the fresh reference is really on disk.
+                // Dropping it after a failed write would leave "master present, no ref, no
+                // marker", and migrateLegacy() would then copy the stale legacy master back —
+                // the very defect the marker exists to prevent.
+                if (referenced) tombstoneFile(key).delete()
                 // No disk LRU: these files are permanent until user clears them.
             }
         } finally {
@@ -555,6 +590,10 @@ internal class ArtworkPreviewRepository(context: Context) {
         }
     }
 
+    /** Exposes [migrateLegacy] to a JVM test, which cannot reach a private member. */
+    @VisibleForTesting
+    internal fun migrateLegacyForTest(key: String) = migrateLegacy(key)
+
     /**
      * Preserve previous v2 downloads on upgrade. Convert legacy masters to
      * the new 1200px cap, instead of copying 1320px blobs into permanent
@@ -562,6 +601,9 @@ internal class ArtworkPreviewRepository(context: Context) {
      */
     private fun migrateLegacy(key: String) {
         if (referenceFile(key).isFile) return
+        // An invalidated source must not come back: the legacy copy is exactly the stale
+        // master the reindex asked to forget.
+        if (isInvalidated(key)) return
         val legacyRef = File(legacyDirectory, "ref-$key.txt")
         if (!legacyRef.isFile || legacyRef.length() != 64L) return
         val digest = legacyRef.readText(Charsets.US_ASCII)

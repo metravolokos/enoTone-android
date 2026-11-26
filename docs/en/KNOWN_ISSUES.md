@@ -26,8 +26,7 @@ Only defects confirmed on the current code belong here. Findings that need an ow
 | Problem | Consequence | Plan |
 |---|---|---|
 | Library import does not check `AccountSession.blocks()`: the `LibrarySnapshotStore.save()` transaction can commit after `deleteAccountData` and after the Keystore is cleared | The cleanup proof becomes false; the next launch falls into fail-closed. Data is **not** lost — the guard fails in the safe direction | Low priority: the window is narrow (tap Refresh and Sign out in a row), and fail-closed already prevents loss. Fix by checking `blocks()` in `LibraryIndexingGateway.update()` |
-| When artwork masters are deleted, an unreadable `ref-*.txt` is silently treated as absent | A master referenced by another account can be deleted as an "orphan" — silent data loss with multiple accounts | Separate PR; does not occur with a single account ([AccountArtworkFileCleanup.kt:27-43](https://github.com/metravolokos/enoTone-android/blob/main/app/src/main/java/app/enotone/android/AccountArtworkFileCleanup.kt#L27-L43)) |
-| Scoped sign-out with another account present cleans only the permanent artwork store; legacy `cacheDir/enotone-artwork-v2` survives, and `migrateLegacy()` copies the master back on the next request | An old artwork master returns after sign-out → sign-in without any network call. The `storedBytes() == 0` check counts only the permanent directory and cannot see the leftover | Separate PR; risk class R ([ArtworkPreviewRepository.kt:563-574](https://github.com/metravolokos/enoTone-android/blob/main/app/src/main/java/app/enotone/android/ArtworkPreviewRepository.kt#L563-L574)) |
+| When artwork masters are deleted, an unreadable `ref-*.txt` in either store makes the reference set incomplete and cleanup **skips reclaiming every orphaned master** | The opposite of what it sounds like: no other account's artwork is lost (that is the protection), but orphaned masters stay on disk with no diagnostics entry. Reading refs from `cacheDir` too widened the blast radius: one corrupt cache file now blocks reclamation of the permanent store | Separate Issue; distinguish "unreadable legacy ref" (keep the master, reclaim the rest) from "unreadable permanent ref" ([AccountArtworkFileCleanup.kt:64-80](app/src/main/java/app/enotone/android/AccountArtworkFileCleanup.kt#L64-L80)) |
 
 ## Data and network
 
@@ -42,7 +41,6 @@ Only defects confirmed on the current code belong here. Findings that need an ow
 
 | Problem | Plan |
 |---|---|
-| Invalidation removes the permanent ref, but the next request migrates the legacy copy; `remoteModified` is not part of the key | [#292](https://github.com/metravolokos/enoTone-android/issues/292) |
 | `artworkJob` can be cancelled by a repeated `refreshArtwork()` while `selecting` holds `LOADING`; a transition to `PLAYING` without a `trackId` change does not restart artwork loading | Measurement and a test before fixing |
 | Installing the APK outside an app store triggers a generic "threat detected" warning from the installer on some vendor ROMs (first seen on `0.6.0-preview.429`). This is a general warning for apps outside the store; permissions and libraries have been checked, there are no third-party SDKs | Tap "Install"; the only way to remove the warning is publishing to AppGallery / F-Droid — see OPEN_QUESTIONS |
 | Compose BOM `2026.11.01` (Compose 1.13) requires compileSdk `37.1`; waiting for publication and an owner decision | Stay on the published stable BOM `2026.09.00`; do not change compileSdk without an owner decision |
