@@ -794,8 +794,9 @@ internal class LibraryViewModel(
                     result.attemptedIds.size, result.progress.savedWithTags) + retry + stop
                 mutable.update { it.copy(albumRefreshFeedback = key to feedback) }
                 artworkEpoch++
-                reload()
-                // Ревизия общая: плеер тоже перечитает каталог; повторный reload здесь отменит текущий.
+                // The shared revision already reaches this view model's collector, which
+                // reloads once; calling reload() here as well cancelled that read and started
+                // a second one, and the player needs the bump anyway.
                 LibraryDataRevision.bump()
             } catch (cancelled: CancellationException) {
                 throw cancelled

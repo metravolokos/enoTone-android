@@ -50,7 +50,14 @@ class LibraryViewModelTest {
         var failure: Boolean = false
         var saved: PersistedQueueState? = null
         var reads = 0
+
+        /** Считает чтения каталога: двойной reload виден как два чтения на одно событие. */
+        var loads = 0
+
+        /** Считает обновления альбома: путь должен исполниться, а не упасть. */
+        var albumRefreshes = 0
         override suspend fun load(email: String): LibrarySnapshot {
+            loads++
             if (failure) error("synthetic failure")
             return response
         }
@@ -60,7 +67,19 @@ class LibraryViewModelTest {
         }
         override suspend fun refreshAlbum(
             email: String, password: String, ids: List<String>,
-        ): AlbumTagRefreshReport = error("Not used")
+        ): AlbumTagRefreshReport {
+            albumRefreshes++
+            return AlbumTagRefreshReport(
+                checkedIds = ids.toSet(),
+                attemptedIds = ids.toSet(),
+                progress = app.enotone.library.PilotIndexProgress(
+                    attempted = ids.size, savedWithTags = ids.size,
+                    completedWithoutTags = 0, retryableErrors = 0, permanentErrors = 0,
+                    staleWrites = 0, getRequests = ids.size, downloadedBytes = 0,
+                    requested = ids.size, remaining = 0, stopCode = "COMPLETED",
+                ),
+            )
+        }
     }
 
     private class FakeConnection : PlaybackConnection {
@@ -519,6 +538,38 @@ class LibraryViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
+
+    @Test fun `an album refresh reloads the catalog once`() = runTest {
+        Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+        try {
+            val repository = FakeRepository(catalog(row(1, "Зима")))
+            // The refresh calls LibraryDataRevision.bump(); passing that same flow is what
+            // makes the test observe the production path instead of a private stub.
+            val library = model(this, repository, revision = LibraryDataRevision.value)
+            advanceUntilIdle()
+            // The confirm path gates on the selected group, which only exists once a group is
+            // open: select the route, then the group itself.
+            library.onRouteSelected(LibraryPage.ALBUMS, null)
+            advanceUntilIdle()
+            val group = library.state.value.groups.first()
+            library.onGroupSelected(group.key)
+            advanceUntilIdle()
+            val afterInitialLoad = repository.loads
+
+            library.onRequestAlbumRefresh(group.key, library.state.value.albumRefreshSampleIds)
+            library.onConfirmAlbumRefresh()
+            advanceUntilIdle()
+
+            assertEquals("the refresh must reach the repository", 1, repository.albumRefreshes)
+            assertEquals(
+                "one album refresh must read the catalog once",
+                afterInitialLoad + 1,
+                repository.loads,
+            )
+        } finally {
+            Dispatchers.resetMain()
+        }
+    }
 
     @Test fun `data revision reloads an open library without recreating it`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
