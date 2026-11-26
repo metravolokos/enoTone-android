@@ -590,14 +590,15 @@ internal class ArtworkPreviewRepository(context: Context) {
         }
     }
 
+    /** Exposes [migrateLegacy] to a JVM test, which cannot reach a private member. */
+    @VisibleForTesting
+    internal fun migrateLegacyForTest(key: String) = migrateLegacy(key)
+
     /**
      * Preserve previous v2 downloads on upgrade. Convert legacy masters to
      * the new 1200px cap, instead of copying 1320px blobs into permanent
      * storage. Runs only while the source lock is held on Dispatchers.IO.
      */
-    @VisibleForTesting
-    internal fun migrateLegacyForTest(key: String) = migrateLegacy(key)
-
     private fun migrateLegacy(key: String) {
         if (referenceFile(key).isFile) return
         // An invalidated source must not come back: the legacy copy is exactly the stale

@@ -26,7 +26,7 @@ Only defects confirmed on the current code belong here. Findings that need an ow
 | Problem | Consequence | Plan |
 |---|---|---|
 | Library import does not check `AccountSession.blocks()`: the `LibrarySnapshotStore.save()` transaction can commit after `deleteAccountData` and after the Keystore is cleared | The cleanup proof becomes false; the next launch falls into fail-closed. Data is **not** lost — the guard fails in the safe direction | Low priority: the window is narrow (tap Refresh and Sign out in a row), and fail-closed already prevents loss. Fix by checking `blocks()` in `LibraryIndexingGateway.update()` |
-| When artwork masters are deleted, an unreadable `ref-*.txt` is silently treated as absent | A master referenced by another account can be deleted as an "orphan" — silent data loss with multiple accounts | Separate PR; does not occur with a single account ([AccountArtworkFileCleanup.kt:27-43](https://github.com/metravolokos/enoTone-android/blob/main/app/src/main/java/app/enotone/android/AccountArtworkFileCleanup.kt#L27-L43)) |
+| When artwork masters are deleted, an unreadable `ref-*.txt` in either store makes the reference set incomplete and cleanup **skips reclaiming every orphaned master** | The opposite of what it sounds like: no other account's artwork is lost (that is the protection), but orphaned masters stay on disk with no diagnostics entry. Reading refs from `cacheDir` too widened the blast radius: one corrupt cache file now blocks reclamation of the permanent store | Separate Issue; distinguish "unreadable legacy ref" (keep the master, reclaim the rest) from "unreadable permanent ref" ([AccountArtworkFileCleanup.kt:64-80](app/src/main/java/app/enotone/android/AccountArtworkFileCleanup.kt#L64-L80)) |
 
 ## Data and network
 
