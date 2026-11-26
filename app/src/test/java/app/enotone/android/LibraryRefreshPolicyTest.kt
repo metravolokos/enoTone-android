@@ -48,6 +48,16 @@ class LibraryRefreshPolicyTest {
         )
     }
 
+    @Test fun `a finished run bumps exactly once`() {
+        // The terminal snapshot arrives with terminating = true and is later cleared by
+        // onDestroy. Counting both would reload the catalog twice per run (#258 class).
+        val terminal = ManagedScanStatus(ManagedScanState.COMPLETE, progress = running(10).progress,
+            terminating = true)
+        val cleared = terminal.copy(terminating = false)
+        assertTrue("the transition itself refreshes", LibraryRefreshPolicy.indexingChanged(running(10), terminal))
+        assertFalse("the teardown must not refresh again", LibraryRefreshPolicy.indexingChanged(terminal, cleared))
+    }
+
     @Test fun `artwork preparation end refreshes covers`() {
         val runningArt = ArtworkScanStatus(ArtworkScanState.RUNNING, completed = 1, total = 2)
         assertTrue(LibraryRefreshPolicy.artworkChanged(runningArt,

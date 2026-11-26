@@ -153,7 +153,7 @@ class FirstRunNetworkRecoveryTest {
         assertStoppedStatusDoesNotRetry(ManagedScanState.STOPPED, "STOPPED")
     }
 
-    @Test fun recreatedFirstRunEffectResumesCheckpointAndDoesNotResumePausedWork() {
+    @Test fun recreatedFirstRunEffectResumesCheckpointInsteadOfReimporting() {
         val fixture = recoveryFixture()
         prepareFailedOfflineScan(fixture)
         val generation = mutableIntStateOf(0)
