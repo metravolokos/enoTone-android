@@ -40,17 +40,17 @@ internal class RoomIndexingSessionFactory(
 }
 
 /**
- * Runs one explicit tag-indexing session. A gate prevents overlapping sessions
- * even if two starts race before the Android service stores its Job.
- * Room checkpoints are written by ManagedTagIndexSession before progress.
- */
-/**
  * Budget pauses stop at a bounded limit and resume from their checkpoint. The prefix is shared
  * with the first-run resume guard, which must not confuse a budget pause with a user pressing
  * Pause — that one stays sticky.
  */
 internal const val SESSION_LIMIT_PREFIX = "SESSION_"
 
+/**
+ * Runs one explicit tag-indexing session. A gate prevents overlapping sessions
+ * even if two starts race before the Android service stores its Job.
+ * Room checkpoints are written by ManagedTagIndexSession before progress.
+ */
 internal class IndexingRunner(
     private val sessions: IndexingSessionFactory,
     private val signOutPending: () -> Boolean,
