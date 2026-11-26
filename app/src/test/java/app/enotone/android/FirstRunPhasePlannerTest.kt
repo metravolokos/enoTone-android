@@ -69,6 +69,24 @@ class FirstRunPhasePlannerTest {
     }
 
     @Test
+    fun completedIndexingWithPendingTagsIsNotDone() {
+        // A terminal scan state with rows still unread must not announce "everything is ready".
+        val terminalWithPending = FirstRunPlanningState(
+            signOutPending = false,
+            hasLogin = true,
+            firstRunCompleted = false,
+            indexingComplete = true,
+            libraryImportFinished = true,
+            songCount = 8,
+            pendingTagCount = 3,
+        )
+        assertEquals(FirstRunPhase.INDEXING, FirstRunPhasePlanner.plan(terminalWithPending).phase)
+
+        val terminalAndClear = terminalWithPending.copy(pendingTagCount = 0)
+        assertEquals(FirstRunPhase.DONE, FirstRunPhasePlanner.plan(terminalAndClear).phase)
+    }
+
+    @Test
     fun completedImportShowsDoneOrReturnsToAppWhenEmpty() {
         val nonEmpty = FirstRunPlanningState(
             signOutPending = false,

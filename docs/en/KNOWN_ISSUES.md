@@ -43,8 +43,6 @@ Only defects confirmed on the current code belong here. Findings that need an ow
 
 | Problem | Plan |
 |---|---|
-| Indexing-session limits (`SESSION_BATCH_LIMIT`, `SESSION_TIME_BUDGET`) make `IndexingRunner` report `COMPLETE`, so the first run shows "All done" while part of the library is unread. **The first run can show "All done" with unread tracks** | [#257](https://github.com/metravolokos/enoTone-android/issues/257) |
-| `LibraryDataRevision` counts only `savedWithTags` and ignores `completedWithoutTags`; the terminal `COMPLETE` is published with `terminating = true` | [#257](https://github.com/metravolokos/enoTone-android/issues/257) |
 | Invalidation removes the permanent ref, but the next request migrates the legacy copy; `remoteModified` is not part of the key | [#292](https://github.com/metravolokos/enoTone-android/issues/292) |
 | `artworkJob` can be cancelled by a repeated `refreshArtwork()` while `selecting` holds `LOADING`; a transition to `PLAYING` without a `trackId` change does not restart artwork loading | Measurement and a test before fixing |
 | After an album refresh both `reload()` and `LibraryDataRevision.bump()` run — two reloads | [#258](https://github.com/metravolokos/enoTone-android/issues/258) |

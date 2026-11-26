@@ -42,6 +42,9 @@ internal fun FirstRunImportEffect(
     onAutomaticRetry: () -> Unit,
 ) {
     var started by remember(account.libraryLogin?.email) { mutableStateOf(false) }
+    // Highest `attempted` reached by a paused run. A pause that made no progress must not
+    // auto-resume, otherwise a session limit would restart in a tight loop.
+    var lastAttempted by remember(account.libraryLogin?.email) { mutableStateOf(-1) }
     var awaitingNetworkRecovery by remember(account.libraryLogin?.email) {
         mutableStateOf(!hasValidatedInternet)
     }
@@ -62,6 +65,17 @@ internal fun FirstRunImportEffect(
     ) {
         if (plan?.phase !in setOf(FirstRunPhase.INDEXING, FirstRunPhase.INDEXING_OFFLINE)) {
             return@LaunchedEffect
+        }
+        // A session limit pauses the run without finishing the library, and the screen has no
+        // resume action: without clearing the one-shot guard it would sit on frozen progress.
+        // Resume only when that run actually advanced, so a limit hit at zero progress cannot
+        // restart in a loop.
+        if (indexing.status.state == ManagedScanState.PAUSED && !indexing.status.terminating) {
+            val attempted = indexing.status.progress?.attempted ?: 0
+            if (attempted > lastAttempted) {
+                started = false
+                lastAttempted = attempted
+            }
         }
         if (!hasValidatedInternet) {
             awaitingNetworkRecovery = true

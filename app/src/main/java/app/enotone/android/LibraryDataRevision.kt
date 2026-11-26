@@ -1,5 +1,6 @@
 package app.enotone.android
 
+import app.enotone.library.ManagedIndexProgress
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,11 +52,20 @@ internal object LibraryRefreshPolicy {
 
     fun indexingChanged(previous: ManagedScanStatus, current: ManagedScanStatus): Boolean {
         val finished = previous.active && !current.active
-        val before = previous.progress?.savedWithTags ?: 0
-        val after = current.progress?.savedWithTags ?: 0
+        val before = processed(previous.progress)
+        val after = processed(current.progress)
         val stepped = current.state == ManagedScanState.RUNNING && after / PROGRESS_STEP > before / PROGRESS_STEP
-        return finished || stepped
+        // The terminal snapshot is published with terminating = true, so `active` stays true
+        // until the service is destroyed. Publish the revision on the transition itself,
+        // otherwise an open library misses the finished batch until teardown.
+        val terminal = previous.state == ManagedScanState.RUNNING &&
+            current.state != ManagedScanState.RUNNING
+        return finished || stepped || terminal
     }
+
+    /** Both kinds of successful handling count: a track read without tags still changed the library. */
+    private fun processed(progress: ManagedIndexProgress?): Int =
+        (progress?.savedWithTags ?: 0) + (progress?.completedWithoutTags ?: 0)
 
     fun artworkChanged(previous: ArtworkScanStatus, current: ArtworkScanStatus): Boolean =
         previous.active && !current.active

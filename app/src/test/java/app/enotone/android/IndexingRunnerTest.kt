@@ -70,6 +70,49 @@ class IndexingRunnerTest {
         assertFalse(ManagedScanRuntime.status.value.terminating)
     }
 
+    @Test fun sessionLimitPausesInsteadOfReportingCompletion() = runTest {
+        // A bounded session that stopped at its batch budget has not read the whole library.
+        // Reporting COMPLETE here made the first-run screen announce "everything is ready".
+        val runner = runner({
+            IndexingSessionPort { _, _ ->
+                progress(3).copy(stopCode = "SESSION_BATCH_LIMIT")
+            }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+        assertEquals("SESSION_BATCH_LIMIT", ManagedScanRuntime.status.value.progress?.stopCode)
+    }
+
+    @Test fun timeBudgetPausesInsteadOfReportingCompletion() = runTest {
+        val runner = runner({
+            IndexingSessionPort { _, _ ->
+                progress(5).copy(stopCode = "SESSION_TIME_BUDGET")
+            }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.PAUSED, ManagedScanRuntime.status.value.state)
+    }
+
+    @Test fun authenticationFailureStaysAnError() = runTest {
+        val runner = runner({
+            IndexingSessionPort { _, _ ->
+                progress(0).copy(stopCode = "AUTH_REJECTED")
+            }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.ERROR, ManagedScanRuntime.status.value.state)
+    }
+
+    @Test fun exhaustedLibraryIsStillACompletion() = runTest {
+        val runner = runner({
+            IndexingSessionPort { _, _ ->
+                progress(2).copy(stopCode = "NO_ELIGIBLE_FILES")
+            }
+        })
+        assertTrue(runner.run(request))
+        assertEquals(ManagedScanState.COMPLETE, ManagedScanRuntime.status.value.state)
+    }
+
     @Test fun pauseAndResumeStartsAtPersistedCheckpoint() = runTest {
         val held = CompletableDeferred<Unit>()
         var checkpoint = 0

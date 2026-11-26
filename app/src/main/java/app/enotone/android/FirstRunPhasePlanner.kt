@@ -37,7 +37,7 @@ internal object FirstRunPhasePlanner {
         state.firstRunCompleted == null -> appPhase(writeCompleted = true)
         state.firstRunCompleted -> appPhase()
         state.indexingActive -> indexingPhase(state.hasValidatedInternet)
-        state.indexingComplete -> completedPhase(state.songCount)
+        state.indexingComplete -> completedPhase(state.songCount, state.pendingTagCount)
         state.libraryImportFinished -> importedPhase(state)
         else -> indexingPhase(state.hasValidatedInternet)
     }
@@ -49,9 +49,12 @@ internal object FirstRunPhasePlanner {
         else -> indexingPhase(state.hasValidatedInternet)
     }
 
-    private fun completedPhase(songCount: Int?): FirstRunPlan = when {
+    private fun completedPhase(songCount: Int?, pendingTagCount: Int?): FirstRunPlan = when {
         songCount == null -> FirstRunPlan(FirstRunPhase.INDEXING)
         songCount == 0 -> FirstRunPlan(FirstRunPhase.APP, writeFirstRunCompleted = true)
+        // "Everything is ready" requires nothing left to read. A terminal state with pending
+        // rows would otherwise announce completion over an unread part of the library.
+        pendingTagCount.orZero() > 0 -> FirstRunPlan(FirstRunPhase.INDEXING)
         else -> FirstRunPlan(FirstRunPhase.DONE)
     }
 

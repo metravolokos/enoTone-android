@@ -91,14 +91,16 @@ internal class IndexingRunner(
                     }
                 }
                 if (statusPort.status.value.state == ManagedScanState.RUNNING) {
-                    val error = final.stopCode in setOf(
-                        "AUTH_REJECTED", "RETRY_BACKOFF", "NO_PROGRESS",
-                    )
-                    statusPort.update(
-                        if (error) ManagedScanState.ERROR else ManagedScanState.COMPLETE,
-                        final,
-                        terminating = true,
-                    )
+                    // A session limit is not a finished library: the session stopped to respect
+                    // a bounded budget and can resume from its checkpoint. Reporting COMPLETE
+                    // here made the first-run screen announce "everything is ready" while
+                    // tracks were still unread.
+                    val state = when (final.stopCode) {
+                        in TERMINAL_ERROR_CODES -> ManagedScanState.ERROR
+                        in SESSION_LIMIT_CODES -> ManagedScanState.PAUSED
+                        else -> ManagedScanState.COMPLETE
+                    }
+                    statusPort.update(state, final, terminating = true)
                 }
             }
             true
@@ -128,5 +130,18 @@ internal class IndexingRunner(
             // A fresh start is safe only after the old service has stopped.
             statusPort.update(last.state, terminating = false)
         }
+    }
+
+    private companion object {
+        /** The run cannot continue without a user decision; retrying blindly would spin. */
+        val TERMINAL_ERROR_CODES = setOf("AUTH_REJECTED", "RETRY_BACKOFF", "NO_PROGRESS")
+
+        /**
+         * Bounded budgets the session stopped at. The library is not finished, and the session
+         * resumes from its checkpoint, so this is a pause rather than a completion.
+         */
+        val SESSION_LIMIT_CODES = setOf(
+            "SESSION_BATCH_LIMIT", "SESSION_TIME_BUDGET", "NETWORK_BUDGET", "TIME_BUDGET",
+        )
     }
 }

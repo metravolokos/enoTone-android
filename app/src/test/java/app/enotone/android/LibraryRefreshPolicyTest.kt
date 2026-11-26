@@ -25,6 +25,29 @@ class LibraryRefreshPolicyTest {
         assertFalse(LibraryRefreshPolicy.indexingChanged(ManagedScanStatus(), ManagedScanStatus()))
     }
 
+    @Test fun `a terminal snapshot refreshes before the service is destroyed`() {
+        // The runner publishes the terminal result with terminating = true, so `active` stays
+        // true until onDestroy; the revision must follow the transition, not the teardown.
+        val terminal = ManagedScanStatus(ManagedScanState.COMPLETE, progress = running(10).progress,
+            terminating = true)
+        assertTrue("terminal transition must refresh", LibraryRefreshPolicy.indexingChanged(running(10), terminal))
+    }
+
+    @Test fun `tracks completed without tags also advance the revision`() {
+        fun withoutTags(attempted: Int) = ManagedScanStatus(ManagedScanState.RUNNING,
+            progress = ManagedIndexProgress(completedBatches = 0, attempted = attempted, savedWithTags = 0,
+                completedWithoutTags = attempted, retryableErrors = 0, permanentErrors = 0, staleWrites = 0,
+                getRequests = attempted, downloadedBytes = 0, remaining = 0, stopCode = "NONE"))
+        assertTrue(
+            "500 tagless tracks must be a step, not a silent no-op",
+            LibraryRefreshPolicy.indexingChanged(withoutTags(499), withoutTags(500)),
+        )
+        assertFalse(
+            "a small tagless step stays throttled",
+            LibraryRefreshPolicy.indexingChanged(withoutTags(10), withoutTags(400)),
+        )
+    }
+
     @Test fun `artwork preparation end refreshes covers`() {
         val runningArt = ArtworkScanStatus(ArtworkScanState.RUNNING, completed = 1, total = 2)
         assertTrue(LibraryRefreshPolicy.artworkChanged(runningArt,
