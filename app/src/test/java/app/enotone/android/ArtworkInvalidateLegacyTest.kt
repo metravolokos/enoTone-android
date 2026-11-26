@@ -3,15 +3,14 @@ package app.enotone.android
 import android.app.Application
 import android.graphics.Bitmap
 import androidx.test.core.app.ApplicationProvider
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
 /**
@@ -19,12 +18,15 @@ import java.io.File
  *
  * `invalidate()` forgets the permanent source reference because a reindex may change the
  * embedded picture while the server keeps the same ETag and size. The legacy cache holds its
- * own `ref-*.txt`, and `migrateLegacy()` runs on every read — without a forget marker the
- * stale master was copied straight back into permanent storage, silently cancelling the
- * invalidation and showing the user the old cover with no network request.
+ * own `ref-*.txt`, and `migrateLegacy()` runs on every read: if that legacy file cannot be
+ * removed, only a forget marker keeps the stale master out of permanent storage.
+ *
+ * These tests call the production `migrateLegacy` directly, so they fail when the marker gate
+ * is removed — the previous version only asserted file presence and passed either way.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ArtworkInvalidateLegacyTest {
     private val application = ApplicationProvider.getApplicationContext<Application>()
     private val email = "synthetic@example.test"
@@ -44,61 +46,71 @@ class ArtworkInvalidateLegacyTest {
         remoteEtag = "\"etag\"",
     )
 
-    /** Writes a real 1200px-capable master plus its source ref into a store. */
-    private fun seed(store: File, key: String): String {
-        store.mkdirs()
+    /** Seeds a legacy ref and master exactly as an older install would have left them. */
+    private fun seedLegacy(): String {
+        val key = sourceKeyOf()
+        legacy.mkdirs()
         val bitmap = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
         val bytes = java.io.ByteArrayOutputStream().also {
             bitmap.compress(Bitmap.CompressFormat.WEBP, 88, it)
         }.toByteArray()
         val digest = java.security.MessageDigest.getInstance("SHA-256")
             .digest(bytes).joinToString("") { "%02x".format(it) }
-        File(store, "art-$digest.webp").writeBytes(bytes)
-        File(store, "ref-$key.txt").writeText(digest, Charsets.US_ASCII)
-        return digest
+        File(legacy, "art-$digest.webp").writeBytes(bytes)
+        File(legacy, "ref-$key.txt").writeText(digest, Charsets.US_ASCII)
+        return key
     }
 
     @Test
-    fun `an invalidated cover is not resurrected from the legacy cache`() = runTest {
+    fun `a forget marker keeps the legacy master out of permanent storage`() {
         val repository = ArtworkPreviewRepository(application)
-        val key = sourceKeyOf()
-        val digest = seed(legacy, key)
+        val key = seedLegacy()
+        // The state after an invalidation whose legacy delete failed: ref gone, marker set.
+        permanent.mkdirs()
+        File(permanent, "forget-$key.txt").writeText("1", Charsets.US_ASCII)
 
-        // A reindex decides the picture changed despite identical ETag and size.
-        repository.invalidate(email, listOf(target()))
+        repository.migrateLegacyForTest(key)
 
-        // The marker is the mechanism: without it migrateLegacy() copies the legacy ref back.
-        assertTrue("invalidation must leave a forget marker", File(permanent, "forget-$key.txt").isFile)
         assertFalse(
-            "the legacy ref must be dropped so nothing can be migrated back",
-            File(legacy, "ref-$key.txt").exists(),
-        )
-        val revived = repository.cachedCover(email, target(), 512)
-        assertNull("an invalidated cover must not be served from the legacy cache", revived)
-        assertFalse(
-            "the permanent ref must not be recreated from the legacy copy: " +
-                "permanent=" + permanent.list()?.toList(),
+            "the marker must stop migrateLegacy() from restoring the stale copy",
             File(permanent, "ref-$key.txt").exists(),
         )
-        assertTrue("the legacy master itself is untouched", File(legacy, "art-$digest.webp").exists())
     }
 
     @Test
-    fun `a stored master clears the forget marker`() = runTest {
+    fun `without the marker the same call does restore, so the gate is the cause`() {
         val repository = ArtworkPreviewRepository(application)
-        val key = sourceKeyOf()
-        seed(legacy, key)
-        repository.invalidate(email, listOf(target()))
+        val key = seedLegacy()
 
-        // Serving a freshly downloaded master is what supersedes the invalidation; writing the
-        // marker's own key here proves the invariant without a network layer.
-        val marker = File(permanent, "forget-$key.txt")
-        assertTrue("invalidation must leave a marker", marker.isFile)
-        repository.cachedCover(email, target(), 512)
-        assertTrue("the marker stays until a real master is stored", marker.isFile)
+        repository.migrateLegacyForTest(key)
+
+        // Proves the previous test fails for the right reason rather than because migration
+        // is broken in this environment.
+        assertTrue(
+            "migration itself must work when no marker is present",
+            File(permanent, "ref-$key.txt").exists(),
+        )
     }
 
-    /** Mirrors the private key derivation so the test can target the same file. */
+    @Test
+    fun `invalidate removes a removable legacy ref and leaves no marker`() {
+        val repository = ArtworkPreviewRepository(application)
+        val key = seedLegacy()
+        runBlockingInvalidate(repository)
+
+        assertFalse("the legacy ref must be deleted", File(legacy, "ref-$key.txt").exists())
+        // A healthy cache must not accumulate tombstones in the permanent store.
+        assertFalse(
+            "no marker is needed once the legacy ref is gone",
+            File(permanent, "forget-$key.txt").exists(),
+        )
+    }
+
+    private fun runBlockingInvalidate(repository: ArtworkPreviewRepository) {
+        kotlinx.coroutines.runBlocking { repository.invalidate(email, listOf(target())) }
+    }
+
+    /** Mirrors the private key derivation so the test can target the same files. */
     private fun sourceKeyOf(): String {
         val t = target()
         val value = ("v2|" + email + "|" + t.id + "|" + t.encodedPath +

@@ -51,8 +51,10 @@ internal class AccountArtworkFileCleanup(
         for (file in stores) {
             if (file.exists() && !file.delete()) throw IOException("Cannot remove source ref")
         }
-        // The forget marker belongs to the removed account too.
-        File(directory, "forget-$key.txt").delete()
+        // A surviving marker would block this account's artwork forever after re-login, so a
+        // failure here is reported like any other cleanup failure rather than ignored.
+        val marker = File(directory, "forget-$key.txt")
+        if (marker.exists() && !marker.delete()) throw IOException("Cannot remove forget marker")
     }
 
     /**

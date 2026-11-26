@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
+import androidx.annotation.VisibleForTesting
 import app.enotone.library.ArtworkLookupCode
 import app.enotone.library.EmbeddedArtworkPayloadReader
 import app.enotone.library.WebDavRangeReader
@@ -382,14 +383,22 @@ internal class ArtworkPreviewRepository(context: Context) {
     }
 
     /**
-     * Records that [key] must not be restored from the legacy cache. The marker lives next to
-     * the permanent refs so it survives process death, and it is removed only once a fresh
-     * master has been stored.
+     * Forgets [key] for good. The permanent ref is gone; the legacy ref must go too, because
+     * `migrateLegacy()` copies it back on the next read. A marker is written only when that
+     * legacy file could not be removed — the marker is the fallback, not the normal path, so
+     * a healthy cache never accumulates tombstones in permanent storage.
      */
     private fun markInvalidated(key: String) {
-        if (!directory.exists() && !directory.mkdirs()) return
-        runCatching { tombstoneFile(key).writeText("1", Charsets.US_ASCII) }
-        File(legacyDirectory, "ref-$key.txt").delete()
+        val legacyRef = File(legacyDirectory, "ref-$key.txt")
+        if (legacyRef.exists() && !legacyRef.delete()) {
+            // The legacy file survived; the marker is what keeps migrateLegacy() away from it.
+            if (directory.exists() || directory.mkdirs()) {
+                runCatching { tombstoneFile(key).writeText("1", Charsets.US_ASCII) }
+            }
+        } else {
+            // Nothing legacy left to resurrect: a stale marker would only block nothing.
+            tombstoneFile(key).delete()
+        }
     }
 
     private fun tombstoneFile(sourceHash: String) =
@@ -552,9 +561,12 @@ internal class ArtworkPreviewRepository(context: Context) {
             if (!master.isFile && !atomicWrite(master, encoded)) return
             // A reference is written only after its master exists.
             if (master.isFile) {
-                atomicWrite(referenceFile(key), digest.toByteArray(Charsets.US_ASCII))
-                // A freshly stored master supersedes the invalidation that ordered it.
-                tombstoneFile(key).delete()
+                val referenced = atomicWrite(referenceFile(key), digest.toByteArray(Charsets.US_ASCII))
+                // The tombstone may only go once the fresh reference is really on disk.
+                // Dropping it after a failed write would leave "master present, no ref, no
+                // marker", and migrateLegacy() would then copy the stale legacy master back —
+                // the very defect the marker exists to prevent.
+                if (referenced) tombstoneFile(key).delete()
                 // No disk LRU: these files are permanent until user clears them.
             }
         } finally {
@@ -583,6 +595,9 @@ internal class ArtworkPreviewRepository(context: Context) {
      * the new 1200px cap, instead of copying 1320px blobs into permanent
      * storage. Runs only while the source lock is held on Dispatchers.IO.
      */
+    @VisibleForTesting
+    internal fun migrateLegacyForTest(key: String) = migrateLegacy(key)
+
     private fun migrateLegacy(key: String) {
         if (referenceFile(key).isFile) return
         // An invalidated source must not come back: the legacy copy is exactly the stale
