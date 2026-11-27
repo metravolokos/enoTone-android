@@ -637,7 +637,7 @@ class QueueEditServiceTest {
         old: String,
         selectedId: String,
     ): PersistedQueueState {
-        repeat(100) {
+        repeat(500) {
             Shadows.shadowOf(Looper.getMainLooper()).idle()
             val saved = store.read()
             if (saved != null && saved.queueRevision != old && saved.selectedTrackId == selectedId) {

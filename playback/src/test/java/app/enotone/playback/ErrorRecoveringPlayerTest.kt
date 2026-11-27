@@ -18,9 +18,11 @@ class ErrorRecoveringPlayerTest {
 
         player.seekToNextMediaItem()
         player.seekToPreviousMediaItem()
+        player.seekToNext()
+        player.seekToPrevious()
 
-        assertEquals(1, calls.logicalNext)
-        assertEquals(1, calls.logicalPrevious)
+        assertEquals(2, calls.logicalNext)
+        assertEquals(2, calls.logicalPrevious)
         assertEquals(0, calls.nativeNext)
         assertEquals(0, calls.nativePrevious)
     }
@@ -36,9 +38,11 @@ class ErrorRecoveringPlayerTest {
 
         player.seekToNextMediaItem()
         player.seekToPreviousMediaItem()
+        player.seekToNext()
+        player.seekToPrevious()
 
-        assertEquals(1, calls.nativeNext)
-        assertEquals(1, calls.nativePrevious)
+        assertEquals(2, calls.nativeNext)
+        assertEquals(2, calls.nativePrevious)
     }
 
     private class Calls {
@@ -55,6 +59,8 @@ class ErrorRecoveringPlayerTest {
                     "getPlayerError" -> null
                     "seekToNextMediaItem" -> { nativeNext++; null }
                     "seekToPreviousMediaItem" -> { nativePrevious++; null }
+                    "seekToNext" -> { nativeNext++; null }
+                    "seekToPrevious" -> { nativePrevious++; null }
                     else -> error("Unexpected Player call: ${method.name}")
                 }
             },

@@ -45,4 +45,14 @@ internal class ErrorRecoveringPlayer(
         if (onPreviousRequested?.invoke() == true) return
         super.seekToPreviousMediaItem()
     }
+
+    override fun seekToNext() {
+        if (onNextRequested?.invoke() == true) return
+        super.seekToNext()
+    }
+
+    override fun seekToPrevious() {
+        if (onPreviousRequested?.invoke() == true) return
+        super.seekToPrevious()
+    }
 }

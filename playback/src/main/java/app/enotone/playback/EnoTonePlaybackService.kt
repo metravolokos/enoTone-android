@@ -258,10 +258,12 @@ open class EnoTonePlaybackService : MediaSessionService() {
     }
 
     val hasNext: Boolean get() = queueSnapshot?.let {
-        it.currentIndex + 1 in it.trackIds.indices
+        (playback.player.repeatMode == Player.REPEAT_MODE_ALL && it.trackIds.size > 1) ||
+            it.currentIndex + 1 in it.trackIds.indices
     } ?: playback.player.hasNextMediaItem()
     val hasPrevious: Boolean get() = queueSnapshot?.let {
-        it.currentIndex - 1 in it.trackIds.indices
+        (playback.player.repeatMode == Player.REPEAT_MODE_ALL && it.trackIds.size > 1) ||
+            it.currentIndex - 1 in it.trackIds.indices
     } ?: playback.player.hasPreviousMediaItem()
     val queueSize: Int get() = playback.logicalQueueSize
     val queuePosition: Int get() = playback.logicalQueuePosition

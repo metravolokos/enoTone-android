@@ -37,10 +37,14 @@ internal class PlaybackQueueNavigation {
     }
 
     /** Null means no logical queue; NO_POSITION means the boundary was handled. */
-    fun adjacentPosition(currentTrackId: String?, forward: Boolean): Int? {
+    fun adjacentPosition(currentTrackId: String?, forward: Boolean, repeatAll: Boolean): Int? {
         val current = currentTrackId?.let(trackIndices::get) ?: return null
         val adjacent = if (forward) current + 1 else current - 1
-        return adjacent.takeIf { it in trackIds.indices } ?: NO_POSITION
+        return when {
+            adjacent in trackIds.indices -> adjacent
+            repeatAll && trackIds.size > 1 -> if (forward) 0 else trackIds.lastIndex
+            else -> NO_POSITION
+        }
     }
 
     fun selectPosition(

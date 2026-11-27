@@ -169,6 +169,53 @@ class QueueShuffleStagingServiceTest {
         }
     }
 
+    @Test fun repeatAllWrapsLogicalPreviousAndNextAtQueueBoundaries() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val queue = (0 until 3).map(::track)
+        val initial = PersistedQueueState(
+            trackIds = queue.map { it.id },
+            selectedTrackId = id(0),
+            positionMs = 0L,
+            repeatMode = Player.REPEAT_MODE_OFF,
+            shuffleEnabled = true,
+            shuffledIndices = intArrayOf(0, 1, 2),
+            sourceKey = id(99),
+            savedAtEpochMs = 1L,
+            queueRevision = UUID.randomUUID().toString(),
+        )
+        val source = BlockingDataSourceFactory()
+        BufferingService.dataSourceFactory = source
+        val controller = onMain { Robolectric.buildService(BufferingService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    queue, initial, false, false))
+                assertFalse(service.hasPrevious)
+
+                service.player.repeatMode = Player.REPEAT_MODE_ALL
+                assertTrue(service.hasPrevious)
+                assertTrue(service.hasNext)
+                service.playPrevious()
+                Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(200))
+                assertEquals(id(2), service.player.currentMediaItem?.mediaId)
+                assertEquals(2, service.queueSnapshot?.currentIndex)
+
+                service.playNext()
+                Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(200))
+                assertEquals(id(0), service.player.currentMediaItem?.mediaId)
+                assertEquals(0, service.queueSnapshot?.currentIndex)
+            }
+        } finally {
+            source.release.countDown()
+            onMain { controller.destroy() }
+            controller.get().awaitQueueWritesFinished(10_000L)
+            BufferingService.dataSourceFactory = null
+            QueueStateFileStore(context).clear()
+        }
+    }
+
     private fun <T> onMain(block: () -> T): T {
         var outcome: Result<T>? = null
         Shadows.shadowOf(Looper.getMainLooper()).runPaused {

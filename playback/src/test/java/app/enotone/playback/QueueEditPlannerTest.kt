@@ -3,6 +3,7 @@ package app.enotone.playback
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -130,6 +131,13 @@ class QueueEditPlannerTest {
         val result = QueueEditPlanner.plan(layout(), QueueEdit.Append(listOf("", "")))
         assertEquals(QueueEditStatus.EMPTY_SELECTION, result.result.status)
         assertEquals(0, result.result.count)
+    }
+
+    @Test fun rejectsQueueAboveTenThousandTracks() {
+        val tooLarge = QueueLayout((1..10_001).map(::id), null, id(1))
+        assertThrows(IllegalArgumentException::class.java) {
+            QueueEditPlanner.plan(tooLarge, QueueEdit.Append(emptyList()))
+        }
     }
 
     @Test fun manuallyEditedSourceIsAccountBoundAndBackwardCompatible() {
