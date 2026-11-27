@@ -11,7 +11,10 @@ internal fun PreviewAudioPlayback.seekToNextInPlaybackOrder(): Boolean = when (
     )
 ) {
     null -> false
-    PlaybackQueueNavigation.NO_POSITION -> true
+    PlaybackQueueNavigation.NO_POSITION -> {
+        queueNavigation.clearPendingSeek()
+        true
+    }
     else -> {
         queueNavigation.clearPendingSeek()
         noteNextButton()
@@ -28,7 +31,10 @@ internal fun PreviewAudioPlayback.seekToPreviousInPlaybackOrder(): Boolean = whe
     )
 ) {
     null -> false
-    PlaybackQueueNavigation.NO_POSITION -> true
+    PlaybackQueueNavigation.NO_POSITION -> {
+        queueNavigation.clearPendingSeek()
+        true
+    }
     else -> {
         queueNavigation.clearPendingSeek()
         notePreviousButton()

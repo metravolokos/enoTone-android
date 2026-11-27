@@ -169,6 +169,47 @@ class QueueShuffleStagingServiceTest {
         }
     }
 
+    @Test fun previousAtFirstCancelsPendingForwardSeek() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val queue = (0 until 100).map(::track)
+        val anchoredOrder = IntArray(100) { if (it == 0) 0 else 100 - it }
+        val initial = PersistedQueueState(
+            trackIds = queue.map { it.id },
+            selectedTrackId = id(0),
+            positionMs = 0L,
+            repeatMode = Player.REPEAT_MODE_OFF,
+            shuffleEnabled = true,
+            shuffledIndices = anchoredOrder,
+            sourceKey = id(99),
+            savedAtEpochMs = 1L,
+            queueRevision = UUID.randomUUID().toString(),
+        )
+        val source = BlockingDataSourceFactory()
+        BufferingService.dataSourceFactory = source
+        val controller = onMain { Robolectric.buildService(BufferingService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    queue, initial, false, false))
+                assertTrue(service.skipToQueuePosition(1))
+                assertFalse(service.hasPrevious)
+
+                service.playPrevious()
+                Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(5))
+                assertEquals(id(0), service.player.currentMediaItem?.mediaId)
+                assertEquals(0, service.queueSnapshot?.currentIndex)
+            }
+        } finally {
+            source.release.countDown()
+            onMain { controller.destroy() }
+            controller.get().awaitQueueWritesFinished(10_000L)
+            BufferingService.dataSourceFactory = null
+            QueueStateFileStore(context).clear()
+        }
+    }
+
     @Test fun repeatAllWrapsLogicalPreviousAndNextAtQueueBoundaries() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         QueueStateFileStore(context).clear()
