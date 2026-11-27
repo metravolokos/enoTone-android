@@ -19,6 +19,16 @@ class PlaybackSeekPolicyTest {
         assertEquals(0f, PlaybackSeekPolicy.fraction(5_000, -1L), 0f)
     }
 
+    @Test fun seekRequiresBothMedia3CommandAndEffectiveDuration() {
+        assertFalse(PlaybackSeekPolicy.canSeek(seekCommandAvailable = false, durationMs = 120_000L))
+        assertFalse(PlaybackSeekPolicy.canSeek(seekCommandAvailable = true, durationMs = 0L))
+        assertTrue(PlaybackSeekPolicy.canSeek(seekCommandAvailable = true, durationMs = 120_000L))
+
+        assertNull(PlaybackSeekPolicy.seekTarget(false, 120_000L, 0.5f))
+        assertNull(PlaybackSeekPolicy.seekTarget(true, 0L, 0.5f))
+        assertEquals(60_000L, PlaybackSeekPolicy.seekTarget(true, 120_000L, 0.5f))
+    }
+
     @Test fun seekAlwaysStaysInKnownCurrentTrackBounds() {
         val duration = 120_000L
         assertTrue(PlaybackSeekPolicy.isKnownDuration(duration))

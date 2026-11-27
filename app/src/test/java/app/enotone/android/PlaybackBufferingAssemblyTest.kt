@@ -55,6 +55,26 @@ class PlaybackBufferingAssemblyTest {
         assertFalse(snapshot.hasNext)
     }
 
+    @Test fun effectiveDurationKeepsSliderDescriptionAndBufferKnownWhenRawDurationIsUnset() {
+        val ui = resolveNowPlayingDurationUi(
+            durationMs = 228_000L,
+            bufferedPositionMs = 114_000L,
+        )
+
+        assertTrue(ui.hasKnownDuration)
+        assertEquals(0.5f, ui.bufferedFraction, 0f)
+    }
+
+    @Test fun unknownEffectiveDurationHidesBufferRange() {
+        val ui = resolveNowPlayingDurationUi(
+            durationMs = 0L,
+            bufferedPositionMs = 114_000L,
+        )
+
+        assertFalse(ui.hasKnownDuration)
+        assertEquals(0f, ui.bufferedFraction, 0f)
+    }
+
     @Test fun provisionalStagedQueueCannotExposeNextReadiness() {
         val snapshot = resolvePlaybackBufferingSnapshot(
             positionMs = 1_000L,
