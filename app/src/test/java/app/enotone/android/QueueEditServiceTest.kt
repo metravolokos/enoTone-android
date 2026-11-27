@@ -432,6 +432,58 @@ class QueueEditServiceTest {
         }
     }
 
+    @Test fun fullTenThousandQueueEvictsPlayedHistoryAndPersistsNativeNext() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = QueueStateFileStore(context)
+        store.clear()
+        val queue = (0 until 10_000).map(::track)
+        val initial = PersistedQueueState(
+            trackIds = queue.map { it.id },
+            selectedTrackId = id(5_000),
+            positionMs = 0L,
+            repeatMode = Player.REPEAT_MODE_OFF,
+            shuffleEnabled = false,
+            shuffledIndices = null,
+            sourceKey = id(99),
+            savedAtEpochMs = 1L,
+            queueRevision = UUID.randomUUID().toString(),
+        )
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    queue, initial, false, false))
+                assertEquals(10_000, service.queueSize)
+                val editStartedNs = System.nanoTime()
+                val editResult = service.insertNext(listOf(track(10_000))).status
+                val editElapsedMs = (System.nanoTime() - editStartedNs) / 1_000_000.0
+                assertTrue("Full-queue edit blocked main thread for $editElapsedMs ms",
+                    editElapsedMs < 2_000)
+                assertEquals(QueueEditStatus.APPLIED, editResult)
+
+                val snapshot = requireNotNull(service.queueSnapshot)
+                assertEquals(10_000, snapshot.trackIds.size)
+                assertFalse(id(0) in snapshot.trackIds)
+                assertEquals(id(5_000), snapshot.trackIds[snapshot.currentIndex])
+                assertEquals(id(10_000), snapshot.trackIds[snapshot.currentIndex + 1])
+                assertTrue(id(5_001) in snapshot.trackIds)
+
+                service.player.seekToNextMediaItem()
+                assertEquals(id(10_000), service.player.currentMediaItem?.mediaId)
+            }
+            val saved = waitForLayout(store, initial.queueRevision, id(10_000))
+            assertEquals(10_000, saved.trackIds.size)
+            assertFalse(id(0) in saved.trackIds)
+            assertEquals(id(5_000), saved.trackIds[saved.trackIds.indexOf(id(10_000)) - 1])
+            assertEquals(QueueEditSource.edited(initial.sourceKey), saved.sourceKey)
+        } finally {
+            onMain { controller.destroy() }
+            controller.get().awaitQueueWritesFinished(10_000L)
+            store.clear()
+        }
+    }
+
     @Test fun readdingAnExistingTrackKeepsTheRouteAndPersistsTheQueue() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val store = QueueStateFileStore(context)

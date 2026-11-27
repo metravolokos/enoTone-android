@@ -291,7 +291,6 @@ class PreviewAudioPlayback(
     private fun queueTimelineIndex(targetId: String): Int? = mediaIdIndices[targetId]?.let { originalIndex ->
         val plan = pendingPlaylist
         val timelineIndex = when {
-            plan != null && player.shuffleModeEnabled -> null
             plan == null && player.mediaItemCount != expectedQueueSize -> null
             plan != null && originalIndex !in plan.loadedStartIndex until plan.loadedEndExclusive -> null
             plan == null -> originalIndex
@@ -371,12 +370,12 @@ class PreviewAudioPlayback(
         val factory = pendingMediaFactory ?: return
         scheduledPlaylistFill?.let(cacheHandler::removeCallbacks)
         scheduledPlaylistFill = null
-        while (!plan.isComplete) {
-            val chunk = plan.nextChunk() ?: break
-            val sources = chunk.items.map { makeMediaSource(factory, it) }
-            if (chunk.prepend) player.addMediaSources(0, sources)
-            else player.addMediaSources(sources)
-        }
+        val beforeSources = plan.items.subList(0, plan.loadedStartIndex)
+            .map { makeMediaSource(factory, it) }
+        val afterSources = plan.items.subList(plan.loadedEndExclusive, plan.items.size)
+            .map { makeMediaSource(factory, it) }
+        if (beforeSources.isNotEmpty()) player.addMediaSources(0, beforeSources)
+        if (afterSources.isNotEmpty()) player.addMediaSources(afterSources)
         pendingPlaylist = null
         pendingMediaFactory = null
         stageBeforePrepare = false

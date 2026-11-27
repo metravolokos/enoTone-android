@@ -36,6 +36,13 @@ internal class PlaybackQueueNavigation {
         else PlaybackQueueSnapshot(trackIds, currentIndex)
     }
 
+    /** Null means no logical queue; NO_POSITION means the boundary was handled. */
+    fun adjacentPosition(currentTrackId: String?, forward: Boolean): Int? {
+        val current = currentTrackId?.let(trackIndices::get) ?: return null
+        val adjacent = if (forward) current + 1 else current - 1
+        return adjacent.takeIf { it in trackIds.indices } ?: NO_POSITION
+    }
+
     fun selectPosition(
         position: Int,
         currentTrackId: String?,
@@ -87,5 +94,9 @@ internal class PlaybackQueueNavigation {
         trackIds = emptyList()
         trackIndices = emptyMap()
         pendingTrackId = null
+    }
+
+    companion object {
+        const val NO_POSITION = -1
     }
 }

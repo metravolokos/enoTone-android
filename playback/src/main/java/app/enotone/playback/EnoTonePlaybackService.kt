@@ -192,7 +192,12 @@ open class EnoTonePlaybackService : MediaSessionService() {
             this,
             // Кнопки уведомления, гарнитуры и Bluetooth идут в Player.play() напрямую:
             // без обёртки выход из ошибки работал бы только внутри приложения.
-            ErrorRecoveringPlayer(playback.player) { playback.resume() },
+            ErrorRecoveringPlayer(
+                playback.player,
+                { playback.resume() },
+                onNextRequested = { playback.seekToNextInPlaybackOrder() },
+                onPreviousRequested = { playback.seekToPreviousInPlaybackOrder() },
+            ),
         )
         // Без session activity нажатие на уведомление ничего не открывает (дефект Huawei 2026-11-13).
         PlayerLaunchIntent.pendingIntent(this)?.let(builder::setSessionActivity)
@@ -252,8 +257,12 @@ open class EnoTonePlaybackService : MediaSessionService() {
         return result
     }
 
-    val hasNext: Boolean get() = playback.player.hasNextMediaItem()
-    val hasPrevious: Boolean get() = playback.player.hasPreviousMediaItem()
+    val hasNext: Boolean get() = queueSnapshot?.let {
+        it.currentIndex + 1 in it.trackIds.indices
+    } ?: playback.player.hasNextMediaItem()
+    val hasPrevious: Boolean get() = queueSnapshot?.let {
+        it.currentIndex - 1 in it.trackIds.indices
+    } ?: playback.player.hasPreviousMediaItem()
     val queueSize: Int get() = playback.logicalQueueSize
     val queuePosition: Int get() = playback.logicalQueuePosition
     val queueSnapshot: PlaybackQueueSnapshot? get() = playback.queueSnapshot()
@@ -265,7 +274,7 @@ open class EnoTonePlaybackService : MediaSessionService() {
     fun handoffSnapshot(): HandoffSnapshot? = playback.handoffSnapshot()
 
     fun playNext() {
-        playback.queueNavigation.clearPendingSeek()
+        if (playback.seekToNextInPlaybackOrder()) return
         if (hasNext) {
             playback.noteNextButton()
             playback.player.seekToNextMediaItem()
@@ -274,7 +283,7 @@ open class EnoTonePlaybackService : MediaSessionService() {
     }
 
     fun playPrevious() {
-        playback.queueNavigation.clearPendingSeek()
+        if (playback.seekToPreviousInPlaybackOrder()) return
         if (hasPrevious) {
             playback.notePreviousButton()
             playback.player.seekToPreviousMediaItem()

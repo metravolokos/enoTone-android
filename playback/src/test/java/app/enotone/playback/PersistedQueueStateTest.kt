@@ -78,6 +78,22 @@ class PersistedQueueStateTest {
         assertFalse(restored.shuffleEnabled)
     }
 
+    @Test fun codecAcceptsTenThousandTracksAndRejectsTenThousandAndOne() {
+        val allowed = state(
+            ids = (1..10_000).map(::id),
+            selected = id(5_000),
+            shuffled = null,
+        )
+        assertTrue(QueueStateCodec.isValidLayout(allowed.layout()))
+        assertEquals(10_000, requireNotNull(roundTrip(allowed)).trackIds.size)
+
+        val rejected = allowed.copy(trackIds = allowed.trackIds + id(10_001))
+        assertFalse(QueueStateCodec.isValidLayout(rejected.layout()))
+        assertThrows(IllegalArgumentException::class.java) {
+            QueueStateCodec.encodeLayout(rejected.layout())
+        }
+    }
+
     @Test fun emptyDamagedAndForeignLayoutCannotBeRestored() {
         val q = QueueStateCodec.encodeLayout(state().layout())
         val p = QueueStateCodec.encodePosition(state().position())
@@ -167,7 +183,7 @@ class PersistedQueueStateTest {
     }
 
     @Test fun queueAtActiveLimitUsesOnlyFiveSynchronousSeedItems() {
-        val tracks = (1..PlaybackQueue.MAX_TRACKS).map { index ->
+        val tracks = (1..10_000).map { index ->
             QueueTrack(id(index), "Track $index", "/AllMusic/$index.mp3", 1024L, null)
         }
         val selected = id(51)

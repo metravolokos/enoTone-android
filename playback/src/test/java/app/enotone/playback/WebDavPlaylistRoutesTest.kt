@@ -40,10 +40,13 @@ class WebDavPlaylistRoutesTest {
         }
     }
 
-    @Test fun indexesTheOneHundredAllowedQueueEntries() {
-        val tracks = (0 until PlaybackQueue.MAX_TRACKS).map(::track)
+    @Test fun indexesTheTenThousandAllowedQueueEntriesAndRejectsMore() {
+        val tracks = (0 until 10_000).map(::track)
         val index = WebDavPlaylistRoutes.index(tracks)
-        assertEquals(PlaybackQueue.MAX_TRACKS, index.size)
+        assertEquals(10_000, index.size)
         assertTrue(index.values.all { it.size > 0L })
+        assertThrows(IllegalArgumentException::class.java) {
+            WebDavPlaylistRoutes.index(tracks + track(10_000))
+        }
     }
 }

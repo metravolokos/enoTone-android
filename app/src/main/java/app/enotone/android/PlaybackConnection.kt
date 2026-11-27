@@ -397,7 +397,7 @@ internal class AndroidPlaybackConnection(
             repeatMode = buffering.repeatMode,
             shuffleEnabled = active.shuffleEnabled,
             hasPrevious = active.hasPrevious,
-            hasNext = buffering.hasNext,
+            hasNext = active.hasNext,
             errorCode = error?.errorCode ?: 0,
             errorReadIssue = if (error == null) PlaybackDataIssue.UNKNOWN
                 else PlaybackDataIssueClassifier.classify(error),
