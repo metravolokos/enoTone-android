@@ -137,6 +137,27 @@ private fun playbackLabel(player: Player): String {
     }
 }
 
+/** Effective display duration drives the slider and its accessible buffer description. */
+internal data class NowPlayingDurationUi(
+    val bufferedFraction: Float,
+    val hasKnownDuration: Boolean,
+)
+
+internal fun resolveNowPlayingDurationUi(
+    durationMs: Long,
+    bufferedPositionMs: Long,
+): NowPlayingDurationUi {
+    val known = durationMs > 0L
+    return NowPlayingDurationUi(
+        bufferedFraction = if (known) {
+            (bufferedPositionMs.toFloat() / durationMs).coerceIn(0f, 1f)
+        } else {
+            0f
+        },
+        hasKnownDuration = known,
+    )
+}
+
 /** Pure assembly of the Media3 reads and the UI-ready buffering values. */
 internal data class PlaybackBufferingSnapshot(
     val positionMs: Long,

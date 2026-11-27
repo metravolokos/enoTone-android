@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -21,6 +22,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -467,6 +470,53 @@ class NowPlayingUiTest {
         ).assertExists()
         val known = context.getString(R.string.now_playing_seek_known, "01:26", "03:48", 90)
         rule.onNodeWithContentDescription(known).assertDoesNotExist()
+    }
+
+    @Test fun sliderFollowsSeekAvailabilityAndNeverSeeksWhileDisabled() {
+        val canSeek = mutableStateOf(true)
+        val duration = mutableLongStateOf(120_000L)
+        var seeks = 0
+        rule.setContent {
+            EnoToneTheme {
+                NowPlayingScreen(
+                    trackId = "fixture-id", title = "Fixture", artist = null,
+                    album = null, artwork = null, playbackState = "PLAYING",
+                    positionMs = 30_000L, durationMs = duration.longValue,
+                    canSeek = canSeek.value, controlsEnabled = true,
+                    hasPrevious = true, hasNext = true,
+                    queuePosition = 1, queueTotal = 3,
+                    repeatMode = Player.REPEAT_MODE_OFF, shuffleEnabled = false,
+                    bufferedFraction = 0.5f, hasKnownBufferDuration = true,
+                    nextBufferState = NextBufferState.READY,
+                    onClose = {}, onSeekFraction = { seeks++ }, onPlayPause = {},
+                    onPrevious = {}, onNext = {}, onCycleRepeat = {}, onToggleShuffle = {},
+                )
+            }
+        }
+        val known = context.getString(R.string.now_playing_seek_known, "00:30", "02:00", 50)
+        val unknown = context.getString(R.string.now_playing_seek_unknown, "00:30")
+        val slider = rule.onNodeWithContentDescription(known)
+
+        slider.assertIsEnabled()
+        canSeek.value = false
+        slider.assertIsNotEnabled()
+        slider.performTouchInput {
+            swipe(Offset(left + 24f, center.y), Offset(right - 24f, center.y), durationMillis = 300)
+        }
+        rule.runOnIdle { assertEquals(0, seeks) }
+
+        duration.longValue = 0L
+        rule.onNodeWithContentDescription(unknown).assertIsNotEnabled()
+        canSeek.value = true
+        rule.onNodeWithContentDescription(unknown).assertIsNotEnabled()
+
+        duration.longValue = 120_000L
+        slider.assertIsEnabled()
+        rule.onNodeWithContentDescription(unknown).assertDoesNotExist()
+        slider.performTouchInput {
+            swipe(Offset(left + 24f, center.y), Offset(right - 24f, center.y), durationMillis = 300)
+        }
+        rule.runOnIdle { assertEquals(1, seeks) }
     }
 
     @Test fun readyDotDoesNotInterceptHorizontalSeekOrVerticalClose() {

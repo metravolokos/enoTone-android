@@ -4,6 +4,14 @@
 
 # CHANGELOG
 
+## BUG-SEEK: линейка перемотки не теряет известную длительность (#304)
+
+**Было:** `Slider` блокировался, когда Media3 временно возвращал `TIME_UNSET` для текущего progressive source. Отображаемая длительность имела fallback только для восстановленного трека, а `canSeekCurrent()` и `seekToFraction()` использовали сырое `player.duration`; checkpoint мог записать `0`. Запуск новой песни пересоздавал источник и потому выглядел как лечение.
+
+**Стало:** `PlaybackDurationMemory` запоминает последнюю положительную длительность только для того же `mediaId`, обновляется непосредственно на событиях Media3 и используется единообразно для UI, seek-проверки, цели перемотки и checkpoint. Новый queue, restore и Stop явно очищают или заполняют это состояние; seek по-прежнему требует `COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM`.
+
+**Тесты:** `PlaybackDurationMemoryTest` (5), `PlaybackSeekPolicyTest.seekRequiresBothMedia3CommandAndEffectiveDuration`, `QueueEditServiceTest.knownDurationSurvivesRealMedia3ReprepareAndCheckpoint`, `QueueEditServiceTest.restoredDurationStaysScopedToItsTrackWhileMedia3DurationIsUnset`, `NowPlayingUiTest.sliderFollowsSeekAvailabilityAndNeverSeeksWhileDisabled`. Issue [#304](https://github.com/metravolokos/enoTone-android/issues/304).
+
 ## Решения по вопросам #273, #274 и #266 (2026-11-27)
 
 **#273 — foreground-служба на паузе держит соединение: норма.** Наблюдение диагностики (`isForeground=true`, `am stopservice` отклоняется, MediaSession жива) — штатное поведение `MediaSessionService`. Ограничивать время жизни FGS не будем: это противоречит цели «музыка в фоне», а Android 15+ ограничивает такие службы сам. Следствие уточнено по частям: молчаливый `bindService` **достижим без `force-stop`** (ограничение запуска FGS или падение службы при инициализации — см. `PlaybackConnection.kt:298-301`), поэтому тесты #258 и его backoff защищают реальный путь и удалять их нельзя; недостижима только половина `onServiceDisconnected`/`onBindingDied`. Обе задачи слиты (#297, `ee13a15c`). Записано в `CURRENT_DECISIONS`, Issue закрыт.
