@@ -19,10 +19,13 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class MainActivityIntentTest {
     /**
-     * An external `am start` with the extra only reaches the running activity's
-     * `onNewIntent` when the activity is not re-created. Without `singleTop` Android builds a
-     * second instance, the extra is consumed by a fresh `onCreate`, and the already visible
-     * screen never changes — the defect recorded in #274.
+     * Guards the manifest half of the #274 contract: without `singleTop` an external
+     * `am start` builds a second instance instead of delivering the extra to `onNewIntent`.
+     *
+     * This is a configuration guard, not a dispatch test — Robolectric calls `onNewIntent`
+     * directly (see the test below) and would pass either way. The dispatch path itself is
+     * covered by the consumed-extra test; this one fails the moment the manifest attribute is
+     * dropped, which no other test observes.
      */
     @Test fun activityDeclaresSingleTopSoExternalRequestsReachOnNewIntent() {
         val context = ApplicationProvider.getApplicationContext<Context>()

@@ -6,7 +6,7 @@
 
 ## Решения по вопросам #273, #274 и #266 (2026-11-27)
 
-**#273 — foreground-служба на паузе держит соединение: норма.** Наблюдение диагностики (`isForeground=true`, `am stopservice` отклоняется, MediaSession жива) — штатное поведение `MediaSessionService`. Ограничивать время жизни FGS не будем: это противоречит цели «музыка в фоне», а Android 15+ ограничивает такие службы сам. Следствие: тесты #258 и регрессии #268 защищают путь, достижимый только через `force-stop`; обе задачи слиты (#297, `ee13a15c`). Записано в `CURRENT_DECISIONS`, Issue закрыт.
+**#273 — foreground-служба на паузе держит соединение: норма.** Наблюдение диагностики (`isForeground=true`, `am stopservice` отклоняется, MediaSession жива) — штатное поведение `MediaSessionService`. Ограничивать время жизни FGS не будем: это противоречит цели «музыка в фоне», а Android 15+ ограничивает такие службы сам. Следствие уточнено по частям: молчаливый `bindService` **достижим без `force-stop`** (ограничение запуска FGS или падение службы при инициализации — см. `PlaybackConnection.kt:298-301`), поэтому тесты #258 и его backoff защищают реальный путь и удалять их нельзя; недостижима только половина `onServiceDisconnected`/`onBindingDied`. Обе задачи слиты (#297, `ee13a15c`). Записано в `CURRENT_DECISIONS`, Issue закрыт.
 
 **#274 — внешний `OPEN_NOW_PLAYING` получил `singleTop`.** `onNewIntent` extra уже обрабатывал, но в манифесте не было `launchMode`, поэтому `am start` создавал второй экземпляр Activity, extra потреблялся новым `onCreate`, и видимый экран не менялся. Добавлен `launchMode="singleTop"`; тест `MainActivityIntentTest.activityDeclaresSingleTopSoExternalRequestsReachOnNewIntent` падает без него (`expected:<1> but was:<0>`). Уведомление и пользовательский путь не меняются.
 

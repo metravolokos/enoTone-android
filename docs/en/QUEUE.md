@@ -22,8 +22,8 @@ First, because these are what the user sees and trips over.
 
 | Priority | Issue | What | Status |
 |---|---|---|---|
-| **P3** | [#299](https://github.com/metravolokos/enoTone-android/issues/299) | PA-3 — user sorting and filters: needs an ADR |
-| **P3** | [#300](https://github.com/metravolokos/enoTone-android/issues/300) | PA-10 — explain the 100-song limit without a startup message |
+| **P3** | [#299](https://github.com/metravolokos/enoTone-android/issues/299) | P-3 — user sorting and filters: needs an ADR |
+| **P3** | [#300](https://github.com/metravolokos/enoTone-android/issues/300) | P-10 — explain the 100-song limit without a startup message |
 
 **Why first.** Both follow from the owner decisions of 2026-11-27. `#273` and `#274` are closed: the foreground service is accepted as normal and `OPEN_NOW_PLAYING` gained `singleTop` ([CURRENT_DECISIONS](CURRENT_DECISIONS.md)). `#299` needs an ADR before any work; `#300` needs a form decision.
 
@@ -31,13 +31,13 @@ First, because these are what the user sees and trips over.
 
 Defects in user journeys: dead ends, dead buttons, wrong expectations.
 
-**Every defect in this wave is closed:** PA-4 (#263) — PR #283, PA-5 (#264) — PR #284, PA-6 (#265) — PR #285 and #287. Only the question `#266` remains open in this wave.
+**Every defect in this wave is closed:** PA-4 (#263) — PR #283, PA-5 (#264) — PR #284, PA-6 (#265) — PR #285 and #287. `#266` remains open as the deferred remainder.
 
 | Priority | Issue | What |
 |---|---|---|
-| **P3** | [#266](https://github.com/metravolokos/enoTone-android/issues/266) | Sorting, playlists, offline, search, diagnostics — **needs owner decision** |
+| **P3** | [#266](https://github.com/metravolokos/enoTone-android/issues/266) | Audit remainder: playlists (P-4), offline (P-5), global search (P-7), diagnostics export (P-9) — **deferred by the owner on 2026-11-27** |
 
-**Why no work here.** These are scope questions, not defects: until the owner decides what belongs in the product, there is nothing to plan.
+**Why no work here.** The owner triaged the list on 2026-11-27: P-3 and P-10 were taken into [#299](https://github.com/metravolokos/enoTone-android/issues/299) and [#300](https://github.com/metravolokos/enoTone-android/issues/300), the other four are deferred. Deferred is not cancelled — each needs an ADR or design, so returning to one starts with a new owner decision, not with planning.
 
 ## Wave 3 — code audit
 
