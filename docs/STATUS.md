@@ -18,7 +18,7 @@
 
 ## Последние закрытия и решения
 
-- **BUG-SEEK (#304), в работе:** в ветке `fix/bug-seek-duration-state` подготовлено сохранение известной длительности текущего `mediaId` при временном `TIME_UNSET`, единая effective duration для UI/seek/checkpoint и регрессионные тесты, включая реальный Media3 reprepare. Локальные сборка, JUnit/Robolectric, lint, detekt, Roborazzi, Python и design sync зелёные; exact-HEAD CI и независимое ревью отслеживаются в Draft [PR #305](https://github.com/metravolokos/enoTone-android/pull/305).
+- **BUG-SEEK (#304) закрыта:** [PR #305](https://github.com/metravolokos/enoTone-android/pull/305) слит в `main` `2cba4ee5604d0f9ced58265271eaf367c13de341`; независимое ревью — `MERGE_PROPOSED`, post-merge [CI 46080925501](https://github.com/metravolokos/enoTone-android/actions/runs/46080925501) — success. Известная длительность текущего `mediaId` сохраняется при временном `TIME_UNSET` и последовательно используется для UI, seek и checkpoint.
 
 - **#188 закрыта владельцем 2026-11-17.** PR #189 слит; повторяющиеся файлы подтверждены в источнике `/AllMusic`. Общее принятие сборки 1019 не является поимённым PASS на устройстве.
 - **#191, #195, #197 закрыты** после слияния PR #194, #196 и #198. **#192 закрыта владельцем** после общего принятия сборки 1038; отдельный PASS сценариев очереди не выводится из этого сообщения.

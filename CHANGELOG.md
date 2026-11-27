@@ -4,13 +4,17 @@
 
 # CHANGELOG
 
+## BUG-SEEK: синхронизация итогов приёмки (#304)
+
+`STATUS` и `SCENARIOS` приведены к состоянию после merge: [PR #305](https://github.com/metravolokos/enoTone-android/pull/305), squash-коммит `2cba4ee5604d0f9ced58265271eaf367c13de341`, post-merge [CI 46080925501](https://github.com/metravolokos/enoTone-android/actions/runs/46080925501) — success. PLAY-04, REST-03 и REST-06 получили ссылки на PR и прогон в «Последнем результате».
+
 ## BUG-SEEK: линейка перемотки не теряет известную длительность (#304)
 
 **Было:** `Slider` блокировался, когда Media3 временно возвращал `TIME_UNSET` для текущего progressive source. Отображаемая длительность имела fallback только для восстановленного трека, а `canSeekCurrent()` и `seekToFraction()` использовали сырое `player.duration`; checkpoint мог записать `0`. Запуск новой песни пересоздавал источник и потому выглядел как лечение.
 
 **Стало:** `PlaybackDurationMemory` запоминает последнюю положительную длительность только для того же `mediaId`, обновляется непосредственно на событиях Media3 и используется единообразно для UI, seek-проверки, цели перемотки и checkpoint. Новый queue, restore и Stop явно очищают или заполняют это состояние; seek по-прежнему требует `COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM`.
 
-**Тесты:** `PlaybackDurationMemoryTest` (5), `PlaybackSeekPolicyTest.seekRequiresBothMedia3CommandAndEffectiveDuration`, `QueueEditServiceTest.knownDurationSurvivesRealMedia3ReprepareAndCheckpoint`, `QueueEditServiceTest.restoredDurationStaysScopedToItsTrackWhileMedia3DurationIsUnset`, `NowPlayingUiTest.sliderFollowsSeekAvailabilityAndNeverSeeksWhileDisabled`. Issue [#304](https://github.com/metravolokos/enoTone-android/issues/304), Draft [PR #305](https://github.com/metravolokos/enoTone-android/pull/305).
+**Тесты:** `PlaybackDurationMemoryTest` (5), `PlaybackSeekPolicyTest.seekRequiresBothMedia3CommandAndEffectiveDuration`, `QueueEditServiceTest.knownDurationSurvivesRealMedia3ReprepareAndCheckpoint`, `QueueEditServiceTest.restoredDurationStaysScopedToItsTrackWhileMedia3DurationIsUnset`, `NowPlayingUiTest.sliderFollowsSeekAvailabilityAndNeverSeeksWhileDisabled`. Issue [#304](https://github.com/metravolokos/enoTone-android/issues/304), [PR #305](https://github.com/metravolokos/enoTone-android/pull/305).
 
 ## Решения по вопросам #273, #274 и #266 (2026-11-27)
 
