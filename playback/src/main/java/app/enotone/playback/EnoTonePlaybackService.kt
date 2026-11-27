@@ -311,15 +311,20 @@ open class EnoTonePlaybackService : MediaSessionService() {
     }
 
     val canSeekCurrent: Boolean
-        get() = playback.player.isCommandAvailable(
-            Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM) &&
-            PlaybackSeekPolicy.isKnownDuration(playback.player.duration)
+        get() = PlaybackSeekPolicy.canSeek(
+            seekCommandAvailable = playback.player.isCommandAvailable(
+                Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM),
+            durationMs = playback.displayDurationMs,
+        )
 
     fun seekToFraction(fraction: Float): Boolean {
         val player = playback.player
-        if (!player.isCommandAvailable(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) return false
-        val target = PlaybackSeekPolicy.positionForFraction(player.duration, fraction)
-            ?: return false
+        val target = PlaybackSeekPolicy.seekTarget(
+            seekCommandAvailable = player.isCommandAvailable(
+                Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM),
+            durationMs = playback.displayDurationMs,
+            fraction = fraction,
+        ) ?: return false
         playback.queueNavigation.clearPendingSeek()
         player.seekTo(target)
         return true

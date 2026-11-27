@@ -1,6 +1,6 @@
 # Playback queue — текущий контракт
 
-> **Актуально на 2026-11-28**, база `main` `ffd7ab29`, версия `0.6.2`; изменения Q3 ([Issue #302](https://github.com/metravolokos/enoTone-android/issues/302)) готовятся в отдельной ветке. Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md); очередь и Shuffle — [ADR-0105](DECISIONS/ADR-0105-queue-10000-anchored-shuffle.md), ручная правка — [ADR-0089](DECISIONS/ADR-0089-queue-edit.md), сохранение — [ADR-0075](DECISIONS/ADR-0075-queue-persistence.md).
+> **Актуально на 2026-11-28**, база `main` `2cba4ee5`, версия `0.6.2`; Q3 ([Issue #302](https://github.com/metravolokos/enoTone-android/issues/302)) реализован в [PR #303](https://github.com/metravolokos/enoTone-android/pull/303). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md); очередь и Shuffle — [ADR-0105](DECISIONS/ADR-0105-queue-10000-anchored-shuffle.md), ручная правка — [ADR-0089](DECISIONS/ADR-0089-queue-edit.md), сохранение — [ADR-0075](DECISIONS/ADR-0075-queue-persistence.md).
 
 ## Что работает
 

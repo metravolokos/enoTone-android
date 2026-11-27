@@ -12,6 +12,15 @@ import kotlin.math.roundToLong
 object PlaybackSeekPolicy {
     fun isKnownDuration(durationMs: Long): Boolean = durationMs > 0L
 
+    fun canSeek(seekCommandAvailable: Boolean, durationMs: Long): Boolean =
+        seekCommandAvailable && isKnownDuration(durationMs)
+
+    fun seekTarget(
+        seekCommandAvailable: Boolean,
+        durationMs: Long,
+        fraction: Float,
+    ): Long? = if (seekCommandAvailable) positionForFraction(durationMs, fraction) else null
+
     /** Перемотка пользователем или по команде MediaSession — повод сохранить позицию сразу. */
     fun isUserSeek(discontinuityReason: Int): Boolean =
         discontinuityReason == Player.DISCONTINUITY_REASON_SEEK ||

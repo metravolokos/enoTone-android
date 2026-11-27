@@ -4,13 +4,21 @@
 
 # CHANGELOG
 
-## Q3 — очередь до 10 000 и Shuffle с выбранной/текущей песней первой (Issue #302, 2026-11-28)
+## Q3 — очередь до 10 000 и Shuffle с выбранной/текущей песней первой (Issue #302, PR #303, 2026-11-28)
 
 **Было:** ADR-0099 ограничивал активную очередь 100 песнями. Медиатека 3590 треков обрезалась, Shuffle выбирал случайную сотню, а при включении Shuffle текущая песня могла оказаться в середине playback-order.
 
 **Стало:** ADR-0105 возвращает предел 10 000 и сохраняет checkpoint v1. Длинный контекст не режется до 100; Play-all и Shuffle используют весь текущий список/поиск, альбом или исполнителя. `QueueShuffleOrder` строит полную перестановку Fisher–Yates и ставит выбранный трек первым при создании Shuffle-очереди, а текущий — первым при включении Shuffle на экране воспроизведения. Выключение Shuffle возвращает исходный физический порядок. Валидная v1 очередь 3647 восстанавливается целиком; сохранённый `shuffledIndices` авторитетен. Next/Previous и QueueSheet во время staged наполнения следуют логическому playback-order, включая MediaSession API и repeat-all wrap-around; завершение очереди перед ручной правкой группируется в две операции `addMediaSources` (локальный замер 332 мс вместо 2465 мс).
 
-Issue #300 закрыта как заменённая. Q2 (#193) — удаление/перестановка и скользящая очередь — по-прежнему отменена. Класс риска R: нужны exact-HEAD CI и два независимых ревью. [Draft PR #303](https://github.com/metravolokos/enoTone-android/pull/303).
+Issue #300 закрыта как заменённая. Q2 (#193) — удаление/перестановка и скользящая очередь — по-прежнему отменена. Класс риска R: exact-HEAD CI [#46076733762](https://github.com/metravolokos/enoTone-android/actions/runs/46076733762) и два независимых ревью PASS. [PR #303](https://github.com/metravolokos/enoTone-android/pull/303).
+
+## BUG-SEEK: линейка перемотки не теряет известную длительность (#304)
+
+**Было:** `Slider` блокировался, когда Media3 временно возвращал `TIME_UNSET` для текущего progressive source. Отображаемая длительность имела fallback только для восстановленного трека, а `canSeekCurrent()` и `seekToFraction()` использовали сырое `player.duration`; checkpoint мог записать `0`. Запуск новой песни пересоздавал источник и потому выглядел как лечение.
+
+**Стало:** `PlaybackDurationMemory` запоминает последнюю положительную длительность только для того же `mediaId`, обновляется непосредственно на событиях Media3 и используется единообразно для UI, seek-проверки, цели перемотки и checkpoint. Новый queue, restore и Stop явно очищают или заполняют это состояние; seek по-прежнему требует `COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM`.
+
+**Тесты:** `PlaybackDurationMemoryTest` (5), `PlaybackSeekPolicyTest.seekRequiresBothMedia3CommandAndEffectiveDuration`, `QueueDurationServiceTest.knownDurationSurvivesRealMedia3ReprepareAndCheckpoint`, `QueueDurationServiceTest.restoredDurationStaysScopedToItsTrackWhileMedia3DurationIsUnset`, `NowPlayingUiTest.sliderFollowsSeekAvailabilityAndNeverSeeksWhileDisabled`. Issue [#304](https://github.com/metravolokos/enoTone-android/issues/304), [PR #305](https://github.com/metravolokos/enoTone-android/pull/305).
 
 ## Решения по вопросам #273, #274 и #266 (2026-11-27)
 

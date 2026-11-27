@@ -449,6 +449,7 @@ class QueueEditServiceTest {
             queueRevision = UUID.randomUUID().toString(),
         )
         val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        var saved: PersistedQueueState? = null
         try {
             val service = controller.get()
             onMain {
@@ -472,16 +473,17 @@ class QueueEditServiceTest {
                 service.player.seekToNextMediaItem()
                 assertEquals(id(10_000), service.player.currentMediaItem?.mediaId)
             }
-            val saved = waitForLayout(store, initial.queueRevision, id(10_000))
-            assertEquals(10_000, saved.trackIds.size)
-            assertFalse(id(0) in saved.trackIds)
-            assertEquals(id(5_000), saved.trackIds[saved.trackIds.indexOf(id(10_000)) - 1])
-            assertEquals(QueueEditSource.edited(initial.sourceKey), saved.sourceKey)
         } finally {
             onMain { controller.destroy() }
-            controller.get().awaitQueueWritesFinished(10_000L)
+            assertTrue("queue writes should finish", controller.get().awaitQueueWritesFinished(30_000L))
+            saved = store.read()
             store.clear()
         }
+        val persisted = requireNotNull(saved) { "edited queue should be persisted" }
+        assertEquals(10_000, persisted.trackIds.size)
+        assertFalse(id(0) in persisted.trackIds)
+        assertEquals(id(5_000), persisted.trackIds[persisted.trackIds.indexOf(id(10_000)) - 1])
+        assertEquals(QueueEditSource.edited(initial.sourceKey), persisted.sourceKey)
     }
 
     @Test fun readdingAnExistingTrackKeepsTheRouteAndPersistsTheQueue() {

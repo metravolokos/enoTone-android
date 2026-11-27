@@ -78,6 +78,11 @@ class PreviewAudioPlayback(
      * before that listener cancels the former current/next downloads.
      */
     private val handoffListener = object : Player.Listener {
+        override fun onEvents(player: Player, events: Player.Events) {
+            // Capture duration on the Media3 event itself, not only when the UI
+            // happens to poll. A later transient TIME_UNSET must not erase it.
+            durationMemory.resolve(player.currentMediaItem?.mediaId, player.duration)
+        }
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             val preparedNext = mediaItem != null &&
                 mediaItem.mediaId == scheduledNextId &&
@@ -196,8 +201,7 @@ class PreviewAudioPlayback(
     private var stableShuffleApplied = false
     /** Called only after configuredShuffle is ready, including MediaSession controls. */
     var onShuffleLayoutReady: (() -> Unit)? = null
-    /** Saved duration of the restored item, shown until Media3 knows the real one. */
-    private var restoredDuration: Pair<String, Long>? = null
+    private val durationMemory = PlaybackDurationMemory()
     private var restoringShuffle = false
     private var deferredPrepare = false
     private var stageBeforePrepare = false
@@ -230,16 +234,15 @@ class PreviewAudioPlayback(
     }
 
     /**
-     * Duration for the UI: the real Media3 value when known; otherwise, for the
-     * restored (paused, not prepared) item, the duration saved with the
-     * checkpoint, so the progress bar is not stuck at zero before the first Play.
+     * Duration for the UI and seek commands: the real Media3 value when known;
+     * otherwise the last known value for this same item. A restored checkpoint
+     * seeds that value before the first Play. A transient TIME_UNSET must not
+     * erase a duration Media3 has already reported for the current track.
      */
-    val displayDurationMs: Long get() {
-        val known = player.duration
-        if (PlaybackSeekPolicy.isKnownDuration(known)) return known
-        val saved = restoredDuration ?: return 0L
-        return if (player.currentMediaItem?.mediaId == saved.first) saved.second else 0L
-    }
+    val displayDurationMs: Long get() = durationMemory.resolve(
+        mediaId = player.currentMediaItem?.mediaId,
+        rawDurationMs = player.duration,
+    )
 
     /** Immutable original queue and full permutation; only on queue/shuffle changes. */
     fun snapshotLayout(revision: String, savedAtEpochMs: Long): PersistedQueueLayout? {
@@ -605,7 +608,7 @@ class PreviewAudioPlayback(
         temporaryCache?.stopCurrent()
 
         val t0 = SystemClock.elapsedRealtime()
-        restoredDuration = null
+        durationMemory.clear()
         val queue = PlaybackQueue.create(tracks, selectedId)
         val t1 = SystemClock.elapsedRealtime()
         val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items, dataSourceFactoryOverride)
@@ -770,8 +773,8 @@ class PreviewAudioPlayback(
         queueNavigation.clearPendingSeek()
         queueNavigation.updateOrder(originalTrackIds, mediaIdIndices, configuredShuffle, player.shuffleModeEnabled)
         stableShuffleApplied = false
-        restoredDuration = state.durationMs.takeIf { it > 0L }
-            ?.let { state.selectedTrackId to it }
+        durationMemory.clear()
+        durationMemory.remember(state.selectedTrackId, state.durationMs)
 
         val plan = StagedPlaylistPlan.create(queue)
         val seed = plan.seed.map { makeMediaSource(mediaFactory, it) }
@@ -855,7 +858,6 @@ class PreviewAudioPlayback(
     }
 
     fun stop() {
-        restoredDuration = null
         handoffTracker.stop()
         lastEndRecoveryId = null
         clearScheduledWriter()
@@ -877,6 +879,9 @@ class PreviewAudioPlayback(
         cacheEnabledForQueue = false
         player.stop()
         player.clearMediaItems()
+        // stop()/clearMediaItems() emit events; clear after them so the old
+        // current item cannot seed the memory again during teardown.
+        durationMemory.clear()
         activeRoutes = emptyMap()
         upstreamFactory = null
         routesFactory = null
