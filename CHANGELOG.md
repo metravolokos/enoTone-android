@@ -10,7 +10,7 @@
 
 **Стало:** `PlaybackDurationMemory` запоминает последнюю положительную длительность только для того же `mediaId`, обновляется непосредственно на событиях Media3 и используется единообразно для UI, seek-проверки, цели перемотки и checkpoint. Новый queue, restore и Stop явно очищают или заполняют это состояние; seek по-прежнему требует `COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM`.
 
-**Тесты:** `PlaybackDurationMemoryTest` (5), `PlaybackSeekPolicyTest.seekRequiresBothMedia3CommandAndEffectiveDuration`, `QueueEditServiceTest.knownDurationSurvivesRealMedia3ReprepareAndCheckpoint`, `QueueEditServiceTest.restoredDurationStaysScopedToItsTrackWhileMedia3DurationIsUnset`, `NowPlayingUiTest.sliderFollowsSeekAvailabilityAndNeverSeeksWhileDisabled`. Issue [#304](https://github.com/metravolokos/enoTone-android/issues/304).
+**Тесты:** `PlaybackDurationMemoryTest` (5), `PlaybackSeekPolicyTest.seekRequiresBothMedia3CommandAndEffectiveDuration`, `QueueEditServiceTest.knownDurationSurvivesRealMedia3ReprepareAndCheckpoint`, `QueueEditServiceTest.restoredDurationStaysScopedToItsTrackWhileMedia3DurationIsUnset`, `NowPlayingUiTest.sliderFollowsSeekAvailabilityAndNeverSeeksWhileDisabled`. Issue [#304](https://github.com/metravolokos/enoTone-android/issues/304), Draft [PR #305](https://github.com/metravolokos/enoTone-android/pull/305).
 
 ## Решения по вопросам #273, #274 и #266 (2026-11-27)
 
