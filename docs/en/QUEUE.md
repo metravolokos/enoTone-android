@@ -1,6 +1,6 @@
 # Work queue — the single order of work
 
-> **Translated from:** `docs/QUEUE.md` at `main` `084155b1`, 2026-11-27. Russian is canonical.
+> **Translated from:** `docs/QUEUE.md` at `main` `9c3ac520`, 2026-11-26. Russian is canonical.
 > **Single source of ordering.** If an Issue, ROADMAP or chat contradicts this file, this file wins.
 
 ## How to read it
@@ -22,22 +22,22 @@ First, because these are what the user sees and trips over.
 
 | Priority | Issue | What | Status |
 |---|---|---|---|
-| **P2** | [#273](https://github.com/metravolokos/enoTone-android/issues/273) | `device` — playback service never releases its binding: FGS norm or tech debt? | awaiting owner decision |
-| **P3** | [#274](https://github.com/metravolokos/enoTone-android/issues/274) | `device` — `OPEN_NOW_PLAYING` contract requires flags | awaiting owner decision |
+| **P3** | [#299](https://github.com/metravolokos/enoTone-android/issues/299) | P-3 — user sorting and filters: needs an ADR |
+| **P3** | [#300](https://github.com/metravolokos/enoTone-android/issues/300) | P-10 — explain the 100-song limit without a startup message |
 
-**Why first.** These came from a real device and are directly visible. `#273` and `#274` are questions, not work: they wait for the owner and do not block anything.
+**Why first.** Both follow from the owner decisions of 2026-11-27. `#273` and `#274` are closed: the foreground service is accepted as normal and `OPEN_NOW_PLAYING` gained `singleTop` ([CURRENT_DECISIONS](CURRENT_DECISIONS.md)). `#299` needs an ADR before any work; `#300` needs a form decision.
 
 ## Wave 2 — product audit
 
 Defects in user journeys: dead ends, dead buttons, wrong expectations.
 
-**Every defect in this wave is closed:** PA-4 (#263) — PR #283, PA-5 (#264) — PR #284, PA-6 (#265) — PR #285 and #287. Only the question `#266` remains open in this wave.
+**Every defect in this wave is closed:** P-4 (#263) — PR #283, P-5 (#264) — PR #284, P-6 (#265) — PR #285 and #287. `#266` remains open as the deferred remainder.
 
 | Priority | Issue | What |
 |---|---|---|
-| **P3** | [#266](https://github.com/metravolokos/enoTone-android/issues/266) | Sorting, playlists, offline, search, diagnostics — **needs owner decision** |
+| **P3** | [#266](https://github.com/metravolokos/enoTone-android/issues/266) | Audit remainder: playlists (P-4), offline (P-5), global search (P-7), diagnostics export (P-9) — **deferred by the owner on 2026-11-27** |
 
-**Why no work here.** These are scope questions, not defects: until the owner decides what belongs in the product, there is nothing to plan.
+**Why no work here.** The owner triaged the list on 2026-11-27: P-3 and P-10 were taken into [#299](https://github.com/metravolokos/enoTone-android/issues/299) and [#300](https://github.com/metravolokos/enoTone-android/issues/300), the other four are deferred. Deferred is not cancelled — each needs an ADR or design, so returning to one starts with a new owner decision, not with planning.
 
 ## Wave 3 — code audit
 
@@ -49,7 +49,7 @@ Technical defects: races, atomicity, cleanup ordering.
 
 **Closed in this wave:** #254 — PR #291; #255 — PR #294; #257 (premature `DONE` + library revision) — PR #295; #258 (bind reconnect, double reload, docs) — PR #297; #292 (legacy artwork copy) — PR #298; #256 (fail-closed sign-out, legacy artwork, risk class R) — PR #288 and #289.
 
-**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`–`#258` and #292 are closed. #296 remains — it awaits an FPS measurement before any optimisation.
+**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`–`#258` and #292 are closed. #296 remains — it awaits an FPS measurement. #266 was triaged by the owner: P-3 (#299) and P-10 (#300) taken, the rest deferred.
 
 **Note:** backoff only covers the bind-timeout branch. `onServiceDisconnected` and `onBindingDied` still reconnect immediately, so the overlap between `#258` and `#273` remains partial: whether the FGS binding is normal stays a separate owner decision.
 

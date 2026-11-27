@@ -35,8 +35,10 @@
             android:name=".ArtworkIndexingForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- singleTop delivers the extra to onNewIntent() when MainActivity is the top of its
+             task; otherwise a new instance is created and onCreate() consumes it. -->
         <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="portrait"
-            android:enableOnBackInvokedCallback="true">
+            android:launchMode="singleTop" android:enableOnBackInvokedCallback="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
