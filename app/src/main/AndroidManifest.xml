@@ -35,8 +35,10 @@
             android:name=".ArtworkIndexingForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- singleTop keeps one MainActivity instance so an external `am start` with
+             EXTRA_OPEN_NOW_PLAYING reaches onNewIntent() instead of building a second copy. -->
         <activity android:name=".MainActivity" android:exported="true" android:screenOrientation="portrait"
-            android:enableOnBackInvokedCallback="true">
+            android:launchMode="singleTop" android:enableOnBackInvokedCallback="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

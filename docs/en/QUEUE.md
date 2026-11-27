@@ -1,6 +1,6 @@
 # Work queue — the single order of work
 
-> **Translated from:** `docs/QUEUE.md` at `main` `084155b1`, 2026-11-27. Russian is canonical.
+> **Translated from:** `docs/QUEUE.md` at `main` `9c3ac520`, 2026-11-26. Russian is canonical.
 > **Single source of ordering.** If an Issue, ROADMAP or chat contradicts this file, this file wins.
 
 ## How to read it
@@ -22,10 +22,10 @@ First, because these are what the user sees and trips over.
 
 | Priority | Issue | What | Status |
 |---|---|---|---|
-| **P2** | [#273](https://github.com/metravolokos/enoTone-android/issues/273) | `device` — playback service never releases its binding: FGS norm or tech debt? | awaiting owner decision |
-| **P3** | [#274](https://github.com/metravolokos/enoTone-android/issues/274) | `device` — `OPEN_NOW_PLAYING` contract requires flags | awaiting owner decision |
+| **P3** | [#299](https://github.com/metravolokos/enoTone-android/issues/299) | PA-3 — user sorting and filters: needs an ADR |
+| **P3** | [#300](https://github.com/metravolokos/enoTone-android/issues/300) | PA-10 — explain the 100-song limit without a startup message |
 
-**Why first.** These came from a real device and are directly visible. `#273` and `#274` are questions, not work: they wait for the owner and do not block anything.
+**Why first.** Both follow from the owner decisions of 2026-11-27. `#273` and `#274` are closed: the foreground service is accepted as normal and `OPEN_NOW_PLAYING` gained `singleTop` ([CURRENT_DECISIONS](CURRENT_DECISIONS.md)). `#299` needs an ADR before any work; `#300` needs a form decision.
 
 ## Wave 2 — product audit
 
@@ -49,7 +49,7 @@ Technical defects: races, atomicity, cleanup ordering.
 
 **Closed in this wave:** #254 — PR #291; #255 — PR #294; #257 (premature `DONE` + library revision) — PR #295; #258 (bind reconnect, double reload, docs) — PR #297; #292 (legacy artwork copy) — PR #298; #256 (fail-closed sign-out, legacy artwork, risk class R) — PR #288 and #289.
 
-**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`–`#258` and #292 are closed. #296 remains — it awaits an FPS measurement before any optimisation.
+**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`–`#258` and #292 are closed. #296 remains — it awaits an FPS measurement. #266 was triaged by the owner: P-3 (#299) and P-10 (#300) taken, the rest deferred.
 
 **Note:** backoff only covers the bind-timeout branch. `onServiceDisconnected` and `onBindingDied` still reconnect immediately, so the overlap between `#258` and `#273` remains partial: whether the FGS binding is normal stays a separate owner decision.
 
