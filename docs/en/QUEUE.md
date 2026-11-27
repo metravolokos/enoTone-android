@@ -31,7 +31,7 @@ First, because these are what the user sees and trips over.
 
 Defects in user journeys: dead ends, dead buttons, wrong expectations.
 
-**Every defect in this wave is closed:** PA-4 (#263) — PR #283, PA-5 (#264) — PR #284, PA-6 (#265) — PR #285 and #287. `#266` remains open as the deferred remainder.
+**Every defect in this wave is closed:** P-4 (#263) — PR #283, P-5 (#264) — PR #284, P-6 (#265) — PR #285 and #287. `#266` remains open as the deferred remainder.
 
 | Priority | Issue | What |
 |---|---|---|

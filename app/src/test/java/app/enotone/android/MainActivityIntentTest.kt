@@ -32,7 +32,7 @@ class MainActivityIntentTest {
         val info = context.packageManager.getActivityInfo(
             ComponentName(context, MainActivity::class.java), 0)
         assertEquals(
-            "external OPEN_NOW_PLAYING needs one instance: onNewIntent handles the extra",
+            "external OPEN_NOW_PLAYING needs the running instance on top: onNewIntent handles the extra",
             ActivityInfo.LAUNCH_SINGLE_TOP, info.launchMode,
         )
     }
