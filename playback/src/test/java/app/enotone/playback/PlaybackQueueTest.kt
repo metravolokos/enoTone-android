@@ -46,13 +46,13 @@ class PlaybackQueueTest {
         }
     }
 
-    @Test fun allowsOneHundredItemsAndRejectsOneHundredAndOne() {
+    @Test fun allowsTenThousandItemsAndRejectsTenThousandAndOne() {
         val items = (0 until PlaybackQueue.MAX_TRACKS).map(::track)
         val queue = PlaybackQueue.create(items, "id-50")
-        assertEquals(100, queue.size)
+        assertEquals(PlaybackQueue.MAX_TRACKS, queue.size)
         assertEquals(50, queue.position)
         assertThrows(IllegalArgumentException::class.java) {
-            PlaybackQueue.create(items + track(100), "id-50")
+            PlaybackQueue.create(items + track(PlaybackQueue.MAX_TRACKS), "id-50")
         }
     }
 }

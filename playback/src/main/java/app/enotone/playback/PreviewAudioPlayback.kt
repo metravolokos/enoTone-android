@@ -202,16 +202,8 @@ class PreviewAudioPlayback(
     private var deferredPrepare = false
     private var stageBeforePrepare = false
 
-    private fun newShuffleOrder(size: Int): IntArray {
-        val order = ShuffleOrder.DefaultShuffleOrder(size, System.nanoTime())
-        val indices = IntArray(size)
-        var current = order.firstIndex
-        for (i in indices.indices) {
-            indices[i] = current
-            current = order.getNextIndex(current)
-        }
-        return indices
-    }
+    private fun newShuffleOrder(size: Int, firstIndex: Int): IntArray =
+        QueueShuffleOrder.create(size, firstIndex, System.nanoTime())
 
     /** Staged Media3 order is incomplete; install an exact full permutation once. */
     private fun applyStableShuffleIfComplete() {
@@ -479,8 +471,9 @@ class PreviewAudioPlayback(
 
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
             if (!restoringShuffle) {
+                val firstIndex = player.currentMediaItem?.mediaId?.let(mediaIdIndices::get) ?: 0
                 configuredShuffle = if (shuffleModeEnabled && expectedQueueSize > 0)
-                    newShuffleOrder(expectedQueueSize) else null
+                    newShuffleOrder(expectedQueueSize, firstIndex) else null
                 queueNavigation.updateOrder(
                     originalTrackIds, mediaIdIndices, configuredShuffle, player.shuffleModeEnabled,
                 )
@@ -642,7 +635,7 @@ class PreviewAudioPlayback(
         expectedQueueSize = queue.size
         mediaIdIndices = queue.items.mapIndexed { index, item -> item.id to index }.toMap()
         originalTrackIds = queue.items.map { it.id }
-        configuredShuffle = if (player.shuffleModeEnabled) newShuffleOrder(queue.size) else null
+        configuredShuffle = if (player.shuffleModeEnabled) newShuffleOrder(queue.size, queue.position) else null
         queueNavigation.updateOrder(originalTrackIds, mediaIdIndices, configuredShuffle, player.shuffleModeEnabled)
         stableShuffleApplied = false
         val plan = StagedPlaylistPlan.create(queue)

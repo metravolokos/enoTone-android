@@ -166,7 +166,7 @@ class PersistedQueueStateTest {
         assertEquals(0L, throttle.delayMs())
     }
 
-    @Test fun queueOfOneHundredUsesOnlyFiveSynchronousSeedItems() {
+    @Test fun queueAtActiveLimitUsesOnlyFiveSynchronousSeedItems() {
         val tracks = (1..PlaybackQueue.MAX_TRACKS).map { index ->
             QueueTrack(id(index), "Track $index", "/AllMusic/$index.mp3", 1024L, null)
         }
@@ -208,12 +208,12 @@ class PersistedQueueStateTest {
 
     private fun rewriteLegacyQueue(state: PersistedQueueState): PersistedQueueState {
         val store = QueueStateFileStore.inDirectory(folder.newFolder())
-        // Simulate the v1 pair on disk before the runtime queue cap was 100.
+        // Simulate a v1 pair written before the active cap was restored to 10 000.
         store.writeLayoutAndPosition(state.layout(), state.position())
         val diskState = store.read()!!
         assertEquals(3_647, diskState.trackIds.size)
         val reduced = QueueStateRestorer.filter(diskState, diskState.trackIds.toSet())!!
-        assertEquals(PlaybackQueue.MAX_TRACKS, reduced.trackIds.size)
+        assertEquals(3_647, reduced.trackIds.size)
         assertEquals(state.selectedTrackId, reduced.selectedTrackId)
         assertEquals(state.positionMs, reduced.positionMs)
         assertEquals(state.repeatMode, reduced.repeatMode)
@@ -224,7 +224,7 @@ class PersistedQueueStateTest {
             reduced.position().copy(queueRevision = rewrittenRevision),
         )
         val rewritten = store.read()!!
-        assertEquals(PlaybackQueue.MAX_TRACKS, rewritten.trackIds.size)
+        assertEquals(3_647, rewritten.trackIds.size)
         assertEquals(state.selectedTrackId, rewritten.selectedTrackId)
         assertEquals(state.positionMs, rewritten.positionMs)
         assertEquals(state.repeatMode, rewritten.repeatMode)
@@ -232,29 +232,29 @@ class PersistedQueueStateTest {
         return rewritten
     }
 
-    @Test fun legacy3647QueueRestoresAroundCurrentAndImmediatelyRewritesNormalFile() {
+    @Test fun legacy3647QueueRestoresWholeOrderAndImmediatelyRewritesNormalFile() {
         val state = legacyLargeQueue(shuffle = false)
         val restored = rewriteLegacyQueue(state)
-        assertEquals((1_824..1_923).map(::id), restored.trackIds)
-        assertEquals(0, restored.trackIds.indexOf(restored.selectedTrackId))
-        // At the beginning the window proceeds forward; at the end it pads from history.
+        assertEquals(state.trackIds, restored.trackIds)
+        assertEquals(1_823, restored.trackIds.indexOf(restored.selectedTrackId))
+        // Selection at either boundary no longer creates a 100-song window.
         val beginning = QueueStateRestorer.filter(state.copy(selectedTrackId = id(1)), state.trackIds.toSet())!!
         val ending = QueueStateRestorer.filter(state.copy(selectedTrackId = id(3_647)), state.trackIds.toSet())!!
-        assertEquals((1..100).map(::id), beginning.trackIds)
-        assertEquals((3_548..3_647).map(::id), ending.trackIds)
-        assertEquals(99, ending.trackIds.indexOf(ending.selectedTrackId))
+        assertEquals(state.trackIds, beginning.trackIds)
+        assertEquals(state.trackIds, ending.trackIds)
+        assertEquals(0, beginning.trackIds.indexOf(beginning.selectedTrackId))
+        assertEquals(3_646, ending.trackIds.indexOf(ending.selectedTrackId))
     }
 
-    @Test fun legacy3647ShuffleRestoresPlaybackWindowAndImmediatelyRewritesFile() {
+    @Test fun legacy3647ShuffleRestoresSavedOrderAndImmediatelyRewritesFile() {
         val state = legacyLargeQueue(shuffle = true)
         val rewritten = rewriteLegacyQueue(state)
         val playbackOrder = rewritten.shuffledIndices!!.map { rewritten.trackIds[it] }
         val oldPlaybackOrder = state.shuffledIndices!!.map { state.trackIds[it] }
-        val selectedIndex = oldPlaybackOrder.indexOf(state.selectedTrackId)
-        assertEquals(oldPlaybackOrder.drop(selectedIndex).take(100), playbackOrder)
-        assertEquals(state.selectedTrackId, playbackOrder.first())
-        assertEquals(100, rewritten.trackIds.size)
-        assertEquals(100, rewritten.shuffledIndices!!.toSet().size)
+        assertEquals(oldPlaybackOrder, playbackOrder)
+        assertEquals(state.selectedTrackId, playbackOrder[1_823])
+        assertEquals(3_647, rewritten.trackIds.size)
+        assertEquals(3_647, rewritten.shuffledIndices.toSet().size)
     }
 
     /**

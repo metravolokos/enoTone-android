@@ -105,7 +105,7 @@ class QueueEditPlannerTest {
 
     @Test fun fullShuffledQueueEvictsOldestPlayedInPlaybackOrder() {
         val ids = (1..PlaybackQueue.MAX_TRACKS).map(::id)
-        val order = (listOf(0, 49) + (1..48) + (50..99)).toIntArray()
+        val order = (listOf(0, 49) + (1..48) + (50 until ids.size)).toIntArray()
         val full = QueueLayout(ids, order, id(50))
 
         val result = QueueEditPlanner.plan(full, QueueEdit.Append(listOf(id(10_001))))

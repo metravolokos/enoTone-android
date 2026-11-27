@@ -96,6 +96,8 @@ D4c (#201) добавляет `RecentlyAddedPlannerTest`, `RecentlyAddedUiTest` 
 CI workflow dispatch с `record_roborazzi=true` и включены в PR #205; exact-HEAD
 CI и проверка на устройстве отслеживаются отдельно.
 
+Q3 (#302) добавляет `QueueShuffleOrderTest` (полная уникальная перестановка, якорь выбранного/текущего индекса, seed), расширяет `PlaybackQueueTest` до 10 000, проверяет сохранение контекста 3590 в `LibraryViewModelTest`, восстановление 3647 без обрезки в `PersistedQueueStateTest`/`PlayerViewModelTest`, оба пути «текущая первая» и нативный Media3 Next/Previous по якорному порядку в `QueueEditServiceTest`. Существующие Roborazzi-эталоны очереди остаются визуальными снимками и не задают лимит очереди.
+
 D2b добавляет `ComponentsScreenshotTest` (две галереи компонентов в обеих темах), `EnoLetterAvatarTest` (Unicode/grapheme/детерминированность), dual-Preview у каждого компонента. PNG-эталоны D2b: `core/ui/src/test/screenshots/components_graphite.png`, `components_porcelain.png`, записываются тем же `record_roborazzi=true` на stacked-ветке после D2a.
 
 Строковые `tools/test_m6_theme_contract.py` и `tools/test_now_playing_contract.py` удалены: первый зависел от устаревшей темы, второй — от наличия вызовов и строк в исходниках. Теперь поведение плеера покрывают `NowPlayingUiTest` и `NowPlayingActionNavigationUiTest`, визуал — восемь снимков `AppScreensScreenshotTest` (`now_playing_*`) в обеих темах. Режимы темы/сохранение проверяет `UiAppearancePersistenceTest`, базовый внешний вид — `ThemeScreenshotTest`.

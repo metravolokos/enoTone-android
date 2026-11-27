@@ -320,7 +320,119 @@ class QueueEditServiceTest {
         }
     }
 
-    @Test fun readdingAnEvictedPlayedTrackKeepsTheRouteAndPersistsTheQueue() {
+    @Test fun enablingShuffleKeepsCurrentTrackFirstAndToggleOffRestoresPhysicalOrder() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val queue = (0 until 3_590).map(::track)
+        val initial = PersistedQueueState(
+            trackIds = queue.map { it.id },
+            selectedTrackId = id(50),
+            positionMs = 0L,
+            repeatMode = Player.REPEAT_MODE_OFF,
+            shuffleEnabled = false,
+            shuffledIndices = null,
+            sourceKey = id(99),
+            savedAtEpochMs = 1L,
+            queueRevision = UUID.randomUUID().toString(),
+        )
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    queue, initial, false, false))
+                assertEquals(PlaybackQueueSnapshot(queue.map { it.id }, 50), service.queueSnapshot)
+
+                service.toggleShuffle()
+                val shuffled = requireNotNull(service.queueSnapshot)
+                assertEquals(id(50), shuffled.trackIds.first())
+                assertEquals(0, shuffled.currentIndex)
+                assertEquals(queue.size, shuffled.trackIds.size)
+                assertEquals(queue.mapTo(mutableSetOf()) { it.id }, shuffled.trackIds.toSet())
+
+                service.toggleShuffle()
+                assertEquals(PlaybackQueueSnapshot(queue.map { it.id }, 50), service.queueSnapshot)
+            }
+        } finally {
+            onMain { controller.destroy() }
+            controller.get().awaitQueueWritesFinished(10_000L)
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun media3NextFollowsAnchoredShuffleOrder() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val queue = (0 until 4).map(::track)
+        val initial = PersistedQueueState(
+            trackIds = queue.map { it.id },
+            selectedTrackId = id(2),
+            positionMs = 0L,
+            repeatMode = Player.REPEAT_MODE_OFF,
+            shuffleEnabled = false,
+            shuffledIndices = null,
+            sourceKey = id(99),
+            savedAtEpochMs = 1L,
+            queueRevision = UUID.randomUUID().toString(),
+        )
+        val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                    queue, initial, false, false))
+                service.toggleShuffle()
+                val order = requireNotNull(service.queueSnapshot).trackIds
+                assertEquals(id(2), order.first())
+
+                service.player.seekToNextMediaItem()
+                Shadows.shadowOf(Looper.getMainLooper()).idle()
+                assertEquals(order[1], service.player.currentMediaItem?.mediaId)
+                service.player.seekToPreviousMediaItem()
+                Shadows.shadowOf(Looper.getMainLooper()).idle()
+                assertEquals(id(2), service.player.currentMediaItem?.mediaId)
+            }
+        } finally {
+            onMain { controller.destroy() }
+            controller.get().awaitQueueWritesFinished(10_000L)
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun newShuffleQueueKeepsSelectedTrackFirstWhenShuffleWasAlreadyEnabled() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        QueueStateFileStore(context).clear()
+        val queue = (0 until 100).map(::track)
+        val source = BlockingDataSourceFactory()
+        BufferingService.dataSourceFactory = source
+        val controller = onMain { Robolectric.buildService(BufferingService::class.java).create() }
+        try {
+            val service = controller.get()
+            onMain {
+                service.player.shuffleModeEnabled = true
+                service.playQueue("test@example.invalid", "fixture-password", queue,
+                    id(30), false, id(99))
+            }
+            source.release.countDown()
+            Shadows.shadowOf(Looper.getMainLooper()).idle()
+            onMain {
+                val shuffled = requireNotNull(service.queueSnapshot)
+                assertEquals(id(30), service.player.currentMediaItem?.mediaId)
+                assertEquals(id(30), shuffled.trackIds.first())
+                assertEquals(0, shuffled.currentIndex)
+                assertEquals(queue.size, shuffled.trackIds.size)
+                assertEquals(queue.mapTo(mutableSetOf()) { it.id }, shuffled.trackIds.toSet())
+            }
+        } finally {
+            source.release.countDown()
+            onMain { controller.destroy() }
+            controller.get().awaitQueueWritesFinished(10_000L)
+            BufferingService.dataSourceFactory = null
+            QueueStateFileStore(context).clear()
+        }
+    }
+
+    @Test fun readdingAnExistingTrackKeepsTheRouteAndPersistsTheQueue() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val store = QueueStateFileStore(context)
         store.clear()
@@ -343,23 +455,22 @@ class QueueEditServiceTest {
                 assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
                     queue, initial, false, false))
                 assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(101))).status)
-                assertEquals(100, service.queueSize)
+                assertEquals(101, service.queueSize)
                 assertEquals(id(2), service.player.currentMediaItem?.mediaId)
-                assertEquals(id(101), service.queueSnapshot?.trackIds?.get(1))
+                assertEquals(id(101), service.queueSnapshot?.trackIds?.get(2))
 
-                // Once the new track is current, song 1 is still known as the
-                // evicted, previously played history item.
+                // Moving an existing track must keep one copy and a valid route.
                 service.player.seekToNextMediaItem()
                 assertEquals(id(101), service.player.currentMediaItem?.mediaId)
                 assertEquals(QueueEditStatus.APPLIED, service.insertNext(listOf(track(1))).status)
-                assertEquals(100, service.queueSize)
+                assertEquals(101, service.queueSize)
                 assertEquals(id(101), service.player.currentMediaItem?.mediaId)
-                assertEquals(id(1), service.queueSnapshot?.trackIds?.get(1))
+                assertEquals(id(1), service.queueSnapshot?.trackIds?.get(2))
             }
             val saved = waitForLayout(store, initial.queueRevision, id(101))
-            assertEquals(100, saved.trackIds.size)
+            assertEquals(101, saved.trackIds.size)
             assertEquals(id(101), saved.selectedTrackId)
-            assertEquals(id(1), saved.trackIds[1])
+            assertEquals(id(1), saved.trackIds[2])
             assertEquals(QueueEditSource.edited(initial.sourceKey), saved.sourceKey)
         } finally {
             onMain { controller.destroy() }
@@ -478,7 +589,7 @@ class QueueEditServiceTest {
             Shadows.shadowOf(Looper.getMainLooper()).idle()
             val saved = store.read()
             if (saved != null && saved.queueRevision != old && saved.selectedTrackId == selectedId) {
-                if (saved.trackIds.size == 100 && saved.trackIds.getOrNull(1) == id(1)) return saved
+                return saved
             }
             Thread.sleep(20L)
         }

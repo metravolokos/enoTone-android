@@ -227,7 +227,7 @@ class LibraryViewModelTest {
         }
     }
 
-    @Test fun longListStartsAtSelectedTrackCapsPlayAllAndShufflesAcrossWholeList() = runTest {
+    @Test fun longListKeepsSelectedSuffixPlayAllAndShufflesWholeContext() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val rows = (1..3_647).map { row(it, "Песня $it") }
@@ -241,8 +241,8 @@ class LibraryViewModelTest {
 
             vm.onTrackClicked(rows[500], rows)
             advanceUntilIdle()
-            assertEquals(100, player.queue.size)
-            assertEquals(rows.drop(500).take(100).map { it.id }, player.queue.map { it.id })
+            assertEquals(rows.size - 500, player.queue.size)
+            assertEquals(rows.drop(500).map { it.id }, player.queue.map { it.id })
 
             vm.onTrackClicked(rows.last(), rows)
             advanceUntilIdle()
@@ -250,21 +250,20 @@ class LibraryViewModelTest {
 
             vm.onPlayAll()
             advanceUntilIdle()
-            assertEquals(vm.state.value.visible.take(100).map { it.id }, player.queue.map { it.id })
+            assertEquals(rows.map { it.id }, player.queue.map { it.id })
 
             val shuffleOrder = vm.state.value.visible.shuffled(Random(192))
             vm.onShuffleAll()
             advanceUntilIdle()
-            assertEquals(shuffleOrder.take(100).map { it.id }, player.queue.map { it.id })
-            assertEquals(100, player.queue.size)
-            val firstHundred = rows.take(100).mapTo(mutableSetOf()) { it.id }
-            assertTrue(player.queue.any { it.id !in firstHundred })
+            assertEquals(shuffleOrder.map { it.id }, player.queue.map { it.id })
+            assertEquals(rows.size, player.queue.size)
+            assertEquals(rows.mapTo(mutableSetOf()) { it.id }, player.queue.mapTo(mutableSetOf()) { it.id })
         } finally {
             Dispatchers.resetMain()
         }
     }
 
-    @Test fun appendFromEmptyQueueTakesFirstHundredSongsOfLongSelection() = runTest {
+    @Test fun appendFromEmptyQueueKeepsWholeLongSelection() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val rows = (1..101).map { row(it, "Песня $it") }
@@ -279,12 +278,12 @@ class LibraryViewModelTest {
             val message = feedback.await()
             assertEquals(QueueEditStatus.APPLIED, message.result.status)
             assertFalse(message.playNext)
-            assertEquals(rows.take(100).map { it.id }, player.queue.map { it.id })
-            assertEquals(100, player.queue.size)
+            assertEquals(rows.map { it.id }, player.queue.map { it.id })
+            assertEquals(rows.size, player.queue.size)
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun longContextStartsHundredSongsWithoutAQueueMessage() = runTest {
+    @Test fun longContextStartsAllSongsWithoutAQueueMessage() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val rows = (1..101).map { row(it, "Песня $it") }
@@ -298,8 +297,8 @@ class LibraryViewModelTest {
             vm.onTrackClicked(rows.first(), rows)
             advanceUntilIdle()
 
-            assertEquals(100, player.queue.size)
-            assertEquals(rows.take(100).map { it.id }, player.queue.map { it.id })
+            assertEquals(rows.size, player.queue.size)
+            assertEquals(rows.map { it.id }, player.queue.map { it.id })
             assertFalse(message.isCompleted)
             message.cancel()
         } finally {
