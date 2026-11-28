@@ -226,6 +226,7 @@
     <string name="home_shuffle_all">Перемешать всё</string>
     <string name="home_recently_added_albums">Недавно добавленные альбомы</string>
     <string name="home_recently_added_songs">Недавно добавленные песни</string>
+    <string name="home_recently_added_title">Добавленные</string>
     <string name="home_recently_added_all">Все</string>
     <string name="home_recently_added_empty_albums">Недавно добавленных альбомов пока нет</string>
     <string name="home_recently_added_empty_songs">Недавно добавленных песен пока нет</string>

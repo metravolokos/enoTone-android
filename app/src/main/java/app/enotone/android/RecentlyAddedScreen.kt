@@ -128,10 +128,9 @@ private fun RecentlyAddedHeader(
     onShuffle: () -> Unit,
 ) {
     val count = if (kind == RecentlyAddedKind.ALBUMS) albumCount else trackCount
-    val title = stringResource(
-        if (kind == RecentlyAddedKind.ALBUMS) R.string.home_recently_added_albums
-        else R.string.home_recently_added_songs,
-    )
+    // Одно слово: «Недавно добавленные альбомы/песни» не влезает в одну строку Unbounded 30 sp.
+    // Что именно и сколько — говорит строка счётчика ниже («50 альбомов» / «9 песен»).
+    val title = stringResource(R.string.home_recently_added_title)
     val countLabel = when (kind) {
         RecentlyAddedKind.ALBUMS -> pluralStringResource(
             R.plurals.library_albums_count,
