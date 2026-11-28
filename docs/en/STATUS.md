@@ -1,16 +1,16 @@
 # STATUS — current state
 
-> **Translated from:** `docs/STATUS.md` at `main` `6f9da660`, 2026-11-28. Russian is canonical.
+> **Translated from:** `docs/STATUS.md` at `main` `1e6d1706`, 2026-11-28. Russian is canonical.
 > **Order of work: [QUEUE](QUEUE.md)** — it takes precedence over any list elsewhere.
 
 A short snapshot, not a journal and not a task queue. History — [CHANGELOG](https://github.com/metravolokos/enoTone-android/blob/main/CHANGELOG.md); task status — GitHub Issues per [WORKFLOW](WORKFLOW.md); known limitations — [KNOWN_ISSUES](KNOWN_ISSUES.md); decisions — `docs/CURRENT_DECISIONS.md` (Russian).
 
-**Snapshot:** 2026-11-28 · `main` `6f9da660` · version `0.6.2`.
+**Snapshot:** 2026-11-28 · `main` `1e6d1706` · version `0.6.2`.
 
 ## Implemented in `main`
 
 - **Library.** WebDAV to Cloud.Mail.ru, flat `/AllMusic`, Room v7, incremental background indexing of MP3/FLAC tags, permanent WebP artwork masters up to 1200 px.
-- **Playback and queue.** Media3 / MediaSessionService, queue and position restore across process death, shuffle/repeat, queue editing and playback-order view. `main` currently caps the active queue at 100 tracks and safely restores longer legacy checkpoints ([ADR-0099](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0099-queue-limit-100.md)).
+- **Playback and queue.** Media3 / MediaSessionService, queue and position restore across process death, shuffle/repeat, queue editing and playback-order view. Q3 restores the active queue limit to 10 000, includes the whole current context in Shuffle and puts the selected/current track first ([ADR-0105](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0105-queue-10000-anchored-shuffle.md), PR #303).
 - **Interface.** Android v2 design, navigation shell with floating bottom bar and mini-player, Graphite and Porcelain themes, single fade-through page transition and a vertical sheet for the full player. **Fully translated into Russian and English** — 272 strings, 14 plurals, full parity between `values/` and `values-en/`.
 - **Sign-in.** Credentials permanently stored in Android Keystore (AES-GCM). Sign-out deletes account data before the Keystore is cleared ([ADR-0080](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0080-permanent-login-sign-out.md)).
 - **Quality.** CI runs build, JUnit across all modules, lint, detekt, Room schema check, GMS scan, Roborazzi screenshot comparison, ADR index check, design-resource sync, and a minified release APK build. Toolchain: Gradle 9.9.1, AGP 9.5.1, compileSdk 37, targetSdk 36, minSdk 26 ([ADR-0100](https://github.com/metravolokos/enoTone-android/blob/main/docs/DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
@@ -33,7 +33,7 @@ The project went through a full review pass on 2026-11-22 — see [DEVLOG](../DE
 
 ## Open work
 
-See [QUEUE](QUEUE.md) — 4 open issues across three waves. Q3 (#302, [PR #303](https://github.com/metravolokos/enoTone-android/pull/303)) is in progress: queue up to 10 000, whole-context Shuffle and selected/current track first; risk class R, exact-HEAD CI and two independent reviews are pending.
+See [QUEUE](QUEUE.md) — 3 open issues across three waves.
 
 ## See also
 

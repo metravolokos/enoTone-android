@@ -1,6 +1,6 @@
 # ADR-0105 — Очередь до 10 000 и Shuffle с выбранной/текущей песней первой
 
-**Дата:** 2026-11-27. **Статус:** принято владельцем; реализация Issue #302 готовится в [PR #303](https://github.com/metravolokos/enoTone-android/pull/303), exact-HEAD CI и два независимых ревью ожидают. **Риск:** R. **Заменяет:** [ADR-0099](ADR-0099-queue-limit-100.md). **Связано:** ADR-0075, ADR-0089, Issue #192, Issue #302.
+**Дата:** 2026-11-27. **Статус:** принято владельцем; реализован по Issue #302 в [PR #303](https://github.com/metravolokos/enoTone-android/pull/303), слит `1e6d1706`; exact-HEAD CI #46087137999 — success, два независимых ревью — MERGE_PROPOSED. **Риск:** R. **Заменяет:** [ADR-0099](ADR-0099-queue-limit-100.md). **Связано:** ADR-0075, ADR-0089, Issue #192, Issue #302.
 
 ## Контекст
 

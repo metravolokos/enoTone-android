@@ -1,6 +1,6 @@
 # Work queue — the single order of work
 
-> **Translated from:** `docs/QUEUE.md` at `main` `6f9da660`, 2026-11-28. Russian is canonical.
+> **Translated from:** `docs/QUEUE.md` at `main` `1e6d1706`, 2026-11-28. Russian is canonical.
 > **Single source of ordering.** If an Issue, ROADMAP or chat contradicts this file, this file wins.
 
 ## How to read it
@@ -23,9 +23,8 @@ First, because these are what the user sees and trips over.
 | Priority | Issue | What | Status |
 |---|---|---|---|
 | **P3** | [#299](https://github.com/metravolokos/enoTone-android/issues/299) | P-3 — user sorting and filters: needs an ADR |
-| **P3** | [#302](https://github.com/metravolokos/enoTone-android/issues/302) | Q3 — queue up to 10 000 and Shuffle with selected/current track first; **in progress** |
 
-**Why first.** Both follow from the owner decisions of 2026-11-27. `#273` and `#274` are closed: the foreground service is accepted as normal and `OPEN_NOW_PLAYING` gained `singleTop` ([CURRENT_DECISIONS](CURRENT_DECISIONS.md)). `#299` needs an ADR before any work. `#300` was closed as replaced: instead of explaining the 100-track limit, the owner chose the new queue contract in #302.
+**Why first.** This follows from the owner decisions of 2026-11-27. `#273` and `#274` are closed: the foreground service is accepted as normal and `OPEN_NOW_PLAYING` gained `singleTop` ([CURRENT_DECISIONS](CURRENT_DECISIONS.md)). `#299` needs an ADR before any work. `#300` was closed as replaced: the new queue contract was implemented in #302 and merged in PR #303.
 
 ## Wave 2 — product audit
 
@@ -37,7 +36,7 @@ Defects in user journeys: dead ends, dead buttons, wrong expectations.
 |---|---|---|
 | **P3** | [#266](https://github.com/metravolokos/enoTone-android/issues/266) | Audit remainder: playlists (P-4), offline (P-5), global search (P-7), diagnostics export (P-9) — **deferred by the owner on 2026-11-27** |
 
-**Why no work here.** The owner triaged the list on 2026-11-27: P-3 was taken into [#299](https://github.com/metravolokos/enoTone-android/issues/299), P-10 was replaced by the new queue contract [#302](https://github.com/metravolokos/enoTone-android/issues/302), the other four are deferred. Deferred is not cancelled — each needs an ADR or design, so returning to one starts with a new owner decision, not with planning.
+**Why no work here.** The owner triaged the list on 2026-11-27: P-3 was taken into [#299](https://github.com/metravolokos/enoTone-android/issues/299), P-10 was replaced by the new queue contract [#302](https://github.com/metravolokos/enoTone-android/issues/302) (merged in PR #303), the other four are deferred. Deferred is not cancelled — each needs an ADR or design, so returning to one starts with a new owner decision, not with planning.
 
 ## Wave 3 — code audit
 
@@ -49,7 +48,7 @@ Technical defects: races, atomicity, cleanup ordering.
 
 **Closed in this wave:** #254 — PR #291; #255 — PR #294; #257 (premature `DONE` + library revision) — PR #295; #258 (bind reconnect, double reload, docs) — PR #297; #292 (legacy artwork copy) — PR #298; #256 (fail-closed sign-out, legacy artwork, risk class R) — PR #288 and #289.
 
-**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`–`#258` and #292 are closed. #296 remains — it awaits an FPS measurement. #266 was triaged by the owner: P-3 (#299) and the new queue contract (#302) were taken, the rest deferred.
+**Why last.** These are invisible defects: the user does not notice until they hit data loss. `#254`–`#258` and #292 are closed. #296 remains — it awaits an FPS measurement. #266 was triaged by the owner: P-3 (#299) and the new queue contract (#302, merged in PR #303) were taken, the rest deferred.
 
 **Note:** backoff only covers the bind-timeout branch. `onServiceDisconnected` and `onBindingDied` still reconnect immediately, so the overlap between `#258` and `#273` remains partial: whether the FGS binding is normal stays a separate owner decision.
 
