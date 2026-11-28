@@ -1,5 +1,6 @@
 package app.enotone.library
 
+import app.enotone.android.SourceEndpoint
 import app.enotone.database.EnoToneDatabase
 
 /** A single explicit, foreground-only batch for ONE locally selected album. */
@@ -25,6 +26,8 @@ class AlbumTagRefresher(private val database: EnoToneDatabase) {
         email: String,
         password: String,
         trackIds: List<String>,
+        /** Источник музыки (ADR-0106); по умолчанию — папка Mail.ru. */
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
     ): AlbumTagRefreshReport {
         require(trackIds.size in 1..MAX_FILES_PER_TAP)
         require(trackIds.distinct().size == trackIds.size)
@@ -43,6 +46,7 @@ class AlbumTagRefresher(private val database: EnoToneDatabase) {
             onFileOutcome = { id, finished ->
                 if (finished) completed.add(id)
             },
+            endpoint = endpoint,
         )
         return AlbumTagRefreshReport(
             completed.toSet(), attempted.toSet(), progress,

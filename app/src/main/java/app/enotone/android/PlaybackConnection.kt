@@ -91,6 +91,12 @@ internal interface PlaybackConnection {
     fun setNowPlayingVisible(visible: Boolean) = Unit
     fun playQueue(email: String, password: String, queue: List<QueueTrack>,
                   selectedId: String, useCache: Boolean, sourceKey: String)
+
+    /** Источник музыки (ADR-0106). Реализации без него остаются на источнике Mail.ru. */
+    fun playQueue(email: String, password: String, queue: List<QueueTrack>,
+                  selectedId: String, useCache: Boolean, sourceKey: String,
+                  endpoint: SourceEndpoint) =
+        playQueue(email, password, queue, selectedId, useCache, sourceKey)
     fun restoreQueue(email: String, password: String, queue: List<QueueTrack>,
                      saved: PersistedQueueState, useCache: Boolean, filtered: Boolean): Boolean
     /** Returns false when the local MediaSession binder is unavailable. */
@@ -431,9 +437,15 @@ internal class AndroidPlaybackConnection(
     }
 
     override fun playQueue(email: String, password: String, queue: List<QueueTrack>,
-                           selectedId: String, useCache: Boolean, sourceKey: String) {
+                           selectedId: String, useCache: Boolean, sourceKey: String) =
+        playQueue(email, password, queue, selectedId, useCache, sourceKey,
+            SourceEndpoint.MAILRU_ALL_MUSIC)
+
+    override fun playQueue(email: String, password: String, queue: List<QueueTrack>,
+                           selectedId: String, useCache: Boolean, sourceKey: String,
+                           endpoint: SourceEndpoint) {
         val active = checkNotNull(service) { "Playback service disconnected" }
-        active.playQueue(email, password, queue, selectedId, useCache, sourceKey)
+        active.playQueue(email, password, queue, selectedId, useCache, sourceKey, endpoint)
         publish()
     }
 

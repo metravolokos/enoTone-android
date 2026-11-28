@@ -13,13 +13,19 @@ class LibrarySnapshotStore(private val database: EnoToneDatabase) {
     suspend fun presentCount(accountEmail: String): Int =
         database.remoteTrackDao().presentCount(LibrarySnapshotPlanner.accountKey(accountEmail))
 
-    suspend fun save(accountEmail: String, listing: FlatWebDavListing): SnapshotPlan {
+    suspend fun save(
+        accountEmail: String,
+        listing: FlatWebDavListing,
+        /** Кодированный абсолютный путь источника без хвостового слэша (ADR-0106). */
+        rootFolder: String = "/AllMusic",
+    ): SnapshotPlan {
         val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
         return database.withTransaction {
             val dao = database.remoteTrackDao()
             val previous = dao.allForSource(sourceKey)
             val epoch = dao.latestEpoch(sourceKey) + 1
-            val plan = LibrarySnapshotPlanner.plan(sourceKey, listing, previous, epoch)
+            val plan = LibrarySnapshotPlanner.plan(sourceKey, listing, previous, epoch,
+                rootFolder = rootFolder)
             dao.upsertAll(plan.upserts)
             if (plan.completeForAbsenceTracking) {
                 dao.markMissing(sourceKey, epoch)

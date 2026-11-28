@@ -21,7 +21,7 @@ internal class AndroidBackgroundWorkLauncher(private val context: Context) : Bac
     override val artwork: StateFlow<ArtworkScanStatus> = ArtworkScanRuntime.status
 
     override fun startIndexing(login: StoredWebDavLogin): Boolean {
-        if (!ManagedScanRuntime.prepare(login.email, login.password)) return false
+        if (!ManagedScanRuntime.prepare(login.email, login.password, login.endpoint)) return false
         runCatching {
             context.startForegroundService(Intent(context, IndexingForegroundService::class.java)
                 .setAction(IndexingForegroundService.ACTION_START))
@@ -32,7 +32,7 @@ internal class AndroidBackgroundWorkLauncher(private val context: Context) : Bac
     }
 
     override fun startArtwork(login: StoredWebDavLogin): Boolean {
-        if (!ArtworkScanRuntime.prepare(login.email, login.password)) return false
+        if (!ArtworkScanRuntime.prepare(login.email, login.password, login.endpoint)) return false
         runCatching {
             context.startForegroundService(Intent(context, ArtworkIndexingForegroundService::class.java)
                 .setAction(ArtworkIndexingForegroundService.ACTION_START))

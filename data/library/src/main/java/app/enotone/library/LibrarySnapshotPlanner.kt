@@ -30,12 +30,15 @@ object LibrarySnapshotPlanner {
     fun trackId(sourceKey: String, encodedPath: String): String =
         sha256(sourceKey + "\u0000" + encodedPath)
 
+    @Suppress("LongParameterList") // Источник добавлен по ADR-0106; остальные — существующие поля листинга.
     fun plan(
         sourceKey: String,
         listing: FlatWebDavListing,
         previous: List<RemoteTrackEntity>,
         epoch: Long,
         nowEpochMs: Long = System.currentTimeMillis(),
+        /** Кодированный абсолютный путь источника без хвостового слэша: `/AllMusic`, `/MP3/Collection`. */
+        rootFolder: String = "/AllMusic",
     ): SnapshotPlan {
         require(sourceKey.length == 64 && sourceKey.all { it in "0123456789abcdef" })
         require(epoch > 0)
@@ -46,9 +49,10 @@ object LibrarySnapshotPlanner {
         for (file in listing.tracks) {
             // The network parser has already checked origin and flat path.
             // An extra guard avoids persisting accidental nested entries.
-            require(file.encodedPath.startsWith("/AllMusic/") &&
-                file.encodedPath.removePrefix("/AllMusic/").isNotEmpty() &&
-                !file.encodedPath.removePrefix("/AllMusic/").contains('/')) {
+            val prefix = "$rootFolder/"
+            require(file.encodedPath.startsWith(prefix) &&
+                file.encodedPath.removePrefix(prefix).isNotEmpty() &&
+                !file.encodedPath.removePrefix(prefix).contains('/')) {
                 "Invalid flat library entry"
             }
             unique[file.encodedPath] = file

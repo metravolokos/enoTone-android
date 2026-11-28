@@ -1,5 +1,6 @@
 package app.enotone.network
 
+import app.enotone.android.SourceEndpoint
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -19,7 +20,6 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.IOException
-import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util.Base64
 
@@ -27,15 +27,14 @@ import java.util.Base64
 class FlatWebDavHttpError(val statusCode: Int) : IOException("WebDAV list failed: HTTP " + statusCode)
 
 /**
- * One network request to enumerate immediate entries of /AllMusic.
+ * One network request to enumerate immediate entries of the configured library folder.
  * No recursive PROPFIND, no persistence, no logging, no redirects.
  *
  * Call close() after use. Credentials are held in memory only for the duration of list().
  * M1 initial client: temporary 16 MiB XML cap until the Room write pipeline is connected.
  */
 class FlatLibraryWebDavClient(
-    private val rootUrl: String = "https://webdav.cloud.mail.ru/AllMusic/",
-    private val allowLoopbackHttpForTests: Boolean = false,
+    private val endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
     private val client: HttpClient = HttpClient(CIO) {
         expectSuccess = false
         followRedirects = false
@@ -46,16 +45,9 @@ class FlatLibraryWebDavClient(
         }
     },
 ) : Closeable {
-    init {
-        val uri = URI(rootUrl)
-        val testHttp = allowLoopbackHttpForTests && uri.scheme == "http" &&
-            uri.host in setOf("localhost", "127.0.0.1", "::1")
-        require(uri.scheme == "https" || testHttp) { "HTTPS required" }
-        require(uri.host != null && uri.userInfo == null && uri.query == null &&
-            uri.fragment == null && uri.rawPath.trimEnd('/') == "/AllMusic") {
-            "Invalid library endpoint"
-        }
-    }
+    /** String-URL constructor kept for tests: parsed against the same guards. */
+    constructor(rootUrl: String, allowLoopbackHttpForTests: Boolean = false) :
+        this(SourceEndpoint.ofUrl(rootUrl, allowLoopbackHttpForTests))
 
     suspend fun list(email: String, appPassword: String): FlatWebDavListing = withContext(Dispatchers.IO) {
         require(email.isNotBlank() && appPassword.isNotBlank()) { "Missing credentials" }
@@ -65,6 +57,7 @@ class FlatLibraryWebDavClient(
         } finally {
             credentialBytes.fill(0)
         }
+        val rootUrl = endpoint.rootUrl
         try {
             val response = client.request(rootUrl) {
                 method = HttpMethod("PROPFIND")
@@ -89,7 +82,7 @@ class FlatLibraryWebDavClient(
                 }
                 output.write(buffer, 0, count)
             }
-            FlatWebDavListingParser(rootUrl).parse(ByteArrayInputStream(output.toByteArray()))
+            FlatWebDavListingParser(endpoint).parse(ByteArrayInputStream(output.toByteArray()))
         } catch (e: CancellationException) {
             throw e
         } catch (e: FlatWebDavHttpError) {

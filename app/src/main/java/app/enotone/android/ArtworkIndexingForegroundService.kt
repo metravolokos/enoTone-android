@@ -41,7 +41,8 @@ class ArtworkIndexingForegroundService : Service() {
                     repository.isAlbumIndexed(login.email, group)
 
                 override suspend fun prepare(login: StoredWebDavLogin, group: AlbumArtworkGroup) {
-                    repository.albumCover(login.email, login.password, group, requestedSide = 192)
+                    repository.albumCover(login.email, login.password, group,
+                        requestedSide = 192, endpoint = login.endpoint)
                 }
 
                 override fun tagsRunning() =

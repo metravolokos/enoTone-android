@@ -22,9 +22,11 @@ class LibraryTagStore(private val database: EnoToneDatabase) {
         accountEmail: String,
         selected: RemoteTrackEntity,
         tags: AudioTagFields,
+        /** Кодированный абсолютный путь источника без хвостового слэша (ADR-0106). */
+        rootFolder: String = "/AllMusic",
     ): Boolean {
         val sourceKey = LibrarySnapshotPlanner.accountKey(accountEmail)
-        if (!eligibleForSingleTagWrite(sourceKey, selected)) return false
+        if (!eligibleForSingleTagWrite(sourceKey, selected, rootFolder)) return false
         return database.remoteTrackDao().saveTagsIfSnapshotMatches(
             id = selected.id,
             sourceKey = sourceKey,
@@ -48,11 +50,14 @@ class LibraryTagStore(private val database: EnoToneDatabase) {
 internal fun eligibleForSingleTagWrite(
     sourceKey: String,
     selected: RemoteTrackEntity,
-): Boolean =
-    selected.sourceKey == sourceKey &&
+    rootFolder: String = "/AllMusic",
+): Boolean {
+    val prefix = "$rootFolder/"
+    return selected.sourceKey == sourceKey &&
         selected.id == LibrarySnapshotPlanner.trackId(sourceKey, selected.encodedPath) &&
         selected.missingScans == 0 &&
         (selected.remoteSize ?: 0L) > 0L &&
-        selected.encodedPath.startsWith("/AllMusic/") &&
-        selected.encodedPath.removePrefix("/AllMusic/").isNotEmpty() &&
-        !selected.encodedPath.removePrefix("/AllMusic/").contains('/')
+        selected.encodedPath.startsWith(prefix) &&
+        selected.encodedPath.removePrefix(prefix).isNotEmpty() &&
+        !selected.encodedPath.removePrefix(prefix).contains('/')
+}

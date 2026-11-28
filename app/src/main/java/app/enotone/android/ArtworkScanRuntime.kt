@@ -30,12 +30,16 @@ internal object ArtworkScanRuntime : ArtworkScanStatusPort {
     override val status = MutableStateFlow(ArtworkScanStatus())
     private var pending: StoredWebDavLogin? = null
 
-    @Synchronized fun prepare(email: String, password: String): Boolean {
+    @Synchronized fun prepare(
+        email: String,
+        password: String,
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
+    ): Boolean {
         val credentialsProvided = email.isNotBlank() && password.isNotBlank()
         val available = status.value.state != ArtworkScanState.RUNNING &&
             !status.value.terminating
         if (!credentialsProvided || !available) return false
-        pending = StoredWebDavLogin(email, password)
+        pending = StoredWebDavLogin(email, password, endpoint)
         status.value = ArtworkScanStatus(state = ArtworkScanState.RUNNING)
         return true
     }

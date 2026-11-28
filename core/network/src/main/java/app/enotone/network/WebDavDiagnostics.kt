@@ -1,5 +1,6 @@
 package app.enotone.network
 
+import app.enotone.android.SourceEndpoint
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
@@ -43,16 +44,23 @@ data class ProbeReport(val steps: List<ProbeStep>) {
  * Ktor CIO replaces OkHttp ONLY in this diagnostic spike: see ADR-0013.
  */
 class WebDavDiagnostics(
-    private val baseUrl: String = "https://webdav.cloud.mail.ru/",
-    private val allowLoopbackHttpForTests: Boolean = false,
+    private val endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
 ) {
+    /** Legacy origin-only constructor kept for tests: probes the default folder. */
+    constructor(baseUrl: String, allowLoopbackHttpForTests: Boolean = false) :
+        this(SourceEndpoint.ofTestOrigin(baseUrl, allowLoopbackHttpForTests))
+
+    private val base: URI = URI(endpoint.origin + "/")
+    private val rootFolder: String = endpoint.rootFolder
+
     init {
-        val uri = URI(baseUrl)
-        val allowedTestHttp = allowLoopbackHttpForTests &&
-            uri.scheme == "http" && uri.host in setOf("localhost", "127.0.0.1", "::1")
-        require(uri.scheme == "https" || allowedTestHttp) { "Only HTTPS is allowed" }
-        require(uri.host != null && uri.userInfo == null && uri.query == null &&
-            uri.fragment == null && (uri.path == "/" || uri.path.isNullOrEmpty()))
+        val allowedTestHttp = endpoint.allowLoopbackHttpForTests &&
+            base.scheme == "http" && base.host in setOf("localhost", "127.0.0.1", "::1")
+        require(base.scheme == "https" || allowedTestHttp) { "Only HTTPS is allowed" }
+        require(base.host != null && base.userInfo == null && base.query == null &&
+            base.fragment == null && (base.path == "/" || base.path.isNullOrEmpty())) {
+            "Invalid diagnostics base URL"
+        }
     }
 
     fun inspect(email: String, password: String, testFile: String = "", probeInfinity: Boolean = false): ProbeReport {
@@ -70,19 +78,25 @@ class WebDavDiagnostics(
             }
         }
         try {
+            val folderSegments = rootFolder.trim('/').split('/').filter { it.isNotBlank() }
+            // Никогда не выводим пользовательский путь: только известная метка для папки по умолчанию.
+            val folderLabel = if (rootFolder == "/AllMusic") "PROPFIND /AllMusic" else "PROPFIND folder"
             val steps = mutableListOf<ProbeStep>()
             steps += request(client, "PROPFIND /", endpoint(emptyList()), auth, depth = "1")
-            steps += request(client, "PROPFIND /AllMusic", endpoint(listOf("AllMusic")), auth, depth = "1")
+            steps += request(client, folderLabel, endpoint(folderSegments), auth, depth = "1")
             if (probeInfinity) {
-                steps += request(client, "PROPFIND Depth infinity", endpoint(listOf("AllMusic")), auth, depth = "infinity")
+                steps += request(client, "PROPFIND Depth infinity", endpoint(folderSegments), auth, depth = "infinity")
             } else {
                 steps += skipped("PROPFIND Depth infinity", "Не запрошено")
             }
             val parts = testFile.trim().trim('/').split('/').filter { it.isNotBlank() }
-            if (parts.size >= 2 && parts.first() == "AllMusic" && parts.none { it == "." || it == ".." }) {
+            val testInsideRoot = parts.size > folderSegments.size &&
+                parts.take(folderSegments.size) == folderSegments &&
+                parts.none { it == "." || it == ".." }
+            if (testInsideRoot) {
                 steps += request(client, "GET Range 0-0", endpoint(parts), auth, ranged = true)
             } else {
-                steps += skipped("GET Range 0-0", "Не проверено: нужен путь /AllMusic/…")
+                steps += skipped("GET Range 0-0", "Не проверено: нужен путь внутри папки источника")
             }
             return ProbeReport(steps)
         } finally {
@@ -98,7 +112,7 @@ class WebDavDiagnostics(
         val path = segments.joinToString("/") {
             URLEncoder.encode(it, StandardCharsets.UTF_8.name()).replace("+", "%20")
         }
-        return baseUrl.trimEnd('/') + "/" + path
+        return base.toString().trimEnd('/') + "/" + path
     }
 
     private fun request(

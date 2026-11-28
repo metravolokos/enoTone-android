@@ -4,6 +4,12 @@
 
 # CHANGELOG
 
+## SOURCES-A1 — настраиваемая папка Cloud.Mail.ru и вынос endpoint (Issue #313, PR #316, 2026-11-28)
+
+**Было:** корень медиатеки жёстко `/AllMusic` на `webdav.cloud.mail.ru`; хост и путь зашиты сторожевыми проверками минимум в семи местах.
+
+**Стало:** тип `SourceEndpoint` (`:core:model`) описывает источник; пользователь задаёт папку в «Настройках» и на экране первого запуска; менять можно только до входа, смена источника — через «Выйти» → повторный вход. Вход хранится в envelope **v2** (v1 читается как Mail.ru `/AllMusic` без миграции данных). Диагностика строит probe из источника, пользовательский путь не попадает в метку. Идентичность трека не меняется (`sourceKey = sha256(email)`); endpoint-aware ID отложен. Новые поведенческие тесты `SourceEndpointTest`, `ConfigurableSourceListingTest`, `ConfigurablePlaybackTargetTest`; detekt без роста baseline. Issue [#313](https://github.com/metravolokos/enoTone-android/issues/313), [PR #316](https://github.com/metravolokos/enoTone-android/pull/316).
+
 ## Источники музыки: принят ADR-0106 и исследование (2026-11-28)
 
 Исследованы возможности расширения источников музыки: настраиваемая папка Cloud.Mail.ru, Yandex.Disk, локальные файлы. Добавлены [WEBDAV_SOURCES_RESEARCH](docs/WEBDAV_SOURCES_RESEARCH.md) (инвентаризация хардкода host/path, карта идентичности и персистентности, матрица WebDAV-провайдеров, протокол capability-probe, нужные терпимости, фазовый план) и [ADR-0106](docs/DECISIONS/ADR-0106-source-endpoint-model.md) (endpoint-модель + типы источников, Вариант 1). Решение владельца 2026-11-28: фазово, начиная с A1 (настраиваемая папка Mail.ru + вынос endpoint); идентичность в A1 не меняется, endpoint-aware library ID отложен. Первый срез — Issue #313. Обновлены индекс ADR, CURRENT_DECISIONS и строка R-6.1b. Код не изменён.

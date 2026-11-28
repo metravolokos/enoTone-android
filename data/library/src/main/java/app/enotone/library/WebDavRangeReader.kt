@@ -1,13 +1,14 @@
 package app.enotone.library
 
+import app.enotone.android.SourceEndpoint
 import java.io.Closeable
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URLDecoder
-import java.util.LinkedHashMap
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import java.util.LinkedHashMap
 
 /** Whitelisted codes only: no URL, remote path, ETag or exception messages. */
 enum class RangeReadIssue {
@@ -88,6 +89,25 @@ class WebDavRangeReader(
     maxDownloadedBytes: Long = 8L * 1024 * 1024,
     private val sharedBudget: SharedRangeBudget? = null,
 ) : Closeable {
+    /** Endpoint-driven constructor (ADR-0106). The string form above adapts to it. */
+    @Suppress("LongParameterList") // Endpoint добавлен к уже существующему набору полей запроса.
+    constructor(
+        endpoint: SourceEndpoint,
+        encodedPath: String,
+        fileSize: Long,
+        email: String,
+        appPassword: String,
+        etag: String? = null,
+        maxRequests: Int = 128,
+        maxDownloadedBytes: Long = 8L * 1024 * 1024,
+        sharedBudget: SharedRangeBudget? = null,
+    ) : this(
+        libraryRoot = endpoint.rootUrl, encodedPath = encodedPath, fileSize = fileSize,
+        email = email, appPassword = appPassword, etag = etag,
+        allowLoopbackHttpForTests = endpoint.allowLoopbackHttpForTests,
+        maxRequests = maxRequests, maxDownloadedBytes = maxDownloadedBytes, sharedBudget = sharedBudget,
+    )
+
     private val url: java.net.URL
     private val allowedRequests: Int
     private val allowedBytes: Long
@@ -121,17 +141,20 @@ class WebDavRangeReader(
         val root = URI(libraryRoot)
         val testHost = allowLoopbackHttpForTests && root.scheme == "http" &&
             root.host in setOf("localhost", "127.0.0.1", "::1")
-        require((root.scheme == "https" && root.host == "webdav.cloud.mail.ru") || testHost) {
+        require((root.scheme == "https" && root.host != null) || testHost) {
             "Untrusted WebDAV host"
         }
-        require(root.rawPath == "/AllMusic/" && root.userInfo == null &&
-            root.query == null && root.fragment == null) { "Invalid library root" }
+        require(root.userInfo == null && root.query == null && root.fragment == null &&
+            root.rawPath != null && root.rawPath.length > 1 && root.rawPath.endsWith("/")) {
+            "Invalid library root"
+        }
         require(fileSize > 0L) { "Unknown remote size" }
-        require(encodedPath.startsWith("/AllMusic/")) { "Invalid file path" }
+        val prefix = root.rawPath
+        require(encodedPath.startsWith(prefix)) { "Invalid file path" }
         val target = URI(root.scheme + "://" + root.rawAuthority + encodedPath)
         require(target.rawPath == encodedPath && target.query == null && target.fragment == null &&
             target.host == root.host) { "Invalid encoded file" }
-        val part = encodedPath.removePrefix("/AllMusic/")
+        val part = encodedPath.removePrefix(prefix)
         require(part.isNotEmpty() && '/' !in part && !part.contains("%2f", true) &&
             !part.contains("%5c", true)) { "Only one-level tracks supported" }
         val name = URLDecoder.decode(part.replace("+", "%2B"), "UTF-8")

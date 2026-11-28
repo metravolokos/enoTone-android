@@ -13,6 +13,7 @@ import androidx.media3.exoplayer.source.MediaPeriod
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.WrappingMediaSource
 import androidx.media3.exoplayer.upstream.Allocator
+import app.enotone.android.SourceEndpoint
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -36,6 +37,7 @@ import javax.net.ssl.HttpsURLConnection
 internal class WebDavMedia3DataSource(
     private val authorization: String,
     private val files: Map<String, PlaybackRemoteFile>,
+    private val endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
 ) : BaseDataSource(true) {
     private var connection: HttpsURLConnection? = null
     private var stream: InputStream? = null
@@ -46,7 +48,7 @@ internal class WebDavMedia3DataSource(
     override fun open(dataSpec: DataSpec): Long {
         require(!opened) { "Playback source already opened" }
         require(dataSpec.httpMethod == DataSpec.HTTP_METHOD_GET) { "Only GET allowed" }
-        val safeUrl = WebDavPlaybackTarget.url(dataSpec.uri.encodedPath ?: "")
+        val safeUrl = WebDavPlaybackTarget.url(dataSpec.uri.encodedPath ?: "", endpoint)
         require(dataSpec.uri.toString() == safeUrl) { "Playback URI mismatch" }
         val remote = files[safeUrl] ?: throw IOException("Playback file not in queue")
         val remoteSize = remote.size
@@ -177,6 +179,7 @@ internal class WebDavMedia3DataSource(
         email: String,
         appPassword: String,
         tracks: List<QueueTrack>,
+        private val endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
         private val dataSourceFactoryOverride: DataSource.Factory? = null,
     ) : DataSource.Factory {
         private val auth: String
@@ -190,9 +193,9 @@ internal class WebDavMedia3DataSource(
             require(email.contains('@') && appPassword.isNotBlank()) {
                 "Playback credentials required"
             }
-            files.putAll(WebDavPlaylistRoutes.index(tracks))
+            files.putAll(WebDavPlaylistRoutes.index(tracks, endpoint))
             require(tracks.map { it.id }.distinct().size == tracks.size) { "Duplicate playback track ID" }
-            tracks.forEach { trackUrls[it.id] = WebDavPlaybackTarget.url(it.encodedPath) }
+            tracks.forEach { trackUrls[it.id] = WebDavPlaybackTarget.url(it.encodedPath, endpoint) }
             activeTrackIds += trackUrls.keys
             val raw = (email.trim() + ":" + appPassword)
                 .toByteArray(StandardCharsets.UTF_8)
@@ -203,12 +206,12 @@ internal class WebDavMedia3DataSource(
         /** Re-adding the same track is idempotent; live URL metadata stays immutable. */
         fun addTracks(tracks: List<QueueTrack>) {
             if (tracks.isEmpty()) return
-            val added = WebDavPlaylistRoutes.index(tracks)
+            val added = WebDavPlaylistRoutes.index(tracks, endpoint)
             require(tracks.map { it.id }.distinct().size == tracks.size) { "Duplicate playback track ID" }
             synchronized(routeLock) {
                 pruneUnreferencedRoutes()
                 tracks.forEach { track ->
-                    val url = WebDavPlaybackTarget.url(track.encodedPath)
+                    val url = WebDavPlaybackTarget.url(track.encodedPath, endpoint)
                     val previousUrl = trackUrls[track.id]
                     require(previousUrl == null || previousUrl == url) { "Playback track route changed" }
                     val route = added.getValue(url)
@@ -249,7 +252,7 @@ internal class WebDavMedia3DataSource(
             get() = synchronized(routeLock) { files.size }
 
         override fun createDataSource(): DataSource = dataSourceFactoryOverride?.createDataSource()
-            ?: WebDavMedia3DataSource(auth, files)
+            ?: WebDavMedia3DataSource(auth, files, endpoint)
 
         private fun retainPeriod(url: String): Boolean = synchronized(routeLock) {
             if (!files.containsKey(url)) return@synchronized false

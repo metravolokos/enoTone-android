@@ -328,10 +328,13 @@
     <string name="player_destination_unavailable">Альбом или исполнитель недоступен</string>
     <string name="diagnostics_library_album">Последний альбом: строк=%1$d, в шапке=%2$d, повторов ID=%3$d</string>
     <string name="first_run_login_title">Привет! Я Бандит</string>
-    <string name="first_run_login_message">Подключите Облако Mail.ru — я найду музыку в папке AllMusic.</string>
+    <string name="first_run_login_message">Подключите Облако Mail.ru — я найду музыку в указанной папке.</string>
     <string name="first_run_email">Почта</string>
     <string name="first_run_app_password">Пароль для внешнего приложения</string>
     <string name="first_run_app_password_hint">Не обычный пароль, а пароль приложения: Cloud.Mail.ru → Настройки → Пароли для внешних приложений</string>
+    <string name="source_folder">Папка с музыкой</string>
+    <string name="source_folder_hint">Папка в облаке, например AllMusic. Вложенные папки не читаются.</string>
+    <string name="source_folder_invalid">Проверьте путь к папке: только буквы, цифры, пробелы и «/».</string>
     <string name="first_run_connect">Подключить</string>
     <string name="first_run_indexing_title">Читаю вашу музыку…</string>
     <string name="first_run_progress">%1$s из %2$s песен</string>

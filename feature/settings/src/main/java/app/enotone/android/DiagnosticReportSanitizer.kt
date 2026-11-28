@@ -4,7 +4,7 @@ import app.enotone.network.ProbeReport
 
 /** Не доверяем произвольному тексту ответа: наружу выходят только известные метки и числа. */
 object DiagnosticReportSanitizer {
-    private val operations = setOf("PROPFIND /", "PROPFIND /AllMusic")
+    private val operations = setOf("PROPFIND /", "PROPFIND /AllMusic", "PROPFIND folder")
     private val notes = setOf("Частичный ответ подтверждён", "Range не подтверждён", "Multi-Status получен",
         "Проверить HTTP-код", "Сетевая ошибка или TLS")
 

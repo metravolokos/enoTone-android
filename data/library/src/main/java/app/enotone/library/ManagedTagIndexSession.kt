@@ -1,5 +1,6 @@
 package app.enotone.library
 
+import app.enotone.android.SourceEndpoint
 import app.enotone.database.EnoToneDatabase
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -65,12 +66,13 @@ class ManagedTagIndexSession(
         onProgress: suspend (PilotIndexProgress) -> Unit,
     ) -> PilotIndexProgress,
 ) {
-    constructor(database: EnoToneDatabase) : this(
+    constructor(database: EnoToneDatabase, endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC) : this(
         runBatch = { email, password, gate, progress ->
             ParallelTagIndexer(database).run(
                 email, password, PilotBudget.RESUME_LIMIT,
                 onProgress = progress,
                 beforeFile = gate,
+                endpoint = endpoint,
             )
         }
     )

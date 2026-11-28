@@ -16,6 +16,7 @@ kotlin {
     }
 }
 dependencies {
+    implementation(project(":core:model"))
     implementation(libs.ktor.client.cio)
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver) {

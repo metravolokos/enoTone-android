@@ -25,10 +25,10 @@ internal class AndroidLibraryIndexingGateway(
     private val text: SettingsText,
 ) : LibraryIndexingGateway {
     override suspend fun update(login: StoredWebDavLogin): LibraryImportResult = withContext(container.io) {
-        FlatLibraryWebDavClient().use { client ->
+        FlatLibraryWebDavClient(login.endpoint).use { client ->
             val listing = client.list(login.email, login.password)
             val store = LibrarySnapshotStore(container.database)
-            val plan = store.save(login.email, listing)
+            val plan = store.save(login.email, listing, login.endpoint.rootFolder)
             invalidateChangedArtwork(login.email, plan)
             // Новые и изменённые треки видны открытым экранам сразу, ещё до чтения тегов.
             LibraryDataRevision.bump()
