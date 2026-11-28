@@ -1,11 +1,11 @@
 # STATUS — current state
 
-> **Translated from:** `docs/STATUS.md` at `main` `2cba4ee5`, 2026-11-28. Russian is canonical.
+> **Translated from:** `docs/STATUS.md` at `main` `6f9da660`, 2026-11-28. Russian is canonical.
 > **Order of work: [QUEUE](QUEUE.md)** — it takes precedence over any list elsewhere.
 
 A short snapshot, not a journal and not a task queue. History — [CHANGELOG](https://github.com/metravolokos/enoTone-android/blob/main/CHANGELOG.md); task status — GitHub Issues per [WORKFLOW](WORKFLOW.md); known limitations — [KNOWN_ISSUES](KNOWN_ISSUES.md); decisions — `docs/CURRENT_DECISIONS.md` (Russian).
 
-**Snapshot:** 2026-11-28 · `main` `2cba4ee5` · version `0.6.2`.
+**Snapshot:** 2026-11-28 · `main` `6f9da660` · version `0.6.2`.
 
 ## Implemented in `main`
 

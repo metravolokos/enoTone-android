@@ -12,6 +12,10 @@
 
 Issue #300 закрыта как заменённая. Q2 (#193) — удаление/перестановка и скользящая очередь — по-прежнему отменена. Класс риска R: реализация готовится в [PR #303](https://github.com/metravolokos/enoTone-android/pull/303); exact-HEAD CI и два независимых ревью ожидают.
 
+## BUG-SEEK: синхронизация итогов приёмки (#304)
+
+`STATUS` и `SCENARIOS` приведены к состоянию после merge: [PR #305](https://github.com/metravolokos/enoTone-android/pull/305), squash-коммит `2cba4ee5604d0f9ced58265271eaf367c13de341`, post-merge [CI 46080925501](https://github.com/metravolokos/enoTone-android/actions/runs/46080925501) — success. PLAY-04, REST-03 и REST-06 получили ссылки на PR и прогон в «Последнем результате».
+
 ## BUG-SEEK: линейка перемотки не теряет известную длительность (#304)
 
 **Было:** `Slider` блокировался, когда Media3 временно возвращал `TIME_UNSET` для текущего progressive source. Отображаемая длительность имела fallback только для восстановленного трека, а `canSeekCurrent()` и `seekToFraction()` использовали сырое `player.duration`; checkpoint мог записать `0`. Запуск новой песни пересоздавал источник и потому выглядел как лечение.

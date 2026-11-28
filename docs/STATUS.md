@@ -3,7 +3,7 @@
 > **Порядок работ — [QUEUE](QUEUE.md).** Он главнее любых списков в других документах.
 > Короткий срез, не журнал и не очередь задач. История — [CHANGELOG](../CHANGELOG.md), статусы задач — в GitHub Issues по [WORKFLOW](WORKFLOW.md), известные ограничения — [KNOWN_ISSUES](KNOWN_ISSUES.md), решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-**Срез:** 2026-11-28 · `main` `2cba4ee5` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`), переход тулчейна (#216, `351bd92`), Compose BOM (#217, `cdf8b6e`), ADR-0101 (#222, `31ff8e4`), D6-E (#232, `a66b7a0`), D6-0 (#223, PR #230, `e2007ac`), D6-F (#228, PR #233), D6-A (#225, PR #235), D6-B (#226, PR #234), D6-FR (#224, PR #236) и D6-FR2 (#229, PR #238).
+**Срез:** 2026-11-28 · `main` `6f9da660` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`), переход тулчейна (#216, `351bd92`), Compose BOM (#217, `cdf8b6e`), ADR-0101 (#222, `31ff8e4`), D6-E (#232, `a66b7a0`), D6-0 (#223, PR #230, `e2007ac`), D6-F (#228, PR #233), D6-A (#225, PR #235), D6-B (#226, PR #234), D6-FR (#224, PR #236) и D6-FR2 (#229, PR #238).
 
 ## Реализовано в `main`
 
@@ -18,7 +18,7 @@
 
 ## Последние закрытия и решения
 
-- **BUG-SEEK (#304) закрыта:** [PR #305](https://github.com/metravolokos/enoTone-android/pull/305) слит в `main` `2cba4ee5604d0f9ced58265271eaf367c13de341`. Известная длительность текущего `mediaId` сохраняется при временном `TIME_UNSET`; UI, seek и checkpoint используют одну effective duration. Регрессии покрыты `PlaybackDurationMemoryTest`, `PlaybackSeekPolicyTest`, `QueueDurationServiceTest`, `NowPlayingUiTest` и `PlaybackBufferingAssemblyTest`.
+- **BUG-SEEK (#304) закрыта:** [PR #305](https://github.com/metravolokos/enoTone-android/pull/305) слит в `main` `2cba4ee5604d0f9ced58265271eaf367c13de341`; независимое ревью — `MERGE_PROPOSED`, post-merge [CI 46080925501](https://github.com/metravolokos/enoTone-android/actions/runs/46080925501) — success. Известная длительность текущего `mediaId` сохраняется при временном `TIME_UNSET` и последовательно используется для UI, seek и checkpoint. Регрессии покрыты `PlaybackDurationMemoryTest`, `PlaybackSeekPolicyTest`, `QueueDurationServiceTest`, `NowPlayingUiTest` и `PlaybackBufferingAssemblyTest`.
 
 - **#188 закрыта владельцем 2026-11-17.** PR #189 слит; повторяющиеся файлы подтверждены в источнике `/AllMusic`. Общее принятие сборки 1019 не является поимённым PASS на устройстве.
 - **#191, #195, #197 закрыты** после слияния PR #194, #196 и #198. **#192 закрыта владельцем** после общего принятия сборки 1038; отдельный PASS сценариев очереди не выводится из этого сообщения.

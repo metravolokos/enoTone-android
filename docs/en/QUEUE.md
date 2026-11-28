@@ -1,6 +1,6 @@
 # Work queue — the single order of work
 
-> **Translated from:** `docs/QUEUE.md` at `main` `2cba4ee5`, 2026-11-28. Russian is canonical.
+> **Translated from:** `docs/QUEUE.md` at `main` `6f9da660`, 2026-11-28. Russian is canonical.
 > **Single source of ordering.** If an Issue, ROADMAP or chat contradicts this file, this file wins.
 
 ## How to read it
