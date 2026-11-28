@@ -1,8 +1,8 @@
-# ADR-0106 (черновик) — Модель источника: настраиваемый endpoint и типы источников
+# ADR-0106 — Модель источника: настраиваемый endpoint и типы источников
 
-**Дата:** 2026-11-28. **Статус:** **Черновик — ожидает решения владельца.** В индекс [ADR](README.md) не внесён; вносится при принятии.
+**Дата:** 2026-11-28. **Статус:** **Принято владельцем 2026-11-28** (Вариант 1). Документация — [PR #312](https://github.com/metravolokos/enoTone-android/pull/312); первый срез — [Issue #313](https://github.com/metravolokos/enoTone-android/issues/313). Индекс [ADR](README.md) обновляется этим же PR.
 **Риск:** R (затрагивает путь/атомарность записи персистентных данных и вход аккаунта — WORKFLOW §6 п. 3–4).
-**Связано:** [R-6.1b](REQUIREMENTS.md), [R-4.2](REQUIREMENTS.md), [R-3.4](REQUIREMENTS.md), [ADR-0003](ADR-0003-webdav.md), [ADR-0010](ADR-0010-sources.md), [ADR-0014](ADR-0014-flat-listing.md), [ADR-0018](ADR-0018-webdav-range-one-file.md), [ADR-0031](ADR-0031-media3-one-track-playback.md), [ADR-0080](ADR-0080-permanent-login-sign-out.md); исследование — [WEBDAV_SOURCES_RESEARCH](../WEBDAV_SOURCES_RESEARCH.md).
+**Связано:** [R-6.1b](REQUIREMENTS.md), [R-4.2](REQUIREMENTS.md), [R-3.4](REQUIREMENTS.md), [ADR-0003](ADR-0003-webdav.md), [ADR-0010](ADR-0010-sources.md), [ADR-0014](ADR-0014-flat-listing.md), [ADR-0018](ADR-0018-webdav-range-one-file.md), [ADR-0031](ADR-0031-media3-one-track-playback.md), [ADR-0080](ADR-0080-permanent-login-sign-out.md); исследование — [WEBDAV_SOURCES_RESEARCH](../WEBDAV_SOURCES_RESEARCH.md); первый срез — [Issue #313](https://github.com/metravolokos/enoTone-android/issues/313).
 
 ## Контекст
 
@@ -19,7 +19,7 @@
 
 ## Варианты
 
-### Вариант 1 — Endpoint-модель + типизированный источник (выбран для обсуждения)
+### Вариант 1 — Endpoint-модель + типизированный источник (принят)
 
 Ввести конфигурацию `SourceEndpoint(provider, host, basePath, rootFolder, usernameKind, authKind)` и `libraryId = SHA-256(normalizedAccount + canonicalOrigin + canonicalRoot)` в формате 64 hex. Разделить «источник байтов» (WebDAV Range vs локальный SAF) и «код медиатеки» (каталог, теги, очередь, обложки). Дефолт Mail.ru `/AllMusic` сохраняет **существующий** ID.
 
@@ -46,17 +46,26 @@
 Плюсы: одна большая абстракция `MusicSource`.
 Минусы: высокий риск; при отложенном едином сетевом слое (R-3.4) и незакрытом смешивании это преждевременно; ревью почти невозможно; противоречит ранее принятому решению делать `MusicSource` вместе с единым HTTP-слоем.
 
-## Решение (предлагается)
+## Решение
 
-Принять Вариант 1 и выполнять **фазово**:
+Принять Вариант 1 и выполнять **фазово**. Первый срез **A1** вынесен в [Issue #313](https://github.com/metravolokos/enoTone-android/issues/313).
 
-- **Фаза A:** endpoint-модель + настраиваемая папка Mail.ru + вынос байтового слоя.
-- **Фаза B:** Yandex.Disk (после capability-probe; платный Yandex 360).
-- **Фаза C:** локальные файлы (SAF) как отдельная роль.
-- **Фаза D:** объединение локального и облачного — отдельный ADR.
+**A1 — настраиваемая папка Cloud.Mail.ru и вынос endpoint (первый срез).**
+- Конфигурация источника: `provider` + `host` + `basePath` + `rootFolder`; в A1 только `CLOUD_MAILRU`.
+- Хранение — envelope **v2**; v1 читается как Mail.ru `/AllMusic`, данные Room не мигрируют.
+- **Идентичность не меняется:** `sourceKey = SHA-256(email)`, `trackId` прежний.
+- Смена папки/источника — **только через выход и повторный вход**; при живом входе поле папки недоступно (порядок [ADR-0080](ADR-0080-permanent-login-sign-out.md)).
+- Убрать хардкод host/path из 7 сторожей и пробросить endpoint по цепочкам импорта/тегов/обложек/воспроизведения; диагностика и тексты — из конфигурации.
+
+**A2 (отложено) — endpoint-aware library ID.** `libraryId = 64-hex SHA-256(нормализованный аккаунт + канонический origin + канонический корень)`; Mail.ru `/AllMusic` сохраняет прежний `SHA-256(email)`. Нужен только когда появится мульти-библиотека (Фаза D). До A2 смена цели возможна исключительно через выход, поэтому смешивание невозможно: выход стирает всю медиатеку этого `sourceKey` (ADR-0080).
+
+**Фазы после A** (детали — [WEBDAV_SOURCES_RESEARCH §8](../WEBDAV_SOURCES_RESEARCH.md)):
+- **B — Yandex.Disk:** тот же WebDAV-транспорт; предпосылки — **платный Yandex 360** (с 22.06.2026 WebDAV только на нём; аккаунт у владельца есть) и **capability-probe** (Range/ETag публично не подтверждены).
+- **C — локальные файлы (SAF):** отдельная роль источника; нужен экран выбора папки (`ACTION_OPEN_DOCUMENT_TREE`) — при отсутствии макета в `design/` останавливается меткой `design-needed`.
+- **D — объединение локального и облачного:** отдельный ADR; сюда же переезжает endpoint-aware library ID (A2).
 
 Обязательные правила:
-1. `libraryId` — 64-hex SHA-256(нормализованный аккаунт + канонический origin + канонический корень); для Mail.ru `/AllMusic` — прежний `SHA-256(email)`.
+1. `libraryId` — 64-hex SHA-256(нормализованный аккаунт + канонический origin + канонический корень); для Mail.ru `/AllMusic` — прежний `SHA-256(email)`. (Вводится в A2/D; в A1 идентичность прежняя.)
 2. Envelope v2 хранит провайдер и корень; v1 читается как Mail.ru `/AllMusic` (без миграции данных).
 3. Один активный облачный источник за раз; смена источника/папки — только через явный вход (первый импорт либо выход+вход), не «на лету».
 4. Границы flat-листинга (`Depth: 1`, без рекурсии) сохраняются, пока не принято отдельное решение.
