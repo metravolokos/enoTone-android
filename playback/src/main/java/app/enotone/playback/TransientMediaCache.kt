@@ -264,18 +264,6 @@ class TransientMediaCache(context: Context) : AutoCloseable {
         private const val DIRECTORY_NAME = "enotone-m5-temporary-audio"
 
         /**
-         * Deletes the cache directory without an open cache instance.
-         *
-         * Sign-out needs this: `EnoTonePlaybackService` stays alive after Stop, so
-         * `close()` never runs and the previous account's audio would remain on disk.
-         * ADR-0080 requires account data to be gone before the Keystore is cleared.
-         * A later queue recreates the directory through the constructor. Called on the
-         * service IO lane, never the main thread.
-         */
-        fun deleteDirectory(context: android.content.Context): Boolean =
-            File(context.cacheDir, DIRECTORY_NAME).deleteRecursively()
-
-        /**
          * Deletes the cache directory **and** its Media3 index rows.
          *
          * `SimpleCache` keeps its index in `databases/exoplayer_internal.db`, not in the
