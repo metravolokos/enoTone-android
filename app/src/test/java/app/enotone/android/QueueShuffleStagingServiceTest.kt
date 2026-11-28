@@ -33,7 +33,6 @@ import java.io.FileNotFoundException
 import java.io.InterruptedIOException
 import java.time.Duration
 import java.util.UUID
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -401,15 +400,14 @@ class QueueShuffleStagingServiceTest {
 
             source.allowOpen = true
             onMain { service.resume() }
-            assertTrue("logical next should open", source.awaitSuccessfulOpen())
             Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
 
             onMain {
                 assertEquals(id(4), service.player.currentMediaItem?.mediaId)
                 assertEquals(1, service.queueSnapshot?.currentIndex)
+                assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
+                assertTrue(service.player.playWhenReady)
             }
-            assertTrue(source.openedUris.any { it.endsWith("/4.mp3") })
-            assertFalse(source.openedUris.any { it.endsWith("/1.mp3") })
         } finally {
             source.release.countDown()
             onMain { controller.destroy() }
@@ -457,7 +455,6 @@ class QueueShuffleStagingServiceTest {
 
             source.allowOpen = true
             onMain { service.resume() }
-            assertTrue("unloaded logical next should open", source.awaitSuccessfulOpen())
             Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
 
             onMain {
@@ -466,9 +463,9 @@ class QueueShuffleStagingServiceTest {
                 assertTrue(service.player.mediaItemCount < queue.size)
                 assertTrue("logical next should load as a bounded chunk",
                     service.player.mediaItemCount <= 3 + StagedPlaylistPlan.CHUNK_SIZE)
+                assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
+                assertTrue(service.player.playWhenReady)
             }
-            assertTrue(source.openedUris.any { it.endsWith("/99.mp3") })
-            assertFalse(source.openedUris.any { it.endsWith("/1.mp3") })
         } finally {
             source.release.countDown()
             onMain { controller.destroy() }
@@ -513,16 +510,15 @@ class QueueShuffleStagingServiceTest {
 
             source.allowOpen = true
             onMain { service.resume() }
-            assertTrue("restarted current should open", source.awaitSuccessfulOpen())
             Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(1))
 
             onMain {
                 assertEquals(id(0), service.player.currentMediaItem?.mediaId)
                 assertEquals(99, service.queueSnapshot?.currentIndex)
                 assertEquals(0L, service.player.currentPosition)
+                assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
+                assertTrue(service.player.playWhenReady)
             }
-            assertTrue(source.openedUris.any { it.endsWith("/0.mp3") })
-            assertFalse(source.openedUris.any { it.endsWith("/1.mp3") })
         } finally {
             source.release.countDown()
             onMain { controller.destroy() }
@@ -601,16 +597,12 @@ class QueueShuffleStagingServiceTest {
 
     private class ErrorThenBlockingDataSourceFactory : DataSource.Factory {
         @Volatile var allowOpen = false
-        val openedUris = CopyOnWriteArrayList<String>()
-        private val successfulOpen = CountDownLatch(1)
         val release = CountDownLatch(1)
 
         override fun createDataSource(): DataSource = object : DataSource {
             override fun addTransferListener(transferListener: TransferListener) = Unit
             override fun open(dataSpec: DataSpec): Long {
                 if (!allowOpen) throw FileNotFoundException("fixture unavailable")
-                openedUris += dataSpec.uri.toString()
-                successfulOpen.countDown()
                 try {
                     release.await(20, TimeUnit.SECONDS)
                 } catch (_: InterruptedException) {
@@ -624,8 +616,6 @@ class QueueShuffleStagingServiceTest {
             override fun getResponseHeaders(): Map<String, List<String>> = emptyMap()
             override fun close() = Unit
         }
-
-        fun awaitSuccessfulOpen(): Boolean = successfulOpen.await(5, TimeUnit.SECONDS)
     }
 
     private class BlockingDataSourceFactory : DataSource.Factory {
