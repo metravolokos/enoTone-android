@@ -386,7 +386,7 @@ class PlayerViewModelTest {
         } finally { Dispatchers.resetMain() }
     }
 
-    @Test fun legacy3647TrackCheckpointIsWindowedAndMarkedForImmediateRewrite() = runTest {
+    @Test fun legacy3647TrackCheckpointRestoresWholeWithoutRewrite() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             val ids = (1..3_647).map(::id)
@@ -419,11 +419,11 @@ class PlayerViewModelTest {
             advanceUntilIdle()
 
             assertEquals(1, connection.restores)
-            assertEquals(100, connection.lastQueue.size)
+            assertEquals(3_647, connection.lastQueue.size)
             assertEquals(ids[1_823], connection.lastRestored?.selectedTrackId)
             assertEquals(42_321L, connection.lastRestored?.positionMs)
             assertEquals(Player.REPEAT_MODE_ALL, connection.lastRestored?.repeatMode)
-            assertTrue(connection.lastFiltered)
+            assertFalse(connection.lastFiltered)
         } finally { Dispatchers.resetMain() }
     }
 

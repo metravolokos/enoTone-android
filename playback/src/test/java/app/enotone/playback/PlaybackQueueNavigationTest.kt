@@ -13,6 +13,16 @@ class PlaybackQueueNavigationTest {
         updateOrder(ids, ids.withIndex().associate { it.value to it.index }, null, false)
     }
 
+    @Test fun repeatAllSingleTrackWrapsNextAndPreviousToCurrentPosition() {
+        val singleId = ids.first()
+        val nav = PlaybackQueueNavigation().apply {
+            updateOrder(listOf(singleId), mapOf(singleId to 0), null, false)
+        }
+
+        assertEquals(0, nav.adjacentPosition(singleId, forward = true, repeatAll = true))
+        assertEquals(0, nav.adjacentPosition(singleId, forward = false, repeatAll = true))
+    }
+
     @Test fun ordinaryTrackTransitionCancelsAnUnloadedDeferredSelection() {
         val nav = navigation()
         assertTrue(nav.selectPosition(

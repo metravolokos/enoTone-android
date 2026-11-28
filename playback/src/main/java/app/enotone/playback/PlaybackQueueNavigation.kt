@@ -9,6 +9,7 @@ internal class PlaybackQueueNavigation {
     private var pendingTrackId: String? = null
 
     val hasPendingSeek: Boolean get() = pendingTrackId != null
+    val pendingTargetId: String? get() = pendingTrackId
 
     fun updateOrder(
         originalTrackIds: List<String>,
@@ -34,6 +35,17 @@ internal class PlaybackQueueNavigation {
         val currentIndex = trackIndices[id]
         if (currentIndex == null || trackIds.isEmpty()) null
         else PlaybackQueueSnapshot(trackIds, currentIndex)
+    }
+
+    /** Null means no logical queue; NO_POSITION means the boundary was handled. */
+    fun adjacentPosition(currentTrackId: String?, forward: Boolean, repeatAll: Boolean): Int? {
+        val current = currentTrackId?.let(trackIndices::get) ?: return null
+        val adjacent = if (forward) current + 1 else current - 1
+        return when {
+            adjacent in trackIds.indices -> adjacent
+            repeatAll && trackIds.isNotEmpty() -> if (forward) 0 else trackIds.lastIndex
+            else -> NO_POSITION
+        }
     }
 
     fun selectPosition(
@@ -87,5 +99,9 @@ internal class PlaybackQueueNavigation {
         trackIds = emptyList()
         trackIndices = emptyMap()
         pendingTrackId = null
+    }
+
+    companion object {
+        const val NO_POSITION = -1
     }
 }

@@ -49,6 +49,30 @@ class StagedPlaylistPlanTest {
         }
     }
 
+    @Test fun targetChunkLoadsBoundedRangeAndGapsRestorePhysicalOrder() {
+        for (target in listOf(5, 90)) {
+            val originals = (0 until 100).map(::item)
+            val plan = StagedPlaylistPlan.create(
+                PlaybackQueue.create(originals, "synthetic-50"))
+            val chunk = requireNotNull(plan.nextChunk(target))
+            assertTrue(chunk.items.size <= StagedPlaylistPlan.CHUNK_SIZE)
+            assertEquals("synthetic-$target", chunk.items.last().id)
+            assertTrue(plan.isLoaded(target))
+            assertEquals(5 + chunk.items.size, plan.loadedCount)
+            assertFalse(plan.isContiguous)
+            assertNull(plan.nextChunk(target))
+
+            val rebuilt = plan.seed.toMutableList()
+            rebuilt.addAll(chunk.insertionIndex, chunk.items)
+            while (!plan.isComplete) {
+                val gap = requireNotNull(plan.nextGap())
+                rebuilt.addAll(gap.insertionIndex, gap.items)
+            }
+            assertEquals(originals, rebuilt)
+            assertTrue(plan.isContiguous)
+        }
+    }
+
     @Test fun seedKeepsNativeNextAndPreviousImmediately() {
         val originals = (0 until 100).map(::item)
         val plan = StagedPlaylistPlan.create(

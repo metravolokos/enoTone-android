@@ -13,13 +13,16 @@ import androidx.media3.common.util.UnstableApi
  * исправление выхода из ошибки работало бы только в приложении, а снаружи
  * пользователь продолжал бы видеть «Ошибка… код N» и ничего не происходило.
  *
- * Делегируется всё, кроме `play()`: обёртка не должна менять ни timeline,
- * ни метаданные, ни команды — иначе регресс затронет уведомление целиком.
+ * Обычные команды делегируются без изменений. Next/Previous могут быть
+ * перехвачены логической очередью, пока staged Shuffle ещё не установил
+ * точный Media3 order; false просит обёртку выполнить нативный fallback.
  */
 @OptIn(UnstableApi::class)
 internal class ErrorRecoveringPlayer(
     private val delegate: Player,
     private val onPlayRequested: () -> Unit,
+    private val onNextRequested: (() -> Boolean)? = null,
+    private val onPreviousRequested: (() -> Boolean)? = null,
 ) : ForwardingPlayer(delegate) {
 
     override fun play() {
@@ -31,5 +34,25 @@ internal class ErrorRecoveringPlayer(
         // Ошибка: единственный путь восстановления — политика в PreviewAudioPlayback,
         // чтобы приложение и внешние контроллеры вели себя одинаково.
         onPlayRequested()
+    }
+
+    override fun seekToNextMediaItem() {
+        if (onNextRequested?.invoke() == true) return
+        super.seekToNextMediaItem()
+    }
+
+    override fun seekToPreviousMediaItem() {
+        if (onPreviousRequested?.invoke() == true) return
+        super.seekToPreviousMediaItem()
+    }
+
+    override fun seekToNext() {
+        if (onNextRequested?.invoke() == true) return
+        super.seekToNext()
+    }
+
+    override fun seekToPrevious() {
+        if (onPreviousRequested?.invoke() == true) return
+        super.seekToPrevious()
     }
 }

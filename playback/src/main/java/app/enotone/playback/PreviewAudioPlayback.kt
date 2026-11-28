@@ -203,19 +203,11 @@ class PreviewAudioPlayback(
     var onShuffleLayoutReady: (() -> Unit)? = null
     private val durationMemory = PlaybackDurationMemory()
     private var restoringShuffle = false
-    private var deferredPrepare = false
+    internal var deferredPrepare = false
     private var stageBeforePrepare = false
 
-    private fun newShuffleOrder(size: Int): IntArray {
-        val order = ShuffleOrder.DefaultShuffleOrder(size, System.nanoTime())
-        val indices = IntArray(size)
-        var current = order.firstIndex
-        for (i in indices.indices) {
-            indices[i] = current
-            current = order.getNextIndex(current)
-        }
-        return indices
-    }
+    private fun newShuffleOrder(size: Int, firstIndex: Int): IntArray =
+        QueueShuffleOrder.create(size, firstIndex, System.nanoTime())
 
     /** Staged Media3 order is incomplete; install an exact full permutation once. */
     private fun applyStableShuffleIfComplete() {
@@ -284,13 +276,14 @@ class PreviewAudioPlayback(
         position = position,
         currentTrackId = player.currentMediaItem?.mediaId,
         seekLoadedTarget = ::seekLoadedQueueTarget,
-        stageMoreItems = {
-            if (pendingPlaylist == null) false else {
-                stagePlaylistAfterReady()
-                true
-            }
-        },
+        stageMoreItems = ::stageMoreQueueItems,
     )
+
+    internal fun stageMoreQueueItems(): Boolean {
+        if (pendingPlaylist == null) return false
+        stagePlaylistAfterReady()
+        return true
+    }
 
     private fun seekLoadedQueueTarget(targetId: String): Boolean =
         queueTimelineIndex(targetId)?.let { timelineIndex ->
@@ -299,14 +292,12 @@ class PreviewAudioPlayback(
             true
         } ?: false
 
-    private fun queueTimelineIndex(targetId: String): Int? = mediaIdIndices[targetId]?.let { originalIndex ->
+    internal fun queueTimelineIndex(targetId: String): Int? = mediaIdIndices[targetId]?.let { originalIndex ->
         val plan = pendingPlaylist
         val timelineIndex = when {
-            plan != null && player.shuffleModeEnabled -> null
-            plan == null && player.mediaItemCount != expectedQueueSize -> null
-            plan != null && originalIndex !in plan.loadedStartIndex until plan.loadedEndExclusive -> null
-            plan == null -> originalIndex
-            else -> originalIndex - plan.loadedStartIndex
+            plan != null -> plan.timelineIndex(originalIndex)
+            player.mediaItemCount == expectedQueueSize -> originalIndex
+            else -> null
         }
         timelineIndex?.takeIf {
             it in 0 until player.mediaItemCount && player.getMediaItemAt(it).mediaId == targetId
@@ -343,15 +334,17 @@ class PreviewAudioPlayback(
             if (pendingPlaylist !== plan || !mayFillPlaylist()) {
                 return@Runnable
             }
-            val chunk = plan.nextChunk() ?: run {
+            val targetIndex = queueNavigation.pendingTargetId?.let(mediaIdIndices::get)
+            val chunk = if (targetIndex == null) plan.nextChunk()
+                else plan.nextChunk(targetIndex) ?: plan.nextChunk()
+            if (chunk == null) {
                 pendingPlaylist = null
                 pendingMediaFactory = null
                 return@Runnable
             }
             try {
                 val sources = chunk.items.map { makeMediaSource(factory, it) }
-                if (chunk.prepend) player.addMediaSources(0, sources)
-                else player.addMediaSources(sources)
+                player.addMediaSources(chunk.insertionIndex, sources)
             } catch (_: Exception) {
                 // Never expose file metadata in errors. Current audio keeps playing
                 // even if an optional later chunk could not be added.
@@ -382,11 +375,19 @@ class PreviewAudioPlayback(
         val factory = pendingMediaFactory ?: return
         scheduledPlaylistFill?.let(cacheHandler::removeCallbacks)
         scheduledPlaylistFill = null
-        while (!plan.isComplete) {
-            val chunk = plan.nextChunk() ?: break
-            val sources = chunk.items.map { makeMediaSource(factory, it) }
-            if (chunk.prepend) player.addMediaSources(0, sources)
-            else player.addMediaSources(sources)
+        if (plan.isContiguous) {
+            val beforeSources = plan.items.subList(0, plan.loadedStartIndex)
+                .map { makeMediaSource(factory, it) }
+            val afterSources = plan.items.subList(plan.loadedEndExclusive, plan.items.size)
+                .map { makeMediaSource(factory, it) }
+            if (beforeSources.isNotEmpty()) player.addMediaSources(0, beforeSources)
+            if (afterSources.isNotEmpty()) player.addMediaSources(afterSources)
+        } else {
+            while (!plan.isComplete) {
+                val gap = plan.nextGap() ?: error("Missing staged queue gap")
+                val sources = gap.items.map { makeMediaSource(factory, it) }
+                player.addMediaSources(gap.insertionIndex, sources)
+            }
         }
         pendingPlaylist = null
         pendingMediaFactory = null
@@ -482,8 +483,9 @@ class PreviewAudioPlayback(
 
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
             if (!restoringShuffle) {
+                val firstIndex = player.currentMediaItem?.mediaId?.let(mediaIdIndices::get) ?: 0
                 configuredShuffle = if (shuffleModeEnabled && expectedQueueSize > 0)
-                    newShuffleOrder(expectedQueueSize) else null
+                    newShuffleOrder(expectedQueueSize, firstIndex) else null
                 queueNavigation.updateOrder(
                     originalTrackIds, mediaIdIndices, configuredShuffle, player.shuffleModeEnabled,
                 )
@@ -645,7 +647,7 @@ class PreviewAudioPlayback(
         expectedQueueSize = queue.size
         mediaIdIndices = queue.items.mapIndexed { index, item -> item.id to index }.toMap()
         originalTrackIds = queue.items.map { it.id }
-        configuredShuffle = if (player.shuffleModeEnabled) newShuffleOrder(queue.size) else null
+        configuredShuffle = if (player.shuffleModeEnabled) newShuffleOrder(queue.size, queue.position) else null
         queueNavigation.updateOrder(originalTrackIds, mediaIdIndices, configuredShuffle, player.shuffleModeEnabled)
         stableShuffleApplied = false
         val plan = StagedPlaylistPlan.create(queue)
@@ -841,27 +843,6 @@ class PreviewAudioPlayback(
             deferredPrepare = false
             player.prepare()
         }
-        player.play()
-    }
-
-    /**
-     * Владелец 2026-11-15: Play после ошибки идёт к следующему треку; если
-     * переходить некуда или включён повтор одного — текущий с начала.
-     * Ошибку очищаем до prepare(), иначе он не сбросит состояние.
-     */
-    private fun recoverAfterError() {
-        val action = PlaybackErrorRecoveryPolicy.actionFor(
-            hasError = true,
-            hasNext = player.hasNextMediaItem(),
-            repeatOne = player.repeatMode == Player.REPEAT_MODE_ONE,
-        )
-        deferredPrepare = false
-        when (action) {
-            PlaybackErrorAction.NEXT -> player.seekToNextMediaItem()
-            PlaybackErrorAction.RESTART_CURRENT -> player.seekToDefaultPosition()
-            PlaybackErrorAction.PLAY -> Unit
-        }
-        player.prepare()
         player.play()
     }
 

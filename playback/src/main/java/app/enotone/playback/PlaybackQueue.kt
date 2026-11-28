@@ -41,7 +41,7 @@ class PlaybackQueue private constructor(
 
     companion object {
         /** Maximum number of items held in the active playback queue. */
-        const val MAX_TRACKS = 100
+        const val MAX_TRACKS = 10_000
 
         fun create(tracks: List<QueueTrack>, selectedId: String): PlaybackQueue {
             require(tracks.isNotEmpty() && tracks.size <= MAX_TRACKS) {

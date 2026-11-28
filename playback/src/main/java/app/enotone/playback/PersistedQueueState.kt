@@ -247,7 +247,7 @@ object QueueStateCodec {
     }
 }
 
-/** Legacy checkpoints are reduced to the selected song and its playback-order neighborhood. */
+/** Filters missing tracks while preserving the full playback order within the active cap. */
 object QueueStateRestorer {
     fun filter(state: PersistedQueueState, availableIds: Set<String>): PersistedQueueState? {
         if (!QueueStateCodec.isValid(state)) return null
