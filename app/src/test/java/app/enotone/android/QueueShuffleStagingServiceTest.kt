@@ -405,6 +405,8 @@ class QueueShuffleStagingServiceTest {
             onMain {
                 assertEquals(id(4), service.player.currentMediaItem?.mediaId)
                 assertEquals(1, service.queueSnapshot?.currentIndex)
+                assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
+                assertTrue(service.player.playWhenReady)
             }
         } finally {
             source.release.countDown()
@@ -461,6 +463,8 @@ class QueueShuffleStagingServiceTest {
                 assertTrue(service.player.mediaItemCount < queue.size)
                 assertTrue("logical next should load as a bounded chunk",
                     service.player.mediaItemCount <= 3 + StagedPlaylistPlan.CHUNK_SIZE)
+                assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
+                assertTrue(service.player.playWhenReady)
             }
         } finally {
             source.release.countDown()
@@ -512,6 +516,8 @@ class QueueShuffleStagingServiceTest {
                 assertEquals(id(0), service.player.currentMediaItem?.mediaId)
                 assertEquals(99, service.queueSnapshot?.currentIndex)
                 assertEquals(0L, service.player.currentPosition)
+                assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
+                assertTrue(service.player.playWhenReady)
             }
         } finally {
             source.release.countDown()
