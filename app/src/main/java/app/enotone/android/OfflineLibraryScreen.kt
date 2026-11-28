@@ -19,13 +19,17 @@ import app.enotone.library.OfflineTrackRow
  * Ключ содержит только хеши, не сами данные входа; контейнер не пересоздаётся рекомпозицией.
  */
 @Composable
-internal fun rememberLibraryViewModel(accountEmail: String, appPassword: String): LibraryViewModel {
+internal fun rememberLibraryViewModel(
+    accountEmail: String,
+    appPassword: String,
+    endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
+): LibraryViewModel {
     val context = LocalContext.current.applicationContext
     val container = (context as EnoToneApplication).container
     val pages = remember(context) {
         LibraryPageVisibility.visible(LibraryPagePreferences(context).hiddenPages())
     }
-    val factory = remember(accountEmail, appPassword) {
+    val factory = remember(accountEmail, appPassword, endpoint) {
         LibraryViewModel.factory(
             email = accountEmail,
             password = appPassword,
@@ -33,6 +37,7 @@ internal fun rememberLibraryViewModel(accountEmail: String, appPassword: String)
             container = container,
             unknownAlbumName = context.getString(R.string.library_unknown_album),
             compilationsName = context.getString(R.string.library_compilations_name),
+            endpoint = endpoint,
             messages = AlbumRefreshMessages(
                 done = context.getString(R.string.album_refresh_done),
                 retry = context.getString(R.string.album_refresh_retry_needed),

@@ -306,10 +306,13 @@
     <string name="player_destination_unavailable">Album or artist is unavailable</string>
     <string name="diagnostics_library_album">Last album: rows=%1$d, header=%2$d, repeated IDs=%3$d</string>
     <string name="first_run_login_title">Hi! I’m Bandit</string>
-    <string name="first_run_login_message">Connect Mail.ru Cloud and I’ll find the music in your AllMusic folder.</string>
+    <string name="first_run_login_message">Connect Mail.ru Cloud and I’ll find the music in the folder you choose.</string>
     <string name="first_run_email">Email</string>
     <string name="first_run_app_password">External app password</string>
     <string name="first_run_app_password_hint">Use an app password, not your regular one: Cloud.Mail.ru → Settings → Passwords for external apps</string>
+    <string name="source_folder">Music folder</string>
+    <string name="source_folder_hint">A folder in the cloud, e.g. AllMusic. Nested folders are not read.</string>
+    <string name="source_folder_invalid">Check the folder path: letters, digits, spaces and “/” only.</string>
     <string name="first_run_connect">Connect</string>
     <string name="first_run_indexing_title">Reading your music…</string>
     <string name="first_run_progress">%1$s of %2$s songs</string>

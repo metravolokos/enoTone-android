@@ -26,7 +26,7 @@ internal class AndroidDiagnosticsGateway(
     }
 
     override suspend fun inspect(login: StoredWebDavLogin): ProbeReport =
-        withContext(container.io) { WebDavDiagnostics().inspect(login.email, login.password) }
+        withContext(container.io) { WebDavDiagnostics(login.endpoint).inspect(login.email, login.password) }
 
     override suspend fun audit(query: AuditQuery, email: String): List<RemoteTrackEntity> =
         withContext(container.io) {

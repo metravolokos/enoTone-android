@@ -43,10 +43,14 @@ internal object ManagedScanRuntime : ManagedScanStatusPort {
     // One-shot RAM handoff, never an Intent extra or persisted secret.
     private var pending: PendingIndexRun? = null
 
-    @Synchronized fun prepare(email: String, password: String): Boolean {
+    @Synchronized fun prepare(
+        email: String,
+        password: String,
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
+    ): Boolean {
         require(email.isNotBlank() && password.isNotBlank())
         if (status.value.state == ManagedScanState.RUNNING || status.value.terminating) return false
-        pending = PendingIndexRun(StoredWebDavLogin(email, password))
+        pending = PendingIndexRun(StoredWebDavLogin(email, password, endpoint))
         status.value = ManagedScanStatus(ManagedScanState.RUNNING)
         return true
     }

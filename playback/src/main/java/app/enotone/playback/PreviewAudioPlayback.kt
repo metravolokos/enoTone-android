@@ -4,7 +4,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import androidx.media3.datasource.DataSource
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -12,10 +11,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.ShuffleOrder
+import app.enotone.android.SourceEndpoint
 
 /**
  * Media3 player used by private MediaSessionService with native playlist controls.
@@ -56,6 +57,9 @@ class PreviewAudioPlayback(
 
     private var cacheEnabledForQueue = false
     private var activeRoutes: Map<String, QueueTrack> = emptyMap()
+
+    /** Источник музыки собранной очереди (ADR-0106); по умолчанию — папка Mail.ru. */
+    private var queueEndpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC
     private var upstreamFactory: DataSource.Factory? = null
     private var routesFactory: WebDavMedia3DataSource.Factory? = null
     private var mediaSourceFactory: ProgressiveMediaSource.Factory? = null
@@ -400,7 +404,7 @@ class PreviewAudioPlayback(
         item: QueueTrack,
     ): MediaSource = checkNotNull(routesFactory).trackMediaSource(item.id,
         factory.createMediaSource(MediaItem.Builder()
-            .setMediaId(item.id).setUri(WebDavPlaybackTarget.url(item.encodedPath))
+            .setMediaId(item.id).setUri(WebDavPlaybackTarget.url(item.encodedPath, queueEndpoint))
             .setCustomCacheKey(TransientCachePolicy.key(item))
             .setMediaMetadata(QueueMetadata.of(item)).build()),
     )
@@ -596,6 +600,8 @@ class PreviewAudioPlayback(
      * Only Media3 decides which selected item to open, and each open is checked
      * by WebDavMedia3DataSource against its own saved size and ETag.
      */
+    // Endpoint добавлен по ADR-0106 к существующему длинному сборщику очереди.
+    @Suppress("LongParameterList", "LongMethod")
     fun playQueue(
         email: String,
         appPassword: String,
@@ -603,11 +609,13 @@ class PreviewAudioPlayback(
         selectedId: String,
         useTemporaryCache: Boolean,
         sourceKey: String,
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
     ) {
         deferredPrepare = false
         stageBeforePrepare = false
         queueNavigation.clearPendingSeek()
         sourceKeyForQueue = sourceKey
+        queueEndpoint = endpoint
         clearScheduledWriter()
         cancelPlaylistFill()
         handoffTracker.startNewQueue()
@@ -621,7 +629,8 @@ class PreviewAudioPlayback(
         durationMemory.clear()
         val queue = PlaybackQueue.create(tracks, selectedId)
         val t1 = SystemClock.elapsedRealtime()
-        val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items, dataSourceFactoryOverride)
+        val factory = WebDavMedia3DataSource.Factory(
+            email, appPassword, queue.items, endpoint, dataSourceFactoryOverride)
         // Кэш не создаётся здесь: его готовит prepareTransientCache() вне главного
         // потока. Если он не готов или недоступен — играем через сеть, а не падаем.
         val diskCache = temporaryCache
@@ -756,7 +765,8 @@ class PreviewAudioPlayback(
 
         val queue = PlaybackQueue.create(tracks, state.selectedTrackId)
         val t1 = SystemClock.elapsedRealtime()
-        val factory = WebDavMedia3DataSource.Factory(email, appPassword, queue.items, dataSourceFactoryOverride)
+        val factory = WebDavMedia3DataSource.Factory(
+            email, appPassword, queue.items, queueEndpoint, dataSourceFactoryOverride)
         // Кэш не создаётся здесь: его готовит prepareTransientCache() вне главного
         // потока. Если он не готов или недоступен — играем через сеть, а не падаем.
         val diskCache = temporaryCache
@@ -862,6 +872,7 @@ class PreviewAudioPlayback(
         stableShuffleApplied = false
         deferredPrepare = false
         pendingCache = null
+        queueEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC
         // Release so sign-out can delete the directory and the Media3 index safely.
         temporaryCache?.close()
         temporaryCache = null

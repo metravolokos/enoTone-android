@@ -68,6 +68,7 @@ internal fun FirstRunRoute(
             onEmailChange = accountModel::onEmailChanged,
             onPasswordChange = accountModel::onPasswordChanged,
             onConnect = accountModel::verifyConnection,
+            onFolderChange = accountModel::onFolderChanged,
             onListenWhileReading = { completeFirstRun(preferences) { firstRunCompleted = it } },
             onRetryNow = {
                 firstRunError = null

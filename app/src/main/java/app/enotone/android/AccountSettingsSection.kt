@@ -27,35 +27,12 @@ internal fun AccountSettingsSection(
     onRequestSignOut: () -> Unit,
     onConfirmSignOut: () -> Unit,
     onCancelSignOut: () -> Unit,
+    onFolderChange: (String) -> Unit = {},
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         // Вход сохраняется всегда (O-09): поля нужны только до входа; смена аккаунта — через «Выйти».
         if (!account.loggedIn) {
-            OutlinedTextField(
-                value = account.email, onValueChange = onEmailChange,
-                label = { Text(stringResource(R.string.email)) },
-                modifier = Modifier.fillMaxWidth(), singleLine = true,
-                enabled = !account.busy,
-                readOnly = account.reauthenticationEmail != null,
-            )
-            OutlinedTextField(
-                value = account.password, onValueChange = onPasswordChange,
-                label = { Text(stringResource(R.string.app_password)) },
-                modifier = Modifier.fillMaxWidth(), singleLine = true,
-                enabled = !account.busy,
-                visualTransformation = PasswordVisualTransformation(),
-            )
-            Text(stringResource(R.string.credential_vault_explanation),
-                style = MaterialTheme.typography.bodySmall)
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !account.busy &&
-                    account.email.isNotBlank() && account.password.isNotBlank(),
-                onClick = onVerify,
-            ) {
-                Text(stringResource(if (account.checking)
-                    R.string.account_checking else R.string.account_verify))
-            }
+            AccountLoginFields(account, onEmailChange, onPasswordChange, onVerify, onFolderChange)
         }
         if (account.loggedIn) {
             Text(stringResource(R.string.account_signed_in_as, account.email),
@@ -77,6 +54,7 @@ internal fun AccountSettingsSection(
             AccountError.STORAGE -> Text(stringResource(R.string.credential_vault_failed))
             AccountError.OTHER_ACCOUNT -> Text(stringResource(R.string.account_other_account))
             AccountError.SIGN_OUT -> Text(stringResource(R.string.account_sign_out_failed))
+            AccountError.BAD_FOLDER -> Text(stringResource(R.string.source_folder_invalid))
             null -> Unit
         }
     }
@@ -99,6 +77,51 @@ internal fun AccountSettingsSection(
                 }
             },
         )
+    }
+}
+
+/** Login form fields shared by Settings and the first-run LOGIN phase. */
+@Composable
+private fun AccountLoginFields(
+    account: AccountUiState,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onVerify: () -> Unit,
+    onFolderChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = account.email, onValueChange = onEmailChange,
+        label = { Text(stringResource(R.string.email)) },
+        modifier = Modifier.fillMaxWidth(), singleLine = true,
+        enabled = !account.busy,
+        readOnly = account.reauthenticationEmail != null,
+    )
+    OutlinedTextField(
+        value = account.password, onValueChange = onPasswordChange,
+        label = { Text(stringResource(R.string.app_password)) },
+        modifier = Modifier.fillMaxWidth(), singleLine = true,
+        enabled = !account.busy,
+        visualTransformation = PasswordVisualTransformation(),
+    )
+    // Папка с музыкой (ADR-0106). Менять можно только до входа; смена — через «Выйти».
+    OutlinedTextField(
+        value = account.folder, onValueChange = onFolderChange,
+        label = { Text(stringResource(R.string.source_folder)) },
+        modifier = Modifier.fillMaxWidth(), singleLine = true,
+        enabled = !account.busy,
+        readOnly = account.reauthenticationEmail != null,
+        supportingText = { Text(stringResource(R.string.source_folder_hint)) },
+    )
+    Text(stringResource(R.string.credential_vault_explanation),
+        style = MaterialTheme.typography.bodySmall)
+    Button(
+        modifier = Modifier.fillMaxWidth(),
+        enabled = !account.busy &&
+            account.email.isNotBlank() && account.password.isNotBlank(),
+        onClick = onVerify,
+    ) {
+        Text(stringResource(if (account.checking)
+            R.string.account_checking else R.string.account_verify))
     }
 }
 
@@ -142,5 +165,5 @@ private fun AccountErrorPreview() {
 
 @Composable
 private fun PreviewAccount(account: AccountUiState) {
-    AccountSettingsSection(account, {}, {}, {}, {}, {}, {})
+    AccountSettingsSection(account, {}, {}, {}, {}, {}, {}, {})
 }

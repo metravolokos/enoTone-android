@@ -29,7 +29,7 @@ internal class RoomIndexingSessionFactory(
     override suspend fun open(): IndexingSessionPort {
         val db = database()
         return IndexingSessionPort { request, progress ->
-            ManagedTagIndexSession(db).run(
+            ManagedTagIndexSession(db, request.login.endpoint).run(
                 request.login.email,
                 request.login.password,
                 networkAllowed = networkAllowed,

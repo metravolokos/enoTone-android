@@ -11,6 +11,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import app.enotone.android.SourceEndpoint
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -225,6 +226,7 @@ open class EnoTonePlaybackService : MediaSessionService() {
 
     val player: Player get() = playback.player
 
+    @Suppress("LongParameterList") // Endpoint добавлен по ADR-0106 к существующей подписи.
     fun playQueue(
         email: String,
         password: String,
@@ -232,10 +234,11 @@ open class EnoTonePlaybackService : MediaSessionService() {
         selectedId: String,
         useTemporaryCache: Boolean,
         sourceKey: String,
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
     ) {
         queueMutation = true
         try {
-            playback.playQueue(email, password, tracks, selectedId, useTemporaryCache, sourceKey)
+            playback.playQueue(email, password, tracks, selectedId, useTemporaryCache, sourceKey, endpoint)
         } finally {
             queueMutation = false
         }

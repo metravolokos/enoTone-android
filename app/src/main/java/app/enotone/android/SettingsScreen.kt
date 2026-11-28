@@ -98,7 +98,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
     val expanded = player.nowPlaying && player.playback.queueTotal > 0
     // Keep the outgoing music route backed by its library model during the Settings transition.
     val libraryModel = account.libraryLogin?.let {
-        rememberLibraryViewModel(it.email, it.password)
+        rememberLibraryViewModel(it.email, it.password, it.endpoint)
     }
     val libraryState = libraryModel?.state?.collectAsStateWithLifecycle()?.value
     val queueSnackbar = rememberQueueSnackbar(libraryModel)
@@ -216,6 +216,7 @@ internal fun DiagnosticScreen(openNowPlayingRequest: Int = 0) {
                                 onRequestSignOut = accountModel::requestSignOut,
                                 onConfirmSignOut = accountModel::confirmSignOut,
                                 onCancelSignOut = accountModel::cancelSignOut,
+                                onFolderChange = accountModel::onFolderChanged,
                             )
                         },
                         mediaContent = { SettingsIndexingSection(indexing, indexingModel) },
@@ -322,12 +323,14 @@ private fun SettingsAccountEffects(
     LaunchedEffect(showingSettings) { artworkModel.setVisible(showingSettings) }
     LaunchedEffect(showingMusic, library) {
         // «Домой» тоже запускает воспроизведение («Перемешать всё»), поэтому — любой экран музыки.
-        if (showingMusic && library != null) playerModel.onCredentialsPersisted(library.email, library.password)
+        if (showingMusic && library != null) {
+            playerModel.onCredentialsPersisted(library.email, library.password, library.endpoint)
+        }
     }
     LaunchedEffect(account.verifiedVersion) {
         val verified = account.active
         if (account.verifiedVersion > 0 && verified != null) {
-            playerModel.onCredentialsPersisted(verified.email, verified.password)
+            playerModel.onCredentialsPersisted(verified.email, verified.password, verified.endpoint)
         }
     }
     LaunchedEffect(account.signedOutVersion) {

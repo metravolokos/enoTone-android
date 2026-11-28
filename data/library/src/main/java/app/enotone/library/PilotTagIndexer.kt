@@ -1,5 +1,6 @@
 package app.enotone.library
 
+import app.enotone.android.SourceEndpoint
 import app.enotone.database.EnoToneDatabase
 import app.enotone.database.RemoteTrackEntity
 import kotlinx.coroutines.CancellationException
@@ -107,10 +108,16 @@ internal object PilotBudget {
         usedGets < requestCap(count) && byteCap(count) - usedBytes >= BLOCK
 
     /** Prefer never-attempted files; retryable failures come last. Stable order. */
-    fun select(sourceKey: String, rows: List<RemoteTrackEntity>, count: Int): List<RemoteTrackEntity> {
+    fun select(
+        sourceKey: String,
+        rows: List<RemoteTrackEntity>,
+        count: Int,
+        /** Кодированный абсолютный путь источника без хвостового слэша (ADR-0106). */
+        rootFolder: String = "/AllMusic",
+    ): List<RemoteTrackEntity> {
         require(validCount(count))
         return rows.asSequence()
-            .filter { eligibleForSingleTagWrite(sourceKey, it) }
+            .filter { eligibleForSingleTagWrite(sourceKey, it, rootFolder) }
             .filter {
                 (it.tagScanCode?.startsWith("RETRY_") != false) &&
                     // Retry entries may retain last-known-good tags during refresh.
@@ -126,6 +133,7 @@ internal object PilotBudget {
 }
 
 class PilotTagIndexer(private val database: EnoToneDatabase) {
+    @Suppress("LongParameterList", "LongMethod", "CyclomaticComplexMethod", "NestedBlockDepth")
     suspend fun run(
         email: String,
         password: String,
@@ -142,6 +150,8 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
         // True means the same-version Room row was updated with a terminal
         // result. Transient/failed/stale attempts must stay eligible to retry.
         onFileOutcome: suspend (String, Boolean) -> Unit = { _, _ -> },
+        /** Источник музыки (ADR-0106); по умолчанию — плоская папка Mail.ru. */
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
     ): PilotIndexProgress {
         require(PilotBudget.validCount(count))
         require(password.isNotBlank())
@@ -152,6 +162,7 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
             sourceKey,
             if (targetIds == null) pending else pending.filter { it.id in targetIds },
             count,
+            rootFolder = endpoint.rootFolder,
         )
         val started = System.nanoTime()
         var attempted = 0
@@ -200,6 +211,7 @@ class PilotTagIndexer(private val database: EnoToneDatabase) {
             try {
                 currentCoroutineContext().ensureActive()
                 reader = WebDavRangeReader(
+                    endpoint = endpoint,
                     encodedPath = item.encodedPath, fileSize = item.remoteSize!!,
                     email = email, appPassword = password, etag = item.remoteEtag,
                     maxRequests = minOf(6, remainingGets),

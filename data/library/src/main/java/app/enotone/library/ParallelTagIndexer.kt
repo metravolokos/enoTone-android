@@ -1,5 +1,6 @@
 package app.enotone.library
 
+import app.enotone.android.SourceEndpoint
 import app.enotone.database.EnoToneDatabase
 import app.enotone.database.RemoteTrackEntity
 import kotlinx.coroutines.CancellationException
@@ -76,12 +77,15 @@ private data class CompletedTagFile(
  * scope and reports a fixed stage, rather than a stale RUNNING state.
  */
 class ParallelTagIndexer(private val database: EnoToneDatabase) {
+    @Suppress("LongParameterList", "LongMethod", "CyclomaticComplexMethod")
     suspend fun run(
         email: String,
         password: String,
         count: Int,
         onProgress: suspend (PilotIndexProgress) -> Unit = {},
         beforeFile: suspend () -> String? = { null },
+        /** Источник музыки (ADR-0106); по умолчанию — плоская папка Mail.ru. */
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
     ): PilotIndexProgress = coroutineScope {
         require(PilotBudget.validCount(count))
         require(email.isNotBlank() && password.isNotBlank())
@@ -89,7 +93,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
         val sourceKey = LibrarySnapshotPlanner.accountKey(email)
         val dao = database.remoteTrackDao()
         val pending = runStage("DB_SELECT") { dao.pendingFastScans(sourceKey) }
-        val candidates = PilotBudget.select(sourceKey, pending, count)
+        val candidates = PilotBudget.select(sourceKey, pending, count, endpoint.rootFolder)
         val shared = SharedRangeBudget(
             PilotBudget.requestCap(count), PilotBudget.byteCap(count),
         )
@@ -235,7 +239,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
                         if (waitMs > 0L) delay(waitMs)
                         if (stop.get() != null) break
 
-                        val attempt = readFile(item, email, password, shared)
+                        val attempt = readFile(item, email, password, shared, endpoint)
                         attempts.add(attempt)
                         if (attempt.exhaustedGlobalBudget) {
                             stop.compareAndSet(null, "NETWORK_BUDGET")
@@ -295,6 +299,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
         email: String,
         password: String,
         budget: SharedRangeBudget,
+        endpoint: SourceEndpoint,
     ): ParallelTagAttempt {
         var reader: WebDavRangeReader? = null
         var failure: PilotFailure? = null
@@ -305,6 +310,7 @@ class ParallelTagIndexer(private val database: EnoToneDatabase) {
         var stage = "RANGE"
         try {
             reader = WebDavRangeReader(
+                endpoint = endpoint,
                 encodedPath = item.encodedPath,
                 fileSize = requireNotNull(item.remoteSize),
                 email = email,

@@ -155,6 +155,15 @@ internal interface LibraryArtworkLoader {
     fun peek(email: String, group: AlbumArtworkGroup, size: Int): Bitmap?
     suspend fun cached(email: String, group: AlbumArtworkGroup, size: Int): Bitmap?
     suspend fun fetch(email: String, password: String, group: AlbumArtworkGroup, size: Int): Bitmap?
+
+    /** Источник музыки (ADR-0106). Старые реализации без него остаются источником Mail.ru. */
+    suspend fun fetch(
+        email: String,
+        password: String,
+        group: AlbumArtworkGroup,
+        size: Int,
+        endpoint: SourceEndpoint,
+    ): Bitmap? = fetch(email, password, group, size)
     suspend fun invalidate(email: String, targets: Collection<PlayingArtworkTarget>)
 }
 internal class RepositoryArtworkLoader(private val repository: ArtworkPreviewRepository) :
@@ -165,6 +174,13 @@ internal class RepositoryArtworkLoader(private val repository: ArtworkPreviewRep
         repository.cachedAlbumCover(email, group, size)
     override suspend fun fetch(email: String, password: String, group: AlbumArtworkGroup, size: Int) =
         repository.albumCover(email, password, group, requestedSide = size)
+    override suspend fun fetch(
+        email: String,
+        password: String,
+        group: AlbumArtworkGroup,
+        size: Int,
+        endpoint: SourceEndpoint,
+    ) = repository.albumCover(email, password, group, requestedSide = size, endpoint = endpoint)
     override suspend fun invalidate(email: String, targets: Collection<PlayingArtworkTarget>) =
         repository.invalidate(email, targets)
 }
@@ -193,6 +209,8 @@ internal class LibraryViewModel(
     private val accountEvents: StateFlow<AccountState> = MutableStateFlow(AccountState()),
     private val dataRevision: StateFlow<Long> = LibraryDataRevision.value,
     private val queueRandom: Random = Random.Default,
+    /** Источник музыки аккаунта (ADR-0106); по умолчанию — папка Mail.ru. */
+    private val endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
 ) : ViewModel(), LibraryScreenActions {
     private val firstPage = LibraryPageVisibility.selectedOrFallback(initialPage, visiblePages)
     private val mutable = MutableStateFlow(
@@ -529,7 +547,7 @@ internal class LibraryViewModel(
                             QueueEdit.Append(selection.map { it.id }),
                         )
                         connection.playQueue(accountEmail, password, selection, selection.first().id,
-                            useCache(), sourceKey)
+                            useCache(), sourceKey, endpoint)
                         if (tracks.size > PlaybackQueue.MAX_TRACKS)
                             QueueEditResult(QueueEditStatus.APPLIED, selection.size)
                         else plan.result
@@ -606,7 +624,7 @@ internal class LibraryViewModel(
                     val selectedQueue = queue.take(PlaybackQueue.MAX_TRACKS)
                     val startedPlayer = clockMs()
                     connection.playQueue(accountEmail, password, selectedQueue, track.id,
-                        useCache(), sourceKey)
+                        useCache(), sourceKey, endpoint)
                     media3DurationMs = clockMs() - startedPlayer
                     setupTimings = connection.state.value.setupTimings
                     mutable.update {
@@ -718,7 +736,7 @@ internal class LibraryViewModel(
             state.map { it.playbackState }.first {
                 it == "PLAYING" || it == "PAUSED"
             }
-            val picture = artwork.fetch(accountEmail, password, group, LIBRARY_THUMBNAIL_SIDE_PX)
+            val picture = artwork.fetch(accountEmail, password, group, LIBRARY_THUMBNAIL_SIDE_PX, endpoint)
             if (picture != null) mutable.update { it.copy(currentArtwork = picture) }
         }
         if (value.showPlayerDetails) loadFullArtwork()
@@ -742,7 +760,7 @@ internal class LibraryViewModel(
             state.map { it.playbackState }.first {
                 it == "PLAYING" || it == "PAUSED"
             }
-            val picture = artwork.fetch(accountEmail, password, group, LIBRARY_FULL_ARTWORK_SIDE_PX)
+            val picture = artwork.fetch(accountEmail, password, group, LIBRARY_FULL_ARTWORK_SIDE_PX, endpoint)
             if (picture != null) mutable.update { it.copy(fullArtwork = picture) }
         }
     }
@@ -770,7 +788,7 @@ internal class LibraryViewModel(
         mutable.update { it.copy(albumRefreshBusy = true, albumRefreshFeedback = null) }
         viewModelScope.launch {
             try {
-                val result = repository.refreshAlbum(accountEmail, password, ids)
+                val result = repository.refreshAlbum(accountEmail, password, ids, endpoint)
                 if (unavailable()) return@launch
                 val refreshed = result.checkedIds.mapNotNull { id ->
                     catalogue.preparedById[id]?.let {
@@ -831,6 +849,7 @@ internal class LibraryViewModel(
             messages: AlbumRefreshMessages,
             compilationsName: String,
             visiblePages: List<LibraryPage>,
+            endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -841,7 +860,8 @@ internal class LibraryViewModel(
                     container.io, unknownAlbumName, messages,
                     compilationsName = compilationsName,
                     visiblePages = visiblePages,
-                    accountEvents = container.accountSession.state) as T
+                    accountEvents = container.accountSession.state,
+                    endpoint = endpoint) as T
             }
         }
     }

@@ -9,7 +9,12 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 
 /** Returned only to the app's in-memory Compose state. Never log or parcel. */
-internal data class StoredWebDavLogin(val email: String, val password: String)
+internal data class StoredWebDavLogin(
+    val email: String,
+    val password: String,
+    /** Where the music lives (ADR-0106). Default preserves the flat Mail.ru library. */
+    val endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
+)
 
 /**
  * Explicit opt-in, single-account credential vault. AndroidKeyStore holds a
@@ -45,9 +50,14 @@ internal object LocalCredentialVault {
         return generator.generateKey()
     }
 
-    fun save(context: Context, email: String, password: String) {
+    fun save(
+        context: Context,
+        email: String,
+        password: String,
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
+    ) {
         val encoded = Base64.encodeToString(
-            CredentialEnvelope.seal(getOrCreateKey(), email, password), Base64.NO_WRAP)
+            CredentialEnvelope.seal(getOrCreateKey(), email, password, endpoint), Base64.NO_WRAP)
         check(prefs(context).edit().putString(ENTRY, encoded).commit()) {
             "Unable to persist protected credentials"
         }

@@ -161,10 +161,14 @@ internal class PlayerViewModel(
     }
 
     /** Called only after WebDAV verification AND a successful vault write. */
-    fun onCredentialsPersisted(email: String, password: String) {
+    fun onCredentialsPersisted(
+        email: String,
+        password: String,
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
+    ) {
         if (email.isBlank() || password.isBlank() ||
             accountEvents.value.blocks(LibrarySnapshotPlanner.accountKey(email))) return
-        val verified = StoredWebDavLogin(email, password)
+        val verified = StoredWebDavLogin(email, password, endpoint)
         if (login != verified) {
             restoreJob?.cancel()
             catalogGeneration++
@@ -411,7 +415,8 @@ internal class PlayerViewModel(
             // Respect the existing no-GET-until-Play rule for restored queues.
             val current = connection.state.value.playbackState
             if (current == "PLAYING" || current == "PAUSED") {
-                artworkLoader.fetch(saved.email, saved.password, group, PLAYER_COMPACT_COVER_PX)?.let { picture ->
+                artworkLoader.fetch(saved.email, saved.password, group,
+                    PLAYER_COMPACT_COVER_PX, saved.endpoint)?.let { picture ->
                     mutable.update { it.copy(artwork = picture) }
                 }
             }
@@ -420,7 +425,8 @@ internal class PlayerViewModel(
                     mutable.update { it.copy(largeArtwork = picture) }
                 }
                 if (current == "PLAYING" || current == "PAUSED") {
-                    artworkLoader.fetch(saved.email, saved.password, group, PLAYER_FULL_COVER_PX)?.let { picture ->
+                    artworkLoader.fetch(saved.email, saved.password, group,
+                        PLAYER_FULL_COVER_PX, saved.endpoint)?.let { picture ->
                         mutable.update { it.copy(largeArtwork = picture) }
                     }
                 }

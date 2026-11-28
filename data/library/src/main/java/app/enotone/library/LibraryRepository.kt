@@ -1,5 +1,6 @@
 package app.enotone.library
 
+import app.enotone.android.SourceEndpoint
 import app.enotone.database.EnoToneDatabase
 import app.enotone.database.RemoteTrackEntity
 import app.enotone.playback.PersistedQueueState
@@ -19,6 +20,14 @@ data class LibrarySnapshot(
 interface LibraryRepository {
     suspend fun load(email: String): LibrarySnapshot
     suspend fun refreshAlbum(email: String, password: String, ids: List<String>): AlbumTagRefreshReport
+
+    /** Источник музыки (ADR-0106). Реализации без него остаются на источнике Mail.ru. */
+    suspend fun refreshAlbum(
+        email: String,
+        password: String,
+        ids: List<String>,
+        endpoint: SourceEndpoint,
+    ): AlbumTagRefreshReport = refreshAlbum(email, password, ids)
     suspend fun readSavedQueue(): PersistedQueueState?
 
     suspend fun saveDurationIfUnknown(
@@ -72,8 +81,15 @@ class RoomLibraryRepository(
         email: String,
         password: String,
         ids: List<String>,
+    ): AlbumTagRefreshReport = refreshAlbum(email, password, ids, SourceEndpoint.MAILRU_ALL_MUSIC)
+
+    override suspend fun refreshAlbum(
+        email: String,
+        password: String,
+        ids: List<String>,
+        endpoint: SourceEndpoint,
     ): AlbumTagRefreshReport = withContext(io) {
-        AlbumTagRefresher(database).refresh(email, password, ids)
+        AlbumTagRefresher(database).refresh(email, password, ids, endpoint)
     }
 
     override suspend fun readSavedQueue(): PersistedQueueState? =

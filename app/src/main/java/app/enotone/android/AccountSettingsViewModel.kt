@@ -19,6 +19,9 @@ private const val HTTP_STATUS_UNAUTHORIZED = 401
 private const val HTTP_STATUS_FORBIDDEN = 403
 
 /** Account I/O boundary; fake implementations run without Android/Room/WebDAV. */
+// The endpoint-aware overloads of save/verifyOutcome exist so fakes compiled
+// against the two-argument API keep working (ADR-0106, slice A1).
+@Suppress("TooManyFunctions")
 internal interface AccountSettingsGateway {
     suspend fun restore(): StoredWebDavLogin?
 
@@ -38,13 +41,25 @@ internal interface AccountSettingsGateway {
         if (verify(email, password)) AccountVerificationResult.ACCEPTED
         else AccountVerificationResult.CLOUD_UNAVAILABLE
 
+    /** Источник музыки (ADR-0106). Реализации без него остаются на источнике Mail.ru. */
+    suspend fun verifyOutcome(
+        email: String,
+        password: String,
+        endpoint: SourceEndpoint,
+    ): AccountVerificationResult = verifyOutcome(email, password)
+
     suspend fun save(email: String, password: String)
+
+    /** Источник музыки (ADR-0106). Реализации без него остаются на источнике Mail.ru. */
+    suspend fun save(email: String, password: String, endpoint: SourceEndpoint) = save(email, password)
+
     suspend fun countTracks(email: String): Int
     suspend fun signOut(email: String)
 }
 
 internal enum class AccountVerificationResult { ACCEPTED, CREDENTIALS_REJECTED, CLOUD_UNAVAILABLE }
 
+@Suppress("TooManyFunctions")
 internal class AndroidAccountSettingsGateway(
     private val context: Context,
     private val container: AppContainer,
@@ -111,13 +126,27 @@ internal class AndroidAccountSettingsGateway(
     }
 
     override suspend fun verify(email: String, password: String): Boolean =
-        verifyOutcome(email, password) == AccountVerificationResult.ACCEPTED
+        verifyOutcome(email, password, SourceEndpoint.MAILRU_ALL_MUSIC) ==
+            AccountVerificationResult.ACCEPTED
 
-    override suspend fun verifyOutcome(email: String, password: String): AccountVerificationResult =
+    override suspend fun verifyOutcome(
+        email: String,
+        password: String,
+    ): AccountVerificationResult =
+        verifyOutcome(email, password, SourceEndpoint.MAILRU_ALL_MUSIC)
+
+    override suspend fun verifyOutcome(
+        email: String,
+        password: String,
+        endpoint: SourceEndpoint,
+    ): AccountVerificationResult =
         withContext(container.io) {
             // Existing bounded WebDAV probe; this never lists/imports the music folder.
-            val status = WebDavDiagnostics().inspect(email, password).steps
-                .firstOrNull { it.operation == "PROPFIND /AllMusic" }?.httpStatus
+            // Метка папки совпадает с правилом WebDavDiagnostics: пользовательский путь наружу не идёт.
+            val folderLabel = if (endpoint.rootFolder == "/AllMusic") "PROPFIND /AllMusic"
+                else "PROPFIND folder"
+            val status = WebDavDiagnostics(endpoint).inspect(email, password).steps
+                .firstOrNull { it.operation == folderLabel }?.httpStatus
             when (status) {
                 HTTP_STATUS_MULTI_STATUS -> AccountVerificationResult.ACCEPTED
                 HTTP_STATUS_UNAUTHORIZED, HTTP_STATUS_FORBIDDEN -> AccountVerificationResult.CREDENTIALS_REJECTED
@@ -125,7 +154,10 @@ internal class AndroidAccountSettingsGateway(
             }
         }
 
-    override suspend fun save(email: String, password: String) {
+    override suspend fun save(email: String, password: String) =
+        save(email, password, SourceEndpoint.MAILRU_ALL_MUSIC)
+
+    override suspend fun save(email: String, password: String, endpoint: SourceEndpoint) {
         withContext(container.io) {
             val firstRunPreferences = FirstRunPreferences(context)
             val reauthenticationRequired = firstRunPreferences.reauthenticationRequired()
@@ -138,7 +170,7 @@ internal class AndroidAccountSettingsGateway(
             val preservingCompletedFirstRun = reauthenticationRequired &&
                 firstRunPreferences.firstRunCompleted() == true
             if (!preservingCompletedFirstRun) firstRunPreferences.setFirstRunCompleted(false)
-            LocalCredentialVault.save(context, email, password)
+            LocalCredentialVault.save(context, email, password, endpoint)
             firstRunPreferences.setReauthenticationRequired(false)
         }
         // Only publish ACTIVE after the encrypted write actually succeeds.
@@ -172,12 +204,16 @@ internal class AndroidAccountSettingsGateway(
     }
 }
 
-internal enum class AccountError { RESTORE, CONNECTION, CREDENTIALS_REJECTED, STORAGE, OTHER_ACCOUNT, SIGN_OUT }
+internal enum class AccountError {
+    RESTORE, CONNECTION, CREDENTIALS_REJECTED, STORAGE, OTHER_ACCOUNT, SIGN_OUT, BAD_FOLDER,
+}
 
 internal data class AccountUiState(
     /** Редактируемые поля формы входа: до проверки никуда не передаются. */
     val email: String = "",
     val password: String = "",
+    /** Папка с музыкой в облаке Mail.ru (ADR-0106); менять можно только до входа. */
+    val folder: String = DEFAULT_FOLDER,
     /** A reauthentication form is pinned to the saved account until the user signs out. */
     val reauthenticationEmail: String? = null,
     /** Подтверждённый вход: восстановлен из Keystore или успешно проверен и сохранён. */
@@ -207,8 +243,14 @@ internal data class AccountUiState(
     val libraryLogin: StoredWebDavLogin? get() = active.takeIf { loggedIn && !signOutFailed }
 }
 
+@Suppress("TooManyFunctions") // Account form actions (email/password/folder/verify/sign-out) are one cohesive surface.
 internal class AccountSettingsViewModel(
     private val gateway: AccountSettingsGateway,
+    /**
+     * Servername for the account form (ADR-0106). Slice A1 exposes only Cloud.Mail.ru;
+     * the folder field on top of it is user-editable.
+     */
+    private val origin: String = SourceEndpoint.MAILRU_ALL_MUSIC.origin,
 ) : ViewModel() {
     private val mutable = MutableStateFlow(AccountUiState())
     val state: StateFlow<AccountUiState> = mutable.asStateFlow()
@@ -252,7 +294,8 @@ internal class AccountSettingsViewModel(
                         // Рабочий вход — только сохранённый; правки полей во время восстановления не применяются.
                         mutable.update {
                             it.copy(email = saved.email, password = saved.password, active = saved,
-                                loggedIn = true, signOutFailed = false)
+                                folder = saved.endpoint.rootFolder.trim('/'), loggedIn = true,
+                                signOutFailed = false)
                         }
                     }
                 }
@@ -297,6 +340,16 @@ internal class AccountSettingsViewModel(
         mutable.update { it.copy(password = value, error = null) }
     }
 
+    /**
+     * Папка с музыкой (ADR-0106). Менять можно только до входа: при активном аккаунте
+     * смена источника идёт через «Выйти» → повторный вход, а не правкой поля.
+     */
+    fun onFolderChanged(value: String) {
+        val current = mutable.value
+        if (current.loggedIn || current.busy || current.signOutFailed) return
+        mutable.update { it.copy(folder = value, error = null) }
+    }
+
     /** Marks the currently presented account error as handled by the first-run sheet. */
     fun dismissError() {
         if (mutable.value.signOutFailed) return
@@ -317,14 +370,19 @@ internal class AccountSettingsViewModel(
     fun verifyConnection() {
         val current = mutable.value
         if (!current.canVerifyConnection()) return
-        if (current.belongsToAnotherAccount(activeEmail)) {
-            mutable.update { it.copy(error = AccountError.OTHER_ACCOUNT) }
-            return
+        when (val check = current.connectionCheck(activeEmail, origin)) {
+            is ConnectionCheck.Failed -> {
+                mutable.update { it.copy(error = check.error) }
+            }
+            is ConnectionCheck.Ok -> launchVerification(current, check.endpoint)
         }
+    }
+
+    private fun launchVerification(current: AccountUiState, endpoint: SourceEndpoint) {
         mutable.update { it.copy(checking = true, error = null) }
         viewModelScope.launch {
             try {
-                when (gateway.verifyOutcome(current.email, current.password)) {
+                when (gateway.verifyOutcome(current.email, current.password, endpoint)) {
                     AccountVerificationResult.CREDENTIALS_REJECTED ->
                         mutable.update { it.copy(error = AccountError.CREDENTIALS_REJECTED) }
                     AccountVerificationResult.CLOUD_UNAVAILABLE ->
@@ -335,7 +393,7 @@ internal class AccountSettingsViewModel(
                             return@launch
                         }
                         try {
-                            gateway.save(current.email, current.password)
+                            gateway.save(current.email, current.password, endpoint)
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {
@@ -345,7 +403,7 @@ internal class AccountSettingsViewModel(
                         activeEmail = current.email
                         mutable.update {
                             it.copy(loggedIn = true, error = null,
-                                active = StoredWebDavLogin(current.email, current.password),
+                                active = StoredWebDavLogin(current.email, current.password, endpoint),
                                 reauthenticationEmail = null,
                                 verifiedVersion = it.verifiedVersion + 1)
                         }
@@ -412,8 +470,8 @@ internal class AccountSettingsViewModel(
                 gateway.signOut(email)
                 activeEmail = null
                 mutable.update {
-                    it.copy(email = "", password = "", loggedIn = false, active = null, signOutFailed = false,
-                        reauthenticationEmail = null,
+                    it.copy(email = "", password = "", folder = DEFAULT_FOLDER, loggedIn = false, active = null,
+                        signOutFailed = false, reauthenticationEmail = null,
                         trackCount = 0, failureStep = null,
                         signedOutVersion = it.signedOutVersion + 1)
                 }
@@ -452,6 +510,28 @@ internal class AccountSettingsViewModel(
 
 private fun AccountUiState.canVerifyConnection(): Boolean =
     !isBusyOrMissingEmail() && password.isNotBlank() && error != AccountError.OTHER_ACCOUNT
+
+/** Build the source endpoint from the form folder; null when the folder is invalid. */
+private fun AccountUiState.sourceEndpoint(origin: String): SourceEndpoint? = runCatching {
+    SourceEndpoint.ofUserFolder(origin, folder)
+}.getOrNull()
+
+/** Outcome of validating the login form before a network probe. */
+private sealed interface ConnectionCheck {
+    data class Failed(val error: AccountError) : ConnectionCheck
+    data class Ok(val endpoint: SourceEndpoint) : ConnectionCheck
+}
+
+private fun AccountUiState.connectionCheck(activeEmail: String?, origin: String): ConnectionCheck =
+    if (belongsToAnotherAccount(activeEmail)) {
+        ConnectionCheck.Failed(AccountError.OTHER_ACCOUNT)
+    } else {
+        sourceEndpoint(origin)?.let(ConnectionCheck::Ok)
+            ?: ConnectionCheck.Failed(AccountError.BAD_FOLDER)
+    }
+
+/** Folder path shown to the user (no leading slash); the endpoint adds the root separator. */
+private const val DEFAULT_FOLDER = "AllMusic"
 
 private fun AccountUiState.isBusyOrMissingEmail(): Boolean = busy || email.isBlank() || signOutFailed
 

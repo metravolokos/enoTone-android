@@ -53,6 +53,7 @@ internal fun FirstRunExperience(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onConnect: () -> Unit,
+    onFolderChange: (String) -> Unit = {},
     onListenWhileReading: () -> Unit,
     onRetryNow: () -> Unit,
     onGoToMusic: () -> Unit,
@@ -68,6 +69,7 @@ internal fun FirstRunExperience(
                 onEmailChange = onEmailChange,
                 onPasswordChange = onPasswordChange,
                 onConnect = onConnect,
+                onFolderChange = onFolderChange,
             )
             FirstRunPhase.INDEXING -> FirstRunIndexing(
                 indexing = indexing,
@@ -103,6 +105,7 @@ private fun FirstRunLogin(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onConnect: () -> Unit,
+    onFolderChange: (String) -> Unit,
 ) {
     EnoStateView(
         pose = BanditPose.SITTING,
@@ -116,7 +119,7 @@ private fun FirstRunLogin(
         ),
         modifier = Modifier.fillMaxSize().padding(top = LOGIN_TOP_PADDING),
         content = {
-            FirstRunLoginFields(account, onEmailChange, onPasswordChange)
+            FirstRunLoginFields(account, onEmailChange, onPasswordChange, onFolderChange)
         },
     )
 }
@@ -126,6 +129,7 @@ private fun ColumnScope.FirstRunLoginFields(
     account: AccountUiState,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    onFolderChange: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -144,6 +148,15 @@ private fun ColumnScope.FirstRunLoginFields(
             label = stringResource(R.string.first_run_app_password),
             password = true,
             enabled = !account.busy && !account.signOutFailed,
+        )
+        // Папка с музыкой (ADR-0106): источник задаётся до первого импорта.
+        FirstRunField(
+            value = account.folder,
+            onValueChange = onFolderChange,
+            label = stringResource(R.string.source_folder),
+            enabled = !account.busy && !account.signOutFailed,
+            readOnly = account.reauthenticationEmail != null,
+            testTag = FIRST_RUN_FOLDER_FIELD,
         )
         // Обычный пароль Mail.ru не подходит: WebDAV требует отдельный пароль приложения.
         // Без этой подсказки первый запуск упирается в отказ без объяснения причины.
@@ -165,6 +178,10 @@ private fun ColumnScope.FirstRunLoginFields(
                 Text(stringResource(R.string.account_sign_out_failed),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall)
+            AccountError.BAD_FOLDER ->
+                Text(stringResource(R.string.source_folder_invalid),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall)
             AccountError.CONNECTION,
             AccountError.CREDENTIALS_REJECTED,
             null -> Unit
@@ -180,6 +197,7 @@ private fun FirstRunField(
     enabled: Boolean,
     password: Boolean = false,
     readOnly: Boolean = false,
+    testTag: String = if (password) FIRST_RUN_PASSWORD_FIELD else FIRST_RUN_EMAIL_FIELD,
 ) {
     val shape = RoundedCornerShape(FIELD_RADIUS)
     Column(
@@ -212,7 +230,7 @@ private fun FirstRunField(
             ),
             modifier = Modifier.fillMaxWidth()
                 .padding(top = 1.dp)
-                .testTag(if (password) FIRST_RUN_PASSWORD_FIELD else FIRST_RUN_EMAIL_FIELD)
+                .testTag(testTag)
                 .semantics { contentDescription = label },
         )
     }
@@ -345,4 +363,5 @@ private val PROGRESS_HEIGHT = 8.dp
 
 internal const val FIRST_RUN_EMAIL_FIELD = "first_run_email_field"
 internal const val FIRST_RUN_PASSWORD_FIELD = "first_run_password_field"
+internal const val FIRST_RUN_FOLDER_FIELD = "first_run_folder_field"
 internal const val FIRST_RUN_PROGRESS = "first_run_progress"

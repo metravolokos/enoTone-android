@@ -65,11 +65,14 @@ internal class ArtworkPreviewRepository(context: Context) {
         return scaled
     }
 
+    @Suppress("ReturnCount") // Существующая логика; endpoint лишь пробрасывается дальше.
     suspend fun cover(
         email: String,
         password: String,
         target: PlayingArtworkTarget,
         requestedSide: Int = 512,
+        /** Источник музыки (ADR-0106); по умолчанию — папка Mail.ru. */
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
     ): Bitmap? {
         if (email.isBlank() || password.isBlank() || target.remoteSize <= 0L) return null
         val side = requestedSide.coerceIn(1, MAX_SIDE)
@@ -91,7 +94,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             lock.lock()
             try {
                 cachedSizedCover(key, side) ?: withContext(Dispatchers.IO) {
-                    loadOrFetch(key, memoryKey, side, email, password, target, name)
+                    loadOrFetch(key, memoryKey, side, email, password, target, name, endpoint)
                 }
             } finally {
                 lock.unlock()
@@ -236,11 +239,14 @@ internal class ArtworkPreviewRepository(context: Context) {
      * Each missing candidate is checked once; transient errors are retried
      * on a later viewing or app launch, not checkpointed as no-cover.
      */
+    @Suppress("ReturnCount")
     suspend fun albumCover(
         email: String,
         password: String,
         group: AlbumArtworkGroup,
         requestedSide: Int = 512,
+        /** Источник музыки (ADR-0106); по умолчанию — папка Mail.ru. */
+        endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
     ): Bitmap? {
         if (email.isBlank() || password.isBlank() || group.targets.isEmpty()) return null
         val side = requestedSide.coerceIn(1, MAX_SIDE)
@@ -254,7 +260,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             if (chosen == NO_ART_DIGEST) return null
             for (target in group.targets) {
                 coroutineContext.ensureActive()
-                val loaded = cover(email, password, target, side)
+                val loaded = cover(email, password, target, side, endpoint)
                 if (loaded != null) {
                     val choice = sourceKey(email, target)
                     withContext(Dispatchers.IO) {
@@ -406,6 +412,7 @@ internal class ArtworkPreviewRepository(context: Context) {
 
     private fun isInvalidated(key: String) = tombstoneFile(key).isFile
 
+    @Suppress("LongParameterList", "LongMethod", "NestedBlockDepth", "ReturnCount")
     private suspend fun loadOrFetch(
         key: String,
         memoryKey: String,
@@ -414,6 +421,7 @@ internal class ArtworkPreviewRepository(context: Context) {
         password: String,
         target: PlayingArtworkTarget,
         name: String,
+        endpoint: SourceEndpoint,
     ): Bitmap? {
         try {
             migrateLegacy(key)
@@ -440,6 +448,7 @@ internal class ArtworkPreviewRepository(context: Context) {
             requestContext.ensureActive()
             var lookupCode = ArtworkLookupCode.READ_FAILED
             val raw = WebDavRangeReader(
+                endpoint = endpoint,
                 encodedPath = target.encodedPath,
                 fileSize = target.remoteSize,
                 email = email,

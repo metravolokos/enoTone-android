@@ -1,5 +1,6 @@
 package app.enotone.network
 
+import app.enotone.android.SourceEndpoint
 import org.xml.sax.Attributes
 import org.xml.sax.InputSource
 import org.xml.sax.SAXException
@@ -12,7 +13,7 @@ import java.util.Locale
 import javax.xml.XMLConstants
 import javax.xml.parsers.SAXParserFactory
 
-/** A file directly under /AllMusic. Never print paths, ETags or filenames in public diagnostics. */
+/** A file directly under the configured library folder. Never print paths, ETags or names. */
 data class RemoteAudioFile(
     val fileName: String,
     val encodedPath: String,
@@ -31,16 +32,20 @@ data class FlatWebDavListing(
 )
 
 /**
- * Streaming, namespace-aware DAV:multistatus parser for ONE Depth:1 PROPFIND of /AllMusic.
- * It does not perform network requests or recursively traverse child folders.
- * The caller owns the input stream and must close it. No input values in exception messages.
+ * Streaming, namespace-aware DAV:multistatus parser for ONE Depth:1 PROPFIND of the
+ * configured library folder. It does not perform network requests or recursively
+ * traverse child folders. The caller owns the input stream. No input values in
+ * exception messages.
  */
 class FlatWebDavListingParser(
-    rootUrl: String = "https://webdav.cloud.mail.ru/AllMusic/",
+    endpoint: SourceEndpoint = SourceEndpoint.MAILRU_ALL_MUSIC,
 ) {
-    private val root: URI = URI(rootUrl.trimEnd('/') + "/").also {
+    /** String-URL constructor kept for tests. */
+    constructor(rootUrl: String) : this(SourceEndpoint.ofUrl(rootUrl, allowLoopbackHttpForTests = true))
+
+    private val root: URI = URI(endpoint.rootUrl).also {
         require(it.isAbsolute && it.host != null && it.userInfo == null &&
-            it.query == null && it.fragment == null && it.rawPath.endsWith("/AllMusic/")) {
+            it.query == null && it.fragment == null) {
             "Invalid library root URL"
         }
     }
