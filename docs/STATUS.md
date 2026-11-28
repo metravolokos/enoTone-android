@@ -7,7 +7,7 @@
 
 ## Реализовано в `main`
 
-- **Медиатека:** WebDAV Cloud.Mail.ru, плоская `/AllMusic`, Room v7, инкрементальная фоновая индексация MP3/FLAC и постоянные обложки WebP до 1200 px.
+- **Медиатека:** WebDAV Cloud.Mail.ru, папка с музыкой задаётся пользователем (по умолчанию плоская `/AllMusic`, [ADR-0106](DECISIONS/ADR-0106-source-endpoint-model.md), PR #316), Room v7, инкрементальная фоновая индексация MP3/FLAC и постоянные обложки WebP до 1200 px.
 - **Плеер и очередь:** Media3/MediaSessionService, восстановление очереди и позиции, shuffle/repeat, редактирование очереди и просмотр playback-order. Q3 возвращает предел активной очереди к 10 000, включает весь текущий контекст в Shuffle и ставит выбранную/текущую песню первой ([ADR-0105](DECISIONS/ADR-0105-queue-10000-anchored-shuffle.md), PR #303).
 - **Android v2:** дизайн и навигация D1–D5-C в `main`; отдельная аппаратная приёмка отражена только в [SCENARIOS](SCENARIOS.md).
 - **Качество:** CI включает сборку минифицированного release APK и отчёты R8 (R-A1); R-A2 оставляет атрибуты Retrace без дополнительных enum keep-правил и добавляет mapping Stable Preview в CI на `main`. Также выполняются проверки Room, GMS, lint/detekt и соответствие ресурсов `design/`. Тулчейн сборки — Gradle 9.9.1, AGP 9.5.1, compileSdk 37 (targetSdk 36, minSdk 26 без изменений) ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
