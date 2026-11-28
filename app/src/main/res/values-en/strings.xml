@@ -224,6 +224,7 @@
     <string name="home_shuffle_all">Shuffle all</string>
     <string name="home_recently_added_albums">Recently added albums</string>
     <string name="home_recently_added_songs">Recently added songs</string>
+    <string name="home_recently_added_title">Added</string>
     <string name="home_recently_added_all">All</string>
     <string name="home_recently_added_empty_albums">No recently added albums yet</string>
     <string name="home_recently_added_empty_songs">No recently added songs yet</string>

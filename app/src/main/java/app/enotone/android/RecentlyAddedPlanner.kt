@@ -5,16 +5,25 @@ import app.enotone.library.OfflineTrackRow
 
 /** Выборка D4c использует только строки текущего локального снимка медиатеки. */
 internal object RecentlyAddedPlanner {
+    /**
+     * Порядок «недавних»: дата, когда файл впервые учтён ([OfflineTrackRow.firstSeenEpochMs]),
+     * либо, если её нет (первый импорт аккаунта, строки до Room v5), дата файла с сервера
+     * ([OfflineTrackRow.sourceModifiedEpochMs]). Обе `null` — строка не участвует.
+     */
+    private fun orderDate(row: OfflineTrackRow): Long? =
+        row.firstSeenEpochMs ?: row.sourceModifiedEpochMs
+
     fun tracks(
         tracks: List<OfflineTrackRow>,
         limit: Int = ALL_TRACKS_LIMIT,
     ): List<OfflineTrackRow> = tracks.asSequence()
-        .filter { it.firstSeenEpochMs != null }
+        .mapNotNull { row -> orderDate(row)?.let { row to it } }
         .sortedWith(
-            compareByDescending<OfflineTrackRow> { it.firstSeenEpochMs }
-                .thenBy { it.id },
+            compareByDescending<Pair<OfflineTrackRow, Long>> { it.second }
+                .thenBy { it.first.id },
         )
         .take(limit.coerceAtLeast(0))
+        .map { it.first }
         .toList()
 
     fun albums(
@@ -25,7 +34,7 @@ internal object RecentlyAddedPlanner {
         .filterNot { it.key == UNKNOWN_ALBUM_KEY }
         .mapNotNull { group ->
             val latestDate = group.trackIds.asSequence()
-                .mapNotNull { tracksById[it]?.firstSeenEpochMs }
+                .mapNotNull { tracksById[it]?.let(::orderDate) }
                 .maxOrNull()
                 ?: return@mapNotNull null
             group to latestDate

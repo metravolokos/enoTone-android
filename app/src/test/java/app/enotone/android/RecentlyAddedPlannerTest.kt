@@ -55,12 +55,48 @@ class RecentlyAddedPlannerTest {
         assertEquals(50, RecentlyAddedPlanner.albums(groups, rows).size)
     }
 
-    private fun row(id: String, title: String, firstSeenEpochMs: Long? = null) =
-        OfflineTrackRow(
-            id = id,
-            title = title,
-            artist = "",
-            album = "",
-            firstSeenEpochMs = firstSeenEpochMs,
+    /** Первый импорт аккаунта: `firstSeenEpochMs` нет ни у кого — порядок задаёт дата файла. */
+    @Test fun serverFileDateOrdersFirstImportAndOnlyDoubleUndatedRowsDropOut() {
+        val rows = listOf(
+            row("mid", "Mid", firstSeen = null, serverDate = 500L),
+            row("newest", "Newest", firstSeen = null, serverDate = 900L),
+            row("no-date", "No date"),
+            row("account-date-wins", "Wins", firstSeen = 700L, serverDate = 1L),
         )
+
+        assertEquals(listOf("newest", "account-date-wins", "mid"),
+            RecentlyAddedPlanner.tracks(rows, RecentlyAddedPlanner.HOME_TRACKS_LIMIT)
+                .map { it.id })
+    }
+
+    /** Дата аккаунта имеет приоритет; дата файла — только запасной вариант. */
+    @Test fun albumDateUsesFileDateWhenTrackingDateIsAbsent() {
+        val rows = listOf(
+            row("a", "A", firstSeen = null, serverDate = 10L),
+            row("b", "B", firstSeen = null, serverDate = 90L),
+            row("c", "C", firstSeen = null),
+        ).associateBy { it.id }
+        val groups = listOf(
+            OfflineLibraryGroup("album:a", "A", null, setOf("a")),
+            OfflineLibraryGroup("album:b", "B", null, setOf("b", "c")),
+            OfflineLibraryGroup("album:undated", "Undated", null, setOf("c")),
+        )
+
+        assertEquals(listOf("album:b", "album:a"),
+            RecentlyAddedPlanner.albums(groups, rows).map { it.key })
+    }
+
+    private fun row(
+        id: String,
+        title: String,
+        firstSeen: Long? = null,
+        serverDate: Long? = null,
+    ) = OfflineTrackRow(
+        id = id,
+        title = title,
+        artist = "",
+        album = "",
+        firstSeenEpochMs = firstSeen,
+        sourceModifiedEpochMs = serverDate,
+    )
 }

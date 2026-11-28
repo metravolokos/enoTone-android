@@ -33,6 +33,7 @@ class LocalizedUiResourcesTest {
             R.string.home_music_title, R.string.home_open_library,
             R.string.home_connect_account, R.string.library_pages_settings_button,
             R.string.home_recently_added_albums, R.string.home_recently_added_songs,
+            R.string.home_recently_added_title,
             R.string.home_recently_added_all,
             R.string.home_recently_added_empty_albums, R.string.home_recently_added_empty_songs,
             R.string.state_not_found_title, R.string.state_not_found_message,
@@ -54,7 +55,8 @@ class LocalizedUiResourcesTest {
         for (id in listOf(R.string.nav_home, R.string.settings_title,
             R.string.library_reindex_action, R.string.tag_audit_title,
             R.string.library_pages_settings_title, R.string.home_recently_added_albums,
-            R.string.home_recently_added_songs, R.string.home_recently_added_all,
+            R.string.home_recently_added_songs, R.string.home_recently_added_title,
+            R.string.home_recently_added_all,
             R.string.home_recently_added_empty_albums,
             R.string.home_recently_added_empty_songs)) {
             assertNotEquals("EN fallback to RU label: $id", ru.getString(id), en.getString(id))

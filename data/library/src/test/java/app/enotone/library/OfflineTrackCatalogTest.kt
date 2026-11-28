@@ -95,6 +95,24 @@ class OfflineTrackCatalogTest {
         }
     }
 
+    /** HTTP-дата `Last-Modified` открывает порядок «недавних» при первом импорте. */
+    @Test fun serverFileDateIsParsedFromHttpLastModifiedAndBadValuesBecomeNull() {
+        val rows = OfflineTrackCatalog.build(key, listOf(
+            track(1, "dated.flac").copy(remoteModified = "Sun, 08 Nov 2026 08:00:00 GMT"),
+            track(2, "blank.flac").copy(remoteModified = "  "),
+            track(3, "garbage.flac").copy(remoteModified = "not-a-date"),
+            track(4, "missing.flac"),
+        )).associateBy { it.id }
+        val expected = java.time.ZonedDateTime.parse(
+            "Sun, 08 Nov 2026 08:00:00 GMT",
+            java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME,
+        ).toInstant().toEpochMilli()
+        assertEquals(expected, rows.getValue("id-1").sourceModifiedEpochMs)
+        assertEquals(null, rows.getValue("id-2").sourceModifiedEpochMs)
+        assertEquals(null, rows.getValue("id-3").sourceModifiedEpochMs)
+        assertEquals(null, rows.getValue("id-4").sourceModifiedEpochMs)
+    }
+
     @Test fun durationFlowsIntoTheLocalTrackModelWithoutChangingItsUnknownValue() {
         val rows = OfflineTrackCatalog.build(key, listOf(
             track(1, "known.mp3").copy(durationMs = 187_000L),
