@@ -19,6 +19,7 @@ import app.enotone.playback.QueueEditSource
 import app.enotone.playback.QueueEditStatus
 import app.enotone.playback.QueueStateFileStore
 import app.enotone.playback.QueueTrack
+import app.enotone.playback.StagedPlaylistPlan
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -296,6 +297,7 @@ class QueueEditServiceTest {
         val controller = onMain { Robolectric.buildService(EnoTonePlaybackService::class.java).create() }
         try {
             val service = controller.get()
+            val queueIds = queue.mapTo(mutableSetOf()) { it.id }
             onMain {
                 assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
                     queue, initial, false, false))
@@ -305,8 +307,11 @@ class QueueEditServiceTest {
                 val loadedIds = (0 until service.player.mediaItemCount).map {
                     service.player.getMediaItemAt(it).mediaId
                 }
-                assertTrue(service.player.mediaItemCount > 70)
-                assertEquals(queue.map { it.id }.take(service.player.mediaItemCount), loadedIds)
+                assertTrue(service.player.mediaItemCount > 3)
+                assertTrue("selected target should load as a bounded chunk",
+                    service.player.mediaItemCount <= 3 + StagedPlaylistPlan.CHUNK_SIZE)
+                assertEquals(loadedIds.size, loadedIds.toSet().size)
+                assertTrue(loadedIds.all(queueIds::contains))
                 assertEquals(id(70), service.player.currentMediaItem?.mediaId)
                 assertEquals(PlaybackQueueSnapshot(queue.map { it.id }, 70), service.queueSnapshot)
             }
@@ -482,6 +487,7 @@ class QueueEditServiceTest {
         val persisted = requireNotNull(saved) { "edited queue should be persisted" }
         assertEquals(10_000, persisted.trackIds.size)
         assertFalse(id(0) in persisted.trackIds)
+        assertEquals(id(10_000), persisted.selectedTrackId)
         assertEquals(id(5_000), persisted.trackIds[persisted.trackIds.indexOf(id(10_000)) - 1])
         assertEquals(QueueEditSource.edited(initial.sourceKey), persisted.sourceKey)
     }
@@ -556,7 +562,9 @@ class QueueEditServiceTest {
             onMain {
                 assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
                 assertEquals(id(99), service.player.currentMediaItem?.mediaId)
-                assertEquals(100, service.loadedQueueSize)
+                assertTrue("selected target should not wait for the full timeline",
+                    service.loadedQueueSize <= 3 + StagedPlaylistPlan.CHUNK_SIZE)
+                assertEquals(service.player.mediaItemCount, service.loadedQueueSize)
                 assertEquals(PlaybackQueueSnapshot(queue.map { it.id }, 99), service.queueSnapshot)
             }
             assertEquals("only the current item and selected target may open", 2, source.openedUris.size)
@@ -592,7 +600,6 @@ class QueueEditServiceTest {
                 onMain {
                     assertEquals(Player.STATE_BUFFERING, service.player.playbackState)
                     assertTrue(service.skipToQueuePosition(99))
-                    Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(40))
                     when (action) {
                         "next" -> service.playNext()
                         "previous" -> service.playPrevious()

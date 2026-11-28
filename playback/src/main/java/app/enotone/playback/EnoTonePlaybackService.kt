@@ -33,6 +33,8 @@ open class EnoTonePlaybackService : MediaSessionService() {
     })
     private var activeRevision: String? = null
     private var layoutWritePending = false
+    private var pendingLayoutRevision: String? = null
+    private var pendingLayoutWrite: CompletableFuture<Boolean>? = null
     private var layoutGeneration = 0L
     private var queueMutation = false
 
@@ -127,6 +129,9 @@ open class EnoTonePlaybackService : MediaSessionService() {
         val position = playback.snapshotPosition(nextRevision, now)
         if (layout == null || position == null || destroyed) return
         val generation = ++layoutGeneration
+        val completion = CompletableFuture<Boolean>()
+        pendingLayoutRevision = nextRevision
+        pendingLayoutWrite = completion
         layoutWritePending = true
         pendingPositionSave?.let(handler::removeCallbacks)
         pendingPositionSave = null
@@ -134,10 +139,15 @@ open class EnoTonePlaybackService : MediaSessionService() {
             val completed = runCatching {
                 store.writeLayoutAndPosition(layout, position)
             }.isSuccess
+            completion.complete(completed)
             handler.post {
                 if (generation == layoutGeneration) {
                     // The current revision advances only after both files exist.
                     if (completed) activeRevision = nextRevision
+                    if (pendingLayoutRevision == nextRevision) {
+                        pendingLayoutRevision = null
+                        pendingLayoutWrite = null
+                    }
                     layoutWritePending = false
                     if (completed) savePosition(urgent = true)
                 }
@@ -258,11 +268,11 @@ open class EnoTonePlaybackService : MediaSessionService() {
     }
 
     val hasNext: Boolean get() = queueSnapshot?.let {
-        (playback.player.repeatMode == Player.REPEAT_MODE_ALL && it.trackIds.size > 1) ||
+        (playback.player.repeatMode == Player.REPEAT_MODE_ALL && it.trackIds.isNotEmpty()) ||
             it.currentIndex + 1 in it.trackIds.indices
     } ?: playback.player.hasNextMediaItem()
     val hasPrevious: Boolean get() = queueSnapshot?.let {
-        (playback.player.repeatMode == Player.REPEAT_MODE_ALL && it.trackIds.size > 1) ||
+        (playback.player.repeatMode == Player.REPEAT_MODE_ALL && it.trackIds.isNotEmpty()) ||
             it.currentIndex - 1 in it.trackIds.indices
     } ?: playback.player.hasPreviousMediaItem()
     val queueSize: Int get() = playback.logicalQueueSize
@@ -351,6 +361,8 @@ open class EnoTonePlaybackService : MediaSessionService() {
         activeRevision = null
         layoutGeneration++
         layoutWritePending = false
+        pendingLayoutRevision = null
+        pendingLayoutWrite = null
         queueMutation = true
         try {
             // stop() releases the SimpleCache, so the directory and the Media3 index
@@ -385,6 +397,8 @@ open class EnoTonePlaybackService : MediaSessionService() {
         activeRevision = null
         layoutGeneration++
         layoutWritePending = false
+        pendingLayoutRevision = null
+        pendingLayoutWrite = null
         queueMutation = true
         try { playback.stop() } finally { queueMutation = false }
         submitIo {
@@ -414,14 +428,43 @@ open class EnoTonePlaybackService : MediaSessionService() {
         return io.awaitTermination(timeoutMs, TimeUnit.MILLISECONDS)
     }
 
+    /**
+     * Queue the latest position behind an in-flight layout write. The completion
+     * callback cannot be used here: after onDestroy it sees `destroyed` and skips
+     * the save, while awaiting only the IO executor does not deliver that callback.
+     */
+    private fun saveFinalPositionBeforeShutdown() {
+        if (layoutWritePending) queueFinalPositionAfterLayout()
+        else savePosition(urgent = true)
+    }
+
+    private fun queueFinalPositionAfterLayout() {
+        val revision = pendingLayoutRevision
+        val layoutWrite = pendingLayoutWrite
+        val snapshot = revision?.let {
+            playback.snapshotPosition(it, System.currentTimeMillis())
+        }
+        if (revision == null || layoutWrite == null || snapshot == null) return
+        submitIo {
+            val completed = try {
+                layoutWrite.get()
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                false
+            } catch (_: Exception) {
+                false
+            }
+            if (completed) {
+                try { store.writePosition(snapshot) } catch (_: Exception) { }
+            }
+        }
+    }
+
     override fun onDestroy() {
         handler.removeCallbacks(periodicSave)
         pendingPositionSave?.let(handler::removeCallbacks)
         pendingPositionSave = null
-        // Если запись структуры ещё ожидает, финальная позиция уже входит в пару
-        // layout+position (writeLayoutAndPosition), поэтому savePosition сам её
-        // пропустит по layoutWritePending: отдельная запись позиции не нужна.
-        savePosition(urgent = true)
+        saveFinalPositionBeforeShutdown()
         playback.player.removeListener(persistenceListener)
         playback.onShuffleLayoutReady = null
         session.release()

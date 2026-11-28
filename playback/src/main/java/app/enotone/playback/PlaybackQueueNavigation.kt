@@ -9,6 +9,7 @@ internal class PlaybackQueueNavigation {
     private var pendingTrackId: String? = null
 
     val hasPendingSeek: Boolean get() = pendingTrackId != null
+    val pendingTargetId: String? get() = pendingTrackId
 
     fun updateOrder(
         originalTrackIds: List<String>,
@@ -42,7 +43,7 @@ internal class PlaybackQueueNavigation {
         val adjacent = if (forward) current + 1 else current - 1
         return when {
             adjacent in trackIds.indices -> adjacent
-            repeatAll && trackIds.size > 1 -> if (forward) 0 else trackIds.lastIndex
+            repeatAll && trackIds.isNotEmpty() -> if (forward) 0 else trackIds.lastIndex
             else -> NO_POSITION
         }
     }

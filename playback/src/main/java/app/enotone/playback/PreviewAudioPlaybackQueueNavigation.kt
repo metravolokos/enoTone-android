@@ -18,7 +18,13 @@ internal fun PreviewAudioPlayback.seekToNextInPlaybackOrder(): Boolean = when (
     else -> {
         queueNavigation.clearPendingSeek()
         noteNextButton()
-        skipToQueuePosition(next)
+        if (next == player.currentMediaItem?.mediaId?.let(queueNavigation::positionOf)) {
+            player.seekToDefaultPosition()
+            resumeAfterManualSkip()
+        } else {
+            skipToQueuePosition(next)
+        }
+        true
     }
 }
 
@@ -38,6 +44,12 @@ internal fun PreviewAudioPlayback.seekToPreviousInPlaybackOrder(): Boolean = whe
     else -> {
         queueNavigation.clearPendingSeek()
         notePreviousButton()
-        skipToQueuePosition(previous)
+        if (previous == player.currentMediaItem?.mediaId?.let(queueNavigation::positionOf)) {
+            player.seekToDefaultPosition()
+            resumeAfterManualSkip()
+        } else {
+            skipToQueuePosition(previous)
+        }
+        true
     }
 }

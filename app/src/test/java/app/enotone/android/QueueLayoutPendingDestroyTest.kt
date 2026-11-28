@@ -35,10 +35,13 @@ import java.util.UUID
  * а только что включённая (новая) терялась.
  *
  * После исправления `layoutWritePending` не сбрасывается: `savePosition` сам
- * выходит по этому флагу, а пара новой ревизии остаётся целой.
+ * выходит по этому флагу, а пара новой ревизии остаётся целой. Если до `onDestroy`
+ * трек сменился уже после снятия position snapshot, служба ставит финальную
+ * позицию новой ревизии отдельной задачей *за* записью пары; completion callback
+ * на main для этого не используется, потому что после destroy он уже ничего не сохраняет.
  *
  * Признак проверки — выбранный трек после восстановления: у новой очереди это
- * `id(2)`, у прежней — `id(1)`.
+ * `id(2)` (либо `id(3)` после последующего native Next), у прежней — `id(1)`.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -98,6 +101,34 @@ class QueueLayoutPendingDestroyTest {
             initial.queueRevision,
             read.state?.queueRevision,
         )
+        QueueStateFileStore(context).clear()
+    }
+
+    @Test fun destroyAfterNativeNextDuringPendingLayoutPersistsLatestSelectedTrack() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = QueueStateFileStore(context)
+        store.clear()
+        val initial = checkpoint()
+        store.writeLayoutAndPosition(initial.layout(), initial.position())
+
+        val controller = onMain {
+            Robolectric.buildService(EnoTonePlaybackService::class.java).create()
+        }
+        val service = controller.get()
+        onMain {
+            assertTrue(service.restoreQueue("test@example.invalid", "fixture-password",
+                (1..3).map(::track), initial, false, false))
+            service.playQueue("test@example.invalid", "fixture-password",
+                (1..3).map(::track), id(2), false, initial.sourceKey)
+            service.player.seekToNextMediaItem()
+            org.junit.Assert.assertEquals(id(3), service.player.currentMediaItem?.mediaId)
+            controller.destroy()
+        }
+        assertTrue(service.awaitQueueWritesFinished(10_000L))
+
+        val saved = store.read()
+        org.junit.Assert.assertNotNull("checkpoint should survive destroy", saved)
+        org.junit.Assert.assertEquals(id(3), saved?.selectedTrackId)
         QueueStateFileStore(context).clear()
     }
 
