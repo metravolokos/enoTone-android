@@ -3,12 +3,12 @@
 > **Порядок работ — [QUEUE](QUEUE.md).** Он главнее любых списков в других документах.
 > Короткий срез, не журнал и не очередь задач. История — [CHANGELOG](../CHANGELOG.md), статусы задач — в GitHub Issues по [WORKFLOW](WORKFLOW.md), известные ограничения — [KNOWN_ISSUES](KNOWN_ISSUES.md), решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md).
 
-**Срез:** 2026-11-28 · `main` `6f9da660` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`), переход тулчейна (#216, `351bd92`), Compose BOM (#217, `cdf8b6e`), ADR-0101 (#222, `31ff8e4`), D6-E (#232, `a66b7a0`), D6-0 (#223, PR #230, `e2007ac`), D6-F (#228, PR #233), D6-A (#225, PR #235), D6-B (#226, PR #234), D6-FR (#224, PR #236) и D6-FR2 (#229, PR #238).
+**Срез:** 2026-11-28 · `main` `1e6d1706` · версия `0.6.2`. Последние слияния: DOC-01 (#187, `d4b88eb`), восстановленный плеер (#189, `1349657`), F-01 (#194, `c930c94`), F-03 (#196, `2a425b2`), R-A1 (#198, `a0c912b`), Q1 (#199, `6091ce3`), F-04 (#206, `febbea3`), D5 LOADING (#204, `d2ca15d`), Q1-NOTICE (#210, `4697e5d`), R-A1-fix (#212, `a126505`), TEST-01 (#215, `a02fdf2`), переход тулчейна (#216, `351bd92`), Compose BOM (#217, `cdf8b6e`), ADR-0101 (#222, `31ff8e4`), D6-E (#232, `a66b7a0`), D6-0 (#223, PR #230, `e2007ac`), D6-F (#228, PR #233), D6-A (#225, PR #235), D6-B (#226, PR #234), D6-FR (#224, PR #236) и D6-FR2 (#229, PR #238).
 
 ## Реализовано в `main`
 
 - **Медиатека:** WebDAV Cloud.Mail.ru, плоская `/AllMusic`, Room v7, инкрементальная фоновая индексация MP3/FLAC и постоянные обложки WebP до 1200 px.
-- **Плеер и очередь:** Media3/MediaSessionService, восстановление очереди и позиции, shuffle/repeat, редактирование очереди и просмотр playback-order. В `main` действует предел 100 песен и безопасное восстановление длинного v1 checkpoint ([ADR-0099](DECISIONS/ADR-0099-queue-limit-100.md)).
+- **Плеер и очередь:** Media3/MediaSessionService, восстановление очереди и позиции, shuffle/repeat, редактирование очереди и просмотр playback-order. Q3 возвращает предел активной очереди к 10 000, включает весь текущий контекст в Shuffle и ставит выбранную/текущую песню первой ([ADR-0105](DECISIONS/ADR-0105-queue-10000-anchored-shuffle.md), PR #303).
 - **Android v2:** дизайн и навигация D1–D5-C в `main`; отдельная аппаратная приёмка отражена только в [SCENARIOS](SCENARIOS.md).
 - **Качество:** CI включает сборку минифицированного release APK и отчёты R8 (R-A1); R-A2 оставляет атрибуты Retrace без дополнительных enum keep-правил и добавляет mapping Stable Preview в CI на `main`. Также выполняются проверки Room, GMS, lint/detekt и соответствие ресурсов `design/`. Тулчейн сборки — Gradle 9.9.1, AGP 9.5.1, compileSdk 37 (targetSdk 36, minSdk 26 без изменений) ([ADR-0100](DECISIONS/ADR-0100-gradle9-agp9-compilesdk37.md)).
 
@@ -17,6 +17,8 @@
 Подписанная Stable Preview #301 прошла базовый smoke; владелец сообщил «Работает». Это не подтверждает отдельные сценарии, которых нет в отчёте. Их результаты ведутся только в [SCENARIOS](SCENARIOS.md).
 
 ## Последние закрытия и решения
+
+- **Q3 (#302) закрыта:** [PR #303](https://github.com/metravolokos/enoTone-android/pull/303) слит squash-коммитом `1e6d17066a77b7e7c0a06a59e5c710fa783e8f78`; exact-HEAD [CI #46087137999](https://github.com/metravolokos/enoTone-android/actions/runs/46087137999) — success, два независимых ревью — MERGE_PROPOSED. Очередь до 10 000, полный контекст Shuffle, якорь выбранной/текущей песни, target-aware staged navigation и сохранение финальной позиции при pending layout приняты по автоматическим проверкам.
 
 - **BUG-SEEK (#304) закрыта:** [PR #305](https://github.com/metravolokos/enoTone-android/pull/305) слит в `main` `2cba4ee5604d0f9ced58265271eaf367c13de341`; независимое ревью — `MERGE_PROPOSED`, post-merge [CI 46080925501](https://github.com/metravolokos/enoTone-android/actions/runs/46080925501) — success. Известная длительность текущего `mediaId` сохраняется при временном `TIME_UNSET` и последовательно используется для UI, seek и checkpoint. Регрессии покрыты `PlaybackDurationMemoryTest`, `PlaybackSeekPolicyTest`, `QueueDurationServiceTest`, `NowPlayingUiTest` и `PlaybackBufferingAssemblyTest`.
 
@@ -31,7 +33,6 @@
 
 ## Ограничения и планы
 
-- **Q3 (#302), в работе:** [PR #303](https://github.com/metravolokos/enoTone-android/pull/303) готовит очередь до 10 000, Shuffle всего текущего контекста и выбранную/текущую песню первой. Класс риска R; exact-HEAD CI и два независимых ревью ожидают.
 - #201 (D4c) — код слит, приёмка по автоматическим проверкам (ADR-0104). У песен первого импорта отсутствуют даты; решение открыто в #201.
 - DEPS-01 (#203): последний шаг обновляет Compose BOM `2026.06.00` → `2026.09.00` в ветке `deps/deps-01-step-2-compose-bom`; Foundation/UI `1.11.3` → `1.12.1`, Material3 `1.4.0` без изменений. Dependabot #88 остаётся открытым для закрытия владельцем.
 - D6 (Бандит и состояния): [ADR-0101](DECISIONS/ADR-0101-first-run-flow-error-sheet.md) принят владельцем 2026-11-19 (PR #222); D6-E (#227), ADR-0102 и процессный NetworkMonitor слиты в main через PR #232 (`a66b7a0`); D6-0 (#223) слит через PR #230 (`e2007ac`); D6-F (#228) — PR #233 (`a671015`), D6-A (#225) — PR #235 (`b0506b9`), D6-B (#226) — PR #234 (`ee591af`), D6-FR (#224) — PR #236 (`04290bc`), D6-FR2 (#229, экран «Задремал», автоповтор только после сетевой остановки, фиксированная почта при повторном входе) — PR #238, два ревью класса R. Открыто: кнопка «Продолжить» на «Читаю…» после паузы (FOLLOWUP из ревью #238); проверка чистого первого запуска на устройстве — только по команде владельца.

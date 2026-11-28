@@ -1,8 +1,8 @@
 # Playback queue — текущий контракт
 
-> **Актуально на 2026-11-28**, база `main` `6f9da660`, версия `0.6.2`; Q3 ([Issue #302](https://github.com/metravolokos/enoTone-android/issues/302)) готовится в [PR #303](https://github.com/metravolokos/enoTone-android/pull/303). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md); очередь и Shuffle — [ADR-0105](DECISIONS/ADR-0105-queue-10000-anchored-shuffle.md), ручная правка — [ADR-0089](DECISIONS/ADR-0089-queue-edit.md), сохранение — [ADR-0075](DECISIONS/ADR-0075-queue-persistence.md).
+> **Актуально на 2026-11-28**, база `main` `1e6d1706`, версия `0.6.2`; Q3 ([Issue #302](https://github.com/metravolokos/enoTone-android/issues/302)) реализован в [PR #303](https://github.com/metravolokos/enoTone-android/pull/303). Действующие решения — [CURRENT_DECISIONS](CURRENT_DECISIONS.md); очередь и Shuffle — [ADR-0105](DECISIONS/ADR-0105-queue-10000-anchored-shuffle.md), ручная правка — [ADR-0089](DECISIONS/ADR-0089-queue-edit.md), сохранение — [ADR-0075](DECISIONS/ADR-0075-queue-persistence.md).
 
-## Контракт Q3 в PR #303
+## Что работает
 
 - **Очередь в Media3.** ExoPlayer хранит контекстную очередь выбранного списка или результата локального поиска. Очередь добавляется поэтапно (staged), чтобы не блокировать первый звук формированием тысяч MediaSources.
 - **Предел активной очереди — 10 000 песен** ([ADR-0105](DECISIONS/ADR-0105-queue-10000-anchored-shuffle.md)): медиатека 3590 треков помещается целиком. Длинный список начинается с выбранной песни и следующего за ней хвоста видимого порядка; «Играть всё» берёт весь контекст; Shuffle перемешивает весь текущий контекст, а не случайную сотню.
@@ -28,4 +28,4 @@
 
 ## История
 
-Ранние утверждения о том, что очередь и позиция не восстанавливаются, относились к состоянию до M6-0/3 (PR #82). Предел 100 из ADR-0099 заменён решением владельца 2026-11-27 и ADR-0105. Контракт PR #303 — выше; устаревшие формулировки не действуют.
+Ранние утверждения о том, что очередь и позиция не восстанавливаются, относились к состоянию до M6-0/3 (PR #82). Предел 100 из ADR-0099 заменён решением владельца 2026-11-27 и ADR-0105. Контракт Q3 — выше; устаревшие формулировки не действуют.
